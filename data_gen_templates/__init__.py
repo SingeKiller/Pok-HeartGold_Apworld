@@ -9,9 +9,12 @@ built from `data_gen/game_version.toml`. Task C2 adds `data/species.py` and
 `data/moves.py`, built from `data_gen/species.toml` and `data_gen/moves.toml`
 respectively (see `data_gen_templates/species.py`, `data_gen_templates/moves.py`).
 Task C3 adds `data/items.py`, built from `data_gen/items.toml` (see
-`data_gen_templates/items.py`). Future steps (C4-C7) will add more
-`data_gen/*.toml` sources plus one `generate_*` function per generated
-module here, following the same pattern.
+`data_gen_templates/items.py`). Task C4 adds `data/regions.py` and
+`data/locations.py` (Johto only; Kanto is a future task), built from
+`data_gen/regions.toml` and `data_gen/locations.toml` (see
+`data_gen_templates/regions.py`, `data_gen_templates/locations.py`). Future
+steps will add more `data_gen/*.toml` sources plus one `generate_*` function
+per generated module here, following the same pattern.
 """
 
 from __future__ import annotations
@@ -78,7 +81,16 @@ def generate_init() -> str:
 # import time, so they must be defined above before these submodules are
 # imported.
 from .items import generate_items  # noqa: E402
+from .locations import generate_locations  # noqa: E402
 from .moves import generate_moves  # noqa: E402
+from .regions import generate_regions  # noqa: E402
 from .species import generate_species  # noqa: E402
 
-__all__ = ["generate_init", "generate_items", "generate_moves", "generate_species"]
+__all__ = [
+    "generate_init",
+    "generate_items",
+    "generate_locations",
+    "generate_moves",
+    "generate_regions",
+    "generate_species",
+]

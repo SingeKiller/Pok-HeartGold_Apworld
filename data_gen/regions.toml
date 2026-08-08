@@ -1,0 +1,1857 @@
+# data_gen/regions.toml
+#
+# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored),
+# task C4 (Johto region graph, see docs/scope.md v1). Machine-extracted;
+# see this repo's C4 handoff notes for the extraction methodology summary.
+#
+# Scope: Johto only (248 maps: routes, towns, and dungeon/interior floors).
+# Kanto is out of scope for this task (a future C5 task); region keys use
+# the same convention (lowercased include/constants/maps.h MAP_* constant,
+# minus the MAP_ prefix) so C5 can add Kanto regions without renaming
+# anything here. A handful of Johto regions (Mount Silver and its cave,
+# Victory Road, Tohjo Falls) are, per the game's own map graph, only
+# reachable via Kanto-side regions (e.g. Route 28, Route 22, Route 27) --
+# their `exits` below intentionally reference those not-yet-defined Kanto
+# region keys; data_gen_templates/regions.py must warn (not crash) on an
+# unresolved exit target, exactly like data_gen_templates/items.py does
+# for unresolved item references.
+#
+# `exits` is the *raw* connection graph only (task C4 scope) -- no access
+# rules (HM/badge/item gating) are attached yet; that's task C6.
+#
+# Methodology (two decomp sources, both mechanical):
+#   1. files/fielddata/eventdata/zone_event/*.json `warps` arrays: indoor
+#      door/staircase connections (each entry's `header` field is the
+#      destination map). Symmetrized (a warp back is assumed) since this
+#      stage only models undirected raw connectivity.
+#   2. files/fielddata/mapmatrix/map_matrix/map_matrix_0000_EVERYWHERE.bin:
+#      the shared outdoor-overworld grid (see src/map_matrix.c's
+#      MapMatrix_MapMatrixData_Load for the binary format -- width/height/
+#      section-flags/name header followed by a width*height u16 `headers`
+#      array of MAP_* ids, row-major). Adjacent grid cells with different,
+#      non-zero map ids give real outdoor route<->route/town continuity
+#      that `warps` doesn't capture (that's door-only). This is how e.g.
+#      route_29's connections to new_bark/cherrygrove/route_46 were found.
+#   3. Hand patches (not decomp-warp-derived, documented as such): the 4
+#      Ruins of Alph Unown-puzzle hidden rooms (entered/exited via a
+#      scripted mid-puzzle warp, not a static door tile, so it doesn't
+#      appear in zone_event's `warps`) are linked back to their matching
+#      entrance room; the Goldenrod <-> Saffron magnet train (a cutscene
+#      warp, not a walk-in door) is linked the same way.
+#
+# `map_code` is the decomp's own map identifier (e.g. 'R29', 'T22GYM0101',
+# 'D36R0101'), kept for cross-referencing against the decomp/ROM.
+
+[sprout_tower_1f]
+map_code = 'D15R0101'
+exits = [
+    'sprout_tower_2f',
+    'violet',
+]
+
+[sprout_tower_2f]
+map_code = 'D15R0102'
+exits = [
+    'sprout_tower_1f',
+    'sprout_tower_3f',
+]
+
+[sprout_tower_3f]
+map_code = 'D15R0103'
+exits = [
+    'sprout_tower_2f',
+]
+
+[bell_tower_1f]
+map_code = 'D17R0101'
+exits = [
+    'bell_tower_2f',
+    'bellchime_tower',
+]
+
+[bell_tower_2f]
+map_code = 'D17R0102'
+exits = [
+    'bell_tower_1f',
+    'bell_tower_3f',
+]
+
+[bell_tower_3f]
+map_code = 'D17R0103'
+exits = [
+    'bell_tower_2f',
+    'bell_tower_4f',
+]
+
+[bell_tower_4f]
+map_code = 'D17R0104'
+exits = [
+    'bell_tower_3f',
+    'bell_tower_5f',
+]
+
+[bell_tower_5f]
+map_code = 'D17R0105'
+exits = [
+    'bell_tower_4f',
+    'bell_tower_6f',
+]
+
+[bell_tower_6f]
+map_code = 'D17R0106'
+exits = [
+    'bell_tower_5f',
+    'bell_tower_7f',
+]
+
+[bell_tower_7f]
+map_code = 'D17R0107'
+exits = [
+    'bell_tower_6f',
+    'bell_tower_8f',
+    'bell_tower_9f',
+]
+
+[bell_tower_8f]
+map_code = 'D17R0108'
+exits = [
+    'bell_tower_7f',
+    'bell_tower_9f',
+]
+
+[bell_tower_9f]
+map_code = 'D17R0109'
+exits = [
+    'bell_tower_10f',
+    'bell_tower_7f',
+    'bell_tower_8f',
+]
+
+[bell_tower_roof]
+map_code = 'D17R0110'
+exits = [
+    'bell_tower_10f',
+]
+
+[bell_tower_10f]
+map_code = 'D17R0112'
+exits = [
+    'bell_tower_9f',
+    'bell_tower_roof',
+]
+
+[bellchime_tower]
+map_code = 'D17R1101'
+exits = [
+    'bell_tower_1f',
+    'ecruteak_bell_tower_barrier_station_corridor',
+]
+
+[burned_tower_1f]
+map_code = 'D18R0101'
+exits = [
+    'burned_tower_b1f',
+    'ecruteak',
+]
+
+[burned_tower_b1f]
+map_code = 'D18R0102'
+exits = [
+    'burned_tower_1f',
+]
+
+[national_park]
+map_code = 'D22R0101'
+exits = [
+    'route_35_national_park_pokeathalon_gatehouse',
+    'route_36_national_park_gatehouse',
+    'national_park_unused_gatehouse',
+]
+
+[national_park_bug_catching_contest]
+map_code = 'D22R0102'
+exits = [
+    'route_35_national_park_pokeathalon_gatehouse',
+    'route_36_national_park_gatehouse',
+    'national_park_unused_gatehouse',
+]
+
+[national_park_unused_gatehouse]
+map_code = 'D22R0201'
+exits = [
+    'national_park',
+    'national_park_bug_catching_contest',
+]
+
+[goldenrod_radio_tower_1f]
+map_code = 'D23R0101'
+exits = [
+    'goldenrod',
+    'goldenrod_radio_tower_2f',
+]
+
+[goldenrod_radio_tower_2f]
+map_code = 'D23R0102'
+exits = [
+    'goldenrod_radio_tower_1f',
+    'goldenrod_radio_tower_3f',
+]
+
+[goldenrod_radio_tower_3f]
+map_code = 'D23R0103'
+exits = [
+    'goldenrod_radio_tower_2f',
+    'goldenrod_radio_tower_4f',
+]
+
+[goldenrod_radio_tower_4f]
+map_code = 'D23R0104'
+exits = [
+    'goldenrod_radio_tower_3f',
+    'goldenrod_radio_tower_5f',
+]
+
+[goldenrod_radio_tower_5f]
+map_code = 'D23R0105'
+exits = [
+    'goldenrod_radio_tower_4f',
+    'goldenrod_radio_tower_elevator',
+]
+
+[goldenrod_radio_tower_observation_deck]
+map_code = 'D23R0106'
+exits = [
+    'goldenrod_radio_tower_elevator',
+]
+
+[goldenrod_radio_tower_elevator]
+map_code = 'D23R0107'
+exits = [
+    'goldenrod_radio_tower_5f',
+    'goldenrod_radio_tower_observation_deck',
+]
+
+[ruins_of_alph]
+map_code = 'D24R0101'
+exits = [
+    'route_32',
+    'route_32_ruins_of_alph_gatehouse',
+    'route_36',
+    'route_36_ruins_of_alph_gatehouse',
+    'ruins_of_alph_hall_entrance',
+    'ruins_of_alph_hall_entrance_sinjoh_event',
+    'ruins_of_alph_northeast_entrance_first_room',
+    'ruins_of_alph_northwest_entrance_first_room',
+    'ruins_of_alph_research_center',
+    'ruins_of_alph_southeast_entrance_first_room',
+    'ruins_of_alph_southwest_entrance_first_room',
+    'union_cave_1f',
+    'violet',
+]
+
+[ruins_of_alph_research_center]
+map_code = 'D24R0102'
+exits = [
+    'ruins_of_alph',
+]
+
+[ruins_of_alph_northeast_entrance_first_room]
+map_code = 'D24R0202'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_northeast_entrance_second_room',
+]
+
+[ruins_of_alph_northeast_hidden_room]
+map_code = 'D24R0203'
+exits = [
+    'ruins_of_alph_northeast_entrance_second_room',
+]
+
+[ruins_of_alph_southeast_entrance_first_room]
+map_code = 'D24R0204'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_southeast_entrance_second_room',
+]
+
+[ruins_of_alph_underground_hall]
+map_code = 'D24R0205'
+exits = [
+    'ruins_of_alph_hall_entrance',
+]
+
+[ruins_of_alph_southwest_entrance_first_room]
+map_code = 'D24R0206'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_southwest_entrance_second_room',
+]
+
+[ruins_of_alph_southwest_hidden_room]
+map_code = 'D24R0207'
+exits = [
+    'ruins_of_alph_southwest_entrance_second_room',
+]
+
+[ruins_of_alph_northwest_entrance_first_room]
+map_code = 'D24R0208'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_northwest_entrance_second_room',
+]
+
+[ruins_of_alph_northwest_hidden_room]
+map_code = 'D24R0209'
+exits = [
+    'ruins_of_alph_northwest_entrance_second_room',
+]
+
+[ruins_of_alph_southeast_hidden_room]
+map_code = 'D24R0210'
+exits = [
+    'ruins_of_alph_southeast_entrance_second_room',
+]
+
+[ruins_of_alph_hall_entrance]
+map_code = 'D24R0211'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_underground_hall',
+    'ruins_of_alph_underground_hall_sinjoh_event',
+]
+
+[ruins_of_alph_northeast_entrance_second_room]
+map_code = 'D24R0212'
+exits = [
+    'ruins_of_alph_northeast_entrance_first_room',
+    'ruins_of_alph_northeast_hidden_room',
+]
+
+[ruins_of_alph_southeast_entrance_second_room]
+map_code = 'D24R0213'
+exits = [
+    'ruins_of_alph_southeast_entrance_first_room',
+    'ruins_of_alph_southeast_hidden_room',
+]
+
+[ruins_of_alph_northwest_entrance_second_room]
+map_code = 'D24R0214'
+exits = [
+    'ruins_of_alph_northwest_entrance_first_room',
+    'ruins_of_alph_northwest_hidden_room',
+]
+
+[ruins_of_alph_southwest_entrance_second_room]
+map_code = 'D24R0215'
+exits = [
+    'ruins_of_alph_southwest_entrance_first_room',
+    'ruins_of_alph_southwest_hidden_room',
+]
+
+[ruins_of_alph_underground_hall_sinjoh_event]
+map_code = 'D24R0216'
+exits = [
+    'ruins_of_alph_hall_entrance',
+]
+
+[ruins_of_alph_hall_entrance_sinjoh_event]
+map_code = 'D24R0217'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_underground_hall_sinjoh_event_2',
+]
+
+[ruins_of_alph_underground_hall_sinjoh_event_2]
+map_code = 'D24R0218'
+exits = [
+    'ruins_of_alph_hall_entrance_sinjoh_event',
+]
+
+[union_cave_1f]
+map_code = 'D25R0101'
+exits = [
+    'route_32',
+    'route_33',
+    'ruins_of_alph',
+    'union_cave_b1f',
+    'union_cave_b2f',
+]
+
+[union_cave_b1f]
+map_code = 'D25R0102'
+exits = [
+    'union_cave_1f',
+    'union_cave_b2f',
+]
+
+[union_cave_b2f]
+map_code = 'D25R0103'
+exits = [
+    'union_cave_1f',
+    'union_cave_b1f',
+]
+
+[slowpoke_well_entrance]
+map_code = 'D26R0101'
+exits = [
+    'azalea',
+    'slowpoke_well_b1f',
+]
+
+[slowpoke_well_b1f]
+map_code = 'D26R0102'
+exits = [
+    'slowpoke_well_b2f',
+    'slowpoke_well_entrance',
+]
+
+[slowpoke_well_b2f]
+map_code = 'D26R0103'
+exits = [
+    'slowpoke_well_b1f',
+]
+
+[olivine_lighthouse_1f]
+map_code = 'D27R0101'
+exits = [
+    'olivine',
+    'olivine_lighthouse_2f',
+    'olivine_lighthouse_elevator',
+]
+
+[olivine_lighthouse_2f]
+map_code = 'D27R0102'
+exits = [
+    'olivine_lighthouse_1f',
+    'olivine_lighthouse_3f',
+]
+
+[olivine_lighthouse_exterior]
+map_code = 'D27R0103'
+exits = [
+    'olivine_lighthouse_3f',
+]
+
+[olivine_lighthouse_3f]
+map_code = 'D27R0104'
+exits = [
+    'olivine_lighthouse_2f',
+    'olivine_lighthouse_4f',
+    'olivine_lighthouse_exterior',
+]
+
+[olivine_lighthouse_4f]
+map_code = 'D27R0105'
+exits = [
+    'olivine_lighthouse_3f',
+    'olivine_lighthouse_5f',
+]
+
+[olivine_lighthouse_5f]
+map_code = 'D27R0106'
+exits = [
+    'olivine_lighthouse_4f',
+    'olivine_lighthouse_light_room',
+]
+
+[olivine_lighthouse_light_room]
+map_code = 'D27R0107'
+exits = [
+    'olivine_lighthouse_5f',
+    'olivine_lighthouse_elevator',
+]
+
+[olivine_lighthouse_elevator]
+map_code = 'D27R0108'
+exits = [
+    'olivine_lighthouse_1f',
+    'olivine_lighthouse_light_room',
+]
+
+[mahogany_souvenir_shop]
+map_code = 'D35R0101'
+exits = [
+    'mahogany',
+    'team_rocket_headquarters_b1f',
+]
+
+[team_rocket_headquarters_b1f]
+map_code = 'D35R0102'
+exits = [
+    'mahogany_souvenir_shop',
+    'team_rocket_headquarters_b2f',
+]
+
+[team_rocket_headquarters_b2f]
+map_code = 'D35R0103'
+exits = [
+    'team_rocket_headquarters_b1f',
+    'team_rocket_headquarters_b3f',
+]
+
+[team_rocket_headquarters_b3f]
+map_code = 'D35R0104'
+exits = [
+    'team_rocket_headquarters_b2f',
+]
+
+[ilex_forest]
+map_code = 'D36R0101'
+exits = [
+    'azalea_ilex_forest_gatehouse',
+    'route_34_ilex_forest_gatehouse',
+]
+
+[goldenrod_tunnel_1f]
+map_code = 'D37R0101'
+exits = [
+    'goldenrod',
+    'goldenrod_tunnel_b1f',
+    'goldenrod_tunnel_b2f',
+]
+
+[goldenrod_tunnel_b1f]
+map_code = 'D37R0102'
+exits = [
+    'goldenrod_tunnel_1f',
+]
+
+[goldenrod_department_store_basement]
+map_code = 'D37R0103'
+exits = [
+    'goldenrod_department_store_elevator',
+    'goldenrod_tunnel_warehouse',
+]
+
+[goldenrod_tunnel_b2f]
+map_code = 'D37R0104'
+exits = [
+    'goldenrod_tunnel_1f',
+    'goldenrod_tunnel_warehouse',
+]
+
+[goldenrod_tunnel_warehouse]
+map_code = 'D37R0105'
+exits = [
+    'goldenrod_department_store_basement',
+    'goldenrod_tunnel_b2f',
+]
+
+[mount_mortar_1f_entrance]
+map_code = 'D38R0101'
+exits = [
+    'mount_mortar_1f_back',
+    'mount_mortar_2f',
+    'mount_mortar_b1f',
+    'route_42',
+]
+
+[mount_mortar_1f_back]
+map_code = 'D38R0102'
+exits = [
+    'mount_mortar_1f_entrance',
+    'mount_mortar_2f',
+    'mount_mortar_b1f',
+]
+
+[mount_mortar_2f]
+map_code = 'D38R0103'
+exits = [
+    'mount_mortar_1f_back',
+    'mount_mortar_1f_entrance',
+]
+
+[mount_mortar_b1f]
+map_code = 'D38R0104'
+exits = [
+    'mount_mortar_1f_back',
+    'mount_mortar_1f_entrance',
+]
+
+[ice_path_1f]
+map_code = 'D39R0101'
+exits = [
+    'blackthorn',
+    'ice_path_b1f',
+    'route_44',
+]
+
+[ice_path_b1f]
+map_code = 'D39R0102'
+exits = [
+    'ice_path_1f',
+    'ice_path_b2f',
+]
+
+[ice_path_b2f]
+map_code = 'D39R0103'
+exits = [
+    'ice_path_b1f',
+    'ice_path_b3f',
+]
+
+[ice_path_b3f]
+map_code = 'D39R0104'
+exits = [
+    'ice_path_b2f',
+]
+
+[whirl_islands_1f]
+map_code = 'D40R0101'
+exits = [
+    'route_41',
+    'whirl_islands_b1f',
+]
+
+[whirl_islands_b1f]
+map_code = 'D40R0102'
+exits = [
+    'whirl_islands_1f',
+    'whirl_islands_b2f',
+]
+
+[whirl_islands_b2f]
+map_code = 'D40R0104'
+exits = [
+    'whirl_islands_b1f',
+    'whirl_islands_b3f',
+    'whirl_islands_b3f_lugia_cave',
+]
+
+[whirl_islands_b3f]
+map_code = 'D40R0106'
+exits = [
+    'whirl_islands_b2f',
+]
+
+[whirl_islands_b3f_lugia_cave]
+map_code = 'D40R0107'
+exits = [
+    'whirl_islands_b2f',
+]
+
+[mount_silver_cave_1f]
+map_code = 'D41R0101'
+exits = [
+    'mount_silver',
+    'mount_silver_cave_2f',
+    'mount_silver_cave_expert_belt_chamber',
+    'mount_silver_cave_lower_mountainside',
+    'mount_silver_cave_moltres_chamber',
+]
+
+[mount_silver_cave_upper_mountainside]
+map_code = 'D41R0102'
+exits = [
+    'mount_silver_cave_2f',
+    'mount_silver_cave_3f',
+]
+
+[mount_silver_cave_lower_mountainside]
+map_code = 'D41R0103'
+exits = [
+    'mount_silver_cave_1f',
+]
+
+[mount_silver_cave_expert_belt_chamber]
+map_code = 'D41R0104'
+exits = [
+    'mount_silver_cave_1f',
+]
+
+[mount_silver_cave_moltres_chamber]
+map_code = 'D41R0105'
+exits = [
+    'mount_silver_cave_1f',
+]
+
+[mount_silver_cave_2f]
+map_code = 'D41R0106'
+exits = [
+    'mount_silver_cave_1f',
+    'mount_silver_cave_upper_mountainside',
+]
+
+[mount_silver_cave_3f]
+map_code = 'D41R0107'
+exits = [
+    'mount_silver_cave_summit',
+    'mount_silver_cave_upper_mountainside',
+]
+
+[mount_silver_cave_summit]
+map_code = 'D41R0108'
+exits = [
+    'mount_silver_cave_3f',
+]
+
+[dark_cave_route_45_side]
+map_code = 'D42R0101'
+exits = [
+    'dark_cave_route_31_side',
+    'route_45',
+]
+
+[dark_cave_route_31_side]
+map_code = 'D42R0102'
+exits = [
+    'dark_cave_route_45_side',
+    'route_31',
+    'route_46',
+]
+
+[victory_road_1f]
+map_code = 'D43R0101'
+exits = [
+    'route_22_pokemon_league_reception_gate',
+    'victory_road_2f',
+]
+
+[victory_road_2f]
+map_code = 'D43R0102'
+exits = [
+    'victory_road_1f',
+    'victory_road_3f',
+]
+
+[victory_road_3f]
+map_code = 'D43R0103'
+exits = [
+    'indigo_plateau',
+    'victory_road_2f',
+]
+
+[dragons_den_entrance]
+map_code = 'D44R0101'
+exits = [
+    'blackthorn',
+    'dragons_den',
+]
+
+[dragons_den]
+map_code = 'D44R0102'
+exits = [
+    'dragons_den_entrance',
+    'dragons_den_shrine',
+]
+
+[dragons_den_shrine]
+map_code = 'D44R0103'
+exits = [
+    'dragons_den',
+]
+
+[tohjo_falls]
+map_code = 'D45R0101'
+exits = [
+    'route_27',
+    'tohjo_falls_hidden_room',
+]
+
+[tohjo_falls_hidden_room]
+map_code = 'D45R0102'
+exits = [
+    'tohjo_falls',
+]
+
+[route_29]
+map_code = 'R29'
+exits = [
+    'cherrygrove',
+    'new_bark',
+    'route_29_route_46_gatehouse',
+    'route_46',
+]
+
+[route_29_route_46_gatehouse]
+map_code = 'R29R0101'
+exits = [
+    'route_29',
+    'route_46',
+]
+
+[route_30]
+map_code = 'R30'
+exits = [
+    'cherrygrove',
+    'route_30_apricorn_house',
+    'route_30_mr_pokemon_house',
+    'route_31',
+]
+
+[route_30_apricorn_house]
+map_code = 'R30R0101'
+exits = [
+    'route_30',
+]
+
+[route_30_mr_pokemon_house]
+map_code = 'R30R0201'
+exits = [
+    'route_30',
+]
+
+[route_31]
+map_code = 'R31'
+exits = [
+    'dark_cave_route_31_side',
+    'route_30',
+    'route_31_violet_gatehouse',
+    'violet',
+]
+
+[route_31_violet_gatehouse]
+map_code = 'R31R0101'
+exits = [
+    'route_31',
+    'violet',
+]
+
+[route_32]
+map_code = 'R32'
+exits = [
+    'route_32_pokecenter_1f',
+    'route_32_ruins_of_alph_gatehouse',
+    'route_33',
+    'ruins_of_alph',
+    'union_cave_1f',
+    'violet',
+]
+
+[route_32_pokecenter_1f]
+map_code = 'R32PC0101'
+exits = [
+    'route_32',
+    'route_32_pokecenter_b1f',
+]
+
+[route_32_pokecenter_b1f]
+map_code = 'R32PC0102'
+exits = [
+    'route_32_pokecenter_1f',
+]
+
+[route_32_ruins_of_alph_gatehouse]
+map_code = 'R32R0101'
+exits = [
+    'route_32',
+    'ruins_of_alph',
+]
+
+[route_33]
+map_code = 'R33'
+exits = [
+    'azalea',
+    'route_32',
+    'union_cave_1f',
+]
+
+[route_34]
+map_code = 'R34'
+exits = [
+    'azalea',
+    'goldenrod',
+    'route_34_daycare',
+    'route_34_ilex_forest_gatehouse',
+]
+
+[route_34_daycare]
+map_code = 'R34R0101'
+exits = [
+    'route_34',
+]
+
+[route_34_ilex_forest_gatehouse]
+map_code = 'R34R0201'
+exits = [
+    'ilex_forest',
+    'route_34',
+]
+
+[route_35]
+map_code = 'R35'
+exits = [
+    'goldenrod',
+    'route_35_goldenrod_gatehouse',
+    'route_35_national_park_pokeathalon_gatehouse',
+    'route_36',
+]
+
+[route_35_goldenrod_gatehouse]
+map_code = 'R35R0101'
+exits = [
+    'goldenrod',
+    'route_35',
+]
+
+[route_35_national_park_pokeathalon_gatehouse]
+map_code = 'R35R0201'
+exits = [
+    'national_park',
+    'national_park_bug_catching_contest',
+    'pokeathlon_dome',
+    'route_35',
+]
+
+[route_36]
+map_code = 'R36'
+exits = [
+    'route_35',
+    'route_36_national_park_gatehouse',
+    'route_36_ruins_of_alph_gatehouse',
+    'route_37',
+    'ruins_of_alph',
+    'violet',
+    'violet_route_36_gatehouse',
+]
+
+[route_36_ruins_of_alph_gatehouse]
+map_code = 'R36R0101'
+exits = [
+    'route_36',
+    'ruins_of_alph',
+]
+
+[route_36_national_park_gatehouse]
+map_code = 'R36R0201'
+exits = [
+    'national_park',
+    'national_park_bug_catching_contest',
+    'route_36',
+]
+
+[route_37]
+map_code = 'R37'
+exits = [
+    'ecruteak',
+    'route_36',
+]
+
+[route_38]
+map_code = 'R38'
+exits = [
+    'ecruteak',
+    'route_38_ecruteak_gatehouse',
+    'route_39',
+]
+
+[route_38_ecruteak_gatehouse]
+map_code = 'R38R0101'
+exits = [
+    'ecruteak',
+    'route_38',
+]
+
+[route_39]
+map_code = 'R39'
+exits = [
+    'olivine',
+    'route_38',
+    'route_39_moomoo_farm_house',
+    'route_39_moomoo_farm_stable',
+]
+
+[route_39_moomoo_farm_house]
+map_code = 'R39R0101'
+exits = [
+    'route_39',
+    'route_39_moomoo_farm_stable',
+]
+
+[route_39_moomoo_farm_stable]
+map_code = 'R39R0201'
+exits = [
+    'route_39',
+    'route_39_moomoo_farm_house',
+]
+
+[route_42]
+map_code = 'R42'
+exits = [
+    'ecruteak',
+    'mahogany',
+    'mount_mortar_1f_entrance',
+    'route_42_ecruteak_gatehouse',
+]
+
+[route_42_ecruteak_gatehouse]
+map_code = 'R42R0101'
+exits = [
+    'ecruteak',
+    'route_42',
+]
+
+[route_43]
+map_code = 'R43'
+exits = [
+    'lake_of_rage',
+    'mahogany',
+    'route_43_gatehouse',
+    'route_43_mahogany_gatehouse',
+]
+
+[route_43_mahogany_gatehouse]
+map_code = 'R43R0101'
+exits = [
+    'mahogany',
+    'route_43',
+]
+
+[route_43_gatehouse]
+map_code = 'R43R0201'
+exits = [
+    'route_43',
+]
+
+[route_44]
+map_code = 'R44'
+exits = [
+    'blackthorn',
+    'ice_path_1f',
+    'mahogany',
+]
+
+[route_45]
+map_code = 'R45'
+exits = [
+    'blackthorn',
+    'dark_cave_route_45_side',
+    'route_46',
+]
+
+[route_46]
+map_code = 'R46'
+exits = [
+    'dark_cave_route_31_side',
+    'route_29',
+    'route_29_route_46_gatehouse',
+    'route_45',
+]
+
+[route_47]
+map_code = 'R47'
+exits = [
+    'cianwood',
+    'cliff_cave',
+    'cliff_edge_gate',
+    'embedded_tower_groudon_room',
+    'embedded_tower_kyogre_room',
+    'embedded_tower_rayquaza_room',
+    'route_48',
+]
+
+[route_48]
+map_code = 'R48'
+exits = [
+    'route_47',
+    'safari_zone_gate',
+]
+
+[new_bark]
+map_code = 'T20'
+exits = [
+    'new_bark_elms_lab_1f',
+    'new_bark_elms_lab_2f',
+    'new_bark_player_house_1f',
+    'new_bark_rival_house_1f',
+    'new_bark_southwest_house',
+    'route_27',
+    'route_29',
+]
+
+[new_bark_elms_lab_1f]
+map_code = 'T20R0101'
+exits = [
+    'new_bark',
+]
+
+[new_bark_elms_lab_2f]
+map_code = 'T20R0102'
+exits = [
+    'new_bark',
+]
+
+[new_bark_player_house_1f]
+map_code = 'T20R0201'
+exits = [
+    'new_bark',
+    'new_bark_player_house_2f',
+]
+
+[new_bark_player_house_2f]
+map_code = 'T20R0202'
+exits = [
+    'new_bark_player_house_1f',
+]
+
+[new_bark_southwest_house]
+map_code = 'T20R0301'
+exits = [
+    'new_bark',
+]
+
+[new_bark_rival_house_1f]
+map_code = 'T20R0401'
+exits = [
+    'new_bark',
+    'new_bark_rival_house_2f',
+]
+
+[new_bark_rival_house_2f]
+map_code = 'T20R0402'
+exits = [
+    'new_bark_rival_house_1f',
+]
+
+[cherrygrove]
+map_code = 'T21'
+exits = [
+    'cherrygrove_guide_gent_house',
+    'cherrygrove_pokecenter_1f',
+    'cherrygrove_pokemart',
+    'cherrygrove_southeast_house',
+    'cherrygrove_southwest_house',
+    'route_29',
+    'route_30',
+]
+
+[cherrygrove_pokemart]
+map_code = 'T21FS0101'
+exits = [
+    'cherrygrove',
+]
+
+[cherrygrove_pokecenter_1f]
+map_code = 'T21PC0101'
+exits = [
+    'cherrygrove',
+    'cherrygrove_pokecenter_b1f',
+]
+
+[cherrygrove_pokecenter_b1f]
+map_code = 'T21PC0102'
+exits = [
+    'cherrygrove_pokecenter_1f',
+]
+
+[cherrygrove_southwest_house]
+map_code = 'T21R0301'
+exits = [
+    'cherrygrove',
+]
+
+[cherrygrove_guide_gent_house]
+map_code = 'T21R0401'
+exits = [
+    'cherrygrove',
+]
+
+[cherrygrove_southeast_house]
+map_code = 'T21R0501'
+exits = [
+    'cherrygrove',
+]
+
+[violet]
+map_code = 'T22'
+exits = [
+    'route_31',
+    'route_31_violet_gatehouse',
+    'route_32',
+    'route_36',
+    'ruins_of_alph',
+    'sprout_tower_1f',
+    'violet_bellsprout_onyx_trade_house',
+    'violet_gym',
+    'violet_northwest_house',
+    'violet_pokecenter_1f',
+    'violet_pokemart',
+    'violet_pokemon_school',
+    'violet_route_36_gatehouse',
+]
+
+[violet_pokemart]
+map_code = 'T22FS0101'
+exits = [
+    'violet',
+]
+
+[violet_gym]
+map_code = 'T22GYM0101'
+exits = [
+    'violet',
+]
+
+[violet_pokecenter_1f]
+map_code = 'T22PC0101'
+exits = [
+    'violet',
+    'violet_pokecenter_b1f',
+]
+
+[violet_pokecenter_b1f]
+map_code = 'T22PC0102'
+exits = [
+    'violet_pokecenter_1f',
+]
+
+[violet_pokemon_school]
+map_code = 'T22R0301'
+exits = [
+    'violet',
+]
+
+[violet_northwest_house]
+map_code = 'T22R0401'
+exits = [
+    'violet',
+]
+
+[violet_bellsprout_onyx_trade_house]
+map_code = 'T22R0601'
+exits = [
+    'violet',
+]
+
+[violet_route_36_gatehouse]
+map_code = 'T22R0701'
+exits = [
+    'route_36',
+    'violet',
+]
+
+[azalea]
+map_code = 'T23'
+exits = [
+    'azalea_charcoal_kiln',
+    'azalea_gym_entrance',
+    'azalea_ilex_forest_gatehouse',
+    'azalea_kurt_house',
+    'azalea_pokecenter_1f',
+    'azalea_pokemart',
+    'route_33',
+    'route_34',
+    'slowpoke_well_entrance',
+]
+
+[azalea_pokemart]
+map_code = 'T23FS0101'
+exits = [
+    'azalea',
+]
+
+[azalea_gym_entrance]
+map_code = 'T23GYM0101'
+exits = [
+    'azalea',
+    'azalea_gym',
+]
+
+[azalea_gym]
+map_code = 'T23GYM0102'
+exits = [
+    'azalea_gym_entrance',
+]
+
+[azalea_pokecenter_1f]
+map_code = 'T23PC0101'
+exits = [
+    'azalea',
+    'azalea_pokecenter_b1f',
+]
+
+[azalea_pokecenter_b1f]
+map_code = 'T23PC0102'
+exits = [
+    'azalea_pokecenter_1f',
+]
+
+[azalea_ilex_forest_gatehouse]
+map_code = 'T23R0101'
+exits = [
+    'azalea',
+    'ilex_forest',
+]
+
+[azalea_charcoal_kiln]
+map_code = 'T23R0201'
+exits = [
+    'azalea',
+]
+
+[azalea_kurt_house]
+map_code = 'T23R0501'
+exits = [
+    'azalea',
+]
+
+[cianwood]
+map_code = 'T24'
+exits = [
+    'cianwood_camerons_house',
+    'cianwood_central_house',
+    'cianwood_gym',
+    'cianwood_kirks_house',
+    'cianwood_north_house',
+    'cianwood_pharmacy',
+    'cianwood_pokecenter_1f',
+    'cliff_edge_gate',
+    'route_41',
+    'route_47',
+]
+
+[cianwood_gym]
+map_code = 'T24GYM0101'
+exits = [
+    'cianwood',
+]
+
+[cianwood_pokecenter_1f]
+map_code = 'T24PC0101'
+exits = [
+    'cianwood',
+    'cianwood_pokecenter_b1f',
+]
+
+[cianwood_pokecenter_b1f]
+map_code = 'T24PC0102'
+exits = [
+    'cianwood_pokecenter_1f',
+]
+
+[cianwood_kirks_house]
+map_code = 'T24R0201'
+exits = [
+    'cianwood',
+]
+
+[cianwood_pharmacy]
+map_code = 'T24R0501'
+exits = [
+    'cianwood',
+]
+
+[cianwood_camerons_house]
+map_code = 'T24R0601'
+exits = [
+    'cianwood',
+]
+
+[cianwood_central_house]
+map_code = 'T24R0701'
+exits = [
+    'cianwood',
+]
+
+[cianwood_north_house]
+map_code = 'T24R0801'
+exits = [
+    'cianwood',
+]
+
+[goldenrod]
+map_code = 'T25'
+exits = [
+    'goldenrod_bike_shop',
+    'goldenrod_bills_house',
+    'goldenrod_department_store_1f',
+    'goldenrod_flower_shop',
+    'goldenrod_friendship_checker_house',
+    'goldenrod_game_corner',
+    'goldenrod_game_corner_jp',
+    'goldenrod_global_terminal_1f',
+    'goldenrod_gym',
+    'goldenrod_magnet_train_station_1f',
+    'goldenrod_name_rater_house',
+    'goldenrod_northeast_house',
+    'goldenrod_pokecenter_1f',
+    'goldenrod_radio_tower_1f',
+    'goldenrod_tunnel_1f',
+    'route_34',
+    'route_35',
+    'route_35_goldenrod_gatehouse',
+]
+
+[goldenrod_gym]
+map_code = 'T25GYM0101'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_pokecenter_1f]
+map_code = 'T25PC0101'
+exits = [
+    'goldenrod',
+    'goldenrod_pokecenter_b1f',
+]
+
+[goldenrod_pokecenter_b1f]
+map_code = 'T25PC0102'
+exits = [
+    'goldenrod_pokecenter_1f',
+]
+
+[goldenrod_bike_shop]
+map_code = 'T25R0201'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_friendship_checker_house]
+map_code = 'T25R0301'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_bills_house]
+map_code = 'T25R0401'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_magnet_train_station_1f]
+map_code = 'T25R0501'
+exits = [
+    'goldenrod',
+    'goldenrod_magnet_train_station_2f_empty',
+]
+
+[goldenrod_magnet_train_station_2f]
+map_code = 'T25R0502'
+exits = [
+    'saffron_magnet_train_station_2f',
+]
+
+[goldenrod_magnet_train_station_2f_empty]
+map_code = 'T25R0503'
+exits = [
+    'goldenrod_magnet_train_station_1f',
+]
+
+[goldenrod_flower_shop]
+map_code = 'T25R0601'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_northeast_house]
+map_code = 'T25R0801'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_name_rater_house]
+map_code = 'T25R0901'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_department_store_1f]
+map_code = 'T25R1001'
+exits = [
+    'goldenrod',
+    'goldenrod_department_store_2f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_2f]
+map_code = 'T25R1002'
+exits = [
+    'goldenrod_department_store_1f',
+    'goldenrod_department_store_3f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_3f]
+map_code = 'T25R1003'
+exits = [
+    'goldenrod_department_store_2f',
+    'goldenrod_department_store_4f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_4f]
+map_code = 'T25R1004'
+exits = [
+    'goldenrod_department_store_3f',
+    'goldenrod_department_store_5f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_5f]
+map_code = 'T25R1005'
+exits = [
+    'goldenrod_department_store_4f',
+    'goldenrod_department_store_6f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_6f]
+map_code = 'T25R1006'
+exits = [
+    'goldenrod_department_store_5f',
+    'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_elevator]
+map_code = 'T25R1007'
+exits = [
+    'goldenrod_department_store_1f',
+    'goldenrod_department_store_2f',
+    'goldenrod_department_store_3f',
+    'goldenrod_department_store_4f',
+    'goldenrod_department_store_5f',
+    'goldenrod_department_store_6f',
+    'goldenrod_department_store_basement',
+]
+
+[goldenrod_game_corner_jp]
+map_code = 'T25R1101'
+exits = [
+    'goldenrod',
+]
+
+[goldenrod_global_terminal_1f]
+map_code = 'T25R1201'
+exits = [
+    'goldenrod',
+    'goldenrod_global_terminal_2f',
+    'goldenrod_global_terminal_3f',
+]
+
+[goldenrod_global_terminal_2f]
+map_code = 'T25R1202'
+exits = [
+    'goldenrod_global_terminal_1f',
+    'goldenrod_global_terminal_3f',
+]
+
+[goldenrod_global_terminal_3f]
+map_code = 'T25R1203'
+exits = [
+    'goldenrod_global_terminal_1f',
+    'goldenrod_global_terminal_2f',
+]
+
+[goldenrod_game_corner]
+map_code = 'T25SP0101'
+exits = [
+    'goldenrod',
+]
+
+[olivine]
+map_code = 'T26'
+exits = [
+    'olivine_cafe',
+    'olivine_gym',
+    'olivine_lighthouse_1f',
+    'olivine_north_house',
+    'olivine_northeast_house',
+    'olivine_northwest_house',
+    'olivine_pokecenter_1f',
+    'olivine_pokemart',
+    'route_39',
+    'route_40',
+    'ss_aqua_olivine_port_interior',
+]
+
+[olivine_pokemart]
+map_code = 'T26FS0101'
+exits = [
+    'olivine',
+]
+
+[olivine_gym]
+map_code = 'T26GYM0101'
+exits = [
+    'olivine',
+]
+
+[olivine_pokecenter_1f]
+map_code = 'T26PC0101'
+exits = [
+    'olivine',
+    'olivine_pokecenter_b1f',
+]
+
+[olivine_pokecenter_b1f]
+map_code = 'T26PC0102'
+exits = [
+    'olivine_pokecenter_1f',
+]
+
+[olivine_north_house]
+map_code = 'T26R0301'
+exits = [
+    'olivine',
+]
+
+[olivine_northeast_house]
+map_code = 'T26R0501'
+exits = [
+    'olivine',
+]
+
+[olivine_northwest_house]
+map_code = 'T26R0601'
+exits = [
+    'olivine',
+]
+
+[olivine_cafe]
+map_code = 'T26R0701'
+exits = [
+    'olivine',
+]
+
+[ecruteak]
+map_code = 'T27'
+exits = [
+    'burned_tower_1f',
+    'ecruteak_bell_tower_barrier_station',
+    'ecruteak_dance_theater',
+    'ecruteak_dowsing_machine_house',
+    'ecruteak_gym',
+    'ecruteak_pokecenter_1f',
+    'ecruteak_pokemart',
+    'ecruteak_southwest_house',
+    'route_37',
+    'route_38',
+    'route_38_ecruteak_gatehouse',
+    'route_42',
+    'route_42_ecruteak_gatehouse',
+]
+
+[ecruteak_pokemart]
+map_code = 'T27FS0101'
+exits = [
+    'ecruteak',
+]
+
+[ecruteak_gym]
+map_code = 'T27GYM0101'
+exits = [
+    'ecruteak',
+]
+
+[ecruteak_pokecenter_1f]
+map_code = 'T27PC0101'
+exits = [
+    'ecruteak',
+    'ecruteak_pokecenter_b1f',
+    'union',
+]
+
+[ecruteak_pokecenter_b1f]
+map_code = 'T27PC0105'
+exits = [
+    'ecruteak_pokecenter_1f',
+]
+
+[ecruteak_bell_tower_barrier_station]
+map_code = 'T27R0201'
+exits = [
+    'ecruteak',
+    'ecruteak_bell_tower_barrier_station_corridor',
+]
+
+[ecruteak_bell_tower_barrier_station_corridor]
+map_code = 'T27R0202'
+exits = [
+    'bellchime_tower',
+    'ecruteak_bell_tower_barrier_station',
+]
+
+[ecruteak_southwest_house]
+map_code = 'T27R0401'
+exits = [
+    'ecruteak',
+]
+
+[ecruteak_dance_theater]
+map_code = 'T27R0501'
+exits = [
+    'ecruteak',
+]
+
+[ecruteak_dowsing_machine_house]
+map_code = 'T27R0801'
+exits = [
+    'ecruteak',
+]
+
+[mahogany]
+map_code = 'T28'
+exits = [
+    'mahogany_east_house',
+    'mahogany_gym_room_1',
+    'mahogany_pokecenter_1f',
+    'mahogany_souvenir_shop',
+    'route_42',
+    'route_43',
+    'route_43_mahogany_gatehouse',
+    'route_44',
+]
+
+[mahogany_gym_leader_room]
+map_code = 'T28GYM0101'
+exits = [
+    'mahogany_gym_room_2',
+]
+
+[mahogany_gym_room_2]
+map_code = 'T28GYM0102'
+exits = [
+    'mahogany_gym_leader_room',
+    'mahogany_gym_room_1',
+]
+
+[mahogany_gym_room_1]
+map_code = 'T28GYM0103'
+exits = [
+    'mahogany',
+    'mahogany_gym_room_2',
+]
+
+[mahogany_pokecenter_1f]
+map_code = 'T28PC0101'
+exits = [
+    'mahogany',
+    'mahogany_pokecenter_b1f',
+]
+
+[mahogany_pokecenter_b1f]
+map_code = 'T28PC0102'
+exits = [
+    'mahogany_pokecenter_1f',
+]
+
+[mahogany_east_house]
+map_code = 'T28R0201'
+exits = [
+    'mahogany',
+]
+
+[lake_of_rage]
+map_code = 'T29'
+exits = [
+    'lake_of_rage_fishing_guru_house',
+    'lake_of_rage_hidden_power_house',
+    'route_43',
+]
+
+[lake_of_rage_hidden_power_house]
+map_code = 'T29R0101'
+exits = [
+    'lake_of_rage',
+]
+
+[lake_of_rage_fishing_guru_house]
+map_code = 'T29R0201'
+exits = [
+    'lake_of_rage',
+]
+
+[blackthorn]
+map_code = 'T30'
+exits = [
+    'blackthorn_east_house',
+    'blackthorn_gym',
+    'blackthorn_move_tutor_house',
+    'blackthorn_pokecenter_1f',
+    'blackthorn_pokemart',
+    'blackthorn_west_house',
+    'dragons_den_entrance',
+    'ice_path_1f',
+    'route_44',
+    'route_45',
+]
+
+[blackthorn_pokemart]
+map_code = 'T30FS0101'
+exits = [
+    'blackthorn',
+]
+
+[blackthorn_gym]
+map_code = 'T30GYM0101'
+exits = [
+    'blackthorn',
+]
+
+[blackthorn_pokecenter_1f]
+map_code = 'T30PC0101'
+exits = [
+    'blackthorn',
+    'blackthorn_pokecenter_b1f',
+]
+
+[blackthorn_pokecenter_b1f]
+map_code = 'T30PC0102'
+exits = [
+    'blackthorn_pokecenter_1f',
+]
+
+[blackthorn_west_house]
+map_code = 'T30R0201'
+exits = [
+    'blackthorn',
+]
+
+[blackthorn_east_house]
+map_code = 'T30R0301'
+exits = [
+    'blackthorn',
+]
+
+[blackthorn_move_tutor_house]
+map_code = 'T30R0601'
+exits = [
+    'blackthorn',
+]
+
+[mount_silver]
+map_code = 'T31'
+exits = [
+    'mount_silver_cave_1f',
+    'mount_silver_pokecenter_1f',
+    'route_28',
+]
+
+[mount_silver_pokecenter_1f]
+map_code = 'T31PC0101'
+exits = [
+    'mount_silver',
+    'mount_silver_pokecenter_b1f',
+]
+
+[mount_silver_pokecenter_b1f]
+map_code = 'T31PC0102'
+exits = [
+    'mount_silver_pokecenter_1f',
+]
+
+[route_40]
+map_code = 'W40'
+exits = [
+    'olivine',
+    'route_40_battle_frontier_gatehouse',
+    'route_41',
+]
+
+[route_40_battle_frontier_gatehouse]
+map_code = 'W40R0101'
+exits = [
+    'battle_frontier_frontier_access',
+    'route_40',
+]
+
+[route_41]
+map_code = 'W41'
+exits = [
+    'cianwood',
+    'route_40',
+    'whirl_islands_1f',
+]
+

@@ -1,0 +1,3190 @@
+# data_gen/locations.toml
+#
+# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored),
+# task C4 (Johto locations, see docs/scope.md v1). Machine-extracted; see
+# this repo's C4 handoff notes for the full extraction methodology.
+#
+# Scope: Johto only (Kanto is a future C5 task). 5 location `type`s:
+#   - ground_item: overworld item balls (std_itemball_* scripts).
+#   - hidden_item: Itemfinder-only items (std_hiddenitem_* scripts).
+#   - npc_gift: an NPC/event hands over a bag item directly (no item ball).
+#   - hm_tm: any HM or TM, regardless of how it's actually obtained in
+#     vanilla (a ground item ball, e.g. TM41 on Route 8, or an NPC gift,
+#     e.g. HM01 from the Ilex Forest apprentice) -- HM/TM gets its own
+#     type per this task's spec (so e.g. an "HM/TM shuffle" option can
+#     target them independent of the ground_item/npc_gift split), taking
+#     priority over ground_item/npc_gift for any location whose
+#     original_item is hm01-hm08/tm01-tm92.
+#   - badge: one of the 8 Johto gym badges (GiveBadge script command).
+#
+# Excluded from this pass (out of v1 scope or ambiguous, see docs/scope.md
+# and this task's handoff notes): Pokemon/egg rewards (Eevee from Bill,
+# Dratini from the Dragon's Den master, the Primo eggs, the Togepi egg
+# pickup call) -- these are Pokemon, not items, and belong to a future
+# static/gift-Pokemon task, not this items/locations one. Repeatable/daily
+# NPC gifts (e.g. the Violet City and Fuchsia City "random berry of the
+# day" NPCs) are excluded as they're not a meaningful one-time check.
+# Radio Card and the Pokegear are v2 (docs/scope.md's "Radio Card /
+# PokeGear features"). Kurt's apricorn-ball crafting is v2. The Bug
+# Catching Contest room (National Park) and Pokeathlon Dome are v2. The
+# S.S. Aqua ferry interior (map code P01*) is excluded: it isn't part of
+# either the Johto or Kanto region graph in any clean sense (a traveling
+# ship), deferred to whichever future task models it properly.
+#
+# ground_item / hidden_item extraction (fully mechanical): every Johto
+# zone_event/*.json object/bg entry whose scriptId matches
+# std_itemball_<map>_<item> / std_hiddenitem_<map>_<item> is one location;
+# `id` is the matching include/constants/flags.h FLAG_HIDE_ITEMBALL_*
+# value (ground_item) or include/constants/hidden_items.h HIDDENITEM_*
+# value (hidden_item) -- both are decomp-native stable identifiers for
+# these, not synthesized here. A few hidden items are shared border
+# placements referenced from two neighboring map files (e.g.
+# HIDDENITEM_R29_R30_T21_NUGGET); only one location is kept per unique
+# decomp id (no double-counting), attached to the first map in the name.
+#
+# npc_gift extraction: cross-referenced from three decomp script patterns
+# (`CallStd std_give_item_verbose`, `CallStd std_obtain_item_verbose`,
+# `GiveItemNoCheck ITEM_*`) across every Johto-scoped scr_seq/*.s file,
+# filtered to bag items only (see exclusions above). `id` is the matching
+# include/constants/flags.h FLAG_GOT_<ITEM>_FROM_<GIVER> value where one
+# exists (most do, and conveniently self-document the giver in the
+# constant name); a handful of gifts have no single-purpose FLAG_GOT_*
+# constant (they're guarded by a different, reused, or absent flag) and
+# get a sequential id in a reserved 9000+ band instead, noted inline.
+#
+# badge extraction: fully mechanical, `grep -rn GiveBadge
+# files/fielddata/script/scr_seq` -- `id` is the badge's own
+# include/constants/badge.h BADGE_* value (0-7 for the 8 Johto badges).
+# Note: BADGE_RISING (Blackthorn) is granted at the Dragon's Den Shrine,
+# not at the Blackthorn Gym itself -- Clair's gym battle alone does not
+# give it in this game; this is a real, decomp-verified vanilla mechanic
+# (you must then prove yourself at the Dragon's Den shrine), not a bug.
+#
+# region: the parent data_gen/regions.toml region key.
+# original_item: the data_gen/items.toml key of the vanilla item found
+# here (ground_item/hidden_item/npc_gift only, absent for badge).
+
+[sprout_tower_1f_parlyz_heal]
+region = 'sprout_tower_1f'
+type = 'ground_item'
+original_item = 'parlyz_heal'
+id = 1061
+x = 24
+z = 16
+
+[sprout_tower_2f_x_accuracy]
+region = 'sprout_tower_2f'
+type = 'ground_item'
+original_item = 'x_accuracy'
+id = 1062
+x = 6
+z = 9
+
+[sprout_tower_3f_potion]
+region = 'sprout_tower_3f'
+type = 'ground_item'
+original_item = 'potion'
+id = 1063
+x = 11
+z = 27
+
+[sprout_tower_3f_escape_rope]
+region = 'sprout_tower_3f'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1064
+x = 19
+z = 8
+
+[bell_tower_3f_full_heal]
+region = 'bell_tower_3f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1148
+x = 6
+z = 25
+
+[bell_tower_4f_escape_rope]
+region = 'bell_tower_4f'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1149
+x = 6
+z = 21
+
+[bell_tower_4f_ultra_ball]
+region = 'bell_tower_4f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1150
+x = 22
+z = 18
+
+[bell_tower_4f_pp_up]
+region = 'bell_tower_4f'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1151
+x = 25
+z = 24
+
+[bell_tower_5f_rare_candy]
+region = 'bell_tower_5f'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1152
+x = 14
+z = 19
+
+[bell_tower_6f_max_potion]
+region = 'bell_tower_6f'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1153
+x = 13
+z = 16
+
+[bell_tower_6f_full_heal]
+region = 'bell_tower_6f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1154
+x = 6
+z = 7
+
+[bell_tower_7f_max_revive]
+region = 'bell_tower_7f'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1155
+x = 23
+z = 7
+
+[bell_tower_8f_full_restore]
+region = 'bell_tower_8f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1156
+x = 6
+z = 6
+
+[bell_tower_8f_max_elixir]
+region = 'bell_tower_8f'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1157
+x = 17
+z = 14
+
+[bell_tower_8f_nugget]
+region = 'bell_tower_8f'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1158
+x = 19
+z = 24
+
+[bell_tower_9f_hp_up]
+region = 'bell_tower_9f'
+type = 'ground_item'
+original_item = 'hp_up'
+id = 1159
+x = 15
+z = 6
+
+[burned_tower_1f_hp_up]
+region = 'burned_tower_1f'
+type = 'ground_item'
+original_item = 'hp_up'
+id = 1073
+x = 7
+z = 26
+
+[burned_tower_1f_antidote]
+region = 'burned_tower_1f'
+type = 'ground_item'
+original_item = 'antidote'
+id = 1291
+x = 15
+z = 9
+
+[burned_tower_b1f_tm12]
+region = 'burned_tower_b1f'
+type = 'hm_tm'
+original_item = 'tm12'
+id = 1074
+x = 5
+z = 6
+
+[national_park_tm28]
+region = 'national_park'
+type = 'hm_tm'
+original_item = 'tm28'
+id = 1145
+x = 24
+z = 58
+
+[national_park_soothe_bell]
+region = 'national_park'
+type = 'ground_item'
+original_item = 'soothe_bell'
+id = 1144
+x = 77
+z = 33
+
+[national_park_shiny_stone]
+region = 'national_park'
+type = 'ground_item'
+original_item = 'shiny_stone'
+id = 1286
+x = 81
+z = 16
+
+[goldenrod_radio_tower_4f_ultra_ball]
+region = 'goldenrod_radio_tower_4f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1089
+x = 25
+z = 7
+
+[ruins_of_alph_potion]
+region = 'ruins_of_alph'
+type = 'ground_item'
+original_item = 'potion'
+id = 1146
+x = 435
+z = 274
+
+[ruins_of_alph_hyper_potion]
+region = 'ruins_of_alph'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1147
+x = 418
+z = 273
+
+[ruins_of_alph_northeast_entrance_second_room_heal_powder]
+region = 'ruins_of_alph_northeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'heal_powder'
+id = 1128
+x = 4
+z = 8
+
+[ruins_of_alph_northeast_entrance_second_room_energypowder]
+region = 'ruins_of_alph_northeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'energypowder'
+id = 1129
+x = 8
+z = 8
+
+[ruins_of_alph_northeast_entrance_second_room_oran_berry]
+region = 'ruins_of_alph_northeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'oran_berry'
+id = 1130
+x = 4
+z = 12
+
+[ruins_of_alph_northeast_entrance_second_room_pecha_berry]
+region = 'ruins_of_alph_northeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'pecha_berry'
+id = 1131
+x = 8
+z = 12
+
+[ruins_of_alph_southeast_entrance_second_room_heal_powder]
+region = 'ruins_of_alph_southeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'heal_powder'
+id = 1132
+x = 4
+z = 8
+
+[ruins_of_alph_southeast_entrance_second_room_energy_root]
+region = 'ruins_of_alph_southeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'energy_root'
+id = 1133
+x = 8
+z = 8
+
+[ruins_of_alph_southeast_entrance_second_room_sitrus_berry]
+region = 'ruins_of_alph_southeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'sitrus_berry'
+id = 1134
+x = 4
+z = 12
+
+[ruins_of_alph_southeast_entrance_second_room_moon_stone]
+region = 'ruins_of_alph_southeast_entrance_second_room'
+type = 'ground_item'
+original_item = 'moon_stone'
+id = 1135
+x = 8
+z = 12
+
+[ruins_of_alph_northwest_entrance_second_room_revival_herb]
+region = 'ruins_of_alph_northwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'revival_herb'
+id = 1140
+x = 4
+z = 8
+
+[ruins_of_alph_northwest_entrance_second_room_charcoal]
+region = 'ruins_of_alph_northwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'charcoal'
+id = 1141
+x = 8
+z = 8
+
+[ruins_of_alph_northwest_entrance_second_room_life_orb]
+region = 'ruins_of_alph_northwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'life_orb'
+id = 1142
+x = 4
+z = 12
+
+[ruins_of_alph_northwest_entrance_second_room_leppa_berry]
+region = 'ruins_of_alph_northwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'leppa_berry'
+id = 1143
+x = 8
+z = 12
+
+[ruins_of_alph_southwest_entrance_second_room_stardust]
+region = 'ruins_of_alph_southwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'stardust'
+id = 1136
+x = 4
+z = 8
+
+[ruins_of_alph_southwest_entrance_second_room_star_piece]
+region = 'ruins_of_alph_southwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'star_piece'
+id = 1137
+x = 8
+z = 8
+
+[ruins_of_alph_southwest_entrance_second_room_leppa_berry]
+region = 'ruins_of_alph_southwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'leppa_berry'
+id = 1138
+x = 4
+z = 12
+
+[ruins_of_alph_southwest_entrance_second_room_mystic_water]
+region = 'ruins_of_alph_southwest_entrance_second_room'
+type = 'ground_item'
+original_item = 'mystic_water'
+id = 1139
+x = 8
+z = 12
+
+[union_cave_1f_x_attack]
+region = 'union_cave_1f'
+type = 'ground_item'
+original_item = 'x_attack'
+id = 1067
+x = 3
+z = 34
+
+[union_cave_1f_great_ball]
+region = 'union_cave_1f'
+type = 'ground_item'
+original_item = 'great_ball'
+id = 1068
+x = 29
+z = 72
+
+[union_cave_1f_potion]
+region = 'union_cave_1f'
+type = 'ground_item'
+original_item = 'potion'
+id = 1069
+x = 4
+z = 67
+
+[union_cave_1f_awakening]
+region = 'union_cave_1f'
+type = 'ground_item'
+original_item = 'awakening'
+id = 1070
+x = 23
+z = 93
+
+[union_cave_b1f_tm39]
+region = 'union_cave_b1f'
+type = 'hm_tm'
+original_item = 'tm39'
+id = 1072
+x = 11
+z = 42
+
+[union_cave_b1f_x_defense]
+region = 'union_cave_b1f'
+type = 'ground_item'
+original_item = 'x_defense'
+id = 1071
+x = 27
+z = 30
+
+[union_cave_b2f_elixir]
+region = 'union_cave_b2f'
+type = 'ground_item'
+original_item = 'elixir'
+id = 1082
+x = 25
+z = 43
+
+[union_cave_b2f_hyper_potion]
+region = 'union_cave_b2f'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1083
+x = 17
+z = 73
+
+[slowpoke_well_b1f_super_potion]
+region = 'slowpoke_well_b1f'
+type = 'ground_item'
+original_item = 'super_potion'
+id = 1075
+x = 34
+z = 5
+
+[slowpoke_well_b2f_tm18]
+region = 'slowpoke_well_b2f'
+type = 'hm_tm'
+original_item = 'tm18'
+id = 1076
+x = 25
+z = 9
+
+[olivine_lighthouse_exterior_rare_candy]
+region = 'olivine_lighthouse_exterior'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1160
+x = 2
+z = 2
+
+[olivine_lighthouse_3f_ether]
+region = 'olivine_lighthouse_3f'
+type = 'ground_item'
+original_item = 'ether'
+id = 1098
+x = 14
+z = 13
+
+[olivine_lighthouse_4f_tm87]
+region = 'olivine_lighthouse_4f'
+type = 'hm_tm'
+original_item = 'tm87'
+id = 1099
+x = 2
+z = 13
+
+[olivine_lighthouse_5f_super_repel]
+region = 'olivine_lighthouse_5f'
+type = 'ground_item'
+original_item = 'super_repel'
+id = 1100
+x = 11
+z = 3
+
+[olivine_lighthouse_light_room_super_potion]
+region = 'olivine_lighthouse_light_room'
+type = 'ground_item'
+original_item = 'super_potion'
+id = 1101
+x = 15
+z = 8
+
+[team_rocket_headquarters_b1f_hyper_potion]
+region = 'team_rocket_headquarters_b1f'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1102
+x = 52
+z = 11
+
+[team_rocket_headquarters_b1f_guard_spec]
+region = 'team_rocket_headquarters_b1f'
+type = 'ground_item'
+original_item = 'guard_spec'
+id = 1103
+x = 40
+z = 22
+
+[team_rocket_headquarters_b1f_nugget]
+region = 'team_rocket_headquarters_b1f'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1104
+x = 30
+z = 28
+
+[team_rocket_headquarters_b2f_tm46]
+region = 'team_rocket_headquarters_b2f'
+type = 'hm_tm'
+original_item = 'tm46'
+id = 1105
+x = 12
+z = 18
+
+[team_rocket_headquarters_b3f_protein]
+region = 'team_rocket_headquarters_b3f'
+type = 'ground_item'
+original_item = 'protein'
+id = 1108
+x = 11
+z = 24
+
+[team_rocket_headquarters_b3f_x_special]
+region = 'team_rocket_headquarters_b3f'
+type = 'ground_item'
+original_item = 'x_special'
+id = 1109
+x = 13
+z = 24
+
+[team_rocket_headquarters_b3f_tm49]
+region = 'team_rocket_headquarters_b3f'
+type = 'hm_tm'
+original_item = 'tm49'
+id = 1106
+x = 32
+z = 4
+
+[team_rocket_headquarters_b3f_full_heal]
+region = 'team_rocket_headquarters_b3f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1107
+x = 49
+z = 15
+
+[team_rocket_headquarters_b3f_ultra_ball]
+region = 'team_rocket_headquarters_b3f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1196
+x = 27
+z = 18
+
+[ilex_forest_revive]
+region = 'ilex_forest'
+type = 'ground_item'
+original_item = 'revive'
+id = 1077
+x = 42
+z = 73
+
+[ilex_forest_x_attack]
+region = 'ilex_forest'
+type = 'ground_item'
+original_item = 'x_attack'
+id = 1084
+x = 27
+z = 42
+
+[ilex_forest_antidote]
+region = 'ilex_forest'
+type = 'ground_item'
+original_item = 'antidote'
+id = 1085
+x = 20
+z = 30
+
+[ilex_forest_ether]
+region = 'ilex_forest'
+type = 'ground_item'
+original_item = 'ether'
+id = 1086
+x = 47
+z = 16
+
+[goldenrod_department_store_basement_amulet_coin]
+region = 'goldenrod_department_store_basement'
+type = 'ground_item'
+original_item = 'amulet_coin'
+id = 1091
+x = 27
+z = 3
+
+[goldenrod_department_store_basement_burn_heal]
+region = 'goldenrod_department_store_basement'
+type = 'ground_item'
+original_item = 'burn_heal'
+id = 1090
+x = 12
+z = 4
+
+[goldenrod_department_store_basement_ether]
+region = 'goldenrod_department_store_basement'
+type = 'ground_item'
+original_item = 'ether'
+id = 1092
+x = 17
+z = 23
+
+[goldenrod_department_store_basement_ultra_ball]
+region = 'goldenrod_department_store_basement'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1093
+x = 24
+z = 22
+
+[goldenrod_tunnel_b2f_full_heal]
+region = 'goldenrod_tunnel_b2f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1095
+x = 7
+z = 4
+
+[goldenrod_tunnel_b2f_smoke_ball]
+region = 'goldenrod_tunnel_b2f'
+type = 'ground_item'
+original_item = 'smoke_ball'
+id = 1096
+x = 1
+z = 15
+
+[goldenrod_tunnel_warehouse_tm82]
+region = 'goldenrod_tunnel_warehouse'
+type = 'hm_tm'
+original_item = 'tm82'
+id = 1078
+x = 21
+z = 15
+
+[goldenrod_tunnel_warehouse_max_ether]
+region = 'goldenrod_tunnel_warehouse'
+type = 'ground_item'
+original_item = 'max_ether'
+id = 1079
+x = 28
+z = 23
+
+[goldenrod_tunnel_warehouse_ultra_ball]
+region = 'goldenrod_tunnel_warehouse'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1094
+x = 6
+z = 7
+
+[mount_mortar_1f_entrance_ether]
+region = 'mount_mortar_1f_entrance'
+type = 'ground_item'
+original_item = 'ether'
+id = 1173
+x = 34
+z = 20
+
+[mount_mortar_1f_entrance_revive]
+region = 'mount_mortar_1f_entrance'
+type = 'ground_item'
+original_item = 'revive'
+id = 1174
+x = 67
+z = 30
+
+[mount_mortar_1f_back_escape_rope]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1175
+x = 67
+z = 54
+
+[mount_mortar_1f_back_nugget]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1176
+x = 67
+z = 28
+
+[mount_mortar_1f_back_iron_ball]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'iron_ball'
+id = 1177
+x = 51
+z = 31
+
+[mount_mortar_1f_back_max_potion]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1178
+x = 51
+z = 43
+
+[mount_mortar_1f_back_iron]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'iron'
+id = 1179
+x = 29
+z = 20
+
+[mount_mortar_1f_back_max_revive]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1180
+x = 23
+z = 36
+
+[mount_mortar_1f_back_ultra_ball]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1181
+x = 37
+z = 52
+
+[mount_mortar_1f_back_full_incense]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'full_incense'
+id = 1194
+x = 73
+z = 47
+
+[mount_mortar_1f_back_protector]
+region = 'mount_mortar_1f_back'
+type = 'ground_item'
+original_item = 'protector'
+id = 1195
+x = 38
+z = 75
+
+[mount_mortar_2f_rare_candy]
+region = 'mount_mortar_2f'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1182
+x = 6
+z = 55
+
+[mount_mortar_2f_max_potion]
+region = 'mount_mortar_2f'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1183
+x = 45
+z = 38
+
+[mount_mortar_2f_tm40]
+region = 'mount_mortar_2f'
+type = 'hm_tm'
+original_item = 'tm40'
+id = 1184
+x = 29
+z = 34
+
+[mount_mortar_2f_elixir]
+region = 'mount_mortar_2f'
+type = 'ground_item'
+original_item = 'elixir'
+id = 1185
+x = 16
+z = 24
+
+[mount_mortar_2f_dragon_scale]
+region = 'mount_mortar_2f'
+type = 'ground_item'
+original_item = 'dragon_scale'
+id = 1186
+x = 27
+z = 14
+
+[mount_mortar_2f_escape_rope]
+region = 'mount_mortar_2f'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1187
+x = 45
+z = 15
+
+[mount_mortar_b1f_carbos]
+region = 'mount_mortar_b1f'
+type = 'ground_item'
+original_item = 'carbos'
+id = 1188
+x = 11
+z = 58
+
+[mount_mortar_b1f_pp_up]
+region = 'mount_mortar_b1f'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1189
+x = 36
+z = 66
+
+[mount_mortar_b1f_full_restore]
+region = 'mount_mortar_b1f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1190
+x = 52
+z = 64
+
+[mount_mortar_b1f_max_ether]
+region = 'mount_mortar_b1f'
+type = 'ground_item'
+original_item = 'max_ether'
+id = 1191
+x = 46
+z = 45
+
+[mount_mortar_b1f_hyper_potion]
+region = 'mount_mortar_b1f'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1192
+x = 40
+z = 39
+
+[ice_path_1f_hm07]
+region = 'ice_path_1f'
+type = 'hm_tm'
+original_item = 'hm07'
+id = 1111
+x = 47
+z = 10
+
+[ice_path_1f_protein]
+region = 'ice_path_1f'
+type = 'ground_item'
+original_item = 'protein'
+id = 1204
+x = 53
+z = 15
+
+[ice_path_1f_pp_up]
+region = 'ice_path_1f'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1205
+x = 53
+z = 35
+
+[ice_path_b1f_iron]
+region = 'ice_path_b1f'
+type = 'ground_item'
+original_item = 'iron'
+id = 1209
+x = 13
+z = 48
+
+[ice_path_b2f_tm72]
+region = 'ice_path_b2f'
+type = 'hm_tm'
+original_item = 'tm72'
+id = 1110
+x = 57
+z = 24
+
+[ice_path_b2f_full_heal]
+region = 'ice_path_b2f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1206
+x = 15
+z = 15
+
+[ice_path_b2f_max_potion]
+region = 'ice_path_b2f'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1207
+x = 5
+z = 12
+
+[ice_path_b3f_nevermeltice]
+region = 'ice_path_b3f'
+type = 'ground_item'
+original_item = 'nevermeltice'
+id = 1208
+x = 12
+z = 13
+
+[whirl_islands_1f_ultra_ball]
+region = 'whirl_islands_1f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1161
+x = 48
+z = 21
+
+[whirl_islands_1f_ultra_ball_2]
+region = 'whirl_islands_1f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1162
+x = 22
+z = 47
+
+[whirl_islands_b1f_escape_rope]
+region = 'whirl_islands_b1f'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1163
+x = 42
+z = 49
+
+[whirl_islands_b1f_carbos]
+region = 'whirl_islands_b1f'
+type = 'ground_item'
+original_item = 'carbos'
+id = 1164
+x = 19
+z = 36
+
+[whirl_islands_b1f_full_restore]
+region = 'whirl_islands_b1f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1165
+x = 26
+z = 27
+
+[whirl_islands_b1f_nugget]
+region = 'whirl_islands_b1f'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1166
+x = 41
+z = 14
+
+[whirl_islands_b1f_calcium]
+region = 'whirl_islands_b1f'
+type = 'ground_item'
+original_item = 'calcium'
+id = 1167
+x = 70
+z = 39
+
+[whirl_islands_b2f_max_revive]
+region = 'whirl_islands_b2f'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1168
+x = 25
+z = 17
+
+[whirl_islands_b2f_full_restore]
+region = 'whirl_islands_b2f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1169
+x = 29
+z = 25
+
+[whirl_islands_b2f_max_elixir]
+region = 'whirl_islands_b2f'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1170
+x = 25
+z = 30
+
+[whirl_islands_b3f_rare_candy]
+region = 'whirl_islands_b3f'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1171
+x = 14
+z = 27
+
+[mount_silver_cave_1f_full_restore]
+region = 'mount_silver_cave_1f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1241
+x = 54
+z = 15
+
+[mount_silver_cave_upper_mountainside_pure_incense]
+region = 'mount_silver_cave_upper_mountainside'
+type = 'ground_item'
+original_item = 'pure_incense'
+id = 1242
+x = 31
+z = 40
+
+[mount_silver_cave_upper_mountainside_dawn_stone]
+region = 'mount_silver_cave_upper_mountainside'
+type = 'ground_item'
+original_item = 'dawn_stone'
+id = 1243
+x = 10
+z = 40
+
+[mount_silver_cave_lower_mountainside_escape_rope]
+region = 'mount_silver_cave_lower_mountainside'
+type = 'ground_item'
+original_item = 'escape_rope'
+id = 1244
+x = 27
+z = 46
+
+[mount_silver_cave_lower_mountainside_tm76]
+region = 'mount_silver_cave_lower_mountainside'
+type = 'hm_tm'
+original_item = 'tm76'
+id = 1245
+x = 15
+z = 45
+
+[mount_silver_cave_expert_belt_chamber_expert_belt]
+region = 'mount_silver_cave_expert_belt_chamber'
+type = 'ground_item'
+original_item = 'expert_belt'
+id = 1246
+x = 5
+z = 4
+
+[mount_silver_cave_2f_max_elixir]
+region = 'mount_silver_cave_2f'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1247
+x = 17
+z = 11
+
+[mount_silver_cave_2f_calcium]
+region = 'mount_silver_cave_2f'
+type = 'ground_item'
+original_item = 'calcium'
+id = 1248
+x = 17
+z = 37
+
+[mount_silver_cave_2f_protein]
+region = 'mount_silver_cave_2f'
+type = 'ground_item'
+original_item = 'protein'
+id = 1249
+x = 37
+z = 17
+
+[mount_silver_cave_2f_max_revive]
+region = 'mount_silver_cave_2f'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1250
+x = 25
+z = 7
+
+[dark_cave_route_45_side_tm54]
+region = 'dark_cave_route_45_side'
+type = 'hm_tm'
+original_item = 'tm54'
+id = 1113
+x = 14
+z = 49
+
+[dark_cave_route_45_side_revive]
+region = 'dark_cave_route_45_side'
+type = 'ground_item'
+original_item = 'revive'
+id = 1114
+x = 42
+z = 44
+
+[dark_cave_route_31_side_potion]
+region = 'dark_cave_route_31_side'
+type = 'ground_item'
+original_item = 'potion'
+id = 1218
+x = 10
+z = 13
+
+[dark_cave_route_31_side_hyper_potion]
+region = 'dark_cave_route_31_side'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1219
+x = 51
+z = 15
+
+[dark_cave_route_31_side_full_heal]
+region = 'dark_cave_route_31_side'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1220
+x = 56
+z = 43
+
+[dark_cave_route_31_side_dire_hit]
+region = 'dark_cave_route_31_side'
+type = 'ground_item'
+original_item = 'dire_hit'
+id = 1221
+x = 46
+z = 51
+
+[dark_cave_route_31_side_black_flute]
+region = 'dark_cave_route_31_side'
+type = 'ground_item'
+original_item = 'black_flute'
+id = 1292
+x = 17
+z = 25
+
+[victory_road_1f_max_revive]
+region = 'victory_road_1f'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1119
+x = 34
+z = 14
+
+[victory_road_1f_full_heal]
+region = 'victory_road_1f'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1120
+x = 35
+z = 33
+
+[victory_road_1f_potion]
+region = 'victory_road_1f'
+type = 'ground_item'
+original_item = 'potion'
+id = 1121
+x = 42
+z = 40
+
+[victory_road_2f_tm26]
+region = 'victory_road_2f'
+type = 'hm_tm'
+original_item = 'tm26'
+id = 1122
+x = 13
+z = 24
+
+[victory_road_2f_hp_up]
+region = 'victory_road_2f'
+type = 'ground_item'
+original_item = 'hp_up'
+id = 1123
+x = 31
+z = 36
+
+[victory_road_2f_full_restore]
+region = 'victory_road_2f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1124
+x = 44
+z = 24
+
+[victory_road_3f_ultra_ball]
+region = 'victory_road_3f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1125
+x = 46
+z = 19
+
+[victory_road_3f_tm79]
+region = 'victory_road_3f'
+type = 'hm_tm'
+original_item = 'tm79'
+id = 1126
+x = 33
+z = 36
+
+[victory_road_3f_rare_candy]
+region = 'victory_road_3f'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1127
+x = 25
+z = 15
+
+[dragons_den_dragon_fang]
+region = 'dragons_den'
+type = 'ground_item'
+original_item = 'dragon_fang'
+id = 1112
+x = 50
+z = 34
+
+[dragons_den_calcium]
+region = 'dragons_den'
+type = 'ground_item'
+original_item = 'calcium'
+id = 1210
+x = 42
+z = 16
+
+[dragons_den_max_elixir]
+region = 'dragons_den'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1211
+x = 7
+z = 33
+
+[tohjo_falls_moon_stone]
+region = 'tohjo_falls'
+type = 'ground_item'
+original_item = 'moon_stone'
+id = 1116
+x = 23
+z = 12
+
+[route_29_potion]
+region = 'route_29'
+type = 'ground_item'
+original_item = 'potion'
+id = 1081
+x = 654
+z = 386
+
+[route_30_antidote]
+region = 'route_30'
+type = 'ground_item'
+original_item = 'antidote'
+id = 1056
+x = 554
+z = 342
+
+[route_30_potion]
+region = 'route_30'
+type = 'ground_item'
+original_item = 'potion'
+id = 1088
+x = 564
+z = 369
+
+[route_31_potion]
+region = 'route_31'
+type = 'ground_item'
+original_item = 'potion'
+id = 1057
+x = 557
+z = 269
+
+[route_31_poke_ball]
+region = 'route_31'
+type = 'ground_item'
+original_item = 'poke_ball'
+id = 1058
+x = 545
+z = 281
+
+[route_32_repel]
+region = 'route_32'
+type = 'ground_item'
+original_item = 'repel'
+id = 1065
+x = 456
+z = 337
+
+[route_32_great_ball]
+region = 'route_32'
+type = 'ground_item'
+original_item = 'great_ball'
+id = 1066
+x = 459
+z = 382
+
+[route_32_tm09]
+region = 'route_32'
+type = 'hm_tm'
+original_item = 'tm09'
+id = 1273
+x = 451
+z = 401
+
+[route_32_shell_bell]
+region = 'route_32'
+type = 'ground_item'
+original_item = 'shell_bell'
+id = 1239
+x = 475
+z = 439
+
+[route_34_nugget]
+region = 'route_34'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1087
+x = 364
+z = 438
+
+[route_34_tm63]
+region = 'route_34'
+type = 'hm_tm'
+original_item = 'tm63'
+id = 1274
+x = 372
+z = 390
+
+[route_35_tm66]
+region = 'route_35'
+type = 'hm_tm'
+original_item = 'tm66'
+id = 1097
+x = 380
+z = 317
+
+[route_35_parlyz_heal]
+region = 'route_35'
+type = 'ground_item'
+original_item = 'parlyz_heal'
+id = 1275
+x = 375
+z = 277
+
+[route_36_hyper_potion]
+region = 'route_36'
+type = 'ground_item'
+original_item = 'hyper_potion'
+id = 1276
+x = 393
+z = 237
+
+[route_38_max_potion]
+region = 'route_38'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1277
+x = 329
+z = 177
+
+[route_38_lax_incense]
+region = 'route_38'
+type = 'ground_item'
+original_item = 'lax_incense'
+id = 1278
+x = 297
+z = 186
+
+[route_39_tm60]
+region = 'route_39'
+type = 'hm_tm'
+original_item = 'tm60'
+id = 1279
+x = 257
+z = 187
+
+[route_42_super_potion]
+region = 'route_42'
+type = 'ground_item'
+original_item = 'super_potion'
+id = 1172
+x = 472
+z = 176
+
+[route_42_dubious_disc]
+region = 'route_42'
+type = 'ground_item'
+original_item = 'dubious_disc'
+id = 1193
+x = 477
+z = 166
+
+[route_42_tm65]
+region = 'route_42'
+type = 'hm_tm'
+original_item = 'tm65'
+id = 1285
+x = 430
+z = 169
+
+[route_43_max_ether]
+region = 'route_43'
+type = 'ground_item'
+original_item = 'max_ether'
+id = 1198
+x = 532
+z = 138
+
+[route_44_max_repel]
+region = 'route_44'
+type = 'ground_item'
+original_item = 'max_repel'
+id = 1201
+x = 564
+z = 177
+
+[route_44_max_revive]
+region = 'route_44'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1202
+x = 589
+z = 173
+
+[route_44_ultra_ball]
+region = 'route_44'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1203
+x = 607
+z = 162
+
+[route_45_elixir]
+region = 'route_45'
+type = 'ground_item'
+original_item = 'elixir'
+id = 1212
+x = 645
+z = 226
+
+[route_45_max_potion]
+region = 'route_45'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1213
+x = 662
+z = 242
+
+[route_45_full_heal]
+region = 'route_45'
+type = 'ground_item'
+original_item = 'full_heal'
+id = 1214
+x = 653
+z = 269
+
+[route_45_nugget]
+region = 'route_45'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1215
+x = 647
+z = 282
+
+[route_45_revive]
+region = 'route_45'
+type = 'ground_item'
+original_item = 'revive'
+id = 1216
+x = 645
+z = 302
+
+[route_46_x_speed]
+region = 'route_46'
+type = 'ground_item'
+original_item = 'x_speed'
+id = 1217
+x = 611
+z = 344
+
+[route_47_revive]
+region = 'route_47'
+type = 'ground_item'
+original_item = 'revive'
+id = 1267
+x = 117
+z = 395
+
+[route_47_lagging_tail]
+region = 'route_47'
+type = 'ground_item'
+original_item = 'lagging_tail'
+id = 1281
+x = 108
+z = 385
+
+[route_47_wave_incense]
+region = 'route_47'
+type = 'ground_item'
+original_item = 'wave_incense'
+id = 1282
+x = 78
+z = 399
+
+[route_47_white_flute]
+region = 'route_47'
+type = 'ground_item'
+original_item = 'white_flute'
+id = 1283
+x = 78
+z = 363
+
+[route_48_nugget]
+region = 'route_48'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1284
+x = 75
+z = 336
+
+[violet_rare_candy]
+region = 'violet'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1059
+x = 504
+z = 237
+
+[violet_pp_up]
+region = 'violet'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1060
+x = 459
+z = 229
+
+[goldenrod_game_corner_jp_tm78]
+region = 'goldenrod_game_corner_jp'
+type = 'hm_tm'
+original_item = 'tm78'
+id = 1200
+x = 2
+z = 15
+
+[olivine_tm57]
+region = 'olivine'
+type = 'hm_tm'
+original_item = 'tm57'
+id = 1310
+x = 309
+z = 250
+
+[lake_of_rage_tm43]
+region = 'lake_of_rage'
+type = 'hm_tm'
+original_item = 'tm43'
+id = 1288
+x = 506
+z = 34
+
+[lake_of_rage_red_flute]
+region = 'lake_of_rage'
+type = 'ground_item'
+original_item = 'red_flute'
+id = 1290
+x = 489
+z = 73
+
+[lake_of_rage_choice_specs]
+region = 'lake_of_rage'
+type = 'ground_item'
+original_item = 'choice_specs'
+id = 1289
+x = 540
+z = 37
+
+[mount_silver_reaper_cloth]
+region = 'mount_silver'
+type = 'ground_item'
+original_item = 'reaper_cloth'
+id = 1231
+x = 808
+z = 277
+
+[route_40_tm88]
+region = 'route_40'
+type = 'hm_tm'
+original_item = 'tm88'
+id = 1266
+x = 252
+z = 300
+
+[bell_tower_3f_max_potion]
+region = 'bell_tower_3f'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 62
+x = 16
+z = 8
+
+[bell_tower_5f_full_restore]
+region = 'bell_tower_5f'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 63
+x = 24
+z = 20
+
+[bell_tower_8f_carbos]
+region = 'bell_tower_8f'
+type = 'hidden_item'
+original_item = 'carbos'
+id = 64
+x = 21
+z = 6
+
+[bellchime_tower_tinymushroom]
+region = 'bellchime_tower'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 125
+x = 33
+z = 10
+
+[bellchime_tower_big_mushroom]
+region = 'bellchime_tower'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 126
+x = 39
+z = 20
+
+[bellchime_tower_tinymushroom_2]
+region = 'bellchime_tower'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 128
+x = 14
+z = 7
+
+[bellchime_tower_big_mushroom_2]
+region = 'bellchime_tower'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 127
+x = 23
+z = 7
+
+[bellchime_tower_tinymushroom_3]
+region = 'bellchime_tower'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 129
+x = 17
+z = 7
+
+[burned_tower_1f_ultra_ball]
+region = 'burned_tower_1f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 20
+x = 8
+z = 24
+
+[burned_tower_1f_ether]
+region = 'burned_tower_1f'
+type = 'hidden_item'
+original_item = 'ether'
+id = 19
+x = 11
+z = 6
+
+[burned_tower_b1f_revive]
+region = 'burned_tower_b1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 21
+x = 15
+z = 24
+
+[burned_tower_b1f_antidote]
+region = 'burned_tower_b1f'
+type = 'hidden_item'
+original_item = 'antidote'
+id = 65
+x = 10
+z = 7
+
+[national_park_full_heal]
+region = 'national_park'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 34
+x = 41
+z = 62
+
+[national_park_full_heal_2]
+region = 'national_park'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 35
+x = 53
+z = 78
+
+[ruins_of_alph_great_ball]
+region = 'ruins_of_alph'
+type = 'hidden_item'
+original_item = 'great_ball'
+id = 146
+x = 442
+z = 296
+
+[ruins_of_alph_rare_candy]
+region = 'ruins_of_alph'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 149
+x = 422
+z = 263
+
+[ruins_of_alph_tinymushroom]
+region = 'ruins_of_alph'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 148
+x = 424
+z = 278
+
+[ruins_of_alph_big_mushroom]
+region = 'ruins_of_alph'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 147
+x = 418
+z = 314
+
+[ruins_of_alph_nugget]
+region = 'ruins_of_alph'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 150
+x = 423
+z = 311
+
+[union_cave_1f_big_pearl]
+region = 'union_cave_1f'
+type = 'hidden_item'
+original_item = 'big_pearl'
+id = 154
+x = 3
+z = 74
+
+[union_cave_1f_great_ball_2]
+region = 'union_cave_1f'
+type = 'hidden_item'
+original_item = 'great_ball'
+id = 151
+x = 30
+z = 58
+
+[union_cave_1f_parlyz_heal]
+region = 'union_cave_1f'
+type = 'hidden_item'
+original_item = 'parlyz_heal'
+id = 152
+x = 18
+z = 76
+
+[union_cave_b1f_x_speed]
+region = 'union_cave_b1f'
+type = 'hidden_item'
+original_item = 'x_speed'
+id = 153
+x = 20
+z = 43
+
+[union_cave_b1f_revive]
+region = 'union_cave_b1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 155
+x = 24
+z = 15
+
+[union_cave_b2f_ultra_ball]
+region = 'union_cave_b2f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 156
+x = 3
+z = 81
+
+[union_cave_b2f_calcium]
+region = 'union_cave_b2f'
+type = 'hidden_item'
+original_item = 'calcium'
+id = 157
+x = 4
+z = 59
+
+[slowpoke_well_entrance_great_ball]
+region = 'slowpoke_well_entrance'
+type = 'hidden_item'
+original_item = 'great_ball'
+id = 27
+x = 17
+z = 8
+
+[slowpoke_well_b1f_super_potion_2]
+region = 'slowpoke_well_b1f'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 28
+x = 38
+z = 15
+
+[slowpoke_well_b1f_full_heal]
+region = 'slowpoke_well_b1f'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 29
+x = 36
+z = 19
+
+[olivine_lighthouse_3f_hyper_potion]
+region = 'olivine_lighthouse_3f'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 66
+x = 5
+z = 14
+
+[team_rocket_headquarters_b1f_revive]
+region = 'team_rocket_headquarters_b1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 51
+x = 53
+z = 16
+
+[team_rocket_headquarters_b2f_full_heal]
+region = 'team_rocket_headquarters_b2f'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 54
+x = 20
+z = 29
+
+[team_rocket_headquarters_b2f_x_sp_def]
+region = 'team_rocket_headquarters_b2f'
+type = 'hidden_item'
+original_item = 'x_sp_def'
+id = 55
+x = 48
+z = 14
+
+[ilex_forest_antidote_2]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'antidote'
+id = 30
+x = 15
+z = 37
+
+[ilex_forest_super_potion]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 31
+x = 36
+z = 26
+
+[ilex_forest_full_heal]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 32
+x = 39
+z = 12
+
+[ilex_forest_ether_2]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'ether'
+id = 33
+x = 33
+z = 14
+
+[ilex_forest_tinymushroom]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 211
+x = 50
+z = 30
+
+[ilex_forest_repel]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'repel'
+id = 212
+x = 28
+z = 26
+
+[ilex_forest_big_mushroom]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 213
+x = 10
+z = 32
+
+[ilex_forest_tinymushroom_2]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 214
+x = 53
+z = 48
+
+[ilex_forest_tinymushroom_3]
+region = 'ilex_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 215
+x = 42
+z = 17
+
+[goldenrod_department_store_basement_parlyz_heal]
+region = 'goldenrod_department_store_basement'
+type = 'hidden_item'
+original_item = 'parlyz_heal'
+id = 52
+x = 1
+z = 9
+
+[goldenrod_department_store_basement_super_potion]
+region = 'goldenrod_department_store_basement'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 53
+x = 13
+z = 14
+
+[goldenrod_department_store_basement_antidote]
+region = 'goldenrod_department_store_basement'
+type = 'hidden_item'
+original_item = 'antidote'
+id = 67
+x = 20
+z = 11
+
+[goldenrod_tunnel_warehouse_max_potion]
+region = 'goldenrod_tunnel_warehouse'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 68
+x = 12
+z = 11
+
+[goldenrod_tunnel_warehouse_revive]
+region = 'goldenrod_tunnel_warehouse'
+type = 'hidden_item'
+original_item = 'revive'
+id = 69
+x = 27
+z = 13
+
+[mount_mortar_1f_entrance_hyper_potion]
+region = 'mount_mortar_1f_entrance'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 43
+x = 27
+z = 42
+
+[mount_mortar_1f_entrance_revive_2]
+region = 'mount_mortar_1f_entrance'
+type = 'hidden_item'
+original_item = 'revive'
+id = 44
+x = 58
+z = 46
+
+[mount_mortar_1f_back_max_repel]
+region = 'mount_mortar_1f_back'
+type = 'hidden_item'
+original_item = 'max_repel'
+id = 45
+x = 54
+z = 68
+
+[mount_mortar_1f_back_ether]
+region = 'mount_mortar_1f_back'
+type = 'hidden_item'
+original_item = 'ether'
+id = 46
+x = 43
+z = 20
+
+[mount_mortar_1f_back_rare_candy]
+region = 'mount_mortar_1f_back'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 140
+x = 34
+z = 74
+
+[mount_mortar_1f_back_ultra_ball_2]
+region = 'mount_mortar_1f_back'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 141
+x = 60
+z = 37
+
+[mount_mortar_1f_back_nugget_2]
+region = 'mount_mortar_1f_back'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 142
+x = 61
+z = 71
+
+[mount_mortar_2f_full_restore]
+region = 'mount_mortar_2f'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 47
+x = 53
+z = 29
+
+[mount_mortar_2f_hp_up]
+region = 'mount_mortar_2f'
+type = 'hidden_item'
+original_item = 'hp_up'
+id = 48
+x = 34
+z = 38
+
+[mount_mortar_2f_hyper_potion]
+region = 'mount_mortar_2f'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 143
+x = 42
+z = 48
+
+[mount_mortar_2f_full_heal]
+region = 'mount_mortar_2f'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 144
+x = 16
+z = 18
+
+[mount_mortar_b1f_max_revive]
+region = 'mount_mortar_b1f'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 49
+x = 33
+z = 15
+
+[mount_mortar_b1f_ultra_ball]
+region = 'mount_mortar_b1f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 50
+x = 17
+z = 73
+
+[ice_path_1f_max_potion]
+region = 'ice_path_1f'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 70
+x = 17
+z = 18
+
+[ice_path_1f_ice_heal]
+region = 'ice_path_1f'
+type = 'hidden_item'
+original_item = 'ice_heal'
+id = 72
+x = 48
+z = 5
+
+[ice_path_b1f_revive]
+region = 'ice_path_b1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 228
+x = 15
+z = 47
+
+[ice_path_b2f_carbos]
+region = 'ice_path_b2f'
+type = 'hidden_item'
+original_item = 'carbos'
+id = 71
+x = 26
+z = 26
+
+[whirl_islands_1f_rare_candy]
+region = 'whirl_islands_1f'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 73
+x = 47
+z = 44
+
+[whirl_islands_b1f_ultra_ball]
+region = 'whirl_islands_b1f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 74
+x = 63
+z = 45
+
+[whirl_islands_b1f_super_repel]
+region = 'whirl_islands_b1f'
+type = 'hidden_item'
+original_item = 'super_repel'
+id = 191
+x = 67
+z = 8
+
+[whirl_islands_b1f_pearl]
+region = 'whirl_islands_b1f'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 192
+x = 28
+z = 10
+
+[whirl_islands_b1f_revive]
+region = 'whirl_islands_b1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 193
+x = 72
+z = 20
+
+[whirl_islands_b2f_full_restore_2]
+region = 'whirl_islands_b2f'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 75
+x = 29
+z = 11
+
+[mount_silver_cave_1f_dire_hit]
+region = 'mount_silver_cave_1f'
+type = 'hidden_item'
+original_item = 'dire_hit'
+id = 76
+x = 45
+z = 45
+
+[mount_silver_cave_1f_ultra_ball]
+region = 'mount_silver_cave_1f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 77
+x = 10
+z = 39
+
+[mount_silver_cave_1f_revive]
+region = 'mount_silver_cave_1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 201
+x = 45
+z = 17
+
+[mount_silver_cave_upper_mountainside_rare_candy]
+region = 'mount_silver_cave_upper_mountainside'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 165
+x = 28
+z = 41
+
+[mount_silver_cave_upper_mountainside_max_ether]
+region = 'mount_silver_cave_upper_mountainside'
+type = 'hidden_item'
+original_item = 'max_ether'
+id = 204
+x = 23
+z = 12
+
+[mount_silver_cave_upper_mountainside_hyper_potion]
+region = 'mount_silver_cave_upper_mountainside'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 205
+x = 20
+z = 40
+
+[mount_silver_cave_moltres_chamber_ultra_ball]
+region = 'mount_silver_cave_moltres_chamber'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 202
+x = 18
+z = 1
+
+[mount_silver_cave_moltres_chamber_hyper_potion]
+region = 'mount_silver_cave_moltres_chamber'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 203
+x = 2
+z = 1
+
+[mount_silver_cave_2f_max_potion]
+region = 'mount_silver_cave_2f'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 78
+x = 2
+z = 19
+
+[mount_silver_cave_2f_iron]
+region = 'mount_silver_cave_2f'
+type = 'hidden_item'
+original_item = 'iron'
+id = 222
+x = 38
+z = 2
+
+[mount_silver_cave_3f_max_revive]
+region = 'mount_silver_cave_3f'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 206
+x = 24
+z = 2
+
+[dark_cave_route_45_side_max_revive]
+region = 'dark_cave_route_45_side'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 16
+x = 14
+z = 9
+
+[dark_cave_route_45_side_hyper_potion]
+region = 'dark_cave_route_45_side'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 17
+x = 9
+z = 52
+
+[dark_cave_route_45_side_elixir]
+region = 'dark_cave_route_45_side'
+type = 'hidden_item'
+original_item = 'elixir'
+id = 18
+x = 48
+z = 16
+
+[dark_cave_route_31_side_poke_ball]
+region = 'dark_cave_route_31_side'
+type = 'hidden_item'
+original_item = 'poke_ball'
+id = 14
+x = 12
+z = 11
+
+[dark_cave_route_31_side_max_ether]
+region = 'dark_cave_route_31_side'
+type = 'hidden_item'
+original_item = 'max_ether'
+id = 15
+x = 59
+z = 26
+
+[victory_road_1f_full_heal_2]
+region = 'victory_road_1f'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 80
+x = 26
+z = 35
+
+[victory_road_1f_max_potion]
+region = 'victory_road_1f'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 79
+x = 18
+z = 33
+
+[victory_road_2f_max_revive]
+region = 'victory_road_2f'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 185
+x = 15
+z = 27
+
+[victory_road_2f_pp_up]
+region = 'victory_road_2f'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 186
+x = 28
+z = 38
+
+[victory_road_2f_ultra_ball]
+region = 'victory_road_2f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 189
+x = 57
+z = 42
+
+[victory_road_3f_hyper_potion]
+region = 'victory_road_3f'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 187
+x = 59
+z = 40
+
+[victory_road_3f_zinc]
+region = 'victory_road_3f'
+type = 'hidden_item'
+original_item = 'zinc'
+id = 188
+x = 43
+z = 18
+
+[dragons_den_revive]
+region = 'dragons_den'
+type = 'hidden_item'
+original_item = 'revive'
+id = 81
+x = 14
+z = 12
+
+[dragons_den_max_elixir_2]
+region = 'dragons_den'
+type = 'hidden_item'
+original_item = 'max_elixir'
+id = 83
+x = 32
+z = 49
+
+[dragons_den_max_potion]
+region = 'dragons_den'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 82
+x = 8
+z = 22
+
+[route_29_nugget]
+region = 'route_29'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 1
+x = 572
+z = 390
+
+[route_30_potion_2]
+region = 'route_30'
+type = 'hidden_item'
+original_item = 'potion'
+id = 2
+x = 555
+z = 319
+
+[route_32_heart_scale]
+region = 'route_32'
+type = 'hidden_item'
+original_item = 'heart_scale'
+id = 4
+x = 475
+z = 377
+
+[route_32_great_ball_2]
+region = 'route_32'
+type = 'hidden_item'
+original_item = 'great_ball'
+id = 5
+x = 460
+z = 432
+
+[route_32_super_potion]
+region = 'route_32'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 97
+x = 459
+z = 309
+
+[route_34_rare_candy]
+region = 'route_34'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 7
+x = 363
+z = 436
+
+[route_34_super_potion]
+region = 'route_34'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 8
+x = 381
+z = 417
+
+[route_34_super_potion_2]
+region = 'route_34'
+type = 'hidden_item'
+original_item = 'super_potion'
+id = 9
+x = 369
+z = 380
+
+[route_35_nugget]
+region = 'route_35'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 10
+x = 357
+z = 278
+
+[route_36_awakening]
+region = 'route_36'
+type = 'hidden_item'
+original_item = 'awakening'
+id = 11
+x = 391
+z = 243
+
+[route_38_hp_up]
+region = 'route_38'
+type = 'hidden_item'
+original_item = 'hp_up'
+id = 22
+x = 291
+z = 175
+
+[route_39_nugget]
+region = 'route_39'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 98
+x = 266
+z = 191
+
+[route_39_pp_up]
+region = 'route_39'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 135
+x = 259
+z = 176
+
+[route_39_x_attack]
+region = 'route_39'
+type = 'hidden_item'
+original_item = 'x_attack'
+id = 136
+x = 271
+z = 180
+
+[route_39_full_heal]
+region = 'route_39'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 137
+x = 285
+z = 231
+
+[route_42_max_potion]
+region = 'route_42'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 42
+x = 480
+z = 182
+
+[route_44_elixir]
+region = 'route_44'
+type = 'hidden_item'
+original_item = 'elixir'
+id = 100
+x = 613
+z = 171
+
+[route_45_pp_up]
+region = 'route_45'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 101
+x = 649
+z = 289
+
+[route_45_pp_max]
+region = 'route_45'
+type = 'hidden_item'
+original_item = 'pp_max'
+id = 230
+x = 640
+z = 341
+
+[route_47_stardust]
+region = 'route_47'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 39
+x = 80
+z = 396
+
+[route_47_pearl]
+region = 'route_47'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 40
+x = 112
+z = 395
+
+[new_bark_potion]
+region = 'new_bark'
+type = 'hidden_item'
+original_item = 'potion'
+id = 0
+x = 682
+z = 391
+
+[cherrygrove_nugget]
+region = 'cherrygrove'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 225
+x = 522
+z = 388
+
+[violet_hyper_potion]
+region = 'violet'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 3
+x = 505
+z = 254
+
+[violet_poke_ball]
+region = 'violet'
+type = 'hidden_item'
+original_item = 'poke_ball'
+id = 108
+x = 481
+z = 241
+
+[azalea_full_heal]
+region = 'azalea'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 6
+x = 421
+z = 469
+
+[cianwood_revive]
+region = 'cianwood'
+type = 'hidden_item'
+original_item = 'revive'
+id = 25
+x = 170
+z = 332
+
+[cianwood_stardust]
+region = 'cianwood'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 26
+x = 189
+z = 357
+
+[olivine_rare_candy]
+region = 'olivine'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 23
+x = 309
+z = 256
+
+[ecruteak_hyper_potion]
+region = 'ecruteak'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 12
+x = 385
+z = 170
+
+[ecruteak_ether]
+region = 'ecruteak'
+type = 'hidden_item'
+original_item = 'ether'
+id = 13
+x = 379
+z = 146
+
+[ecruteak_rare_candy]
+region = 'ecruteak'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 132
+x = 406
+z = 163
+
+[ecruteak_ultra_ball]
+region = 'ecruteak'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 133
+x = 365
+z = 164
+
+[lake_of_rage_full_restore]
+region = 'lake_of_rage'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 36
+x = 511
+z = 82
+
+[lake_of_rage_rare_candy]
+region = 'lake_of_rage'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 37
+x = 547
+z = 79
+
+[lake_of_rage_max_potion]
+region = 'lake_of_rage'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 102
+x = 542
+z = 37
+
+[mount_silver_full_restore]
+region = 'mount_silver'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 116
+x = 827
+z = 263
+
+[route_40_hyper_potion]
+region = 'route_40'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 24
+x = 252
+z = 300
+
+[route_41_max_ether]
+region = 'route_41'
+type = 'hidden_item'
+original_item = 'max_ether'
+id = 99
+x = 237
+z = 370
+
+[route_41_stardust]
+region = 'route_41'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 170
+x = 203
+z = 336
+
+[route_41_stardust_2]
+region = 'route_41'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 171
+x = 212
+z = 373
+
+[route_41_stardust_3]
+region = 'route_41'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 173
+x = 243
+z = 336
+
+[route_41_stardust_4]
+region = 'route_41'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 172
+x = 241
+z = 342
+
+[route_30_apricorn_house_apricorn_box]
+region = 'route_30_apricorn_house'
+type = 'npc_gift'
+original_item = 'apricorn_box'
+id = 109
+label = 'Route 30 Apricorn House - Apricorn Box'
+
+[route_32_tm05]
+region = 'route_32'
+type = 'hm_tm'
+original_item = 'tm05'
+id = 110
+label = 'Route 32 - TM05 from Man'
+
+[violet_gym_tm51]
+region = 'violet_gym'
+type = 'hm_tm'
+original_item = 'tm51'
+id = 115
+label = 'Violet Gym - TM51 from Falkner'
+
+[route_32_pokecenter_1f_old_rod]
+region = 'route_32_pokecenter_1f'
+type = 'npc_gift'
+original_item = 'old_rod'
+id = 117
+label = 'Route 32 Pokemon Center - Old Rod'
+
+[slowpoke_well_b2f_kings_rock]
+region = 'slowpoke_well_b2f'
+type = 'npc_gift'
+original_item = 'kings_rock'
+id = 122
+label = "Slowpoke Well B2F - King's Rock from Man"
+
+[azalea_gym_tm89]
+region = 'azalea_gym'
+type = 'hm_tm'
+original_item = 'tm89'
+id = 127
+label = 'Azalea Gym - TM89 from Bugsy'
+
+[ilex_forest_hm01]
+region = 'ilex_forest'
+type = 'hm_tm'
+original_item = 'hm01'
+id = 128
+label = 'Ilex Forest - HM01 Cut'
+
+[azalea_charcoal_kiln_charcoal]
+region = 'azalea_charcoal_kiln'
+type = 'npc_gift'
+original_item = 'charcoal'
+id = 129
+label = 'Azalea Charcoal Kiln - Charcoal'
+
+[route_34_ilex_forest_gatehouse_tm12]
+region = 'route_34_ilex_forest_gatehouse'
+type = 'hm_tm'
+original_item = 'tm12'
+id = 131
+label = 'Route 34 Ilex Forest Gatehouse - TM12 from Woman'
+
+[goldenrod_gym_tm45]
+region = 'goldenrod_gym'
+type = 'hm_tm'
+original_item = 'tm45'
+id = 133
+label = 'Goldenrod Gym - TM45 from Whitney'
+
+[goldenrod_radio_tower_3f_tm11]
+region = 'goldenrod_radio_tower_3f'
+type = 'hm_tm'
+original_item = 'tm11'
+id = 143
+label = 'Goldenrod Radio Tower 3F - TM11 from Woman'
+
+[goldenrod_radio_tower_4f_brightpowder]
+region = 'goldenrod_radio_tower_4f'
+type = 'npc_gift'
+original_item = 'brightpowder'
+id = 145
+label = 'Goldenrod Radio Tower 4F - BrightPowder from Mary'
+
+[ecruteak_dance_theater_hm03]
+region = 'ecruteak_dance_theater'
+type = 'hm_tm'
+original_item = 'hm03'
+id = 162
+label = 'Ecruteak Dance Theater - HM03 Surf'
+
+[ecruteak_dowsing_machine_house_dowsing_mchn]
+region = 'ecruteak_dowsing_machine_house'
+type = 'npc_gift'
+original_item = 'dowsing_mchn'
+id = 163
+label = 'Ecruteak Dowsing Machine House - Itemfinder'
+
+[route_37_magnet]
+region = 'route_37'
+type = 'npc_gift'
+original_item = 'magnet'
+id = 165
+label = 'Route 37 - Magnet from Sunny'
+
+[ecruteak_gym_tm30]
+region = 'ecruteak_gym'
+type = 'hm_tm'
+original_item = 'tm30'
+id = 166
+label = 'Ecruteak Gym - TM30 from Morty'
+
+[route_39_moomoo_farm_house_tm83]
+region = 'route_39_moomoo_farm_house'
+type = 'hm_tm'
+original_item = 'tm83'
+id = 171
+label = 'Route 39 Moomoo Farm - TM83 from Woman'
+
+[route_36_hard_stone]
+region = 'route_36'
+type = 'npc_gift'
+original_item = 'hard_stone'
+id = 177
+label = 'Route 36 - Hard Stone from Arthur'
+
+[cianwood_pharmacy_secretpotion]
+region = 'cianwood_pharmacy'
+type = 'npc_gift'
+original_item = 'secretpotion'
+id = 185
+label = 'Cianwood Pharmacy - Secretpotion'
+
+[cianwood_gym_tm01]
+region = 'cianwood_gym'
+type = 'hm_tm'
+original_item = 'tm01'
+id = 186
+label = 'Cianwood Gym - TM01 from Chuck'
+
+[cianwood_hm02]
+region = 'cianwood'
+type = 'hm_tm'
+original_item = 'hm02'
+id = 187
+label = 'Cianwood City - HM02 Fly'
+
+[olivine_northwest_house_good_rod]
+region = 'olivine_northwest_house'
+type = 'npc_gift'
+original_item = 'good_rod'
+id = 189
+label = 'Olivine Northwest House - Good Rod'
+
+[olivine_gym_tm23]
+region = 'olivine_gym'
+type = 'hm_tm'
+original_item = 'tm23'
+id = 194
+label = 'Olivine Gym - TM23 from Jasmine'
+
+[lake_of_rage_hidden_power_house_tm10]
+region = 'lake_of_rage_hidden_power_house'
+type = 'hm_tm'
+original_item = 'tm10'
+id = 199
+label = 'Lake of Rage Hidden Power House - TM10'
+
+[lake_of_rage_red_scale]
+region = 'lake_of_rage'
+type = 'npc_gift'
+original_item = 'red_scale'
+id = 201
+label = 'Lake of Rage - Red Scale'
+
+[route_43_gatehouse_tm36]
+region = 'route_43_gatehouse'
+type = 'hm_tm'
+original_item = 'tm36'
+id = 206
+label = 'Route 43 Gatehouse - TM36 from Guard'
+
+[mahogany_gym_leader_room_tm07]
+region = 'mahogany_gym_leader_room'
+type = 'hm_tm'
+original_item = 'tm07'
+id = 210
+label = 'Mahogany Gym - TM07 from Pryce'
+
+[blackthorn_soft_sand]
+region = 'blackthorn'
+type = 'npc_gift'
+original_item = 'soft_sand'
+id = 212
+label = 'Blackthorn City - Soft Sand from Santos'
+
+[lake_of_rage_black_belt]
+region = 'lake_of_rage'
+type = 'npc_gift'
+original_item = 'black_belt'
+id = 213
+label = 'Lake of Rage - Black Belt from Wesley'
+
+[route_40_sharp_beak]
+region = 'route_40'
+type = 'npc_gift'
+original_item = 'sharp_beak'
+id = 215
+label = 'Route 40 - Sharp Beak from Monica'
+
+[route_29_twistedspoon]
+region = 'route_29'
+type = 'npc_gift'
+original_item = 'twistedspoon'
+id = 216
+label = 'Route 29 - TwistedSpoon from Tuscany'
+
+[route_32_poison_barb]
+region = 'route_32'
+type = 'npc_gift'
+original_item = 'poison_barb'
+id = 217
+label = 'Route 32 - Poison Barb from Frieda'
+
+[blackthorn_gym_tm59]
+region = 'blackthorn_gym'
+type = 'hm_tm'
+original_item = 'tm59'
+id = 218
+label = 'Blackthorn Gym - TM59 from Clair'
+
+[dark_cave_route_45_side_blackglasses]
+region = 'dark_cave_route_45_side'
+type = 'npc_gift'
+original_item = 'blackglasses'
+id = 223
+label = 'Dark Cave (Route 45 side) - BlackGlasses from Man'
+
+[ruins_of_alph_underground_hall_unown_report]
+region = 'ruins_of_alph_underground_hall'
+type = 'npc_gift'
+original_item = 'unown_report'
+id = 272
+label = 'Ruins of Alph Underground Hall - Unown Report'
+
+[national_park_quick_claw]
+region = 'national_park'
+type = 'npc_gift'
+original_item = 'quick_claw'
+id = 270
+label = 'National Park - Quick Claw from Woman'
+
+[mahogany_ragecandybar]
+region = 'mahogany'
+type = 'npc_gift'
+original_item = 'ragecandybar'
+id = 355
+label = 'Mahogany Town - Rage Candy Bar'
+
+[route_32_pokecenter_1f_lure_ball]
+region = 'route_32_pokecenter_1f'
+type = 'npc_gift'
+original_item = 'lure_ball'
+id = 372
+label = 'Route 32 Pokemon Center - Lure Ball from Kurt Fan'
+
+[goldenrod_radio_tower_2f_blue_card]
+region = 'goldenrod_radio_tower_2f'
+type = 'npc_gift'
+original_item = 'blue_card'
+id = 9001
+label = 'Goldenrod Radio Tower 2F - Blue Card'
+
+[goldenrod_radio_tower_5f_basement_key]
+region = 'goldenrod_radio_tower_5f'
+type = 'npc_gift'
+original_item = 'basement_key'
+id = 9002
+label = 'Goldenrod Radio Tower 5F - Basement Key'
+
+[goldenrod_radio_tower_observation_deck_rainbow_wing]
+region = 'goldenrod_radio_tower_observation_deck'
+type = 'npc_gift'
+original_item = 'rainbow_wing'
+id = 9003
+label = 'Goldenrod Radio Tower Observation Deck - Rainbow Wing'
+
+[goldenrod_radio_tower_observation_deck_silver_wing]
+region = 'goldenrod_radio_tower_observation_deck'
+type = 'npc_gift'
+original_item = 'silver_wing'
+id = 9004
+label = 'Goldenrod Radio Tower Observation Deck - Silver Wing'
+
+[goldenrod_tunnel_1f_fashion_case]
+region = 'goldenrod_tunnel_1f'
+type = 'npc_gift'
+original_item = 'fashion_case'
+id = 9005
+label = 'Goldenrod Tunnel 1F - Fashion Case'
+
+[goldenrod_tunnel_warehouse_card_key]
+region = 'goldenrod_tunnel_warehouse'
+type = 'npc_gift'
+original_item = 'card_key'
+id = 9006
+label = 'Goldenrod Tunnel Warehouse - Card Key'
+
+[route_42_hm04]
+region = 'route_42'
+type = 'hm_tm'
+original_item = 'hm04'
+id = 9007
+label = 'Route 42 - HM04 Strength'
+
+[team_rocket_headquarters_b2f_hm05]
+region = 'team_rocket_headquarters_b2f'
+type = 'hm_tm'
+original_item = 'hm05'
+id = 9008
+label = 'Team Rocket HQ B2F - HM05 Whirlpool'
+
+[route_36_hm06]
+region = 'route_36'
+type = 'hm_tm'
+original_item = 'hm06'
+id = 9009
+label = 'Route 36 - HM06 Rock Smash'
+
+[route_29_poke_ball]
+region = 'route_29'
+type = 'npc_gift'
+original_item = 'poke_ball'
+id = 9010
+label = 'Route 29 - 5 Poke Balls'
+
+[route_36_berry_pots]
+region = 'route_36'
+type = 'npc_gift'
+original_item = 'berry_pots'
+id = 9011
+label = 'Route 36 - Berry Pots'
+
+[route_30_mr_pokemon_house_mystery_egg]
+region = 'route_30_mr_pokemon_house'
+type = 'npc_gift'
+original_item = 'mystery_egg'
+id = 9012
+label = "Route 30 Mr. Pokemon's House - Mystery Egg"
+
+[route_30_mr_pokemon_house_exp_share]
+region = 'route_30_mr_pokemon_house'
+type = 'npc_gift'
+original_item = 'exp_share'
+id = 9013
+label = "Route 30 Mr. Pokemon's House - Exp. Share"
+
+[route_31_violet_gatehouse_vs_recorder]
+region = 'route_31_violet_gatehouse'
+type = 'npc_gift'
+original_item = 'vs_recorder'
+id = 9014
+label = 'Route 31 Violet Gatehouse - VS Recorder'
+
+[route_39_moomoo_farm_stable_seal_case]
+region = 'route_39_moomoo_farm_stable'
+type = 'npc_gift'
+original_item = 'seal_case'
+id = 9015
+label = 'Route 39 Moomoo Farm Stable - Seal Case'
+
+[new_bark_elms_lab_1f_everstone]
+region = 'new_bark_elms_lab_1f'
+type = 'npc_gift'
+original_item = 'everstone'
+id = 282
+label = "New Bark Town Elm's Lab - Everstone"
+
+[new_bark_elms_lab_1f_potion]
+region = 'new_bark_elms_lab_1f'
+type = 'npc_gift'
+original_item = 'potion'
+id = 9017
+label = "New Bark Town Elm's Lab - Potion (starter kit)"
+
+[new_bark_elms_lab_1f_s_s_ticket]
+region = 'new_bark_elms_lab_1f'
+type = 'npc_gift'
+original_item = 's_s_ticket'
+id = 9018
+label = "New Bark Town Elm's Lab - S.S. Ticket"
+
+[goldenrod_flower_shop_squirtbottle]
+region = 'goldenrod_flower_shop'
+type = 'npc_gift'
+original_item = 'squirtbottle'
+id = 9019
+label = 'Goldenrod Flower Shop - Squirtbottle'
+
+[sprout_tower_3f_tm70]
+region = 'sprout_tower_3f'
+type = 'hm_tm'
+original_item = 'tm70'
+id = 9020
+label = 'Sprout Tower 3F - TM70'
+
+[ecruteak_dance_theater_clear_bell]
+region = 'ecruteak_dance_theater'
+type = 'npc_gift'
+original_item = 'clear_bell'
+id = 9021
+label = 'Ecruteak Dance Theater - Clear Bell'
+
+[ecruteak_dance_theater_tidal_bell]
+region = 'ecruteak_dance_theater'
+type = 'npc_gift'
+original_item = 'tidal_bell'
+id = 9022
+label = 'Ecruteak Dance Theater - Tidal Bell'
+
+[violet_gym_badge]
+region = 'violet_gym'
+type = 'badge'
+id = 0
+label = 'Violet Gym - Falkner'
+
+[azalea_gym_badge]
+region = 'azalea_gym'
+type = 'badge'
+id = 1
+label = 'Azalea Gym - Bugsy'
+
+[goldenrod_gym_badge]
+region = 'goldenrod_gym'
+type = 'badge'
+id = 2
+label = 'Goldenrod Gym - Whitney'
+
+[ecruteak_gym_badge]
+region = 'ecruteak_gym'
+type = 'badge'
+id = 3
+label = 'Ecruteak Gym - Morty'
+
+[cianwood_gym_badge]
+region = 'cianwood_gym'
+type = 'badge'
+id = 4
+label = 'Cianwood Gym - Chuck'
+
+[olivine_gym_badge]
+region = 'olivine_gym'
+type = 'badge'
+id = 5
+label = 'Olivine Gym - Jasmine'
+
+[mahogany_gym_leader_room_badge]
+region = 'mahogany_gym_leader_room'
+type = 'badge'
+id = 6
+label = 'Mahogany Gym - Pryce'
+
+[dragons_den_shrine_badge]
+region = 'dragons_den_shrine'
+type = 'badge'
+id = 7
+label = "Dragon's Den Shrine - Clair (Rising Badge trial)"
+
