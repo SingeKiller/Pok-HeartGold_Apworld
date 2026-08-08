@@ -12,9 +12,13 @@ Task C3 adds `data/items.py`, built from `data_gen/items.toml` (see
 `data_gen_templates/items.py`). Task C4 adds `data/regions.py` and
 `data/locations.py` (Johto only; Kanto is a future task), built from
 `data_gen/regions.toml` and `data_gen/locations.toml` (see
-`data_gen_templates/regions.py`, `data_gen_templates/locations.py`). Future
-steps will add more `data_gen/*.toml` sources plus one `generate_*` function
-per generated module here, following the same pattern.
+`data_gen_templates/regions.py`, `data_gen_templates/locations.py`). Task C6
+adds `data/rules.py` (region-exit access rules), built from
+`data_gen/rules.toml` (see `data_gen_templates/rules.py`, and the root-level
+`data_gen_rules.py` for the reusable rule-composition/validation helpers it
+depends on). Future steps will add more `data_gen/*.toml` sources plus one
+`generate_*` function per generated module here, following the same
+pattern.
 """
 
 from __future__ import annotations
@@ -84,6 +88,7 @@ from .items import generate_items  # noqa: E402
 from .locations import generate_locations  # noqa: E402
 from .moves import generate_moves  # noqa: E402
 from .regions import generate_regions  # noqa: E402
+from .rules import generate_rules  # noqa: E402
 from .species import generate_species  # noqa: E402
 
 __all__ = [
@@ -92,5 +97,6 @@ __all__ = [
     "generate_locations",
     "generate_moves",
     "generate_regions",
+    "generate_rules",
     "generate_species",
 ]

@@ -1,0 +1,388 @@
+# data_gen/rules.toml
+#
+# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored),
+# task C6 (region-exit access rules). For every `data_gen/regions.toml`
+# `exits` connection that is actually gated in vanilla HGSS by an HM+badge
+# or a key item, this file records the requirement. Connections with no
+# entry below are free (no known vanilla gate) -- this file only ever adds
+# restrictions on top of `data_gen/regions.toml`'s raw graph, never removes
+# an edge, so "is the raw graph connected" is untouched by anything here.
+#
+# Methodology: decomp-verified where practical, cross-checked against public
+# HGSS route-guide knowledge where the decomp's own map-graph granularity
+# (data_gen/regions.toml models one node per *map*, not per sub-map tile/
+# obstacle -- see its header) makes an exact tile-level trace impractical.
+# Every entry below cites its evidence inline. Two ground-truth decomp
+# sources anchor all of it:
+#   - src/field_move.c: each FieldMove_Check<Move> function's own
+#     PlayerProfile_TestBadgeFlag(..., BADGE_*) call -- this is the
+#     authoritative field-move-to-badge mapping (hm_badges below), and also
+#     shows Fly and Flash have NO map/exit gating at all (see below).
+#   - files/fielddata/eventdata/zone_event/*.json: each map's `objects`
+#     array; an object with spriteId SPRITE_TREE/SPRITE_ROCK/SPRITE_BREAKROCK
+#     (include/constants/sprites.h 84-86) is a Cut tree / Strength boulder /
+#     Rock Smash rock placed on that specific map (see src/field_move.c's
+#     FieldMove_InitCheckData, which sets FIELD_MOVE_CHECK_TREE/ROCK/
+#     BREAKROCK from exactly these sprite ids) -- a strong, decomp-native
+#     signal for *which* maps contain each obstacle type, even though the
+#     exact in-map tile position (and therefore which of a multi-exit
+#     region's `exits` it blocks) still needs cross-referencing against the
+#     map's own exits / public route knowledge.
+#
+# hm_badges: the badge vanilla requires to *use* each field move outside of
+# battle (src/field_move.c). Note this is a Gen4-remake-specific mapping,
+# not the Gen1-3 original: e.g. Rock Smash needs BADGE_ZEPHYR (the *first*
+# Johto badge) here, not "no badge" like Gen3. Two field moves are
+# deliberately absent:
+#   - fly: FieldMove_CheckFly requires BADGE_STORM, but Fly only ever
+#     fast-travels to an already-visited town -- it never grants access to a
+#     region unreachable by any other means, so it never gates a
+#     data_gen/regions.toml exit and has no entry in [[exit_rule]] below.
+#   - flash: FieldMove_CheckFlash requires no badge at all (confirmed: no
+#     PlayerProfile_TestBadgeFlag call in that function), and unlike
+#     Gen1-3, HGSS darkness (WEATHER_FLASH) never blocks movement -- it only
+#     reduces the visible radius. It therefore never gates a
+#     data_gen/regions.toml exit either.
+# hm_items: each HM's own data_gen/items.toml key (hm01-hm08), cross-checked
+# against data_gen/moves.toml's [tm_hm] table (hm01=cut .. hm08=rock_climb) --
+# also includes fly for completeness/documentation even though it's unused
+# by any [[exit_rule]] below.
+[hm_badges]
+cut = "hive"
+surf = "fog"
+strength = "plain"
+rock_smash = "zephyr"
+waterfall = "rising"
+whirlpool = "glacier"
+rock_climb = "earth"
+
+[hm_items]
+cut = "hm01"
+fly = "hm02"
+surf = "hm03"
+strength = "hm04"
+whirlpool = "hm05"
+rock_smash = "hm06"
+waterfall = "hm07"
+rock_climb = "hm08"
+
+# badges: canonical badge key -> include/constants/badge.h BADGE_* value.
+# Badges are save-data flags in this game, not data_gen/items.toml entries
+# (see that file's header), so this is their only canonical name table.
+# Cross-checked against data_gen/locations.toml's 16 `type = 'badge'`
+# locations, whose own `id` field is this exact same badge.h value (e.g.
+# violet_gym_badge id=0 .. viridian_gym_badge id=15) -- both tables agree.
+[badges]
+zephyr = 0
+hive = 1
+plain = 2
+fog = 3
+storm = 4
+mineral = 5
+glacier = 6
+rising = 7
+boulder = 8
+cascade = 9
+thunder = 10
+rainbow = 11
+soul = 12
+marsh = 13
+volcano = 14
+earth = 15
+
+# [[exit_rule]]: one gated data_gen/regions.toml exit connection.
+#   from / to: data_gen/regions.toml region keys.
+#   bidirectional: defaults to true (the requirement applies to both
+#     from->to and to->from); set to false for a one-way-only obstacle
+#     (e.g. you can jump down a waterfall without the HM, but not climb it).
+#   hms: list of hm_badges/hm_items keys; each contributes BOTH its HM item
+#     (hm_items) and its field-use badge (hm_badges) to the requirement,
+#     ANDed together with everything else on the same entry.
+#   items: extra data_gen/items.toml keys required (non-HM key items).
+#   badges: extra badges keys required with no associated HM (none needed
+#     so far -- see the header note on this below the table).
+
+# --- Cut (hive badge) -------------------------------------------------
+# Ilex Forest's own Cut tree, between its Azalea-side and Route 34/Goldenrod
+# -side gatehouses (data_gen/regions.toml's sole 2 `ilex_forest` exits) --
+# the mandatory story Cut check (you receive HM01 inside this same forest,
+# just after beating Azalea's gym for the Hive Badge). SPRITE_TREE confirmed
+# on D36R0101 (zone_event 114_D36R0101.json).
+[[exit_rule]]
+from = "ilex_forest"
+to = "route_34_ilex_forest_gatehouse"
+hms = ["cut"]
+
+# --- Surf (fog badge) --------------------------------------------------
+# Every data_gen/regions.toml exit touching a `W`-map-code water route
+# (W40/W41 Johto, W19/W20/W21 Kanto -- see data_gen/regions.toml's header)
+# requires Surf to cross; these are the only regions whose entire map is
+# open water.
+[[exit_rule]]
+from = "olivine"
+to = "route_40"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_40"
+to = "route_41"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_41"
+to = "cianwood"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_41"
+to = "whirl_islands_1f"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "pallet"
+to = "route_21"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_21"
+to = "cinnabar_island"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_19"
+to = "fuchsia"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_19"
+to = "route_20"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_20"
+to = "cinnabar_island"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_20"
+to = "seafoam_islands_1f"
+hms = ["surf"]
+
+# --- Strength (plain badge) --------------------------------------------
+# Each confirmed by a SPRITE_ROCK (boulder) object on the destination map.
+[[exit_rule]]
+# Slowpoke Well B1F -> B2F boulder puzzle (Team Rocket hideout, Azalea).
+# SPRITE_ROCK confirmed on D26R0102 (zone_event 170_D26R0102.json... see
+# note: the boulder is physically on the B1F map, gating the way down).
+from = "slowpoke_well_b1f"
+to = "slowpoke_well_b2f"
+hms = ["strength"]
+
+[[exit_rule]]
+# Whirl Islands B1F -> B2F boulder puzzle. SPRITE_ROCK confirmed on
+# D40R0102 (zone_event 228_D40R0102.json).
+from = "whirl_islands_b1f"
+to = "whirl_islands_b2f"
+hms = ["strength"]
+
+[[exit_rule]]
+# Dark Cave's Route 45<->Route 31 side boulder. SPRITE_ROCK confirmed on
+# D42R0102 (zone_event 169_D42R0102.json).
+from = "dark_cave_route_45_side"
+to = "dark_cave_route_31_side"
+hms = ["strength"]
+
+[[exit_rule]]
+# Victory Road 1F -> 2F boulder puzzle (the classic Victory Road Strength
+# gate). SPRITE_ROCK confirmed on D43R0102 (zone_event 171_D43R0102.json).
+from = "victory_road_1f"
+to = "victory_road_2f"
+hms = ["strength"]
+
+[[exit_rule]]
+# Seafoam Islands B1F -> B2F boulder-into-current puzzle. SPRITE_ROCK
+# confirmed on D11R0102 (zone_event 408_D11R0102.json).
+from = "seafoam_islands_b1f"
+to = "seafoam_islands_b2f"
+hms = ["strength"]
+
+[[exit_rule]]
+# Seafoam Islands B3F -> B4F boulder-into-current puzzle. SPRITE_ROCK
+# confirmed on D11R0104 (zone_event 410_D11R0104.json).
+from = "seafoam_islands_b3f"
+to = "seafoam_islands_b4f"
+hms = ["strength"]
+
+# --- Rock Smash (zephyr badge) ------------------------------------------
+# Each confirmed by a SPRITE_BREAKROCK object on the destination/blocking
+# map.
+[[exit_rule]]
+# Burned Tower 1F -> B1F crumbled/cracked floor. SPRITE_BREAKROCK confirmed
+# on D18R0102 (zone_event 204_D18R0102.json).
+from = "burned_tower_1f"
+to = "burned_tower_b1f"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Ruins of Alph's 4 Unown-puzzle entrance chambers are each behind their own
+# cracked rock outside. SPRITE_BREAKROCK confirmed on D24R0101 (zone_event
+# 110_D24R0101.json, the shared Ruins of Alph exterior map).
+from = "ruins_of_alph"
+to = "ruins_of_alph_northeast_entrance_first_room"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "ruins_of_alph"
+to = "ruins_of_alph_southeast_entrance_first_room"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "ruins_of_alph"
+to = "ruins_of_alph_southwest_entrance_first_room"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "ruins_of_alph"
+to = "ruins_of_alph_northwest_entrance_first_room"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Ice Path B1F -> B2F boulder-into-hole puzzle. SPRITE_ROCK confirmed on
+# D39R0103 (zone_event 224_D39R0103.json).
+from = "ice_path_b1f"
+to = "ice_path_b2f"
+hms = ["strength"]
+
+[[exit_rule]]
+# Ice Path B2F -> B3F cracked rock. SPRITE_BREAKROCK confirmed on D39R0104
+# (zone_event 225_D39R0104.json).
+from = "ice_path_b2f"
+to = "ice_path_b3f"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Mount Silver Cave 1F -> 2F cracked rock. SPRITE_BREAKROCK confirmed on
+# D41R0106 (zone_event 417_D41R0106.json).
+from = "mount_silver_cave_1f"
+to = "mount_silver_cave_2f"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Victory Road 2F -> 3F cracked rock (past the Strength boulders on 1F->2F).
+# SPRITE_BREAKROCK confirmed on D43R0103 (zone_event 172_D43R0103.json).
+from = "victory_road_2f"
+to = "victory_road_3f"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Cerulean Cave 1F -> 2F cracked rock. SPRITE_BREAKROCK confirmed on
+# D03R0102 (zone_event 405_D03R0102.json).
+from = "cerulean_cave_1f"
+to = "cerulean_cave_2f"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+# Cerulean Cave 1F -> B1F cracked rock. SPRITE_BREAKROCK confirmed on
+# D03R0103 (zone_event 406_D03R0103.json).
+from = "cerulean_cave_1f"
+to = "cerulean_cave_b1f"
+hms = ["rock_smash"]
+
+# --- Waterfall (rising badge) -------------------------------------------
+[[exit_rule]]
+# Tohjo Falls' hidden grotto: reached by swimming/climbing up the waterfall
+# itself (public HGSS route-guide knowledge; data_gen/regions.toml only
+# gives Tohjo Falls 2 exits total: route_27 and this hidden room, so this is
+# its one non-route_27 connection). SPRITE_BREAKROCK *also* confirmed on
+# D45R0102 (zone_event 269_D45R0102.json, the hidden room itself) for an
+# item inside, so both HMs are required to fully reach it. One-way: you can
+# leave the hidden room without climbing back up (there is no known vanilla
+# check gating the return trip), so bidirectional = false.
+from = "tohjo_falls"
+to = "tohjo_falls_hidden_room"
+bidirectional = false
+hms = ["waterfall", "rock_smash"]
+
+# --- Whirlpool (glacier badge) ------------------------------------------
+# Whirl Islands' underwater whirlpool barrier past the Strength boulders on
+# B1F (public HGSS route-guide knowledge; data_gen/regions.toml shows B2F as
+# the fork leading to both B3F and the Lugia chamber).
+[[exit_rule]]
+from = "whirl_islands_b2f"
+to = "whirl_islands_b3f"
+hms = ["whirlpool"]
+
+[[exit_rule]]
+from = "whirl_islands_b2f"
+to = "whirl_islands_b3f_lugia_cave"
+hms = ["whirlpool"]
+
+# --- Rock Climb (earth badge) -------------------------------------------
+# The Cliff Cave/Cliff Edge Gate shortcut between Cianwood and Route 47 (a
+# HGSS-remake-added Rock Climb shortcut -- public route-guide knowledge;
+# note data_gen/regions.toml also keeps a direct, ungated cianwood<->route_47
+# exit, so this is a genuinely optional alternate path, not the only way
+# through -- gating it cannot disconnect the graph).
+[[exit_rule]]
+from = "cliff_edge_gate"
+to = "cianwood"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "cliff_edge_gate"
+to = "route_47"
+hms = ["rock_climb"]
+
+# --- Key items (non-HM) --------------------------------------------------
+[[exit_rule]]
+# Boarding the S.S. Aqua at Olivine: `HasItem ITEM_S_S__TICKET` gate,
+# decomp-verified in files/fielddata/script/scr_seq/scr_seq_0152_P01R0101.s
+# (P01R0101 = ss_aqua_olivine_port_interior). The same check is *not*
+# present on the Vermilion side's own scripts, but the S.S. Ticket is a
+# permanent key item (never consumed) so gating both directions is
+# equivalent and safe.
+from = "ss_aqua_olivine_port_interior"
+to = "ss_aqua_olivine_port_exterior"
+items = ["s_s_ticket"]
+
+# --- Known limitations (documented, not hidden; see this task's handoff
+# notes for the full rationale) --------------------------------------------
+# The following data_gen/items.toml "progression" key items were
+# specifically investigated (per this task's brief) and found to NOT gate
+# any data_gen/regions.toml exit in vanilla, so they are intentionally
+# absent from [[exit_rule]] above:
+#   - squirtbottle: revives the Route 36 Sudowoodo (`HasItem
+#     ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s), but Route 36 is a single
+#     data_gen/regions.toml region (no sub-map node either side of the
+#     tree) -- this is a real vanilla gate that this graph's per-map
+#     granularity cannot express as an inter-region exit.
+#   - secretpotion: `TakeItem ITEM_SECRETPOTION` at the Olivine Lighthouse
+#     light room (scr_seq_0066_D27R0107.s) is Jasmine's Amphy-cure
+#     questline delivery -- dialogue/plot only, does not block any route.
+#   - card_key / basement_key: both only ever appear behind `GetItemQuantity`
+#     dialogue checks on NPCs/signs in Goldenrod Radio Tower and the
+#     Goldenrod Tunnel (Team Rocket HQ) dead-end rooms -- no decomp evidence
+#     of an actual locked-door/warp block tied to either item.
+#   - mystery_egg: Elm's starting fetch-quest item; no scr_seq evidence of
+#     it gating a route (it flips story/dialogue flags only).
+#   - bicycle, old_rod/good_rod/super_rod: no evidence of gating a
+#     data_gen/regions.toml exit (Bicycle is a speed convenience; the rods
+#     gate specific fishing *locations*, not region traversal -- out of
+#     this task's `exits`-only scope).
+# Two additional gates were found but are deliberately NOT modeled here
+# because they are pure story/event flags with no corresponding
+# data_gen/items.toml or [badges] entry to attach a rule to (no "own this"
+# state exists yet to check against): FLAG_UNLOCKED_WEST_KANTO and
+# FLAG_UNLOCKED_MT_SILVER, both guarding NPC policemen at the Route 22
+# Pokemon League reception gate (R22R0101; see scr_seq_0213_R22R0101.s and
+# scr_seq_0741_T02.s/scr_seq_0740_T01R0301.s for where they get set --
+# Kanto/Viridian progress and post-Elite-Four Mt. Silver access,
+# respectively). Left for a future task once this project has an event/flag
+# concept (e.g. alongside victory-condition work) -- flagged here rather
+# than silently omitted.
+# No genuine "badge alone, no HM" exit gate was found in this pass (the
+# `badges` field of [[exit_rule]] above is unused for now, kept only for
+# schema extensibility/future correction) -- every `CheckBadge` call found
+# in scr_seq/*.s is either a gym-rematch dialogue flavor check or an
+# unrelated side-event condition (e.g. the Sinjoh Ruins Mystri Stone
+# trigger in D24R0101, itself v2/out of scope), never a passage block.

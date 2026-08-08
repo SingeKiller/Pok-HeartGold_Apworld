@@ -23,6 +23,7 @@ from data_gen_templates import (
     generate_locations,
     generate_moves,
     generate_regions,
+    generate_rules,
     generate_species,
 )
 
@@ -42,6 +43,7 @@ def main() -> None:
     _write("items.py", generate_items())
     _write("regions.py", generate_regions())
     _write("locations.py", generate_locations())
+    _write("rules.py", generate_rules())
 
 
 if __name__ == "__main__":
