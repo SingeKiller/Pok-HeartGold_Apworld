@@ -1,0 +1,10 @@
+# requirements.txt
+#
+# Runtime dependencies of the Pokemon HeartGold APWorld itself (imported by
+# rom/, patch_gen.py, etc. when Archipelago loads this world). This is
+# distinct from requirements-dev.txt, which only covers this repository's
+# own dev/lint/test tooling. Archipelago does not currently vendor these
+# for worlds, so they must be installed into the same environment/venv that
+# runs Archipelago (see docs/architecture.md, "## Spikes" - Spike 1).
+
+ndspy>=4.2
