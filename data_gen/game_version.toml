@@ -1,0 +1,19 @@
+# data_gen/game_version.toml
+#
+# Minimal proof-of-pipeline source data (task C1: bootstrap of the data_gen
+# pipeline). Mirrors the VERSION_HEARTGOLD / LANGUAGE_ENGLISH constants
+# declared in the decomp reference, at the path described by
+# data_gen/rom_interface.toml (paths.config_header, relative to
+# paths.decomp_root):
+#
+#   ressources/Decomposition/pokeheartgold/include/config.h
+#     #define VERSION_HEARTGOLD  7
+#     #define LANGUAGE_ENGLISH   2
+#
+# Full data extraction (items, locations, species, encounters, trainers...)
+# is out of scope for this step and lands in tasks C2-C7.
+
+name = "HeartGold"
+version = 7
+language = "ENGLISH"
+language_code = 2

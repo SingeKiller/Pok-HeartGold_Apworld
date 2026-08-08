@@ -1,0 +1,13 @@
+# data_gen/rom_interface.toml
+#
+# Describes how/where data_gen.py reads source data from the read-only
+# decomp reference (see docs/architecture.md, "## Spikes", Spike 3). Paths
+# are always relative to the repository root; never hardcode an absolute
+# path here.
+#
+# `ressources/` is a git-ignored, external, read-only checkout and must
+# never be modified or committed by this project.
+
+[paths]
+decomp_root = "ressources/Decomposition/pokeheartgold"
+config_header = "include/config.h"
