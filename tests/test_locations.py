@@ -1,12 +1,13 @@
-"""Tests for the Johto locations data_gen pipeline (task C4).
+"""Tests for the Johto+Kanto locations data_gen pipeline (tasks C4 + C5).
 
 Regenerates `data/` (via `python data_gen.py`) and checks the actual total
-location count observed from the decomp extraction (400 Johto locations:
-169 ground_item + 139 hidden_item + 45 hm_tm + 39 npc_gift + 8 badge -- see
-`data_gen/locations.toml`'s header for the extraction methodology), not an
-assumed figure, plus that the 8 Johto badges are present and correctly
-typed, that every location references an existing region, and a handful of
-witness locations read directly out of the decomp.
+location count observed from the decomp extraction (586 locations: 400
+Johto + 186 Kanto -- 217 ground_item + 225 hidden_item + 73 hm_tm + 55
+npc_gift + 16 badge overall -- see `data_gen/locations.toml`'s header for
+the extraction methodology), not an assumed figure, plus that all 16
+Johto+Kanto badges are present and correctly typed, that every location
+references an existing region, and a handful of witness locations read
+directly out of the decomp.
 """
 
 from __future__ import annotations
@@ -31,6 +32,17 @@ _JOHTO_BADGES = {
     "olivine_gym_badge": ("olivine_gym", 5),
     "mahogany_gym_leader_room_badge": ("mahogany_gym_leader_room", 6),
     "dragons_den_shrine_badge": ("dragons_den_shrine", 7),
+}
+
+_KANTO_BADGES = {
+    "pewter_gym_badge": ("pewter_gym", 8),
+    "cerulean_gym_badge": ("cerulean_gym", 9),
+    "vermilion_gym_badge": ("vermilion_gym", 10),
+    "celadon_gym_badge": ("celadon_gym", 11),
+    "fuchsia_gym_badge": ("fuchsia_gym", 12),
+    "saffron_gym_badge": ("saffron_gym", 13),
+    "seafoam_islands_cinnabar_gym_badge": ("seafoam_islands_cinnabar_gym", 14),
+    "viridian_gym_badge": ("viridian_gym", 15),
 }
 
 
@@ -66,19 +78,19 @@ def items(data_modules):
 
 
 def test_location_count_matches_extraction(locations) -> None:
-    """400 is the actual number of Johto locations found by the C4
-    extraction (169 ground_item + 139 hidden_item + 45 hm_tm + 39 npc_gift +
-    8 badge), not a guessed figure."""
-    assert len(locations) == 400
+    """586 is the actual number of Johto+Kanto locations found by the C4+C5
+    extraction (400 Johto + 186 Kanto = 217 ground_item + 225 hidden_item +
+    73 hm_tm + 55 npc_gift + 16 badge), not a guessed figure."""
+    assert len(locations) == 586
     by_type: dict[str, int] = {}
     for loc in locations.values():
         by_type[loc["type"]] = by_type.get(loc["type"], 0) + 1
     assert by_type == {
-        "ground_item": 169,
-        "hidden_item": 139,
-        "hm_tm": 45,
-        "npc_gift": 39,
-        "badge": 8,
+        "ground_item": 217,
+        "hidden_item": 225,
+        "hm_tm": 73,
+        "npc_gift": 55,
+        "badge": 16,
     }
 
 
@@ -95,12 +107,36 @@ def test_all_eight_johto_badges_present(locations) -> None:
         assert "original_item" not in loc  # badges are save-flags, not items
 
 
+def test_all_eight_kanto_badges_present(locations) -> None:
+    """The 8 Kanto gym badges (include/constants/badge.h BADGE_BOULDER
+    .. BADGE_EARTH, ids 8-15) must each have exactly one badge-type
+    location, in the correct gym region, with badge.h's own id. Unlike
+    Johto's Rising Badge, all 8 are handed over directly at their own gym
+    (decomp-verified: each gym's own scr_seq has its own GiveBadge call)."""
+    for key, (expected_region, expected_id) in _KANTO_BADGES.items():
+        assert key in locations, f"missing badge location {key!r}"
+        loc = locations[key]
+        assert loc["type"] == "badge"
+        assert loc["region"] == expected_region
+        assert loc["id"] == expected_id
+        assert "original_item" not in loc  # badges are save-flags, not items
+
+
 def test_rising_badge_is_at_dragons_den_not_the_gym(locations) -> None:
     """Decomp-verified vanilla mechanic (not a bug): `GiveBadge BADGE_RISING`
     is in the Dragon's Den Shrine script, not the Blackthorn Gym script --
     Clair's gym battle alone doesn't hand over the badge in this game."""
     assert locations["dragons_den_shrine_badge"]["region"] == "dragons_den_shrine"
     assert "blackthorn_gym_badge" not in locations
+
+
+def test_volcano_badge_is_at_seafoam_not_cinnabar(locations) -> None:
+    """Decomp-verified vanilla mechanic (not a bug): Cinnabar Island's gym
+    was relocated inside Seafoam Islands (map code D11R0106) in this game
+    (Blaine's original gym building has no gym script at all) --
+    `GiveBadge BADGE_VOLCANO` is in that Seafoam Islands room's script."""
+    assert locations["seafoam_islands_cinnabar_gym_badge"]["region"] == "seafoam_islands_cinnabar_gym"
+    assert "cinnabar_island_gym_badge" not in locations
 
 
 def test_every_location_references_an_existing_region(locations, regions) -> None:
@@ -164,6 +200,63 @@ def test_violet_gym_badge_witness(locations) -> None:
     assert loc["type"] == "badge"
     assert loc["region"] == "violet_gym"
     assert loc["id"] == 0
+
+
+def test_kanto_ground_item_witness(locations) -> None:
+    """Read directly from the decomp: Diglett's Cave (D01R0101) has a
+    `std_itemball_d01r0101_pp_max` object at x=10, z=58, and
+    include/constants/flags.h's FLAG_HIDE_ITEMBALL_D01R0101_PP_MAX =
+    0x511 (1297)."""
+    loc = locations["diglett_cave_pp_max"]
+    assert loc["type"] == "ground_item"
+    assert loc["region"] == "diglett_cave"
+    assert loc["original_item"] == "pp_max"
+    assert loc["id"] == 1297
+    assert loc["x"] == 10
+    assert loc["z"] == 58
+
+
+def test_kanto_hidden_item_witness(locations) -> None:
+    """Read directly from the decomp: include/constants/hidden_items.h's
+    HIDDENITEM_T02_NUGGET = 200, at Viridian City (T02)."""
+    loc = locations["viridian_nugget"]
+    assert loc["type"] == "hidden_item"
+    assert loc["region"] == "viridian"
+    assert loc["original_item"] == "nugget"
+    assert loc["id"] == 200
+
+
+def test_kanto_badge_tm_witness(locations) -> None:
+    """Read directly from the decomp:
+    files/fielddata/script/scr_seq/scr_seq_0752_T03GYM0101.s hands over
+    TM80 right after `GiveBadge BADGE_BOULDER`, guarded by
+    FLAG_GOT_TM80_FROM_BROCK = 0x17F (383) -- a separate location from the
+    badge itself."""
+    loc = locations["pewter_gym_tm80"]
+    assert loc["type"] == "hm_tm"
+    assert loc["region"] == "pewter_gym"
+    assert loc["original_item"] == "tm80"
+    assert loc["id"] == 383
+
+
+def test_ss_aqua_ferry_included_in_kanto_pass(locations, regions) -> None:
+    """C4 excluded the S.S. Aqua ferry (map code P01*) entirely, since no
+    Kanto regions existed yet to attach its Vermilion end to (see this
+    file's header). C5 must include it, now that data_gen/regions.toml
+    models the whole ferry as its own regions."""
+    loc = locations["ss_aqua_captain_room_flame_plate"]
+    assert loc["region"] == "ss_aqua_captain_room"
+    assert loc["region"] in regions
+
+
+def test_pewter_wing_duplicate_excluded(locations) -> None:
+    """C5 found a second decomp trigger for the exact same Rainbow
+    Wing/Silver Wing key item in Pewter City (T03), guarded by the same
+    flag as the Radio Tower Observation Deck version C4 already captured
+    -- only one location should exist for it, not two."""
+    assert "goldenrod_radio_tower_observation_deck_rainbow_wing" in locations
+    assert "pewter_rainbow_wing" not in locations
+    assert "pewter_silver_wing" not in locations
 
 
 def test_locations_are_idempotent() -> None:

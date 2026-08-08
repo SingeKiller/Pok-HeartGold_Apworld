@@ -1,10 +1,13 @@
 # data_gen/locations.toml
 #
 # Source: ressources/Decomposition/pokeheartgold (read-only, gitignored),
-# task C4 (Johto locations, see docs/scope.md v1). Machine-extracted; see
-# this repo's C4 handoff notes for the full extraction methodology.
+# task C4 (Johto locations) + task C5 (Kanto locations, see docs/scope.md
+# v1). Machine-extracted; see this repo's C4/C5 handoff notes for the full
+# extraction methodology.
 #
-# Scope: Johto only (Kanto is a future C5 task). 5 location `type`s:
+# Scope: Johto + Kanto (see data_gen/regions.toml's header for Kanto's own
+# region-graph scope boundary; location extraction below only ever looks at
+# maps already present in regions.toml). 5 location `type`s:
 #   - ground_item: overworld item balls (std_itemball_* scripts).
 #   - hidden_item: Itemfinder-only items (std_hiddenitem_* scripts).
 #   - npc_gift: an NPC/event hands over a bag item directly (no item ball).
@@ -18,20 +21,31 @@
 #   - badge: one of the 8 Johto gym badges (GiveBadge script command).
 #
 # Excluded from this pass (out of v1 scope or ambiguous, see docs/scope.md
-# and this task's handoff notes): Pokemon/egg rewards (Eevee from Bill,
-# Dratini from the Dragon's Den master, the Primo eggs, the Togepi egg
-# pickup call) -- these are Pokemon, not items, and belong to a future
+# and this task's C4/C5 handoff notes): Pokemon/egg rewards (Eevee from
+# Bill, Dratini from the Dragon's Den master, the Primo eggs, the Togepi
+# egg pickup call, and -- C5 -- the Steven/Latios-Latias postgame encounter
+# in Pewter City) -- these are Pokemon, not items, and belong to a future
 # static/gift-Pokemon task, not this items/locations one. Repeatable/daily
-# NPC gifts (e.g. the Violet City and Fuchsia City "random berry of the
-# day" NPCs) are excluded as they're not a meaningful one-time check.
-# Radio Card and the Pokegear are v2 (docs/scope.md's "Radio Card /
-# PokeGear features"). Kurt's apricorn-ball crafting is v2. The Bug
-# Catching Contest room (National Park) and Pokeathlon Dome are v2. The
-# S.S. Aqua ferry interior (map code P01*) is excluded: it isn't part of
-# either the Johto or Kanto region graph in any clean sense (a traveling
-# ship), deferred to whichever future task models it properly.
+# or paid NPC "gifts" (e.g. the Violet City and Fuchsia City "random berry
+# of the day" NPCs; C5's Kanto equivalents: the Route 25 Sea Cottage man's
+# cycling evolution-stone gift, the Fuchsia shard trader, the Fuchsia Pal
+# Park entrance's random berry, and the Celadon Dept. Store roof vending
+# machine) are excluded as they're not a meaningful one-time check. Radio
+# Card and the Pokegear are v2 (docs/scope.md's "Radio Card / PokeGear
+# features"). Kurt's apricorn-ball crafting is v2. The Bug Catching
+# Contest room (National Park), Pokeathlon Dome, and Safari Zone are v2.
+# C5 also excludes one apparent duplicate: Pewter City (T03) has a second,
+# alternate trigger for the same Rainbow Wing/Silver Wing key item already
+# captured at goldenrod_radio_tower_observation_deck (C4) -- both are
+# guarded by the exact same decomp flag (FLAG_UNK_093/094), so only one
+# real check exists; kept at its original C4 location.
 #
-# ground_item / hidden_item extraction (fully mechanical): every Johto
+# The S.S. Aqua ferry (map code P01*) was excluded from C4's pass (Johto
+# only, no Kanto regions existed yet to hang its Vermilion end off of) but
+# is included as of C5, now that data_gen/regions.toml models the whole
+# ferry (Olivine <-> ship <-> Vermilion) as its own set of regions.
+#
+# ground_item / hidden_item extraction (fully mechanical): every
 # zone_event/*.json object/bg entry whose scriptId matches
 # std_itemball_<map>_<item> / std_hiddenitem_<map>_<item> is one location;
 # `id` is the matching include/constants/flags.h FLAG_HIDE_ITEMBALL_*
@@ -39,26 +53,37 @@
 # value (hidden_item) -- both are decomp-native stable identifiers for
 # these, not synthesized here. A few hidden items are shared border
 # placements referenced from two neighboring map files (e.g.
-# HIDDENITEM_R29_R30_T21_NUGGET); only one location is kept per unique
+# HIDDENITEM_R29_R30_T21_NUGGET, or C5's HIDDENITEM_R26_R27_NUGGET and
+# HIDDENITEM_T09_W21_RARE_CANDY); only one location is kept per unique
 # decomp id (no double-counting), attached to the first map in the name.
+# C5 additionally found one hidden item id (Mt. Moon Square's max_revive,
+# D02R0103) duplicated verbatim -- object-for-object -- on the adjacent
+# Clefairy-event variant of the same room (D02R0104, a mutually-exclusive
+# alternate state of the same physical space); kept once, at its
+# mount_moon_square (D02R0103) owner map.
 #
 # npc_gift extraction: cross-referenced from three decomp script patterns
 # (`CallStd std_give_item_verbose`, `CallStd std_obtain_item_verbose`,
-# `GiveItemNoCheck ITEM_*`) across every Johto-scoped scr_seq/*.s file,
-# filtered to bag items only (see exclusions above). `id` is the matching
-# include/constants/flags.h FLAG_GOT_<ITEM>_FROM_<GIVER> value where one
-# exists (most do, and conveniently self-document the giver in the
-# constant name); a handful of gifts have no single-purpose FLAG_GOT_*
-# constant (they're guarded by a different, reused, or absent flag) and
-# get a sequential id in a reserved 9000+ band instead, noted inline.
+# `GiveItemNoCheck ITEM_*`) across every scr_seq/*.s file for a map in
+# regions.toml, filtered to bag items only (see exclusions above). `id` is
+# the matching include/constants/flags.h FLAG_GOT_<ITEM>_FROM_<GIVER>
+# value where one exists (most do, and conveniently self-document the
+# giver in the constant name); a handful of gifts have no single-purpose
+# FLAG_GOT_* constant (they're guarded by a different, reused, or absent
+# flag) and get a sequential id in a reserved 9000+ band instead, noted
+# inline (C5 continues this band from C4's highest used id, 9022, starting
+# at 9023).
 #
 # badge extraction: fully mechanical, `grep -rn GiveBadge
 # files/fielddata/script/scr_seq` -- `id` is the badge's own
-# include/constants/badge.h BADGE_* value (0-7 for the 8 Johto badges).
-# Note: BADGE_RISING (Blackthorn) is granted at the Dragon's Den Shrine,
-# not at the Blackthorn Gym itself -- Clair's gym battle alone does not
-# give it in this game; this is a real, decomp-verified vanilla mechanic
-# (you must then prove yourself at the Dragon's Den shrine), not a bug.
+# include/constants/badge.h BADGE_* value (0-7 for the 8 Johto badges,
+# 8-15 for the 8 Kanto badges added in C5). Note: BADGE_RISING
+# (Blackthorn) is granted at the Dragon's Den Shrine, not at the
+# Blackthorn Gym itself -- Clair's gym battle alone does not give it in
+# this game; this is a real, decomp-verified vanilla mechanic (you must
+# then prove yourself at the Dragon's Den shrine), not a bug. All 8 Kanto
+# gym leaders instead hand their badge over directly at the gym, matching
+# their own scr_seq's GiveBadge call one-for-one.
 #
 # region: the parent data_gen/regions.toml region key.
 # original_item: the data_gen/items.toml key of the vanilla item found
@@ -3188,3 +3213,1443 @@ type = 'badge'
 id = 7
 label = "Dragon's Den Shrine - Clair (Rising Badge trial)"
 
+[celadon_tm67]
+region = 'celadon'
+type = 'hm_tm'
+original_item = 'tm67'
+id = 1305
+x = 1195
+z = 226
+
+[cerulean_cave_1f_max_elixir]
+region = 'cerulean_cave_1f'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1257
+x = 43
+z = 18
+
+[cerulean_cave_1f_full_restore]
+region = 'cerulean_cave_1f'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1259
+x = 21
+z = 43
+
+[cerulean_cave_1f_nugget]
+region = 'cerulean_cave_1f'
+type = 'ground_item'
+original_item = 'nugget'
+id = 1260
+x = 9
+z = 18
+
+[cerulean_cave_1f_sea_incense]
+region = 'cerulean_cave_1f'
+type = 'ground_item'
+original_item = 'sea_incense'
+id = 1261
+x = 24
+z = 6
+
+[cerulean_cave_2f_pp_up]
+region = 'cerulean_cave_2f'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1262
+x = 8
+z = 25
+
+[cerulean_cave_2f_ultra_ball]
+region = 'cerulean_cave_2f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1263
+x = 12
+z = 32
+
+[cerulean_cave_2f_tm24]
+region = 'cerulean_cave_2f'
+type = 'hm_tm'
+original_item = 'tm24'
+id = 1264
+x = 56
+z = 17
+
+[cerulean_cave_2f_odd_incense]
+region = 'cerulean_cave_2f'
+type = 'ground_item'
+original_item = 'odd_incense'
+id = 1265
+x = 39
+z = 33
+
+[cerulean_cave_b1f_max_revive]
+region = 'cerulean_cave_b1f'
+type = 'ground_item'
+original_item = 'max_revive'
+id = 1268
+x = 31
+z = 6
+
+[cerulean_cave_b1f_ultra_ball]
+region = 'cerulean_cave_b1f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1269
+x = 5
+z = 32
+
+[cerulean_cave_b1f_dusk_stone]
+region = 'cerulean_cave_b1f'
+type = 'ground_item'
+original_item = 'dusk_stone'
+id = 1270
+x = 28
+z = 26
+
+[cerulean_cave_b1f_electirizer]
+region = 'cerulean_cave_b1f'
+type = 'ground_item'
+original_item = 'electirizer'
+id = 1271
+x = 58
+z = 8
+
+[cerulean_cave_b1f_black_sludge]
+region = 'cerulean_cave_b1f'
+type = 'ground_item'
+original_item = 'black_sludge'
+id = 1272
+x = 57
+z = 39
+
+[cinnabar_island_magmarizer]
+region = 'cinnabar_island'
+type = 'ground_item'
+original_item = 'magmarizer'
+id = 1236
+x = 1045
+z = 497
+
+[diglett_cave_pp_max]
+region = 'diglett_cave'
+type = 'ground_item'
+original_item = 'pp_max'
+id = 1297
+x = 10
+z = 58
+
+[diglett_cave_rock_incense]
+region = 'diglett_cave'
+type = 'ground_item'
+original_item = 'rock_incense'
+id = 1298
+x = 23
+z = 75
+
+[pewter_wise_glasses]
+region = 'pewter'
+type = 'ground_item'
+original_item = 'wise_glasses'
+id = 1308
+x = 1029
+z = 91
+
+[rock_tunnel_1f_elixir]
+region = 'rock_tunnel_1f'
+type = 'ground_item'
+original_item = 'elixir'
+id = 1222
+x = 7
+z = 27
+
+[rock_tunnel_1f_tm56]
+region = 'rock_tunnel_1f'
+type = 'hm_tm'
+original_item = 'tm56'
+id = 1223
+x = 24
+z = 20
+
+[rock_tunnel_b1f_iron]
+region = 'rock_tunnel_b1f'
+type = 'ground_item'
+original_item = 'iron'
+id = 1224
+x = 33
+z = 33
+
+[rock_tunnel_b1f_pp_up]
+region = 'rock_tunnel_b1f'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1225
+x = 31
+z = 21
+
+[rock_tunnel_b1f_revive]
+region = 'rock_tunnel_b1f'
+type = 'ground_item'
+original_item = 'revive'
+id = 1226
+x = 24
+z = 5
+
+[rock_tunnel_b1f_oval_stone]
+region = 'rock_tunnel_b1f'
+type = 'ground_item'
+original_item = 'oval_stone'
+id = 1296
+x = 15
+z = 31
+
+[route_10_south_tm69]
+region = 'route_10_south'
+type = 'hm_tm'
+original_item = 'tm69'
+id = 1300
+x = 1417
+z = 206
+
+[route_11_tm86]
+region = 'route_11'
+type = 'hm_tm'
+original_item = 'tm86'
+id = 1307
+x = 1393
+z = 292
+
+[route_12_calcium]
+region = 'route_12'
+type = 'ground_item'
+original_item = 'calcium'
+id = 1228
+x = 1410
+z = 332
+
+[route_12_yellow_flute]
+region = 'route_12'
+type = 'ground_item'
+original_item = 'yellow_flute'
+id = 1229
+x = 1411
+z = 347
+
+[route_15_pp_up]
+region = 'route_15'
+type = 'ground_item'
+original_item = 'pp_up'
+id = 1230
+x = 1263
+z = 423
+
+[route_15_rose_incense]
+region = 'route_15'
+type = 'ground_item'
+original_item = 'rose_incense'
+id = 1306
+x = 1290
+z = 434
+
+[route_19_tm55]
+region = 'route_19'
+type = 'hm_tm'
+original_item = 'tm55'
+id = 1199
+x = 1210
+z = 505
+
+[route_2_elixir]
+region = 'route_2'
+type = 'ground_item'
+original_item = 'elixir'
+id = 1233
+x = 1045
+z = 212
+
+[route_25_protein]
+region = 'route_25'
+type = 'ground_item'
+original_item = 'protein'
+id = 1227
+x = 1380
+z = 36
+
+[route_26_max_elixir]
+region = 'route_26'
+type = 'ground_item'
+original_item = 'max_elixir'
+id = 1115
+x = 910
+z = 314
+
+[route_27_rare_candy]
+region = 'route_27'
+type = 'ground_item'
+original_item = 'rare_candy'
+id = 1117
+x = 783
+z = 407
+
+[route_27_tm02]
+region = 'route_27'
+type = 'hm_tm'
+original_item = 'tm02'
+id = 1118
+x = 793
+z = 407
+
+[route_27_destiny_knot]
+region = 'route_27'
+type = 'ground_item'
+original_item = 'destiny_knot'
+id = 1293
+x = 843
+z = 394
+
+[route_28_tm35]
+region = 'route_28'
+type = 'hm_tm'
+original_item = 'tm35'
+id = 1280
+x = 865
+z = 264
+
+[route_2_east_carbos]
+region = 'route_2_east'
+type = 'ground_item'
+original_item = 'carbos'
+id = 1232
+x = 1053
+z = 129
+
+[route_3_big_root]
+region = 'route_3'
+type = 'ground_item'
+original_item = 'big_root'
+id = 1309
+x = 1132
+z = 120
+
+[route_4_hp_up]
+region = 'route_4'
+type = 'ground_item'
+original_item = 'hp_up'
+id = 1240
+x = 1254
+z = 107
+
+[route_6_tm62]
+region = 'route_6'
+type = 'hm_tm'
+original_item = 'tm62'
+id = 1299
+x = 1291
+z = 282
+
+[route_7_mental_herb]
+region = 'route_7'
+type = 'ground_item'
+original_item = 'mental_herb'
+id = 1197
+x = 1263
+z = 226
+
+[route_8_tm41]
+region = 'route_8'
+type = 'hm_tm'
+original_item = 'tm41'
+id = 1287
+x = 1358
+z = 248
+
+[route_9_tm91]
+region = 'route_9'
+type = 'hm_tm'
+original_item = 'tm91'
+id = 1301
+x = 1415
+z = 136
+
+[route_9_full_restore]
+region = 'route_9'
+type = 'ground_item'
+original_item = 'full_restore'
+id = 1302
+x = 1413
+z = 154
+
+[route_9_light_clay]
+region = 'route_9'
+type = 'ground_item'
+original_item = 'light_clay'
+id = 1303
+x = 1376
+z = 143
+
+[route_9_max_potion]
+region = 'route_9'
+type = 'ground_item'
+original_item = 'max_potion'
+id = 1304
+x = 1356
+z = 154
+
+[seafoam_islands_b1f_ice_heal]
+region = 'seafoam_islands_b1f'
+type = 'ground_item'
+original_item = 'ice_heal'
+id = 1251
+x = 29
+z = 9
+
+[seafoam_islands_b1f_grip_claw]
+region = 'seafoam_islands_b1f'
+type = 'ground_item'
+original_item = 'grip_claw'
+id = 1256
+x = 22
+z = 4
+
+[seafoam_islands_b2f_water_stone]
+region = 'seafoam_islands_b2f'
+type = 'ground_item'
+original_item = 'water_stone'
+id = 1252
+x = 19
+z = 25
+
+[seafoam_islands_b3f_revive]
+region = 'seafoam_islands_b3f'
+type = 'ground_item'
+original_item = 'revive'
+id = 1253
+x = 21
+z = 22
+
+[seafoam_islands_b3f_big_pearl]
+region = 'seafoam_islands_b3f'
+type = 'ground_item'
+original_item = 'big_pearl'
+id = 1254
+x = 21
+z = 11
+
+[seafoam_islands_b4f_ultra_ball]
+region = 'seafoam_islands_b4f'
+type = 'ground_item'
+original_item = 'ultra_ball'
+id = 1255
+x = 29
+z = 4
+
+[seafoam_islands_b4f_tm13]
+region = 'seafoam_islands_b4f'
+type = 'hm_tm'
+original_item = 'tm13'
+id = 1258
+x = 42
+z = 8
+
+[vermilion_luck_incense]
+region = 'vermilion'
+type = 'ground_item'
+original_item = 'luck_incense'
+id = 1294
+x = 1321
+z = 328
+
+[vermilion_sticky_barb]
+region = 'vermilion'
+type = 'ground_item'
+original_item = 'sticky_barb'
+id = 1295
+x = 1336
+z = 327
+
+[viridian_forest_dire_hit]
+region = 'viridian_forest'
+type = 'ground_item'
+original_item = 'dire_hit'
+id = 1234
+x = 23
+z = 17
+
+[viridian_forest_blue_flute]
+region = 'viridian_forest'
+type = 'ground_item'
+original_item = 'blue_flute'
+id = 1235
+x = 42
+z = 32
+
+[viridian_forest_leaf_stone]
+region = 'viridian_forest'
+type = 'ground_item'
+original_item = 'leaf_stone'
+id = 1237
+x = 20
+z = 49
+
+[viridian_forest_tm77]
+region = 'viridian_forest'
+type = 'hm_tm'
+original_item = 'tm77'
+id = 1238
+x = 50
+z = 60
+
+[celadon_pp_up]
+region = 'celadon'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 122
+x = 1230
+z = 272
+
+[cerulean_nugget]
+region = 'cerulean'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 106
+x = 1298
+z = 110
+
+[cerulean_cave_1f_hyper_potion]
+region = 'cerulean_cave_1f'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 93
+x = 4
+z = 40
+
+[cerulean_cave_1f_rare_candy]
+region = 'cerulean_cave_1f'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 94
+x = 60
+z = 44
+
+[cerulean_cave_1f_revive]
+region = 'cerulean_cave_1f'
+type = 'hidden_item'
+original_item = 'revive'
+id = 95
+x = 24
+z = 36
+
+[cerulean_cave_2f_ultra_ball_2]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 96
+x = 44
+z = 23
+
+[cerulean_cave_2f_pp_up_2]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 117
+x = 55
+z = 40
+
+[cerulean_cave_2f_big_pearl]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'big_pearl'
+id = 118
+x = 45
+z = 39
+
+[cerulean_cave_2f_zinc]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'zinc'
+id = 119
+x = 53
+z = 30
+
+[cerulean_cave_2f_full_heal]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 120
+x = 56
+z = 24
+
+[cerulean_cave_2f_protein]
+region = 'cerulean_cave_2f'
+type = 'hidden_item'
+original_item = 'protein'
+id = 221
+x = 6
+z = 18
+
+[cerulean_cave_b1f_max_revive_2]
+region = 'cerulean_cave_b1f'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 121
+x = 14
+z = 12
+
+[cerulean_cave_b1f_ultra_ball_2]
+region = 'cerulean_cave_b1f'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 123
+x = 26
+z = 19
+
+[cerulean_cave_b1f_nugget]
+region = 'cerulean_cave_b1f'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 124
+x = 39
+z = 11
+
+[cinnabar_island_rare_candy]
+region = 'cinnabar_island'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 114
+x = 1030
+z = 481
+
+[cinnabar_island_iron]
+region = 'cinnabar_island'
+type = 'hidden_item'
+original_item = 'iron'
+id = 166
+x = 1044
+z = 506
+
+[cinnabar_island_star_piece]
+region = 'cinnabar_island'
+type = 'hidden_item'
+original_item = 'star_piece'
+id = 167
+x = 1041
+z = 493
+
+[cliff_cave_ultra_ball]
+region = 'cliff_cave'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 226
+x = 9
+z = 30
+
+[cliff_edge_gate_big_pearl]
+region = 'cliff_edge_gate'
+type = 'hidden_item'
+original_item = 'big_pearl'
+id = 209
+x = 40
+z = 25
+
+[diglett_cave_max_revive]
+region = 'diglett_cave'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 56
+x = 28
+z = 60
+
+[diglett_cave_calcium]
+region = 'diglett_cave'
+type = 'hidden_item'
+original_item = 'calcium'
+id = 224
+x = 3
+z = 44
+
+[fuchsia_nugget]
+region = 'fuchsia'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 134
+x = 1232
+z = 413
+
+[indigo_plateau_rare_candy]
+region = 'indigo_plateau'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 190
+x = 910
+z = 209
+
+[mount_moon_revive]
+region = 'mount_moon'
+type = 'hidden_item'
+original_item = 'revive'
+id = 195
+x = 24
+z = 7
+
+[mount_moon_square_max_revive]
+region = 'mount_moon_square'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 196
+x = 36
+z = 2
+
+[pewter_pp_up]
+region = 'pewter'
+type = 'hidden_item'
+original_item = 'pp_up'
+id = 198
+x = 1035
+z = 101
+
+[pewter_guard_spec]
+region = 'pewter'
+type = 'hidden_item'
+original_item = 'guard_spec'
+id = 199
+x = 1068
+z = 108
+
+[pewter_max_revive]
+region = 'pewter'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 227
+x = 1038
+z = 119
+
+[rock_tunnel_1f_x_accuracy]
+region = 'rock_tunnel_1f'
+type = 'hidden_item'
+original_item = 'x_accuracy'
+id = 59
+x = 16
+z = 8
+
+[rock_tunnel_1f_x_defense]
+region = 'rock_tunnel_1f'
+type = 'hidden_item'
+original_item = 'x_defense'
+id = 60
+x = 38
+z = 31
+
+[rock_tunnel_b1f_max_potion]
+region = 'rock_tunnel_b1f'
+type = 'hidden_item'
+original_item = 'max_potion'
+id = 61
+x = 38
+z = 34
+
+[rock_tunnel_b1f_hp_up]
+region = 'rock_tunnel_b1f'
+type = 'hidden_item'
+original_item = 'hp_up'
+id = 169
+x = 25
+z = 34
+
+[route_10_carbos]
+region = 'route_10'
+type = 'hidden_item'
+original_item = 'carbos'
+id = 197
+x = 1418
+z = 183
+
+[route_11_revive]
+region = 'route_11'
+type = 'hidden_item'
+original_item = 'revive'
+id = 104
+x = 1371
+z = 292
+
+[route_12_elixir]
+region = 'route_12'
+type = 'hidden_item'
+original_item = 'elixir'
+id = 112
+x = 1415
+z = 302
+
+[route_13_calcium]
+region = 'route_13'
+type = 'hidden_item'
+original_item = 'calcium'
+id = 111
+x = 1386
+z = 377
+
+[route_17_max_ether]
+region = 'route_17'
+type = 'hidden_item'
+original_item = 'max_ether'
+id = 109
+x = 1133
+z = 355
+
+[route_17_max_elixir]
+region = 'route_17'
+type = 'hidden_item'
+original_item = 'max_elixir'
+id = 110
+x = 1129
+z = 390
+
+[route_19_pearl]
+region = 'route_19'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 178
+x = 1207
+z = 467
+
+[route_19_pearl_2]
+region = 'route_19'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 179
+x = 1198
+z = 468
+
+[route_19_big_pearl]
+region = 'route_19'
+type = 'hidden_item'
+original_item = 'big_pearl'
+id = 180
+x = 1210
+z = 505
+
+[route_19_revive]
+region = 'route_19'
+type = 'hidden_item'
+original_item = 'revive'
+id = 207
+x = 1210
+z = 456
+
+[route_19_max_elixir]
+region = 'route_19'
+type = 'hidden_item'
+original_item = 'max_elixir'
+id = 208
+x = 1209
+z = 460
+
+[route_20_deepseatooth]
+region = 'route_20'
+type = 'hidden_item'
+original_item = 'deepseatooth'
+id = 38
+x = 1136
+z = 503
+
+[route_20_stardust]
+region = 'route_20'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 174
+x = 1094
+z = 498
+
+[route_20_deepseascale]
+region = 'route_20'
+type = 'hidden_item'
+original_item = 'deepseascale'
+id = 229
+x = 1107
+z = 485
+
+[route_21_stardust]
+region = 'route_21'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 175
+x = 1044
+z = 412
+
+[route_21_stardust_2]
+region = 'route_21'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 176
+x = 1037
+z = 436
+
+[route_21_stardust_3]
+region = 'route_21'
+type = 'hidden_item'
+original_item = 'stardust'
+id = 177
+x = 1042
+z = 439
+
+[route_25_revive]
+region = 'route_25'
+type = 'hidden_item'
+original_item = 'revive'
+id = 107
+x = 1327
+z = 41
+
+[route_26_nugget]
+region = 'route_26'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 183
+x = 890
+z = 408
+
+[route_26_tinymushroom]
+region = 'route_26'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 184
+x = 923
+z = 316
+
+[route_27_revive]
+region = 'route_27'
+type = 'hidden_item'
+original_item = 'revive'
+id = 181
+x = 858
+z = 394
+
+[route_27_big_mushroom]
+region = 'route_27'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 182
+x = 882
+z = 396
+
+[route_28_rare_candy]
+region = 'route_28'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 115
+x = 874
+z = 262
+
+[route_3_star_piece]
+region = 'route_3'
+type = 'hidden_item'
+original_item = 'star_piece'
+id = 138
+x = 1100
+z = 116
+
+[route_3_hyper_potion]
+region = 'route_3'
+type = 'hidden_item'
+original_item = 'hyper_potion'
+id = 139
+x = 1160
+z = 105
+
+[route_3_star_piece_2]
+region = 'route_3'
+type = 'hidden_item'
+original_item = 'star_piece'
+id = 145
+x = 1095
+z = 121
+
+[route_4_ultra_ball]
+region = 'route_4'
+type = 'hidden_item'
+original_item = 'ultra_ball'
+id = 113
+x = 1219
+z = 109
+
+[route_4_big_mushroom]
+region = 'route_4'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 194
+x = 1251
+z = 123
+
+[route_5_underground_path_full_restore]
+region = 'route_5_underground_path'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 57
+x = 5
+z = 14
+
+[route_5_underground_path_x_special]
+region = 'route_5_underground_path'
+type = 'hidden_item'
+original_item = 'x_special'
+id = 58
+x = 7
+z = 30
+
+[route_9_ether]
+region = 'route_9'
+type = 'hidden_item'
+original_item = 'ether'
+id = 105
+x = 1422
+z = 140
+
+[seafoam_islands_1f_escape_rope]
+region = 'seafoam_islands_1f'
+type = 'hidden_item'
+original_item = 'escape_rope'
+id = 88
+x = 56
+z = 19
+
+[seafoam_islands_b1f_ice_heal_2]
+region = 'seafoam_islands_b1f'
+type = 'hidden_item'
+original_item = 'ice_heal'
+id = 89
+x = 19
+z = 17
+
+[seafoam_islands_b2f_pearl]
+region = 'seafoam_islands_b2f'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 90
+x = 5
+z = 7
+
+[seafoam_islands_b2f_pearl_2]
+region = 'seafoam_islands_b2f'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 91
+x = 42
+z = 18
+
+[seafoam_islands_b3f_max_revive]
+region = 'seafoam_islands_b3f'
+type = 'hidden_item'
+original_item = 'max_revive'
+id = 92
+x = 38
+z = 27
+
+[seafoam_islands_b3f_rare_candy]
+region = 'seafoam_islands_b3f'
+type = 'hidden_item'
+original_item = 'rare_candy'
+id = 210
+x = 10
+z = 9
+
+[seafoam_islands_b4f_zinc]
+region = 'seafoam_islands_b4f'
+type = 'hidden_item'
+original_item = 'zinc'
+id = 223
+x = 27
+z = 22
+
+[ss_aqua_olivine_port_exterior_protein]
+region = 'ss_aqua_olivine_port_exterior'
+type = 'hidden_item'
+original_item = 'protein'
+id = 86
+x = 23
+z = 26
+
+[ss_aqua_olivine_port_exterior_pearl]
+region = 'ss_aqua_olivine_port_exterior'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 158
+x = 13
+z = 16
+
+[ss_aqua_vermilion_port_exterior_iron]
+region = 'ss_aqua_vermilion_port_exterior'
+type = 'hidden_item'
+original_item = 'iron'
+id = 84
+x = 26
+z = 20
+
+[vermilion_full_heal]
+region = 'vermilion'
+type = 'hidden_item'
+original_item = 'full_heal'
+id = 103
+x = 1324
+z = 306
+
+[vermilion_pearl]
+region = 'vermilion'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 162
+x = 1312
+z = 336
+
+[vermilion_pearl_2]
+region = 'vermilion'
+type = 'hidden_item'
+original_item = 'pearl'
+id = 163
+x = 1313
+z = 335
+
+[vermilion_big_pearl]
+region = 'vermilion'
+type = 'hidden_item'
+original_item = 'big_pearl'
+id = 164
+x = 1315
+z = 335
+
+[vermilion_heart_scale]
+region = 'vermilion'
+type = 'hidden_item'
+original_item = 'heart_scale'
+id = 168
+x = 1318
+z = 323
+
+[viridian_nugget]
+region = 'viridian'
+type = 'hidden_item'
+original_item = 'nugget'
+id = 200
+x = 1053
+z = 247
+
+[viridian_forest_max_ether]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'max_ether'
+id = 85
+x = 11
+z = 71
+
+[viridian_forest_full_restore]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'full_restore'
+id = 87
+x = 26
+z = 41
+
+[viridian_forest_big_mushroom]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 216
+x = 12
+z = 46
+
+[viridian_forest_big_mushroom_2]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'big_mushroom'
+id = 217
+x = 47
+z = 46
+
+[viridian_forest_tinymushroom]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 218
+x = 49
+z = 18
+
+[viridian_forest_tinymushroom_2]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 219
+x = 32
+z = 57
+
+[viridian_forest_tinymushroom_3]
+region = 'viridian_forest'
+type = 'hidden_item'
+original_item = 'tinymushroom'
+id = 220
+x = 50
+z = 58
+
+[pewter_gym_badge]
+region = 'pewter_gym'
+type = 'badge'
+id = 8
+label = 'Pewter Gym - Boulder Badge'
+
+[cerulean_gym_badge]
+region = 'cerulean_gym'
+type = 'badge'
+id = 9
+label = 'Cerulean Gym - Cascade Badge'
+
+[vermilion_gym_badge]
+region = 'vermilion_gym'
+type = 'badge'
+id = 10
+label = 'Vermilion Gym - Thunder Badge'
+
+[celadon_gym_badge]
+region = 'celadon_gym'
+type = 'badge'
+id = 11
+label = 'Celadon Gym - Rainbow Badge'
+
+[fuchsia_gym_badge]
+region = 'fuchsia_gym'
+type = 'badge'
+id = 12
+label = 'Fuchsia Gym - Soul Badge'
+
+[saffron_gym_badge]
+region = 'saffron_gym'
+type = 'badge'
+id = 13
+label = 'Saffron Gym - Marsh Badge'
+
+[seafoam_islands_cinnabar_gym_badge]
+region = 'seafoam_islands_cinnabar_gym'
+type = 'badge'
+id = 14
+label = 'Seafoam Islands (Cinnabar Gym) - Volcano Badge'
+
+[viridian_gym_badge]
+region = 'viridian_gym'
+type = 'badge'
+id = 15
+label = 'Viridian Gym - Earth Badge'
+
+[pewter_gym_tm80]
+region = 'pewter_gym'
+type = 'hm_tm'
+original_item = 'tm80'
+id = 383
+label = 'Pewter Gym - TM80 from Brock'
+
+[cerulean_gym_tm03]
+region = 'cerulean_gym'
+type = 'hm_tm'
+original_item = 'tm03'
+id = 384
+label = 'Cerulean Gym - TM03 from Misty'
+
+[vermilion_gym_tm34]
+region = 'vermilion_gym'
+type = 'hm_tm'
+original_item = 'tm34'
+id = 385
+label = 'Vermilion Gym - TM34 from Lt. Surge'
+
+[celadon_gym_tm19]
+region = 'celadon_gym'
+type = 'hm_tm'
+original_item = 'tm19'
+id = 292
+label = 'Celadon Gym - TM19 from Erika'
+
+[fuchsia_gym_tm84]
+region = 'fuchsia_gym'
+type = 'hm_tm'
+original_item = 'tm84'
+id = 301
+label = 'Fuchsia Gym - TM84 from Janine'
+
+[saffron_gym_tm48]
+region = 'saffron_gym'
+type = 'hm_tm'
+original_item = 'tm48'
+id = 386
+label = 'Saffron Gym - TM48 from Sabrina'
+
+[seafoam_islands_cinnabar_gym_tm50]
+region = 'seafoam_islands_cinnabar_gym'
+type = 'hm_tm'
+original_item = 'tm50'
+id = 381
+label = 'Seafoam Islands (Cinnabar Gym) - TM50 from Blaine'
+
+[viridian_gym_tm92]
+region = 'viridian_gym'
+type = 'hm_tm'
+original_item = 'tm92'
+id = 382
+label = 'Viridian Gym - TM92 from Blue'
+
+[route_2_house_nugget]
+region = 'route_2_house'
+type = 'npc_gift'
+original_item = 'nugget'
+id = 308
+label = 'Route 2 House - Nugget from Man'
+
+[route_2_southeast_gatehouse_sacred_ash]
+region = 'route_2_southeast_gatehouse'
+type = 'npc_gift'
+original_item = 'sacred_ash'
+id = 309
+label = 'Route 2 Southeast Gatehouse - Sacred Ash from Lab Aide'
+
+[route_5_house_cleanse_tag]
+region = 'route_5_house'
+type = 'npc_gift'
+original_item = 'cleanse_tag'
+id = 305
+label = 'Route 5 House - Cleanse Tag from Grandma'
+
+[route_14_lucky_punch]
+region = 'route_14'
+type = 'npc_gift'
+original_item = 'lucky_punch'
+id = 348
+label = 'Route 14 - Lucky Punch from Woman'
+
+[route_25_nugget]
+region = 'route_25'
+type = 'npc_gift'
+original_item = 'nugget'
+id = 290
+label = 'Route 25 - Nugget from Ace Trainer Kevin'
+
+[route_27_house_tm37]
+region = 'route_27_house'
+type = 'hm_tm'
+original_item = 'tm37'
+id = 233
+label = 'Route 27 House - TM37 from Woman'
+
+[route_28_house_tm47]
+region = 'route_28_house'
+type = 'hm_tm'
+original_item = 'tm47'
+id = 311
+label = 'Route 28 House - TM47 from Celebrity'
+
+[pallet_town_oaks_lab_hm08]
+region = 'pallet_town_oaks_lab'
+type = 'hm_tm'
+original_item = 'hm08'
+id = 389
+label = "Pallet Town Oak's Lab - HM08 from Oak"
+
+[viridian_tm85]
+region = 'viridian'
+type = 'hm_tm'
+original_item = 'tm85'
+id = 302
+label = 'Viridian City - TM85 from Man'
+
+[vermilion_pp_max]
+region = 'vermilion'
+type = 'npc_gift'
+original_item = 'pp_max'
+id = 247
+label = 'Vermilion City - PP Max from Man'
+
+[vermilion_pokemon_fan_club_rare_candy]
+region = 'vermilion_pokemon_fan_club'
+type = 'npc_gift'
+original_item = 'rare_candy'
+id = 248
+label = 'Vermilion Pokemon Fan Club - Rare Candy from Chairman'
+
+[celadon_condominiums_roof_room_spell_tag]
+region = 'celadon_condominiums_roof_room'
+type = 'npc_gift'
+original_item = 'spell_tag'
+id = 344
+label = 'Celadon Condominiums Roof Room - Spell Tag from Man'
+
+[saffron_mr_psychic_house_tm29]
+region = 'saffron_mr_psychic_house'
+type = 'hm_tm'
+original_item = 'tm29'
+id = 303
+label = "Saffron Mr. Psychic's House - TM29 from Mr. Psychic"
+
+[saffron_silph_co_hq_upgrade]
+region = 'saffron_silph_co_hq'
+type = 'npc_gift'
+original_item = 'upgrade'
+id = 304
+label = 'Saffron Silph Co. HQ - Up-Grade from Guard'
+
+[route_5_underground_path_tm64]
+region = 'route_5_underground_path'
+type = 'hm_tm'
+original_item = 'tm64'
+id = 9023
+label = 'Route 5 Underground Path - TM64 for a Rage Candy Bar'
+
+[route_10_power_plant_broken_tm57]
+region = 'route_10_power_plant_broken'
+type = 'hm_tm'
+original_item = 'tm57'
+id = 9024
+label = 'Route 10 Power Plant - TM57 after Restoring Power'
+
+[route_12_fishing_brother_house_super_rod]
+region = 'route_12_fishing_brother_house'
+type = 'npc_gift'
+original_item = 'super_rod'
+id = 9025
+label = "Route 12 Fishing Brother's House - Super Rod"
+
+[pallet_town_oaks_lab_jade_orb]
+region = 'pallet_town_oaks_lab'
+type = 'npc_gift'
+original_item = 'jade_orb'
+id = 9026
+label = "Pallet Town Oak's Lab - Jade Orb from Oak"
+
+[celadon_condominiums_3f_gb_sounds]
+region = 'celadon_condominiums_3f'
+type = 'npc_gift'
+original_item = 'gb_sounds'
+id = 9027
+label = 'Celadon Condominiums 3F - GB Sounds'
+
+[celadon_game_corner_coin_case]
+region = 'celadon_game_corner'
+type = 'npc_gift'
+original_item = 'coin_case'
+id = 9028
+label = 'Celadon Game Corner - Coin Case'
+
+[saffron_copycat_house_2f_pass]
+region = 'saffron_copycat_house_2f'
+type = 'npc_gift'
+original_item = 'pass'
+id = 9029
+label = 'Saffron Copycat House 2F - Pass'
+
+[ss_aqua_captain_room_flame_plate]
+region = 'ss_aqua_captain_room'
+type = 'npc_gift'
+original_item = 'flame_plate'
+id = 9030
+label = "S.S. Aqua Captain's Room - Flame Plate"
+
+[ss_aqua_1f_northwest_rooms_metal_coat]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'npc_gift'
+original_item = 'metal_coat'
+id = 9031
+label = 'S.S. Aqua - Metal Coat'
