@@ -1,0 +1,17 @@
+# Reference resources — not part of this repo's history (decomp + reference apworld)
+ressources/
+
+# Local project instructions — not part of the public repo
+CLAUDE.md
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# ROM / build artifacts
+*.nds
+*.srl
+*.apworld
+build/
+dist/
