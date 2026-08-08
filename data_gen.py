@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from data_gen_templates import (
+    generate_encounters,
     generate_init,
     generate_items,
     generate_locations,
@@ -25,6 +26,7 @@ from data_gen_templates import (
     generate_regions,
     generate_rules,
     generate_species,
+    generate_trainers,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -44,6 +46,8 @@ def main() -> None:
     _write("regions.py", generate_regions())
     _write("locations.py", generate_locations())
     _write("rules.py", generate_rules())
+    _write("trainers.py", generate_trainers())
+    _write("encounters.py", generate_encounters())
 
 
 if __name__ == "__main__":
