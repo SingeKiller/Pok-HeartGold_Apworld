@@ -1,0 +1,3661 @@
+# data_gen/items.toml
+#
+# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored).
+#   - include/constants/items.h: ITEM_* id/name constants. Item ids span
+#     0 (ITEM_NONE) to 536 (ITEM_ENIGMA_STONE), 537 possible slots, of which
+#     22 (ids 113-134) are explicit ITEM_UNUSED_* reserved placeholders (a
+#     documented Gen III->IV artifact, contest/frontier items dropped
+#     between Emerald and Diamond/Pearl) and correctly have no entry here.
+#   - files/itemtool/itemdata/item_data.csv: per-item price and
+#     fieldPocket (bag pocket/category). 514 rows (513 real items +
+#     ITEM_NONE), see docs/architecture.md Spike 3.
+#
+# Gap (documented, not a bug): ITEM_EXPLORER_KIT (id 428) has a constant in
+# items.h but no matching row in item_data.csv, so it has no price/pocket
+# data to extract and is intentionally absent below -- machine-extracted
+# from the same decomp source, this data_gen_templates/items.py warns at
+# generation time if a *future* re-extraction still cannot resolve it, same
+# defensive spirit as data_gen/moves.toml's tm_hm cross-references.
+#
+# item_data.csv has no description/display-name field (only the ITEM_*
+# constant name and stats); unlike species/moves, no in-decomp text table
+# was extracted for item names/descriptions here (files/msgdata/msg is 828
+# binary .gmm message files with no per-item index found in this pass) --
+# label below is therefore the bare constant name (ITEM_MASTER_BALL ->
+# "MASTER_BALL"), matching data_gen/species.toml and data_gen/moves.toml's
+# own label convention, and there is no description field. A handful of
+# labels below preserve genuine double-underscore/trailing-underscore
+# artifacts present in the decomp's own constant names (e.g. ITEM_EXP__SHARE,
+# ITEM_GUARD_SPEC_, ITEM_S_S__TICKET) -- faithfully reproduced, not typos
+# introduced here.
+#
+# Badges: HGSS (a Gen II remake) tracks the 16 Johto/Kanto gym badges as
+# save-data flags (include/constants/badge.h, BADGE_ZEPHYR..BADGE_EARTH),
+# NOT as ITEM_* bag items -- there is no ITEM_*_BADGE constant anywhere in
+# items.h. This is confirmed by cross-referencing ressources/platinum_archipelago
+# (a Gen IV game, where badges ARE items with their own ITEM_* constants and
+# clas = "badge"): the badge-as-item pattern does not apply to this game.
+# There is therefore nothing to add here for badges; they belong to a future
+# task modeling HGSS's flag-based badge state, not to items.toml.
+#
+# pocket: lowercased items.h POCKET_* constant (items/medicine/balls/
+# tm_hm/berries/mail/battle_items/key_items), i.e. the game's own bag
+# category, not an Archipelago concept.
+#
+# classification: a first-pass Archipelago progression/useful/filler
+# classification (not an in-game concept), refined further once locations/
+# rules are modeled in a later task:
+#   - progression: the 8 HMs (movement-gating, required per project plan)
+#     plus a conservatively small, independently-verifiable set of Key
+#     Items that gate story/traversal progress in vanilla HGSS: the
+#     Bicycle, the 3 fishing rods, Secretpotion (Red Gyarados/Team Rocket
+#     questline), Squirtbottle (Route 36 tree), Card Key + Basement Key
+#     (Team Rocket hideout), Mystery Egg (Elm's starting fetch quest) and
+#     the S.S. Ticket (boat to Kanto).
+#   - filler: berries, medicine, battle items, mail, TM-adjacent commons,
+#     the non-Master balls, and a set of Key Item constants
+#     (e.g. ITEM_GALACTIC_KEY, ITEM_POFFIN_CASE, ITEM_SEAL_CASE/BAG,
+#     ITEM_OLD_CHARM, ITEM_RED_CHAIN, ITEM_POINT_CARD, ITEM_JOURNAL,
+#     ITEM_FASHION_CASE, ITEM_MEMBER_CARD, ITEM_AZURE_FLUTE,
+#     ITEM_MAGMA_STONE, ITEM_COUPON_1/2/3) that exist with full CSV stats
+#     rows only because HGSS shares its item-system engine/table layout
+#     with Platinum, but are not obtainable/usable in HGSS itself (no Team
+#     Galactic, Poffins, or Pokemon Contests in Johto/Kanto) -- vestigial
+#     constants, not real HGSS content.
+#   - useful: everything else, including Master Ball and the 92 TMs.
+# This progression list does not attempt to resolve every one of the 65
+# Key Items' exact quest-blocking status from decomp script/event-flag
+# tracing (out of scope for a data-extraction task); items left "useful"
+# by default may be revisited once docs/architecture.md's region/rules
+# layer exists.
+
+[master_ball]
+id = 1
+label = "MASTER_BALL"
+price = 0
+pocket = "balls"
+classification = "useful"
+
+[ultra_ball]
+id = 2
+label = "ULTRA_BALL"
+price = 1200
+pocket = "balls"
+classification = "filler"
+
+[great_ball]
+id = 3
+label = "GREAT_BALL"
+price = 600
+pocket = "balls"
+classification = "filler"
+
+[poke_ball]
+id = 4
+label = "POKE_BALL"
+price = 200
+pocket = "balls"
+classification = "filler"
+
+[safari_ball]
+id = 5
+label = "SAFARI_BALL"
+price = 0
+pocket = "balls"
+classification = "filler"
+
+[net_ball]
+id = 6
+label = "NET_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[dive_ball]
+id = 7
+label = "DIVE_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[nest_ball]
+id = 8
+label = "NEST_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[repeat_ball]
+id = 9
+label = "REPEAT_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[timer_ball]
+id = 10
+label = "TIMER_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[luxury_ball]
+id = 11
+label = "LUXURY_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[premier_ball]
+id = 12
+label = "PREMIER_BALL"
+price = 200
+pocket = "balls"
+classification = "filler"
+
+[dusk_ball]
+id = 13
+label = "DUSK_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[heal_ball]
+id = 14
+label = "HEAL_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[quick_ball]
+id = 15
+label = "QUICK_BALL"
+price = 1000
+pocket = "balls"
+classification = "filler"
+
+[cherish_ball]
+id = 16
+label = "CHERISH_BALL"
+price = 200
+pocket = "balls"
+classification = "filler"
+
+[potion]
+id = 17
+label = "POTION"
+price = 300
+pocket = "medicine"
+classification = "filler"
+
+[antidote]
+id = 18
+label = "ANTIDOTE"
+price = 100
+pocket = "medicine"
+classification = "filler"
+
+[burn_heal]
+id = 19
+label = "BURN_HEAL"
+price = 250
+pocket = "medicine"
+classification = "filler"
+
+[ice_heal]
+id = 20
+label = "ICE_HEAL"
+price = 250
+pocket = "medicine"
+classification = "filler"
+
+[awakening]
+id = 21
+label = "AWAKENING"
+price = 250
+pocket = "medicine"
+classification = "filler"
+
+[parlyz_heal]
+id = 22
+label = "PARLYZ_HEAL"
+price = 200
+pocket = "medicine"
+classification = "filler"
+
+[full_restore]
+id = 23
+label = "FULL_RESTORE"
+price = 3000
+pocket = "medicine"
+classification = "filler"
+
+[max_potion]
+id = 24
+label = "MAX_POTION"
+price = 2500
+pocket = "medicine"
+classification = "filler"
+
+[hyper_potion]
+id = 25
+label = "HYPER_POTION"
+price = 1200
+pocket = "medicine"
+classification = "filler"
+
+[super_potion]
+id = 26
+label = "SUPER_POTION"
+price = 700
+pocket = "medicine"
+classification = "filler"
+
+[full_heal]
+id = 27
+label = "FULL_HEAL"
+price = 600
+pocket = "medicine"
+classification = "filler"
+
+[revive]
+id = 28
+label = "REVIVE"
+price = 1500
+pocket = "medicine"
+classification = "filler"
+
+[max_revive]
+id = 29
+label = "MAX_REVIVE"
+price = 4000
+pocket = "medicine"
+classification = "filler"
+
+[fresh_water]
+id = 30
+label = "FRESH_WATER"
+price = 200
+pocket = "medicine"
+classification = "filler"
+
+[soda_pop]
+id = 31
+label = "SODA_POP"
+price = 300
+pocket = "medicine"
+classification = "filler"
+
+[lemonade]
+id = 32
+label = "LEMONADE"
+price = 350
+pocket = "medicine"
+classification = "filler"
+
+[moomoo_milk]
+id = 33
+label = "MOOMOO_MILK"
+price = 500
+pocket = "medicine"
+classification = "filler"
+
+[energypowder]
+id = 34
+label = "ENERGYPOWDER"
+price = 500
+pocket = "medicine"
+classification = "filler"
+
+[energy_root]
+id = 35
+label = "ENERGY_ROOT"
+price = 800
+pocket = "medicine"
+classification = "filler"
+
+[heal_powder]
+id = 36
+label = "HEAL_POWDER"
+price = 450
+pocket = "medicine"
+classification = "filler"
+
+[revival_herb]
+id = 37
+label = "REVIVAL_HERB"
+price = 2800
+pocket = "medicine"
+classification = "filler"
+
+[ether]
+id = 38
+label = "ETHER"
+price = 1200
+pocket = "medicine"
+classification = "filler"
+
+[max_ether]
+id = 39
+label = "MAX_ETHER"
+price = 2000
+pocket = "medicine"
+classification = "filler"
+
+[elixir]
+id = 40
+label = "ELIXIR"
+price = 3000
+pocket = "medicine"
+classification = "filler"
+
+[max_elixir]
+id = 41
+label = "MAX_ELIXIR"
+price = 4500
+pocket = "medicine"
+classification = "filler"
+
+[lava_cookie]
+id = 42
+label = "LAVA_COOKIE"
+price = 200
+pocket = "medicine"
+classification = "filler"
+
+[berry_juice]
+id = 43
+label = "BERRY_JUICE"
+price = 100
+pocket = "medicine"
+classification = "filler"
+
+[sacred_ash]
+id = 44
+label = "SACRED_ASH"
+price = 200
+pocket = "medicine"
+classification = "filler"
+
+[hp_up]
+id = 45
+label = "HP_UP"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[protein]
+id = 46
+label = "PROTEIN"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[iron]
+id = 47
+label = "IRON"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[carbos]
+id = 48
+label = "CARBOS"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[calcium]
+id = 49
+label = "CALCIUM"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[rare_candy]
+id = 50
+label = "RARE_CANDY"
+price = 4800
+pocket = "medicine"
+classification = "filler"
+
+[pp_up]
+id = 51
+label = "PP_UP"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[zinc]
+id = 52
+label = "ZINC"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[pp_max]
+id = 53
+label = "PP_MAX"
+price = 9800
+pocket = "medicine"
+classification = "filler"
+
+[old_gateau]
+id = 54
+label = "OLD_GATEAU"
+price = 200
+pocket = "medicine"
+classification = "filler"
+
+[guard_spec]
+id = 55
+label = "GUARD_SPEC_"
+price = 700
+pocket = "battle_items"
+classification = "filler"
+
+[dire_hit]
+id = 56
+label = "DIRE_HIT"
+price = 650
+pocket = "battle_items"
+classification = "filler"
+
+[x_attack]
+id = 57
+label = "X_ATTACK"
+price = 500
+pocket = "battle_items"
+classification = "filler"
+
+[x_defense]
+id = 58
+label = "X_DEFENSE"
+price = 550
+pocket = "battle_items"
+classification = "filler"
+
+[x_speed]
+id = 59
+label = "X_SPEED"
+price = 350
+pocket = "battle_items"
+classification = "filler"
+
+[x_accuracy]
+id = 60
+label = "X_ACCURACY"
+price = 950
+pocket = "battle_items"
+classification = "filler"
+
+[x_special]
+id = 61
+label = "X_SPECIAL"
+price = 350
+pocket = "battle_items"
+classification = "filler"
+
+[x_sp_def]
+id = 62
+label = "X_SP__DEF"
+price = 350
+pocket = "battle_items"
+classification = "filler"
+
+[poke_doll]
+id = 63
+label = "POKE_DOLL"
+price = 1000
+pocket = "battle_items"
+classification = "filler"
+
+[fluffy_tail]
+id = 64
+label = "FLUFFY_TAIL"
+price = 1000
+pocket = "battle_items"
+classification = "filler"
+
+[blue_flute]
+id = 65
+label = "BLUE_FLUTE"
+price = 100
+pocket = "battle_items"
+classification = "filler"
+
+[yellow_flute]
+id = 66
+label = "YELLOW_FLUTE"
+price = 200
+pocket = "battle_items"
+classification = "filler"
+
+[red_flute]
+id = 67
+label = "RED_FLUTE"
+price = 300
+pocket = "battle_items"
+classification = "filler"
+
+[black_flute]
+id = 68
+label = "BLACK_FLUTE"
+price = 400
+pocket = "items"
+classification = "filler"
+
+[white_flute]
+id = 69
+label = "WHITE_FLUTE"
+price = 500
+pocket = "items"
+classification = "filler"
+
+[shoal_salt]
+id = 70
+label = "SHOAL_SALT"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[shoal_shell]
+id = 71
+label = "SHOAL_SHELL"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[red_shard]
+id = 72
+label = "RED_SHARD"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[blue_shard]
+id = 73
+label = "BLUE_SHARD"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[yellow_shard]
+id = 74
+label = "YELLOW_SHARD"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[green_shard]
+id = 75
+label = "GREEN_SHARD"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[super_repel]
+id = 76
+label = "SUPER_REPEL"
+price = 500
+pocket = "items"
+classification = "filler"
+
+[max_repel]
+id = 77
+label = "MAX_REPEL"
+price = 700
+pocket = "items"
+classification = "filler"
+
+[escape_rope]
+id = 78
+label = "ESCAPE_ROPE"
+price = 550
+pocket = "items"
+classification = "filler"
+
+[repel]
+id = 79
+label = "REPEL"
+price = 350
+pocket = "items"
+classification = "filler"
+
+[sun_stone]
+id = 80
+label = "SUN_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[moon_stone]
+id = 81
+label = "MOON_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[fire_stone]
+id = 82
+label = "FIRE_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[thunderstone]
+id = 83
+label = "THUNDERSTONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[water_stone]
+id = 84
+label = "WATER_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[leaf_stone]
+id = 85
+label = "LEAF_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[tinymushroom]
+id = 86
+label = "TINYMUSHROOM"
+price = 500
+pocket = "items"
+classification = "filler"
+
+[big_mushroom]
+id = 87
+label = "BIG_MUSHROOM"
+price = 5000
+pocket = "items"
+classification = "filler"
+
+[pearl]
+id = 88
+label = "PEARL"
+price = 1400
+pocket = "items"
+classification = "filler"
+
+[big_pearl]
+id = 89
+label = "BIG_PEARL"
+price = 7500
+pocket = "items"
+classification = "filler"
+
+[stardust]
+id = 90
+label = "STARDUST"
+price = 2000
+pocket = "items"
+classification = "filler"
+
+[star_piece]
+id = 91
+label = "STAR_PIECE"
+price = 9800
+pocket = "items"
+classification = "filler"
+
+[nugget]
+id = 92
+label = "NUGGET"
+price = 10000
+pocket = "items"
+classification = "filler"
+
+[heart_scale]
+id = 93
+label = "HEART_SCALE"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[honey]
+id = 94
+label = "HONEY"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[growth_mulch]
+id = 95
+label = "GROWTH_MULCH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[damp_mulch]
+id = 96
+label = "DAMP_MULCH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[stable_mulch]
+id = 97
+label = "STABLE_MULCH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[gooey_mulch]
+id = 98
+label = "GOOEY_MULCH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[root_fossil]
+id = 99
+label = "ROOT_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[claw_fossil]
+id = 100
+label = "CLAW_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[helix_fossil]
+id = 101
+label = "HELIX_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[dome_fossil]
+id = 102
+label = "DOME_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[old_amber]
+id = 103
+label = "OLD_AMBER"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[armor_fossil]
+id = 104
+label = "ARMOR_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[skull_fossil]
+id = 105
+label = "SKULL_FOSSIL"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[rare_bone]
+id = 106
+label = "RARE_BONE"
+price = 10000
+pocket = "items"
+classification = "filler"
+
+[shiny_stone]
+id = 107
+label = "SHINY_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[dusk_stone]
+id = 108
+label = "DUSK_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[dawn_stone]
+id = 109
+label = "DAWN_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[oval_stone]
+id = 110
+label = "OVAL_STONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[odd_keystone]
+id = 111
+label = "ODD_KEYSTONE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[griseous_orb]
+id = 112
+label = "GRISEOUS_ORB"
+price = 10000
+pocket = "items"
+classification = "filler"
+
+[adamant_orb]
+id = 135
+label = "ADAMANT_ORB"
+price = 10000
+pocket = "items"
+classification = "filler"
+
+[lustrous_orb]
+id = 136
+label = "LUSTROUS_ORB"
+price = 10000
+pocket = "items"
+classification = "filler"
+
+[grass_mail]
+id = 137
+label = "GRASS_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[flame_mail]
+id = 138
+label = "FLAME_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[bubble_mail]
+id = 139
+label = "BUBBLE_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[bloom_mail]
+id = 140
+label = "BLOOM_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[tunnel_mail]
+id = 141
+label = "TUNNEL_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[steel_mail]
+id = 142
+label = "STEEL_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[heart_mail]
+id = 143
+label = "HEART_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[snow_mail]
+id = 144
+label = "SNOW_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[space_mail]
+id = 145
+label = "SPACE_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[air_mail]
+id = 146
+label = "AIR_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[mosaic_mail]
+id = 147
+label = "MOSAIC_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[brick_mail]
+id = 148
+label = "BRICK_MAIL"
+price = 50
+pocket = "mail"
+classification = "filler"
+
+[cheri_berry]
+id = 149
+label = "CHERI_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[chesto_berry]
+id = 150
+label = "CHESTO_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[pecha_berry]
+id = 151
+label = "PECHA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[rawst_berry]
+id = 152
+label = "RAWST_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[aspear_berry]
+id = 153
+label = "ASPEAR_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[leppa_berry]
+id = 154
+label = "LEPPA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[oran_berry]
+id = 155
+label = "ORAN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[persim_berry]
+id = 156
+label = "PERSIM_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[lum_berry]
+id = 157
+label = "LUM_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[sitrus_berry]
+id = 158
+label = "SITRUS_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[figy_berry]
+id = 159
+label = "FIGY_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[wiki_berry]
+id = 160
+label = "WIKI_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[mago_berry]
+id = 161
+label = "MAGO_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[aguav_berry]
+id = 162
+label = "AGUAV_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[iapapa_berry]
+id = 163
+label = "IAPAPA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[razz_berry]
+id = 164
+label = "RAZZ_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[bluk_berry]
+id = 165
+label = "BLUK_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[nanab_berry]
+id = 166
+label = "NANAB_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[wepear_berry]
+id = 167
+label = "WEPEAR_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[pinap_berry]
+id = 168
+label = "PINAP_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[pomeg_berry]
+id = 169
+label = "POMEG_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[kelpsy_berry]
+id = 170
+label = "KELPSY_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[qualot_berry]
+id = 171
+label = "QUALOT_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[hondew_berry]
+id = 172
+label = "HONDEW_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[grepa_berry]
+id = 173
+label = "GREPA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[tamato_berry]
+id = 174
+label = "TAMATO_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[cornn_berry]
+id = 175
+label = "CORNN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[magost_berry]
+id = 176
+label = "MAGOST_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[rabuta_berry]
+id = 177
+label = "RABUTA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[nomel_berry]
+id = 178
+label = "NOMEL_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[spelon_berry]
+id = 179
+label = "SPELON_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[pamtre_berry]
+id = 180
+label = "PAMTRE_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[watmel_berry]
+id = 181
+label = "WATMEL_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[durin_berry]
+id = 182
+label = "DURIN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[belue_berry]
+id = 183
+label = "BELUE_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[occa_berry]
+id = 184
+label = "OCCA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[passho_berry]
+id = 185
+label = "PASSHO_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[wacan_berry]
+id = 186
+label = "WACAN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[rindo_berry]
+id = 187
+label = "RINDO_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[yache_berry]
+id = 188
+label = "YACHE_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[chople_berry]
+id = 189
+label = "CHOPLE_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[kebia_berry]
+id = 190
+label = "KEBIA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[shuca_berry]
+id = 191
+label = "SHUCA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[coba_berry]
+id = 192
+label = "COBA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[payapa_berry]
+id = 193
+label = "PAYAPA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[tanga_berry]
+id = 194
+label = "TANGA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[charti_berry]
+id = 195
+label = "CHARTI_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[kasib_berry]
+id = 196
+label = "KASIB_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[haban_berry]
+id = 197
+label = "HABAN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[colbur_berry]
+id = 198
+label = "COLBUR_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[babiri_berry]
+id = 199
+label = "BABIRI_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[chilan_berry]
+id = 200
+label = "CHILAN_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[liechi_berry]
+id = 201
+label = "LIECHI_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[ganlon_berry]
+id = 202
+label = "GANLON_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[salac_berry]
+id = 203
+label = "SALAC_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[petaya_berry]
+id = 204
+label = "PETAYA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[apicot_berry]
+id = 205
+label = "APICOT_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[lansat_berry]
+id = 206
+label = "LANSAT_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[starf_berry]
+id = 207
+label = "STARF_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[enigma_berry]
+id = 208
+label = "ENIGMA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[micle_berry]
+id = 209
+label = "MICLE_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[custap_berry]
+id = 210
+label = "CUSTAP_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[jaboca_berry]
+id = 211
+label = "JABOCA_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[rowap_berry]
+id = 212
+label = "ROWAP_BERRY"
+price = 20
+pocket = "berries"
+classification = "filler"
+
+[brightpowder]
+id = 213
+label = "BRIGHTPOWDER"
+price = 10
+pocket = "items"
+classification = "filler"
+
+[white_herb]
+id = 214
+label = "WHITE_HERB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[macho_brace]
+id = 215
+label = "MACHO_BRACE"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[exp_share]
+id = 216
+label = "EXP__SHARE"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[quick_claw]
+id = 217
+label = "QUICK_CLAW"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[soothe_bell]
+id = 218
+label = "SOOTHE_BELL"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[mental_herb]
+id = 219
+label = "MENTAL_HERB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[choice_band]
+id = 220
+label = "CHOICE_BAND"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[kings_rock]
+id = 221
+label = "KINGS_ROCK"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[silverpowder]
+id = 222
+label = "SILVERPOWDER"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[amulet_coin]
+id = 223
+label = "AMULET_COIN"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[cleanse_tag]
+id = 224
+label = "CLEANSE_TAG"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[soul_dew]
+id = 225
+label = "SOUL_DEW"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[deepseatooth]
+id = 226
+label = "DEEPSEATOOTH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[deepseascale]
+id = 227
+label = "DEEPSEASCALE"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[smoke_ball]
+id = 228
+label = "SMOKE_BALL"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[everstone]
+id = 229
+label = "EVERSTONE"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[focus_band]
+id = 230
+label = "FOCUS_BAND"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[lucky_egg]
+id = 231
+label = "LUCKY_EGG"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[scope_lens]
+id = 232
+label = "SCOPE_LENS"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[metal_coat]
+id = 233
+label = "METAL_COAT"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[leftovers]
+id = 234
+label = "LEFTOVERS"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[dragon_scale]
+id = 235
+label = "DRAGON_SCALE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[light_ball]
+id = 236
+label = "LIGHT_BALL"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[soft_sand]
+id = 237
+label = "SOFT_SAND"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[hard_stone]
+id = 238
+label = "HARD_STONE"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[miracle_seed]
+id = 239
+label = "MIRACLE_SEED"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[blackglasses]
+id = 240
+label = "BLACKGLASSES"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[black_belt]
+id = 241
+label = "BLACK_BELT"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[magnet]
+id = 242
+label = "MAGNET"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[mystic_water]
+id = 243
+label = "MYSTIC_WATER"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[sharp_beak]
+id = 244
+label = "SHARP_BEAK"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[poison_barb]
+id = 245
+label = "POISON_BARB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[nevermeltice]
+id = 246
+label = "NEVERMELTICE"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[spell_tag]
+id = 247
+label = "SPELL_TAG"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[twistedspoon]
+id = 248
+label = "TWISTEDSPOON"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[charcoal]
+id = 249
+label = "CHARCOAL"
+price = 9800
+pocket = "items"
+classification = "filler"
+
+[dragon_fang]
+id = 250
+label = "DRAGON_FANG"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[silk_scarf]
+id = 251
+label = "SILK_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[upgrade]
+id = 252
+label = "UPGRADE"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[shell_bell]
+id = 253
+label = "SHELL_BELL"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[sea_incense]
+id = 254
+label = "SEA_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[lax_incense]
+id = 255
+label = "LAX_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[lucky_punch]
+id = 256
+label = "LUCKY_PUNCH"
+price = 10
+pocket = "items"
+classification = "filler"
+
+[metal_powder]
+id = 257
+label = "METAL_POWDER"
+price = 10
+pocket = "items"
+classification = "filler"
+
+[thick_club]
+id = 258
+label = "THICK_CLUB"
+price = 500
+pocket = "items"
+classification = "filler"
+
+[stick]
+id = 259
+label = "STICK"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[red_scarf]
+id = 260
+label = "RED_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[blue_scarf]
+id = 261
+label = "BLUE_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[pink_scarf]
+id = 262
+label = "PINK_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[green_scarf]
+id = 263
+label = "GREEN_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[yellow_scarf]
+id = 264
+label = "YELLOW_SCARF"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[wide_lens]
+id = 265
+label = "WIDE_LENS"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[muscle_band]
+id = 266
+label = "MUSCLE_BAND"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[wise_glasses]
+id = 267
+label = "WISE_GLASSES"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[expert_belt]
+id = 268
+label = "EXPERT_BELT"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[light_clay]
+id = 269
+label = "LIGHT_CLAY"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[life_orb]
+id = 270
+label = "LIFE_ORB"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[power_herb]
+id = 271
+label = "POWER_HERB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[toxic_orb]
+id = 272
+label = "TOXIC_ORB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[flame_orb]
+id = 273
+label = "FLAME_ORB"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[quick_powder]
+id = 274
+label = "QUICK_POWDER"
+price = 10
+pocket = "items"
+classification = "filler"
+
+[focus_sash]
+id = 275
+label = "FOCUS_SASH"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[zoom_lens]
+id = 276
+label = "ZOOM_LENS"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[metronome]
+id = 277
+label = "METRONOME"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[iron_ball]
+id = 278
+label = "IRON_BALL"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[lagging_tail]
+id = 279
+label = "LAGGING_TAIL"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[destiny_knot]
+id = 280
+label = "DESTINY_KNOT"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[black_sludge]
+id = 281
+label = "BLACK_SLUDGE"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[icy_rock]
+id = 282
+label = "ICY_ROCK"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[smooth_rock]
+id = 283
+label = "SMOOTH_ROCK"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[heat_rock]
+id = 284
+label = "HEAT_ROCK"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[damp_rock]
+id = 285
+label = "DAMP_ROCK"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[grip_claw]
+id = 286
+label = "GRIP_CLAW"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[choice_scarf]
+id = 287
+label = "CHOICE_SCARF"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[sticky_barb]
+id = 288
+label = "STICKY_BARB"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[power_bracer]
+id = 289
+label = "POWER_BRACER"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[power_belt]
+id = 290
+label = "POWER_BELT"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[power_lens]
+id = 291
+label = "POWER_LENS"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[power_band]
+id = 292
+label = "POWER_BAND"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[power_anklet]
+id = 293
+label = "POWER_ANKLET"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[power_weight]
+id = 294
+label = "POWER_WEIGHT"
+price = 3000
+pocket = "items"
+classification = "filler"
+
+[shed_shell]
+id = 295
+label = "SHED_SHELL"
+price = 100
+pocket = "items"
+classification = "filler"
+
+[big_root]
+id = 296
+label = "BIG_ROOT"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[choice_specs]
+id = 297
+label = "CHOICE_SPECS"
+price = 200
+pocket = "items"
+classification = "filler"
+
+[flame_plate]
+id = 298
+label = "FLAME_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[splash_plate]
+id = 299
+label = "SPLASH_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[zap_plate]
+id = 300
+label = "ZAP_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[meadow_plate]
+id = 301
+label = "MEADOW_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[icicle_plate]
+id = 302
+label = "ICICLE_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[fist_plate]
+id = 303
+label = "FIST_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[toxic_plate]
+id = 304
+label = "TOXIC_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[earth_plate]
+id = 305
+label = "EARTH_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[sky_plate]
+id = 306
+label = "SKY_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[mind_plate]
+id = 307
+label = "MIND_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[insect_plate]
+id = 308
+label = "INSECT_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[stone_plate]
+id = 309
+label = "STONE_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[spooky_plate]
+id = 310
+label = "SPOOKY_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[draco_plate]
+id = 311
+label = "DRACO_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[dread_plate]
+id = 312
+label = "DREAD_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[iron_plate]
+id = 313
+label = "IRON_PLATE"
+price = 1000
+pocket = "items"
+classification = "filler"
+
+[odd_incense]
+id = 314
+label = "ODD_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[rock_incense]
+id = 315
+label = "ROCK_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[full_incense]
+id = 316
+label = "FULL_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[wave_incense]
+id = 317
+label = "WAVE_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[rose_incense]
+id = 318
+label = "ROSE_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[luck_incense]
+id = 319
+label = "LUCK_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[pure_incense]
+id = 320
+label = "PURE_INCENSE"
+price = 9600
+pocket = "items"
+classification = "filler"
+
+[protector]
+id = 321
+label = "PROTECTOR"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[electirizer]
+id = 322
+label = "ELECTIRIZER"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[magmarizer]
+id = 323
+label = "MAGMARIZER"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[dubious_disc]
+id = 324
+label = "DUBIOUS_DISC"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[reaper_cloth]
+id = 325
+label = "REAPER_CLOTH"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[razor_claw]
+id = 326
+label = "RAZOR_CLAW"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[razor_fang]
+id = 327
+label = "RAZOR_FANG"
+price = 2100
+pocket = "items"
+classification = "filler"
+
+[tm01]
+id = 328
+label = "TM01"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm02]
+id = 329
+label = "TM02"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm03]
+id = 330
+label = "TM03"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm04]
+id = 331
+label = "TM04"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm05]
+id = 332
+label = "TM05"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm06]
+id = 333
+label = "TM06"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm07]
+id = 334
+label = "TM07"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm08]
+id = 335
+label = "TM08"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm09]
+id = 336
+label = "TM09"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm10]
+id = 337
+label = "TM10"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm11]
+id = 338
+label = "TM11"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm12]
+id = 339
+label = "TM12"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm13]
+id = 340
+label = "TM13"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm14]
+id = 341
+label = "TM14"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm15]
+id = 342
+label = "TM15"
+price = 7500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm16]
+id = 343
+label = "TM16"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm17]
+id = 344
+label = "TM17"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm18]
+id = 345
+label = "TM18"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm19]
+id = 346
+label = "TM19"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm20]
+id = 347
+label = "TM20"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm21]
+id = 348
+label = "TM21"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm22]
+id = 349
+label = "TM22"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm23]
+id = 350
+label = "TM23"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm24]
+id = 351
+label = "TM24"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm25]
+id = 352
+label = "TM25"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm26]
+id = 353
+label = "TM26"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm27]
+id = 354
+label = "TM27"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm28]
+id = 355
+label = "TM28"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm29]
+id = 356
+label = "TM29"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm30]
+id = 357
+label = "TM30"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm31]
+id = 358
+label = "TM31"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm32]
+id = 359
+label = "TM32"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm33]
+id = 360
+label = "TM33"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm34]
+id = 361
+label = "TM34"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm35]
+id = 362
+label = "TM35"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm36]
+id = 363
+label = "TM36"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm37]
+id = 364
+label = "TM37"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm38]
+id = 365
+label = "TM38"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm39]
+id = 366
+label = "TM39"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm40]
+id = 367
+label = "TM40"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm41]
+id = 368
+label = "TM41"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm42]
+id = 369
+label = "TM42"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm43]
+id = 370
+label = "TM43"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm44]
+id = 371
+label = "TM44"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm45]
+id = 372
+label = "TM45"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm46]
+id = 373
+label = "TM46"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm47]
+id = 374
+label = "TM47"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm48]
+id = 375
+label = "TM48"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm49]
+id = 376
+label = "TM49"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm50]
+id = 377
+label = "TM50"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm51]
+id = 378
+label = "TM51"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm52]
+id = 379
+label = "TM52"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm53]
+id = 380
+label = "TM53"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm54]
+id = 381
+label = "TM54"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm55]
+id = 382
+label = "TM55"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm56]
+id = 383
+label = "TM56"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm57]
+id = 384
+label = "TM57"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm58]
+id = 385
+label = "TM58"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm59]
+id = 386
+label = "TM59"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm60]
+id = 387
+label = "TM60"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm61]
+id = 388
+label = "TM61"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm62]
+id = 389
+label = "TM62"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm63]
+id = 390
+label = "TM63"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm64]
+id = 391
+label = "TM64"
+price = 7500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm65]
+id = 392
+label = "TM65"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm66]
+id = 393
+label = "TM66"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm67]
+id = 394
+label = "TM67"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm68]
+id = 395
+label = "TM68"
+price = 7500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm69]
+id = 396
+label = "TM69"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm70]
+id = 397
+label = "TM70"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm71]
+id = 398
+label = "TM71"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm72]
+id = 399
+label = "TM72"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm73]
+id = 400
+label = "TM73"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm74]
+id = 401
+label = "TM74"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm75]
+id = 402
+label = "TM75"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm76]
+id = 403
+label = "TM76"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm77]
+id = 404
+label = "TM77"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm78]
+id = 405
+label = "TM78"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm79]
+id = 406
+label = "TM79"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm80]
+id = 407
+label = "TM80"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm81]
+id = 408
+label = "TM81"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm82]
+id = 409
+label = "TM82"
+price = 1000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm83]
+id = 410
+label = "TM83"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm84]
+id = 411
+label = "TM84"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm85]
+id = 412
+label = "TM85"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm86]
+id = 413
+label = "TM86"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm87]
+id = 414
+label = "TM87"
+price = 1500
+pocket = "tm_hm"
+classification = "useful"
+
+[tm88]
+id = 415
+label = "TM88"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm89]
+id = 416
+label = "TM89"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm90]
+id = 417
+label = "TM90"
+price = 2000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm91]
+id = 418
+label = "TM91"
+price = 3000
+pocket = "tm_hm"
+classification = "useful"
+
+[tm92]
+id = 419
+label = "TM92"
+price = 5500
+pocket = "tm_hm"
+classification = "useful"
+
+[hm01]
+id = 420
+label = "HM01"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm02]
+id = 421
+label = "HM02"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm03]
+id = 422
+label = "HM03"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm04]
+id = 423
+label = "HM04"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm05]
+id = 424
+label = "HM05"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm06]
+id = 425
+label = "HM06"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm07]
+id = 426
+label = "HM07"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[hm08]
+id = 427
+label = "HM08"
+price = 0
+pocket = "tm_hm"
+classification = "progression"
+
+[loot_sack]
+id = 429
+label = "LOOT_SACK"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[rule_book]
+id = 430
+label = "RULE_BOOK"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[poke_radar]
+id = 431
+label = "POKE_RADAR"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[point_card]
+id = 432
+label = "POINT_CARD"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[journal]
+id = 433
+label = "JOURNAL"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[seal_case]
+id = 434
+label = "SEAL_CASE"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[fashion_case]
+id = 435
+label = "FASHION_CASE"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[seal_bag]
+id = 436
+label = "SEAL_BAG"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[pal_pad]
+id = 437
+label = "PAL_PAD"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[works_key]
+id = 438
+label = "WORKS_KEY"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[old_charm]
+id = 439
+label = "OLD_CHARM"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[galactic_key]
+id = 440
+label = "GALACTIC_KEY"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[red_chain]
+id = 441
+label = "RED_CHAIN"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[town_map]
+id = 442
+label = "TOWN_MAP"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[vs_seeker]
+id = 443
+label = "VS__SEEKER"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[coin_case]
+id = 444
+label = "COIN_CASE"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[old_rod]
+id = 445
+label = "OLD_ROD"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[good_rod]
+id = 446
+label = "GOOD_ROD"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[super_rod]
+id = 447
+label = "SUPER_ROD"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[sprayduck]
+id = 448
+label = "SPRAYDUCK"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[poffin_case]
+id = 449
+label = "POFFIN_CASE"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[bicycle]
+id = 450
+label = "BICYCLE"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[suite_key]
+id = 451
+label = "SUITE_KEY"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[oaks_letter]
+id = 452
+label = "OAKS_LETTER"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[lunar_wing]
+id = 453
+label = "LUNAR_WING"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[member_card]
+id = 454
+label = "MEMBER_CARD"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[azure_flute]
+id = 455
+label = "AZURE_FLUTE"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[s_s_ticket]
+id = 456
+label = "S_S__TICKET"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[contest_pass]
+id = 457
+label = "CONTEST_PASS"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[magma_stone]
+id = 458
+label = "MAGMA_STONE"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[parcel]
+id = 459
+label = "PARCEL"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[coupon_1]
+id = 460
+label = "COUPON_1"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[coupon_2]
+id = 461
+label = "COUPON_2"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[coupon_3]
+id = 462
+label = "COUPON_3"
+price = 0
+pocket = "key_items"
+classification = "filler"
+
+[storage_key]
+id = 463
+label = "STORAGE_KEY"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[secretpotion]
+id = 464
+label = "SECRETPOTION"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[vs_recorder]
+id = 465
+label = "VS__RECORDER"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[gracidea]
+id = 466
+label = "GRACIDEA"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[secret_key]
+id = 467
+label = "SECRET_KEY"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[apricorn_box]
+id = 468
+label = "APRICORN_BOX"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[unown_report]
+id = 469
+label = "UNOWN_REPORT"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[berry_pots]
+id = 470
+label = "BERRY_POTS"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[dowsing_mchn]
+id = 471
+label = "DOWSING_MCHN"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[blue_card]
+id = 472
+label = "BLUE_CARD"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[slowpoketail]
+id = 473
+label = "SLOWPOKETAIL"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[clear_bell]
+id = 474
+label = "CLEAR_BELL"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[card_key]
+id = 475
+label = "CARD_KEY"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[basement_key]
+id = 476
+label = "BASEMENT_KEY"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[squirtbottle]
+id = 477
+label = "SQUIRTBOTTLE"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[red_scale]
+id = 478
+label = "RED_SCALE"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[lost_item]
+id = 479
+label = "LOST_ITEM"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[pass]
+id = 480
+label = "PASS"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[machine_part]
+id = 481
+label = "MACHINE_PART"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[silver_wing]
+id = 482
+label = "SILVER_WING"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[rainbow_wing]
+id = 483
+label = "RAINBOW_WING"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[mystery_egg]
+id = 484
+label = "MYSTERY_EGG"
+price = 0
+pocket = "key_items"
+classification = "progression"
+
+[red_apricorn]
+id = 485
+label = "RED_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[ylw_apricorn]
+id = 486
+label = "YLW_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[blu_apricorn]
+id = 487
+label = "BLU_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[grn_apricorn]
+id = 488
+label = "GRN_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[pnk_apricorn]
+id = 489
+label = "PNK_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[wht_apricorn]
+id = 490
+label = "WHT_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[blk_apricorn]
+id = 491
+label = "BLK_APRICORN"
+price = 20
+pocket = "items"
+classification = "filler"
+
+[fast_ball]
+id = 492
+label = "FAST_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[level_ball]
+id = 493
+label = "LEVEL_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[lure_ball]
+id = 494
+label = "LURE_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[heavy_ball]
+id = 495
+label = "HEAVY_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[love_ball]
+id = 496
+label = "LOVE_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[friend_ball]
+id = 497
+label = "FRIEND_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[moon_ball]
+id = 498
+label = "MOON_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[sport_ball]
+id = 499
+label = "SPORT_BALL"
+price = 300
+pocket = "balls"
+classification = "filler"
+
+[park_ball]
+id = 500
+label = "PARK_BALL"
+price = 0
+pocket = "balls"
+classification = "filler"
+
+[photo_album]
+id = 501
+label = "PHOTO_ALBUM"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[gb_sounds]
+id = 502
+label = "GB_SOUNDS"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[tidal_bell]
+id = 503
+label = "TIDAL_BELL"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[ragecandybar]
+id = 504
+label = "RAGECANDYBAR"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[data_card_01]
+id = 505
+label = "DATA_CARD_01"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_02]
+id = 506
+label = "DATA_CARD_02"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_03]
+id = 507
+label = "DATA_CARD_03"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_04]
+id = 508
+label = "DATA_CARD_04"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_05]
+id = 509
+label = "DATA_CARD_05"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_06]
+id = 510
+label = "DATA_CARD_06"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_07]
+id = 511
+label = "DATA_CARD_07"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_08]
+id = 512
+label = "DATA_CARD_08"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_09]
+id = 513
+label = "DATA_CARD_09"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_10]
+id = 514
+label = "DATA_CARD_10"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_11]
+id = 515
+label = "DATA_CARD_11"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_12]
+id = 516
+label = "DATA_CARD_12"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_13]
+id = 517
+label = "DATA_CARD_13"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_14]
+id = 518
+label = "DATA_CARD_14"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_15]
+id = 519
+label = "DATA_CARD_15"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_16]
+id = 520
+label = "DATA_CARD_16"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_17]
+id = 521
+label = "DATA_CARD_17"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_18]
+id = 522
+label = "DATA_CARD_18"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_19]
+id = 523
+label = "DATA_CARD_19"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_20]
+id = 524
+label = "DATA_CARD_20"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_21]
+id = 525
+label = "DATA_CARD_21"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_22]
+id = 526
+label = "DATA_CARD_22"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_23]
+id = 527
+label = "DATA_CARD_23"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_24]
+id = 528
+label = "DATA_CARD_24"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_25]
+id = 529
+label = "DATA_CARD_25"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_26]
+id = 530
+label = "DATA_CARD_26"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[data_card_27]
+id = 531
+label = "DATA_CARD_27"
+price = 0
+pocket = "items"
+classification = "filler"
+
+[jade_orb]
+id = 532
+label = "JADE_ORB"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[lock_capsule]
+id = 533
+label = "LOCK_CAPSULE"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[red_orb]
+id = 534
+label = "RED_ORB"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[blue_orb]
+id = 535
+label = "BLUE_ORB"
+price = 0
+pocket = "key_items"
+classification = "useful"
+
+[enigma_stone]
+id = 536
+label = "ENIGMA_STONE"
+price = 0
+pocket = "key_items"
+classification = "useful"

@@ -17,7 +17,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from data_gen_templates import generate_init, generate_moves, generate_species
+from data_gen_templates import (
+    generate_init,
+    generate_items,
+    generate_moves,
+    generate_species,
+)
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -32,6 +37,7 @@ def main() -> None:
     _write("__init__.py", generate_init())
     _write("species.py", generate_species())
     _write("moves.py", generate_moves())
+    _write("items.py", generate_items())
 
 
 if __name__ == "__main__":

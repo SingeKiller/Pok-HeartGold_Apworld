@@ -8,8 +8,10 @@ Bootstrap step (task C1): a single generated module, `data/__init__.py`,
 built from `data_gen/game_version.toml`. Task C2 adds `data/species.py` and
 `data/moves.py`, built from `data_gen/species.toml` and `data_gen/moves.toml`
 respectively (see `data_gen_templates/species.py`, `data_gen_templates/moves.py`).
-Future steps (C3-C7) will add more `data_gen/*.toml` sources plus one
-`generate_*` function per generated module here, following the same pattern.
+Task C3 adds `data/items.py`, built from `data_gen/items.toml` (see
+`data_gen_templates/items.py`). Future steps (C4-C7) will add more
+`data_gen/*.toml` sources plus one `generate_*` function per generated
+module here, following the same pattern.
 """
 
 from __future__ import annotations
@@ -71,10 +73,12 @@ def generate_init() -> str:
     return "".join(lines)
 
 
-# Imported at the bottom of the module: `species` and `moves` both call
-# `load_toml`/reference `GENERATED_FILE_HEADER` from this module at import
-# time, so they must be defined above before these submodules are imported.
+# Imported at the bottom of the module: `species`, `moves` and `items` all
+# call `load_toml`/reference `GENERATED_FILE_HEADER` from this module at
+# import time, so they must be defined above before these submodules are
+# imported.
+from .items import generate_items  # noqa: E402
 from .moves import generate_moves  # noqa: E402
 from .species import generate_species  # noqa: E402
 
-__all__ = ["generate_init", "generate_moves", "generate_species"]
+__all__ = ["generate_init", "generate_items", "generate_moves", "generate_species"]
