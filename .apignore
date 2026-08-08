@@ -1,0 +1,29 @@
+# .apignore
+#
+# Lists what should be included in the final .apworld (everything else is
+# excluded). Read by build.py / Makefile.
+#
+# Format: "**" excludes everything by default; a line starting with "!/"
+# re-includes a repository-root-relative path. A trailing "/" means the
+# whole directory is included recursively; otherwise it's a single file.
+#
+# NOTE: most of the paths below don't exist yet (repository bootstrap /
+# tooling stage, see CLAUDE.md task C0). They describe the target package
+# layout from docs/architecture.md so the build tooling doesn't need to
+# change again once those files land.
+
+**
+!/__init__.py
+!/client.py
+!/items.py
+!/locations.py
+!/options.py
+!/regions.py
+!/rules.py
+!/species.py
+!/LICENSE
+!/data/
+!/patches/
+!/rom/
+!/docs/setup_en.md
+!/docs/en_Pokemon HeartGold.md

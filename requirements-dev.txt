@@ -1,0 +1,9 @@
+# requirements-dev.txt
+#
+# Development-only dependencies for the Pokemon HeartGold APWorld. These are
+# not required at runtime by Archipelago itself (which vendors its own
+# dependencies); this file only covers linting/testing tooling used while
+# developing this repository.
+
+ruff>=0.6
+pytest>=8.0
