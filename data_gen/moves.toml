@@ -1,0 +1,4317 @@
+# data_gen/moves.toml
+#
+# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored).
+#   - files/poketool/waza/waza_tbl.narc: per-move MoveTbl struct
+#     (effect, category, power, type, accuracy, pp, ...), see include/move.h.
+#   - include/constants/moves.h: MOVE_* id/name constants (467 moves, no gaps).
+#   - src/item.c, sTMHMMoves[]: TM01-92/HM01-08 item -> move mapping.
+#
+# Types/categories are decoded from the numeric fields using
+# include/constants/pokemon.h (TYPE_*) and include/constants/moves.h
+# (CATEGORY_PHYSICAL/SPECIAL/STATUS).
+
+[pound]
+id = 1
+label = "POUND"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 35
+
+[karate_chop]
+id = 2
+label = "KARATE_CHOP"
+type = "fighting"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 25
+
+[double_slap]
+id = 3
+label = "DOUBLE_SLAP"
+type = "normal"
+category = "physical"
+power = 15
+accuracy = 85
+pp = 10
+
+[comet_punch]
+id = 4
+label = "COMET_PUNCH"
+type = "normal"
+category = "physical"
+power = 18
+accuracy = 85
+pp = 15
+
+[mega_punch]
+id = 5
+label = "MEGA_PUNCH"
+type = "normal"
+category = "physical"
+power = 80
+accuracy = 85
+pp = 20
+
+[pay_day]
+id = 6
+label = "PAY_DAY"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 20
+
+[fire_punch]
+id = 7
+label = "FIRE_PUNCH"
+type = "fire"
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+
+[ice_punch]
+id = 8
+label = "ICE_PUNCH"
+type = "ice"
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+
+[thunder_punch]
+id = 9
+label = "THUNDER_PUNCH"
+type = "electric"
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+
+[scratch]
+id = 10
+label = "SCRATCH"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 35
+
+[vice_grip]
+id = 11
+label = "VICE_GRIP"
+type = "normal"
+category = "physical"
+power = 55
+accuracy = 100
+pp = 30
+
+[guillotine]
+id = 12
+label = "GUILLOTINE"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 30
+pp = 5
+
+[razor_wind]
+id = 13
+label = "RAZOR_WIND"
+type = "normal"
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+
+[swords_dance]
+id = 14
+label = "SWORDS_DANCE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[cut]
+id = 15
+label = "CUT"
+type = "normal"
+category = "physical"
+power = 50
+accuracy = 95
+pp = 30
+
+[gust]
+id = 16
+label = "GUST"
+type = "flying"
+category = "special"
+power = 40
+accuracy = 100
+pp = 35
+
+[wing_attack]
+id = 17
+label = "WING_ATTACK"
+type = "flying"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 35
+
+[whirlwind]
+id = 18
+label = "WHIRLWIND"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[fly]
+id = 19
+label = "FLY"
+type = "flying"
+category = "physical"
+power = 90
+accuracy = 95
+pp = 15
+
+[bind]
+id = 20
+label = "BIND"
+type = "normal"
+category = "physical"
+power = 15
+accuracy = 75
+pp = 20
+
+[slam]
+id = 21
+label = "SLAM"
+type = "normal"
+category = "physical"
+power = 80
+accuracy = 75
+pp = 20
+
+[vine_whip]
+id = 22
+label = "VINE_WHIP"
+type = "grass"
+category = "physical"
+power = 35
+accuracy = 100
+pp = 15
+
+[stomp]
+id = 23
+label = "STOMP"
+type = "normal"
+category = "physical"
+power = 65
+accuracy = 100
+pp = 20
+
+[double_kick]
+id = 24
+label = "DOUBLE_KICK"
+type = "fighting"
+category = "physical"
+power = 30
+accuracy = 100
+pp = 30
+
+[mega_kick]
+id = 25
+label = "MEGA_KICK"
+type = "normal"
+category = "physical"
+power = 120
+accuracy = 75
+pp = 5
+
+[jump_kick]
+id = 26
+label = "JUMP_KICK"
+type = "fighting"
+category = "physical"
+power = 85
+accuracy = 95
+pp = 25
+
+[rolling_kick]
+id = 27
+label = "ROLLING_KICK"
+type = "fighting"
+category = "physical"
+power = 60
+accuracy = 85
+pp = 15
+
+[sand_attack]
+id = 28
+label = "SAND_ATTACK"
+type = "ground"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[headbutt]
+id = 29
+label = "HEADBUTT"
+type = "normal"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 15
+
+[horn_attack]
+id = 30
+label = "HORN_ATTACK"
+type = "normal"
+category = "physical"
+power = 65
+accuracy = 100
+pp = 25
+
+[fury_attack]
+id = 31
+label = "FURY_ATTACK"
+type = "normal"
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+
+[horn_drill]
+id = 32
+label = "HORN_DRILL"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 30
+pp = 5
+
+[tackle]
+id = 33
+label = "TACKLE"
+type = "normal"
+category = "physical"
+power = 35
+accuracy = 95
+pp = 35
+
+[body_slam]
+id = 34
+label = "BODY_SLAM"
+type = "normal"
+category = "physical"
+power = 85
+accuracy = 100
+pp = 15
+
+[wrap]
+id = 35
+label = "WRAP"
+type = "normal"
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+
+[take_down]
+id = 36
+label = "TAKE_DOWN"
+type = "normal"
+category = "physical"
+power = 90
+accuracy = 85
+pp = 20
+
+[thrash]
+id = 37
+label = "THRASH"
+type = "normal"
+category = "physical"
+power = 90
+accuracy = 100
+pp = 20
+
+[double_edge]
+id = 38
+label = "DOUBLE_EDGE"
+type = "normal"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[tail_whip]
+id = 39
+label = "TAIL_WHIP"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 30
+
+[poison_sting]
+id = 40
+label = "POISON_STING"
+type = "poison"
+category = "physical"
+power = 15
+accuracy = 100
+pp = 35
+
+[twineedle]
+id = 41
+label = "TWINEEDLE"
+type = "bug"
+category = "physical"
+power = 25
+accuracy = 100
+pp = 20
+
+[pin_missile]
+id = 42
+label = "PIN_MISSILE"
+type = "bug"
+category = "physical"
+power = 14
+accuracy = 85
+pp = 20
+
+[leer]
+id = 43
+label = "LEER"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 30
+
+[bite]
+id = 44
+label = "BITE"
+type = "dark"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+
+[growl]
+id = 45
+label = "GROWL"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 40
+
+[roar]
+id = 46
+label = "ROAR"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[sing]
+id = 47
+label = "SING"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 55
+pp = 15
+
+[supersonic]
+id = 48
+label = "SUPERSONIC"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 55
+pp = 20
+
+[sonic_boom]
+id = 49
+label = "SONIC_BOOM"
+type = "normal"
+category = "special"
+power = 1
+accuracy = 90
+pp = 20
+
+[disable]
+id = 50
+label = "DISABLE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 80
+pp = 20
+
+[acid]
+id = 51
+label = "ACID"
+type = "poison"
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+
+[ember]
+id = 52
+label = "EMBER"
+type = "fire"
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+
+[flamethrower]
+id = 53
+label = "FLAMETHROWER"
+type = "fire"
+category = "special"
+power = 95
+accuracy = 100
+pp = 15
+
+[mist]
+id = 54
+label = "MIST"
+type = "ice"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[water_gun]
+id = 55
+label = "WATER_GUN"
+type = "water"
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+
+[hydro_pump]
+id = 56
+label = "HYDRO_PUMP"
+type = "water"
+category = "special"
+power = 120
+accuracy = 80
+pp = 5
+
+[surf]
+id = 57
+label = "SURF"
+type = "water"
+category = "special"
+power = 95
+accuracy = 100
+pp = 15
+
+[ice_beam]
+id = 58
+label = "ICE_BEAM"
+type = "ice"
+category = "special"
+power = 95
+accuracy = 100
+pp = 10
+
+[blizzard]
+id = 59
+label = "BLIZZARD"
+type = "ice"
+category = "special"
+power = 120
+accuracy = 70
+pp = 5
+
+[psybeam]
+id = 60
+label = "PSYBEAM"
+type = "psychic"
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+
+[bubble_beam]
+id = 61
+label = "BUBBLE_BEAM"
+type = "water"
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+
+[aurora_beam]
+id = 62
+label = "AURORA_BEAM"
+type = "ice"
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+
+[hyper_beam]
+id = 63
+label = "HYPER_BEAM"
+type = "normal"
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+
+[peck]
+id = 64
+label = "PECK"
+type = "flying"
+category = "physical"
+power = 35
+accuracy = 100
+pp = 35
+
+[drill_peck]
+id = 65
+label = "DRILL_PECK"
+type = "flying"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 20
+
+[submission]
+id = 66
+label = "SUBMISSION"
+type = "fighting"
+category = "physical"
+power = 80
+accuracy = 80
+pp = 25
+
+[low_kick]
+id = 67
+label = "LOW_KICK"
+type = "fighting"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 20
+
+[counter]
+id = 68
+label = "COUNTER"
+type = "fighting"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 20
+
+[seismic_toss]
+id = 69
+label = "SEISMIC_TOSS"
+type = "fighting"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 20
+
+[strength]
+id = 70
+label = "STRENGTH"
+type = "normal"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[absorb]
+id = 71
+label = "ABSORB"
+type = "grass"
+category = "special"
+power = 20
+accuracy = 100
+pp = 25
+
+[mega_drain]
+id = 72
+label = "MEGA_DRAIN"
+type = "grass"
+category = "special"
+power = 40
+accuracy = 100
+pp = 15
+
+[leech_seed]
+id = 73
+label = "LEECH_SEED"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 90
+pp = 10
+
+[growth]
+id = 74
+label = "GROWTH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[razor_leaf]
+id = 75
+label = "RAZOR_LEAF"
+type = "grass"
+category = "physical"
+power = 55
+accuracy = 95
+pp = 25
+
+[solar_beam]
+id = 76
+label = "SOLAR_BEAM"
+type = "grass"
+category = "special"
+power = 120
+accuracy = 100
+pp = 10
+
+[poison_powder]
+id = 77
+label = "POISON_POWDER"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 75
+pp = 35
+
+[stun_spore]
+id = 78
+label = "STUN_SPORE"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 75
+pp = 30
+
+[sleep_powder]
+id = 79
+label = "SLEEP_POWDER"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 75
+pp = 15
+
+[petal_dance]
+id = 80
+label = "PETAL_DANCE"
+type = "grass"
+category = "special"
+power = 90
+accuracy = 100
+pp = 20
+
+[string_shot]
+id = 81
+label = "STRING_SHOT"
+type = "bug"
+category = "status"
+power = 0
+accuracy = 95
+pp = 40
+
+[dragon_rage]
+id = 82
+label = "DRAGON_RAGE"
+type = "dragon"
+category = "special"
+power = 1
+accuracy = 100
+pp = 10
+
+[fire_spin]
+id = 83
+label = "FIRE_SPIN"
+type = "fire"
+category = "special"
+power = 15
+accuracy = 70
+pp = 15
+
+[thunder_shock]
+id = 84
+label = "THUNDER_SHOCK"
+type = "electric"
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+
+[thunderbolt]
+id = 85
+label = "THUNDERBOLT"
+type = "electric"
+category = "special"
+power = 95
+accuracy = 100
+pp = 15
+
+[thunder_wave]
+id = 86
+label = "THUNDER_WAVE"
+type = "electric"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[thunder]
+id = 87
+label = "THUNDER"
+type = "electric"
+category = "special"
+power = 120
+accuracy = 70
+pp = 10
+
+[rock_throw]
+id = 88
+label = "ROCK_THROW"
+type = "rock"
+category = "physical"
+power = 50
+accuracy = 90
+pp = 15
+
+[earthquake]
+id = 89
+label = "EARTHQUAKE"
+type = "ground"
+category = "physical"
+power = 100
+accuracy = 100
+pp = 10
+
+[fissure]
+id = 90
+label = "FISSURE"
+type = "ground"
+category = "physical"
+power = 1
+accuracy = 30
+pp = 5
+
+[dig]
+id = 91
+label = "DIG"
+type = "ground"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 10
+
+[toxic]
+id = 92
+label = "TOXIC"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 85
+pp = 10
+
+[confusion]
+id = 93
+label = "CONFUSION"
+type = "psychic"
+category = "special"
+power = 50
+accuracy = 100
+pp = 25
+
+[psychic]
+id = 94
+label = "PSYCHIC"
+type = "psychic"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[hypnosis]
+id = 95
+label = "HYPNOSIS"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 60
+pp = 20
+
+[meditate]
+id = 96
+label = "MEDITATE"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[agility]
+id = 97
+label = "AGILITY"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[quick_attack]
+id = 98
+label = "QUICK_ATTACK"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+
+[rage]
+id = 99
+label = "RAGE"
+type = "normal"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 20
+
+[teleport]
+id = 100
+label = "TELEPORT"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[night_shade]
+id = 101
+label = "NIGHT_SHADE"
+type = "ghost"
+category = "special"
+power = 1
+accuracy = 100
+pp = 15
+
+[mimic]
+id = 102
+label = "MIMIC"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[screech]
+id = 103
+label = "SCREECH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 85
+pp = 40
+
+[double_team]
+id = 104
+label = "DOUBLE_TEAM"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[recover]
+id = 105
+label = "RECOVER"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[harden]
+id = 106
+label = "HARDEN"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[minimize]
+id = 107
+label = "MINIMIZE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[smoke_screen]
+id = 108
+label = "SMOKE_SCREEN"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[confuse_ray]
+id = 109
+label = "CONFUSE_RAY"
+type = "ghost"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[withdraw]
+id = 110
+label = "WITHDRAW"
+type = "water"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[defense_curl]
+id = 111
+label = "DEFENSE_CURL"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[barrier]
+id = 112
+label = "BARRIER"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[light_screen]
+id = 113
+label = "LIGHT_SCREEN"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[haze]
+id = 114
+label = "HAZE"
+type = "ice"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[reflect]
+id = 115
+label = "REFLECT"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[focus_energy]
+id = 116
+label = "FOCUS_ENERGY"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[bide]
+id = 117
+label = "BIDE"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 0
+pp = 10
+
+[metronome]
+id = 118
+label = "METRONOME"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[mirror_move]
+id = 119
+label = "MIRROR_MOVE"
+type = "flying"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[selfdestruct]
+id = 120
+label = "SELFDESTRUCT"
+type = "normal"
+category = "physical"
+power = 200
+accuracy = 100
+pp = 5
+
+[egg_bomb]
+id = 121
+label = "EGG_BOMB"
+type = "normal"
+category = "physical"
+power = 100
+accuracy = 75
+pp = 10
+
+[lick]
+id = 122
+label = "LICK"
+type = "ghost"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 30
+
+[smog]
+id = 123
+label = "SMOG"
+type = "poison"
+category = "special"
+power = 20
+accuracy = 70
+pp = 20
+
+[sludge]
+id = 124
+label = "SLUDGE"
+type = "poison"
+category = "special"
+power = 65
+accuracy = 100
+pp = 20
+
+[bone_club]
+id = 125
+label = "BONE_CLUB"
+type = "ground"
+category = "physical"
+power = 65
+accuracy = 85
+pp = 20
+
+[fire_blast]
+id = 126
+label = "FIRE_BLAST"
+type = "fire"
+category = "special"
+power = 120
+accuracy = 85
+pp = 5
+
+[waterfall]
+id = 127
+label = "WATERFALL"
+type = "water"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[clamp]
+id = 128
+label = "CLAMP"
+type = "water"
+category = "physical"
+power = 35
+accuracy = 75
+pp = 10
+
+[swift]
+id = 129
+label = "SWIFT"
+type = "normal"
+category = "special"
+power = 60
+accuracy = 0
+pp = 20
+
+[skull_bash]
+id = 130
+label = "SKULL_BASH"
+type = "normal"
+category = "physical"
+power = 100
+accuracy = 100
+pp = 15
+
+[spike_cannon]
+id = 131
+label = "SPIKE_CANNON"
+type = "normal"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 15
+
+[constrict]
+id = 132
+label = "CONSTRICT"
+type = "normal"
+category = "physical"
+power = 10
+accuracy = 100
+pp = 35
+
+[amnesia]
+id = 133
+label = "AMNESIA"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[kinesis]
+id = 134
+label = "KINESIS"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 80
+pp = 15
+
+[softboiled]
+id = 135
+label = "SOFTBOILED"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[hi_jump_kick]
+id = 136
+label = "HI_JUMP_KICK"
+type = "fighting"
+category = "physical"
+power = 100
+accuracy = 90
+pp = 20
+
+[glare]
+id = 137
+label = "GLARE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 75
+pp = 30
+
+[dream_eater]
+id = 138
+label = "DREAM_EATER"
+type = "psychic"
+category = "special"
+power = 100
+accuracy = 100
+pp = 15
+
+[poison_gas]
+id = 139
+label = "POISON_GAS"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 55
+pp = 40
+
+[barrage]
+id = 140
+label = "BARRAGE"
+type = "normal"
+category = "physical"
+power = 15
+accuracy = 85
+pp = 20
+
+[leech_life]
+id = 141
+label = "LEECH_LIFE"
+type = "bug"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 15
+
+[lovely_kiss]
+id = 142
+label = "LOVELY_KISS"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 75
+pp = 10
+
+[sky_attack]
+id = 143
+label = "SKY_ATTACK"
+type = "flying"
+category = "physical"
+power = 140
+accuracy = 90
+pp = 5
+
+[transform]
+id = 144
+label = "TRANSFORM"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[bubble]
+id = 145
+label = "BUBBLE"
+type = "water"
+category = "special"
+power = 20
+accuracy = 100
+pp = 30
+
+[dizzy_punch]
+id = 146
+label = "DIZZY_PUNCH"
+type = "normal"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 10
+
+[spore]
+id = 147
+label = "SPORE"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[flash]
+id = 148
+label = "FLASH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[psywave]
+id = 149
+label = "PSYWAVE"
+type = "psychic"
+category = "special"
+power = 1
+accuracy = 80
+pp = 15
+
+[splash]
+id = 150
+label = "SPLASH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[acid_armor]
+id = 151
+label = "ACID_ARMOR"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[crabhammer]
+id = 152
+label = "CRABHAMMER"
+type = "water"
+category = "physical"
+power = 90
+accuracy = 85
+pp = 10
+
+[explosion]
+id = 153
+label = "EXPLOSION"
+type = "normal"
+category = "physical"
+power = 250
+accuracy = 100
+pp = 5
+
+[fury_swipes]
+id = 154
+label = "FURY_SWIPES"
+type = "normal"
+category = "physical"
+power = 18
+accuracy = 80
+pp = 15
+
+[bonemerang]
+id = 155
+label = "BONEMERANG"
+type = "ground"
+category = "physical"
+power = 50
+accuracy = 90
+pp = 10
+
+[rest]
+id = 156
+label = "REST"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[rock_slide]
+id = 157
+label = "ROCK_SLIDE"
+type = "rock"
+category = "physical"
+power = 75
+accuracy = 90
+pp = 10
+
+[hyper_fang]
+id = 158
+label = "HYPER_FANG"
+type = "normal"
+category = "physical"
+power = 80
+accuracy = 90
+pp = 15
+
+[sharpen]
+id = 159
+label = "SHARPEN"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[conversion]
+id = 160
+label = "CONVERSION"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[tri_attack]
+id = 161
+label = "TRI_ATTACK"
+type = "normal"
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+
+[super_fang]
+id = 162
+label = "SUPER_FANG"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 90
+pp = 10
+
+[slash]
+id = 163
+label = "SLASH"
+type = "normal"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[substitute]
+id = 164
+label = "SUBSTITUTE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[struggle]
+id = 165
+label = "STRUGGLE"
+type = "normal"
+category = "physical"
+power = 50
+accuracy = 0
+pp = 1
+
+[sketch]
+id = 166
+label = "SKETCH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 1
+
+[triple_kick]
+id = 167
+label = "TRIPLE_KICK"
+type = "fighting"
+category = "physical"
+power = 10
+accuracy = 90
+pp = 10
+
+[thief]
+id = 168
+label = "THIEF"
+type = "dark"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 10
+
+[spider_web]
+id = 169
+label = "SPIDER_WEB"
+type = "bug"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[mind_reader]
+id = 170
+label = "MIND_READER"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[nightmare]
+id = 171
+label = "NIGHTMARE"
+type = "ghost"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[flame_wheel]
+id = 172
+label = "FLAME_WHEEL"
+type = "fire"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 25
+
+[snore]
+id = 173
+label = "SNORE"
+type = "normal"
+category = "special"
+power = 40
+accuracy = 100
+pp = 15
+
+[curse]
+id = 174
+label = "CURSE"
+type = "mystery"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[flail]
+id = 175
+label = "FLAIL"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 15
+
+[conversion_2]
+id = 176
+label = "CONVERSION_2"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[aeroblast]
+id = 177
+label = "AEROBLAST"
+type = "flying"
+category = "special"
+power = 100
+accuracy = 95
+pp = 5
+
+[cotton_spore]
+id = 178
+label = "COTTON_SPORE"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 85
+pp = 40
+
+[reversal]
+id = 179
+label = "REVERSAL"
+type = "fighting"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 15
+
+[spite]
+id = 180
+label = "SPITE"
+type = "ghost"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[powder_snow]
+id = 181
+label = "POWDER_SNOW"
+type = "ice"
+category = "special"
+power = 40
+accuracy = 100
+pp = 25
+
+[protect]
+id = 182
+label = "PROTECT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[mach_punch]
+id = 183
+label = "MACH_PUNCH"
+type = "fighting"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+
+[scary_face]
+id = 184
+label = "SCARY_FACE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 90
+pp = 10
+
+[faint_attack]
+id = 185
+label = "FAINT_ATTACK"
+type = "dark"
+category = "physical"
+power = 60
+accuracy = 0
+pp = 20
+
+[sweet_kiss]
+id = 186
+label = "SWEET_KISS"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 75
+pp = 10
+
+[belly_drum]
+id = 187
+label = "BELLY_DRUM"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[sludge_bomb]
+id = 188
+label = "SLUDGE_BOMB"
+type = "poison"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[mud_slap]
+id = 189
+label = "MUD_SLAP"
+type = "ground"
+category = "special"
+power = 20
+accuracy = 100
+pp = 10
+
+[octazooka]
+id = 190
+label = "OCTAZOOKA"
+type = "water"
+category = "special"
+power = 65
+accuracy = 85
+pp = 10
+
+[spikes]
+id = 191
+label = "SPIKES"
+type = "ground"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[zap_cannon]
+id = 192
+label = "ZAP_CANNON"
+type = "electric"
+category = "special"
+power = 120
+accuracy = 50
+pp = 5
+
+[foresight]
+id = 193
+label = "FORESIGHT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[destiny_bond]
+id = 194
+label = "DESTINY_BOND"
+type = "ghost"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[perish_song]
+id = 195
+label = "PERISH_SONG"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[icy_wind]
+id = 196
+label = "ICY_WIND"
+type = "ice"
+category = "special"
+power = 55
+accuracy = 95
+pp = 15
+
+[detect]
+id = 197
+label = "DETECT"
+type = "fighting"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[bone_rush]
+id = 198
+label = "BONE_RUSH"
+type = "ground"
+category = "physical"
+power = 25
+accuracy = 80
+pp = 10
+
+[lock_on]
+id = 199
+label = "LOCK_ON"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[outrage]
+id = 200
+label = "OUTRAGE"
+type = "dragon"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[sandstorm]
+id = 201
+label = "SANDSTORM"
+type = "rock"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[giga_drain]
+id = 202
+label = "GIGA_DRAIN"
+type = "grass"
+category = "special"
+power = 60
+accuracy = 100
+pp = 10
+
+[endure]
+id = 203
+label = "ENDURE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[charm]
+id = 204
+label = "CHARM"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[rollout]
+id = 205
+label = "ROLLOUT"
+type = "rock"
+category = "physical"
+power = 30
+accuracy = 90
+pp = 20
+
+[false_swipe]
+id = 206
+label = "FALSE_SWIPE"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 40
+
+[swagger]
+id = 207
+label = "SWAGGER"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 90
+pp = 15
+
+[milk_drink]
+id = 208
+label = "MILK_DRINK"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[spark]
+id = 209
+label = "SPARK"
+type = "electric"
+category = "physical"
+power = 65
+accuracy = 100
+pp = 20
+
+[fury_cutter]
+id = 210
+label = "FURY_CUTTER"
+type = "bug"
+category = "physical"
+power = 10
+accuracy = 95
+pp = 20
+
+[steel_wing]
+id = 211
+label = "STEEL_WING"
+type = "steel"
+category = "physical"
+power = 70
+accuracy = 90
+pp = 25
+
+[mean_look]
+id = 212
+label = "MEAN_LOOK"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[attract]
+id = 213
+label = "ATTRACT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[sleep_talk]
+id = 214
+label = "SLEEP_TALK"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[heal_bell]
+id = 215
+label = "HEAL_BELL"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[return]
+id = 216
+label = "RETURN"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 20
+
+[present]
+id = 217
+label = "PRESENT"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 90
+pp = 15
+
+[frustration]
+id = 218
+label = "FRUSTRATION"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 20
+
+[safeguard]
+id = 219
+label = "SAFEGUARD"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 25
+
+[pain_split]
+id = 220
+label = "PAIN_SPLIT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[sacred_fire]
+id = 221
+label = "SACRED_FIRE"
+type = "fire"
+category = "physical"
+power = 100
+accuracy = 95
+pp = 5
+
+[magnitude]
+id = 222
+label = "MAGNITUDE"
+type = "ground"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 30
+
+[dynamic_punch]
+id = 223
+label = "DYNAMIC_PUNCH"
+type = "fighting"
+category = "physical"
+power = 100
+accuracy = 50
+pp = 5
+
+[megahorn]
+id = 224
+label = "MEGAHORN"
+type = "bug"
+category = "physical"
+power = 120
+accuracy = 85
+pp = 10
+
+[dragon_breath]
+id = 225
+label = "DRAGON_BREATH"
+type = "dragon"
+category = "special"
+power = 60
+accuracy = 100
+pp = 20
+
+[baton_pass]
+id = 226
+label = "BATON_PASS"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[encore]
+id = 227
+label = "ENCORE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 5
+
+[pursuit]
+id = 228
+label = "PURSUIT"
+type = "dark"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 20
+
+[rapid_spin]
+id = 229
+label = "RAPID_SPIN"
+type = "normal"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 40
+
+[sweet_scent]
+id = 230
+label = "SWEET_SCENT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[iron_tail]
+id = 231
+label = "IRON_TAIL"
+type = "steel"
+category = "physical"
+power = 100
+accuracy = 75
+pp = 15
+
+[metal_claw]
+id = 232
+label = "METAL_CLAW"
+type = "steel"
+category = "physical"
+power = 50
+accuracy = 95
+pp = 35
+
+[vital_throw]
+id = 233
+label = "VITAL_THROW"
+type = "fighting"
+category = "physical"
+power = 70
+accuracy = 0
+pp = 10
+
+[morning_sun]
+id = 234
+label = "MORNING_SUN"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[synthesis]
+id = 235
+label = "SYNTHESIS"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[moonlight]
+id = 236
+label = "MOONLIGHT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[hidden_power]
+id = 237
+label = "HIDDEN_POWER"
+type = "normal"
+category = "special"
+power = 1
+accuracy = 100
+pp = 15
+
+[cross_chop]
+id = 238
+label = "CROSS_CHOP"
+type = "fighting"
+category = "physical"
+power = 100
+accuracy = 80
+pp = 5
+
+[twister]
+id = 239
+label = "TWISTER"
+type = "dragon"
+category = "special"
+power = 40
+accuracy = 100
+pp = 20
+
+[rain_dance]
+id = 240
+label = "RAIN_DANCE"
+type = "water"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[sunny_day]
+id = 241
+label = "SUNNY_DAY"
+type = "fire"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[crunch]
+id = 242
+label = "CRUNCH"
+type = "dark"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[mirror_coat]
+id = 243
+label = "MIRROR_COAT"
+type = "psychic"
+category = "special"
+power = 1
+accuracy = 100
+pp = 20
+
+[psych_up]
+id = 244
+label = "PSYCH_UP"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[extreme_speed]
+id = 245
+label = "EXTREME_SPEED"
+type = "normal"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 5
+
+[ancient_power]
+id = 246
+label = "ANCIENT_POWER"
+type = "rock"
+category = "special"
+power = 60
+accuracy = 100
+pp = 5
+
+[shadow_ball]
+id = 247
+label = "SHADOW_BALL"
+type = "ghost"
+category = "special"
+power = 80
+accuracy = 100
+pp = 15
+
+[future_sight]
+id = 248
+label = "FUTURE_SIGHT"
+type = "psychic"
+category = "special"
+power = 80
+accuracy = 90
+pp = 15
+
+[rock_smash]
+id = 249
+label = "ROCK_SMASH"
+type = "fighting"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 15
+
+[whirlpool]
+id = 250
+label = "WHIRLPOOL"
+type = "water"
+category = "special"
+power = 15
+accuracy = 70
+pp = 15
+
+[beat_up]
+id = 251
+label = "BEAT_UP"
+type = "dark"
+category = "physical"
+power = 10
+accuracy = 100
+pp = 10
+
+[fake_out]
+id = 252
+label = "FAKE_OUT"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 10
+
+[uproar]
+id = 253
+label = "UPROAR"
+type = "normal"
+category = "special"
+power = 50
+accuracy = 100
+pp = 10
+
+[stockpile]
+id = 254
+label = "STOCKPILE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[spit_up]
+id = 255
+label = "SPIT_UP"
+type = "normal"
+category = "special"
+power = 1
+accuracy = 100
+pp = 10
+
+[swallow]
+id = 256
+label = "SWALLOW"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[heat_wave]
+id = 257
+label = "HEAT_WAVE"
+type = "fire"
+category = "special"
+power = 100
+accuracy = 90
+pp = 10
+
+[hail]
+id = 258
+label = "HAIL"
+type = "ice"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[torment]
+id = 259
+label = "TORMENT"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[flatter]
+id = 260
+label = "FLATTER"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[will_o_wisp]
+id = 261
+label = "WILL_O_WISP"
+type = "fire"
+category = "status"
+power = 0
+accuracy = 75
+pp = 15
+
+[memento]
+id = 262
+label = "MEMENTO"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[facade]
+id = 263
+label = "FACADE"
+type = "normal"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[focus_punch]
+id = 264
+label = "FOCUS_PUNCH"
+type = "fighting"
+category = "physical"
+power = 150
+accuracy = 100
+pp = 20
+
+[smelling_salt]
+id = 265
+label = "SMELLING_SALT"
+type = "normal"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+
+[follow_me]
+id = 266
+label = "FOLLOW_ME"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[nature_power]
+id = 267
+label = "NATURE_POWER"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[charge]
+id = 268
+label = "CHARGE"
+type = "electric"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[taunt]
+id = 269
+label = "TAUNT"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[helping_hand]
+id = 270
+label = "HELPING_HAND"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[trick]
+id = 271
+label = "TRICK"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[role_play]
+id = 272
+label = "ROLE_PLAY"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[wish]
+id = 273
+label = "WISH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[assist]
+id = 274
+label = "ASSIST"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[ingrain]
+id = 275
+label = "INGRAIN"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[superpower]
+id = 276
+label = "SUPERPOWER"
+type = "fighting"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 5
+
+[magic_coat]
+id = 277
+label = "MAGIC_COAT"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[recycle]
+id = 278
+label = "RECYCLE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[revenge]
+id = 279
+label = "REVENGE"
+type = "fighting"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+
+[brick_break]
+id = 280
+label = "BRICK_BREAK"
+type = "fighting"
+category = "physical"
+power = 75
+accuracy = 100
+pp = 15
+
+[yawn]
+id = 281
+label = "YAWN"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[knock_off]
+id = 282
+label = "KNOCK_OFF"
+type = "dark"
+category = "physical"
+power = 20
+accuracy = 100
+pp = 20
+
+[endeavor]
+id = 283
+label = "ENDEAVOR"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 5
+
+[eruption]
+id = 284
+label = "ERUPTION"
+type = "fire"
+category = "special"
+power = 150
+accuracy = 100
+pp = 5
+
+[skill_swap]
+id = 285
+label = "SKILL_SWAP"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[imprison]
+id = 286
+label = "IMPRISON"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[refresh]
+id = 287
+label = "REFRESH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[grudge]
+id = 288
+label = "GRUDGE"
+type = "ghost"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[snatch]
+id = 289
+label = "SNATCH"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[secret_power]
+id = 290
+label = "SECRET_POWER"
+type = "normal"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[dive]
+id = 291
+label = "DIVE"
+type = "water"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 10
+
+[arm_thrust]
+id = 292
+label = "ARM_THRUST"
+type = "fighting"
+category = "physical"
+power = 15
+accuracy = 100
+pp = 20
+
+[camouflage]
+id = 293
+label = "CAMOUFLAGE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[tail_glow]
+id = 294
+label = "TAIL_GLOW"
+type = "bug"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[luster_purge]
+id = 295
+label = "LUSTER_PURGE"
+type = "psychic"
+category = "special"
+power = 70
+accuracy = 100
+pp = 5
+
+[mist_ball]
+id = 296
+label = "MIST_BALL"
+type = "psychic"
+category = "special"
+power = 70
+accuracy = 100
+pp = 5
+
+[feather_dance]
+id = 297
+label = "FEATHER_DANCE"
+type = "flying"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[teeter_dance]
+id = 298
+label = "TEETER_DANCE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[blaze_kick]
+id = 299
+label = "BLAZE_KICK"
+type = "fire"
+category = "physical"
+power = 85
+accuracy = 90
+pp = 10
+
+[mud_sport]
+id = 300
+label = "MUD_SPORT"
+type = "ground"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[ice_ball]
+id = 301
+label = "ICE_BALL"
+type = "ice"
+category = "physical"
+power = 30
+accuracy = 90
+pp = 20
+
+[needle_arm]
+id = 302
+label = "NEEDLE_ARM"
+type = "grass"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 15
+
+[slack_off]
+id = 303
+label = "SLACK_OFF"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[hyper_voice]
+id = 304
+label = "HYPER_VOICE"
+type = "normal"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[poison_fang]
+id = 305
+label = "POISON_FANG"
+type = "poison"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 15
+
+[crush_claw]
+id = 306
+label = "CRUSH_CLAW"
+type = "normal"
+category = "physical"
+power = 75
+accuracy = 95
+pp = 10
+
+[blast_burn]
+id = 307
+label = "BLAST_BURN"
+type = "fire"
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+
+[hydro_cannon]
+id = 308
+label = "HYDRO_CANNON"
+type = "water"
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+
+[meteor_mash]
+id = 309
+label = "METEOR_MASH"
+type = "steel"
+category = "physical"
+power = 100
+accuracy = 85
+pp = 10
+
+[astonish]
+id = 310
+label = "ASTONISH"
+type = "ghost"
+category = "physical"
+power = 30
+accuracy = 100
+pp = 15
+
+[weather_ball]
+id = 311
+label = "WEATHER_BALL"
+type = "normal"
+category = "special"
+power = 50
+accuracy = 100
+pp = 10
+
+[aromatherapy]
+id = 312
+label = "AROMATHERAPY"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[fake_tears]
+id = 313
+label = "FAKE_TEARS"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[air_cutter]
+id = 314
+label = "AIR_CUTTER"
+type = "flying"
+category = "special"
+power = 55
+accuracy = 95
+pp = 25
+
+[overheat]
+id = 315
+label = "OVERHEAT"
+type = "fire"
+category = "special"
+power = 140
+accuracy = 90
+pp = 5
+
+[odor_sleuth]
+id = 316
+label = "ODOR_SLEUTH"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[rock_tomb]
+id = 317
+label = "ROCK_TOMB"
+type = "rock"
+category = "physical"
+power = 50
+accuracy = 80
+pp = 10
+
+[silver_wind]
+id = 318
+label = "SILVER_WIND"
+type = "bug"
+category = "special"
+power = 60
+accuracy = 100
+pp = 5
+
+[metal_sound]
+id = 319
+label = "METAL_SOUND"
+type = "steel"
+category = "status"
+power = 0
+accuracy = 85
+pp = 40
+
+[grass_whistle]
+id = 320
+label = "GRASS_WHISTLE"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 55
+pp = 15
+
+[tickle]
+id = 321
+label = "TICKLE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[cosmic_power]
+id = 322
+label = "COSMIC_POWER"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[water_spout]
+id = 323
+label = "WATER_SPOUT"
+type = "water"
+category = "special"
+power = 150
+accuracy = 100
+pp = 5
+
+[signal_beam]
+id = 324
+label = "SIGNAL_BEAM"
+type = "bug"
+category = "special"
+power = 75
+accuracy = 100
+pp = 15
+
+[shadow_punch]
+id = 325
+label = "SHADOW_PUNCH"
+type = "ghost"
+category = "physical"
+power = 60
+accuracy = 0
+pp = 20
+
+[extrasensory]
+id = 326
+label = "EXTRASENSORY"
+type = "psychic"
+category = "special"
+power = 80
+accuracy = 100
+pp = 30
+
+[sky_uppercut]
+id = 327
+label = "SKY_UPPERCUT"
+type = "fighting"
+category = "physical"
+power = 85
+accuracy = 90
+pp = 15
+
+[sand_tomb]
+id = 328
+label = "SAND_TOMB"
+type = "ground"
+category = "physical"
+power = 15
+accuracy = 70
+pp = 15
+
+[sheer_cold]
+id = 329
+label = "SHEER_COLD"
+type = "ice"
+category = "special"
+power = 1
+accuracy = 30
+pp = 5
+
+[muddy_water]
+id = 330
+label = "MUDDY_WATER"
+type = "water"
+category = "special"
+power = 95
+accuracy = 85
+pp = 10
+
+[bullet_seed]
+id = 331
+label = "BULLET_SEED"
+type = "grass"
+category = "physical"
+power = 10
+accuracy = 100
+pp = 30
+
+[aerial_ace]
+id = 332
+label = "AERIAL_ACE"
+type = "flying"
+category = "physical"
+power = 60
+accuracy = 0
+pp = 20
+
+[icicle_spear]
+id = 333
+label = "ICICLE_SPEAR"
+type = "ice"
+category = "physical"
+power = 10
+accuracy = 100
+pp = 30
+
+[iron_defense]
+id = 334
+label = "IRON_DEFENSE"
+type = "steel"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[block]
+id = 335
+label = "BLOCK"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[howl]
+id = 336
+label = "HOWL"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[dragon_claw]
+id = 337
+label = "DRAGON_CLAW"
+type = "dragon"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[frenzy_plant]
+id = 338
+label = "FRENZY_PLANT"
+type = "grass"
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+
+[bulk_up]
+id = 339
+label = "BULK_UP"
+type = "fighting"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[bounce]
+id = 340
+label = "BOUNCE"
+type = "flying"
+category = "physical"
+power = 85
+accuracy = 85
+pp = 5
+
+[mud_shot]
+id = 341
+label = "MUD_SHOT"
+type = "ground"
+category = "special"
+power = 55
+accuracy = 95
+pp = 15
+
+[poison_tail]
+id = 342
+label = "POISON_TAIL"
+type = "poison"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 25
+
+[covet]
+id = 343
+label = "COVET"
+type = "normal"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 40
+
+[volt_tackle]
+id = 344
+label = "VOLT_TACKLE"
+type = "electric"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[magical_leaf]
+id = 345
+label = "MAGICAL_LEAF"
+type = "grass"
+category = "special"
+power = 60
+accuracy = 0
+pp = 20
+
+[water_sport]
+id = 346
+label = "WATER_SPORT"
+type = "water"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[calm_mind]
+id = 347
+label = "CALM_MIND"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[leaf_blade]
+id = 348
+label = "LEAF_BLADE"
+type = "grass"
+category = "physical"
+power = 90
+accuracy = 100
+pp = 15
+
+[dragon_dance]
+id = 349
+label = "DRAGON_DANCE"
+type = "dragon"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[rock_blast]
+id = 350
+label = "ROCK_BLAST"
+type = "rock"
+category = "physical"
+power = 25
+accuracy = 80
+pp = 10
+
+[shock_wave]
+id = 351
+label = "SHOCK_WAVE"
+type = "electric"
+category = "special"
+power = 60
+accuracy = 0
+pp = 20
+
+[water_pulse]
+id = 352
+label = "WATER_PULSE"
+type = "water"
+category = "special"
+power = 60
+accuracy = 100
+pp = 20
+
+[doom_desire]
+id = 353
+label = "DOOM_DESIRE"
+type = "steel"
+category = "special"
+power = 120
+accuracy = 85
+pp = 5
+
+[psycho_boost]
+id = 354
+label = "PSYCHO_BOOST"
+type = "psychic"
+category = "special"
+power = 140
+accuracy = 90
+pp = 5
+
+[roost]
+id = 355
+label = "ROOST"
+type = "flying"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[gravity]
+id = 356
+label = "GRAVITY"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[miracle_eye]
+id = 357
+label = "MIRACLE_EYE"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 40
+
+[wake_up_slap]
+id = 358
+label = "WAKE_UP_SLAP"
+type = "fighting"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+
+[hammer_arm]
+id = 359
+label = "HAMMER_ARM"
+type = "fighting"
+category = "physical"
+power = 100
+accuracy = 90
+pp = 10
+
+[gyro_ball]
+id = 360
+label = "GYRO_BALL"
+type = "steel"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 5
+
+[healing_wish]
+id = 361
+label = "HEALING_WISH"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[brine]
+id = 362
+label = "BRINE"
+type = "water"
+category = "special"
+power = 65
+accuracy = 100
+pp = 10
+
+[natural_gift]
+id = 363
+label = "NATURAL_GIFT"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 15
+
+[feint]
+id = 364
+label = "FEINT"
+type = "normal"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 10
+
+[pluck]
+id = 365
+label = "PLUCK"
+type = "flying"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 20
+
+[tailwind]
+id = 366
+label = "TAILWIND"
+type = "flying"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[acupressure]
+id = 367
+label = "ACUPRESSURE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[metal_burst]
+id = 368
+label = "METAL_BURST"
+type = "steel"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 10
+
+[u_turn]
+id = 369
+label = "U_TURN"
+type = "bug"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[close_combat]
+id = 370
+label = "CLOSE_COMBAT"
+type = "fighting"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 5
+
+[payback]
+id = 371
+label = "PAYBACK"
+type = "dark"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 10
+
+[assurance]
+id = 372
+label = "ASSURANCE"
+type = "dark"
+category = "physical"
+power = 50
+accuracy = 100
+pp = 10
+
+[embargo]
+id = 373
+label = "EMBARGO"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[fling]
+id = 374
+label = "FLING"
+type = "dark"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 10
+
+[psycho_shift]
+id = 375
+label = "PSYCHO_SHIFT"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 90
+pp = 10
+
+[trump_card]
+id = 376
+label = "TRUMP_CARD"
+type = "normal"
+category = "special"
+power = 1
+accuracy = 0
+pp = 5
+
+[heal_block]
+id = 377
+label = "HEAL_BLOCK"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 100
+pp = 15
+
+[wring_out]
+id = 378
+label = "WRING_OUT"
+type = "normal"
+category = "special"
+power = 1
+accuracy = 100
+pp = 5
+
+[power_trick]
+id = 379
+label = "POWER_TRICK"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[gastro_acid]
+id = 380
+label = "GASTRO_ACID"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[lucky_chant]
+id = 381
+label = "LUCKY_CHANT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 30
+
+[me_first]
+id = 382
+label = "ME_FIRST"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[copycat]
+id = 383
+label = "COPYCAT"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[power_swap]
+id = 384
+label = "POWER_SWAP"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[guard_swap]
+id = 385
+label = "GUARD_SWAP"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[punishment]
+id = 386
+label = "PUNISHMENT"
+type = "dark"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 5
+
+[last_resort]
+id = 387
+label = "LAST_RESORT"
+type = "normal"
+category = "physical"
+power = 130
+accuracy = 100
+pp = 5
+
+[worry_seed]
+id = 388
+label = "WORRY_SEED"
+type = "grass"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[sucker_punch]
+id = 389
+label = "SUCKER_PUNCH"
+type = "dark"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 5
+
+[toxic_spikes]
+id = 390
+label = "TOXIC_SPIKES"
+type = "poison"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[heart_swap]
+id = 391
+label = "HEART_SWAP"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[aqua_ring]
+id = 392
+label = "AQUA_RING"
+type = "water"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[magnet_rise]
+id = 393
+label = "MAGNET_RISE"
+type = "electric"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[flare_blitz]
+id = 394
+label = "FLARE_BLITZ"
+type = "fire"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[force_palm]
+id = 395
+label = "FORCE_PALM"
+type = "fighting"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+
+[aura_sphere]
+id = 396
+label = "AURA_SPHERE"
+type = "fighting"
+category = "special"
+power = 90
+accuracy = 0
+pp = 20
+
+[rock_polish]
+id = 397
+label = "ROCK_POLISH"
+type = "rock"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[poison_jab]
+id = 398
+label = "POISON_JAB"
+type = "poison"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 20
+
+[dark_pulse]
+id = 399
+label = "DARK_PULSE"
+type = "dark"
+category = "special"
+power = 80
+accuracy = 100
+pp = 15
+
+[night_slash]
+id = 400
+label = "NIGHT_SLASH"
+type = "dark"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 15
+
+[aqua_tail]
+id = 401
+label = "AQUA_TAIL"
+type = "water"
+category = "physical"
+power = 90
+accuracy = 90
+pp = 10
+
+[seed_bomb]
+id = 402
+label = "SEED_BOMB"
+type = "grass"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[air_slash]
+id = 403
+label = "AIR_SLASH"
+type = "flying"
+category = "special"
+power = 75
+accuracy = 95
+pp = 20
+
+[x_scissor]
+id = 404
+label = "X_SCISSOR"
+type = "bug"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[bug_buzz]
+id = 405
+label = "BUG_BUZZ"
+type = "bug"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[dragon_pulse]
+id = 406
+label = "DRAGON_PULSE"
+type = "dragon"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[dragon_rush]
+id = 407
+label = "DRAGON_RUSH"
+type = "dragon"
+category = "physical"
+power = 100
+accuracy = 75
+pp = 10
+
+[power_gem]
+id = 408
+label = "POWER_GEM"
+type = "rock"
+category = "special"
+power = 70
+accuracy = 100
+pp = 20
+
+[drain_punch]
+id = 409
+label = "DRAIN_PUNCH"
+type = "fighting"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 5
+
+[vacuum_wave]
+id = 410
+label = "VACUUM_WAVE"
+type = "fighting"
+category = "special"
+power = 40
+accuracy = 100
+pp = 30
+
+[focus_blast]
+id = 411
+label = "FOCUS_BLAST"
+type = "fighting"
+category = "special"
+power = 120
+accuracy = 70
+pp = 5
+
+[energy_ball]
+id = 412
+label = "ENERGY_BALL"
+type = "grass"
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+
+[brave_bird]
+id = 413
+label = "BRAVE_BIRD"
+type = "flying"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[earth_power]
+id = 414
+label = "EARTH_POWER"
+type = "ground"
+category = "special"
+power = 90
+accuracy = 100
+pp = 10
+
+[switcheroo]
+id = 415
+label = "SWITCHEROO"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 100
+pp = 10
+
+[giga_impact]
+id = 416
+label = "GIGA_IMPACT"
+type = "normal"
+category = "physical"
+power = 150
+accuracy = 90
+pp = 5
+
+[nasty_plot]
+id = 417
+label = "NASTY_PLOT"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[bullet_punch]
+id = 418
+label = "BULLET_PUNCH"
+type = "steel"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+
+[avalanche]
+id = 419
+label = "AVALANCHE"
+type = "ice"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 10
+
+[ice_shard]
+id = 420
+label = "ICE_SHARD"
+type = "ice"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+
+[shadow_claw]
+id = 421
+label = "SHADOW_CLAW"
+type = "ghost"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 15
+
+[thunder_fang]
+id = 422
+label = "THUNDER_FANG"
+type = "electric"
+category = "physical"
+power = 65
+accuracy = 95
+pp = 15
+
+[ice_fang]
+id = 423
+label = "ICE_FANG"
+type = "ice"
+category = "physical"
+power = 65
+accuracy = 95
+pp = 15
+
+[fire_fang]
+id = 424
+label = "FIRE_FANG"
+type = "fire"
+category = "physical"
+power = 65
+accuracy = 95
+pp = 15
+
+[shadow_sneak]
+id = 425
+label = "SHADOW_SNEAK"
+type = "ghost"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 30
+
+[mud_bomb]
+id = 426
+label = "MUD_BOMB"
+type = "ground"
+category = "special"
+power = 65
+accuracy = 85
+pp = 10
+
+[psycho_cut]
+id = 427
+label = "PSYCHO_CUT"
+type = "psychic"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[zen_headbutt]
+id = 428
+label = "ZEN_HEADBUTT"
+type = "psychic"
+category = "physical"
+power = 80
+accuracy = 90
+pp = 15
+
+[mirror_shot]
+id = 429
+label = "MIRROR_SHOT"
+type = "steel"
+category = "special"
+power = 65
+accuracy = 85
+pp = 10
+
+[flash_cannon]
+id = 430
+label = "FLASH_CANNON"
+type = "steel"
+category = "special"
+power = 80
+accuracy = 100
+pp = 10
+
+[rock_climb]
+id = 431
+label = "ROCK_CLIMB"
+type = "normal"
+category = "physical"
+power = 90
+accuracy = 85
+pp = 20
+
+[defog]
+id = 432
+label = "DEFOG"
+type = "flying"
+category = "status"
+power = 0
+accuracy = 0
+pp = 15
+
+[trick_room]
+id = 433
+label = "TRICK_ROOM"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 5
+
+[draco_meteor]
+id = 434
+label = "DRACO_METEOR"
+type = "dragon"
+category = "special"
+power = 140
+accuracy = 90
+pp = 5
+
+[discharge]
+id = 435
+label = "DISCHARGE"
+type = "electric"
+category = "special"
+power = 80
+accuracy = 100
+pp = 15
+
+[lava_plume]
+id = 436
+label = "LAVA_PLUME"
+type = "fire"
+category = "special"
+power = 80
+accuracy = 100
+pp = 15
+
+[leaf_storm]
+id = 437
+label = "LEAF_STORM"
+type = "grass"
+category = "special"
+power = 140
+accuracy = 90
+pp = 5
+
+[power_whip]
+id = 438
+label = "POWER_WHIP"
+type = "grass"
+category = "physical"
+power = 120
+accuracy = 85
+pp = 10
+
+[rock_wrecker]
+id = 439
+label = "ROCK_WRECKER"
+type = "rock"
+category = "physical"
+power = 150
+accuracy = 90
+pp = 5
+
+[cross_poison]
+id = 440
+label = "CROSS_POISON"
+type = "poison"
+category = "physical"
+power = 70
+accuracy = 100
+pp = 20
+
+[gunk_shot]
+id = 441
+label = "GUNK_SHOT"
+type = "poison"
+category = "physical"
+power = 120
+accuracy = 70
+pp = 5
+
+[iron_head]
+id = 442
+label = "IRON_HEAD"
+type = "steel"
+category = "physical"
+power = 80
+accuracy = 100
+pp = 15
+
+[magnet_bomb]
+id = 443
+label = "MAGNET_BOMB"
+type = "steel"
+category = "physical"
+power = 60
+accuracy = 0
+pp = 20
+
+[stone_edge]
+id = 444
+label = "STONE_EDGE"
+type = "rock"
+category = "physical"
+power = 100
+accuracy = 80
+pp = 5
+
+[captivate]
+id = 445
+label = "CAPTIVATE"
+type = "normal"
+category = "status"
+power = 0
+accuracy = 100
+pp = 20
+
+[stealth_rock]
+id = 446
+label = "STEALTH_ROCK"
+type = "rock"
+category = "status"
+power = 0
+accuracy = 0
+pp = 20
+
+[grass_knot]
+id = 447
+label = "GRASS_KNOT"
+type = "grass"
+category = "special"
+power = 1
+accuracy = 100
+pp = 20
+
+[chatter]
+id = 448
+label = "CHATTER"
+type = "flying"
+category = "special"
+power = 60
+accuracy = 100
+pp = 20
+
+[judgment]
+id = 449
+label = "JUDGMENT"
+type = "normal"
+category = "special"
+power = 100
+accuracy = 100
+pp = 10
+
+[bug_bite]
+id = 450
+label = "BUG_BITE"
+type = "bug"
+category = "physical"
+power = 60
+accuracy = 100
+pp = 20
+
+[charge_beam]
+id = 451
+label = "CHARGE_BEAM"
+type = "electric"
+category = "special"
+power = 50
+accuracy = 90
+pp = 10
+
+[wood_hammer]
+id = 452
+label = "WOOD_HAMMER"
+type = "grass"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 15
+
+[aqua_jet]
+id = 453
+label = "AQUA_JET"
+type = "water"
+category = "physical"
+power = 40
+accuracy = 100
+pp = 20
+
+[attack_order]
+id = 454
+label = "ATTACK_ORDER"
+type = "bug"
+category = "physical"
+power = 90
+accuracy = 100
+pp = 15
+
+[defend_order]
+id = 455
+label = "DEFEND_ORDER"
+type = "bug"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[heal_order]
+id = 456
+label = "HEAL_ORDER"
+type = "bug"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[head_smash]
+id = 457
+label = "HEAD_SMASH"
+type = "rock"
+category = "physical"
+power = 150
+accuracy = 80
+pp = 5
+
+[double_hit]
+id = 458
+label = "DOUBLE_HIT"
+type = "normal"
+category = "physical"
+power = 35
+accuracy = 90
+pp = 10
+
+[roar_of_time]
+id = 459
+label = "ROAR_OF_TIME"
+type = "dragon"
+category = "special"
+power = 150
+accuracy = 90
+pp = 5
+
+[spacial_rend]
+id = 460
+label = "SPACIAL_REND"
+type = "dragon"
+category = "special"
+power = 100
+accuracy = 95
+pp = 5
+
+[lunar_dance]
+id = 461
+label = "LUNAR_DANCE"
+type = "psychic"
+category = "status"
+power = 0
+accuracy = 0
+pp = 10
+
+[crush_grip]
+id = 462
+label = "CRUSH_GRIP"
+type = "normal"
+category = "physical"
+power = 1
+accuracy = 100
+pp = 5
+
+[magma_storm]
+id = 463
+label = "MAGMA_STORM"
+type = "fire"
+category = "special"
+power = 120
+accuracy = 70
+pp = 5
+
+[dark_void]
+id = 464
+label = "DARK_VOID"
+type = "dark"
+category = "status"
+power = 0
+accuracy = 80
+pp = 10
+
+[seed_flare]
+id = 465
+label = "SEED_FLARE"
+type = "grass"
+category = "special"
+power = 120
+accuracy = 85
+pp = 5
+
+[ominous_wind]
+id = 466
+label = "OMINOUS_WIND"
+type = "ghost"
+category = "special"
+power = 60
+accuracy = 100
+pp = 5
+
+[shadow_force]
+id = 467
+label = "SHADOW_FORCE"
+type = "ghost"
+category = "physical"
+power = 120
+accuracy = 100
+pp = 5
+
+[tm_hm]
+# TM/HM machine number -> move key. Source: src/item.c sTMHMMoves[].
+tm01 = "focus_punch"
+tm02 = "dragon_claw"
+tm03 = "water_pulse"
+tm04 = "calm_mind"
+tm05 = "roar"
+tm06 = "toxic"
+tm07 = "hail"
+tm08 = "bulk_up"
+tm09 = "bullet_seed"
+tm10 = "hidden_power"
+tm11 = "sunny_day"
+tm12 = "taunt"
+tm13 = "ice_beam"
+tm14 = "blizzard"
+tm15 = "hyper_beam"
+tm16 = "light_screen"
+tm17 = "protect"
+tm18 = "rain_dance"
+tm19 = "giga_drain"
+tm20 = "safeguard"
+tm21 = "frustration"
+tm22 = "solar_beam"
+tm23 = "iron_tail"
+tm24 = "thunderbolt"
+tm25 = "thunder"
+tm26 = "earthquake"
+tm27 = "return"
+tm28 = "dig"
+tm29 = "psychic"
+tm30 = "shadow_ball"
+tm31 = "brick_break"
+tm32 = "double_team"
+tm33 = "reflect"
+tm34 = "shock_wave"
+tm35 = "flamethrower"
+tm36 = "sludge_bomb"
+tm37 = "sandstorm"
+tm38 = "fire_blast"
+tm39 = "rock_tomb"
+tm40 = "aerial_ace"
+tm41 = "torment"
+tm42 = "facade"
+tm43 = "secret_power"
+tm44 = "rest"
+tm45 = "attract"
+tm46 = "thief"
+tm47 = "steel_wing"
+tm48 = "skill_swap"
+tm49 = "snatch"
+tm50 = "overheat"
+tm51 = "roost"
+tm52 = "focus_blast"
+tm53 = "energy_ball"
+tm54 = "false_swipe"
+tm55 = "brine"
+tm56 = "fling"
+tm57 = "charge_beam"
+tm58 = "endure"
+tm59 = "dragon_pulse"
+tm60 = "drain_punch"
+tm61 = "will_o_wisp"
+tm62 = "silver_wind"
+tm63 = "embargo"
+tm64 = "explosion"
+tm65 = "shadow_claw"
+tm66 = "payback"
+tm67 = "recycle"
+tm68 = "giga_impact"
+tm69 = "rock_polish"
+tm70 = "flash"
+tm71 = "stone_edge"
+tm72 = "avalanche"
+tm73 = "thunder_wave"
+tm74 = "gyro_ball"
+tm75 = "swords_dance"
+tm76 = "stealth_rock"
+tm77 = "psych_up"
+tm78 = "captivate"
+tm79 = "dark_pulse"
+tm80 = "rock_slide"
+tm81 = "x_scissor"
+tm82 = "sleep_talk"
+tm83 = "natural_gift"
+tm84 = "poison_jab"
+tm85 = "dream_eater"
+tm86 = "grass_knot"
+tm87 = "swagger"
+tm88 = "pluck"
+tm89 = "u_turn"
+tm90 = "substitute"
+tm91 = "flash_cannon"
+tm92 = "trick_room"
+hm01 = "cut"
+hm02 = "fly"
+hm03 = "surf"
+hm04 = "strength"
+hm05 = "whirlpool"
+hm06 = "rock_smash"
+hm07 = "waterfall"
+hm08 = "rock_climb"

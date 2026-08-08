@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from data_gen_templates import generate_init
+from data_gen_templates import generate_init, generate_moves, generate_species
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -30,6 +30,8 @@ def _write(name: str, contents: str) -> None:
 def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     _write("__init__.py", generate_init())
+    _write("species.py", generate_species())
+    _write("moves.py", generate_moves())
 
 
 if __name__ == "__main__":
