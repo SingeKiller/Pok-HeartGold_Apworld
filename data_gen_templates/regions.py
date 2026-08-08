@@ -14,6 +14,20 @@ from typing import Any
 
 from . import GENERATED_FILE_HEADER, load_toml
 
+# Regions intentionally out of v1 scope (docs/scope.md) that some in-scope
+# region's `exits` still points at (the vanilla map connects there, but the
+# feature behind it -- Pokeathlon, Safari Zone, Battle Frontier, Union Room
+# -- isn't modeled yet). Any *other* unresolved exit target is not expected
+# and likely indicates a real gap in regions.toml (see R1 review, C4/C5).
+EXPECTED_V2_DANGLING_EXITS = frozenset(
+    {
+        "pokeathlon_dome",
+        "safari_zone_gate",
+        "battle_frontier_frontier_access",
+        "union",
+    }
+)
+
 
 def _build_region(entry: Mapping[str, Any]) -> dict[str, Any]:
     return {
@@ -31,21 +45,32 @@ def generate_regions() -> str:
     }
 
     # Defensive: an `exits` target should normally resolve to another region
-    # defined in this same file. It's expected *not* to for the Johto/Kanto
-    # boundary regions (Mount Silver, Victory Road, Tohjo Falls, the
-    # Goldenrod<->Saffron magnet train) -- see data_gen/regions.toml's
-    # header -- since Kanto regions don't exist yet (a future C5 task), so
-    # this only warns, it never drops the exit or raises: the dangling
-    # reference is exactly what lets C5 complete the graph later without
-    # editing this file. Same defensive spirit as data_gen_templates/items.py.
+    # defined in this same file. `EXPECTED_V2_DANGLING_EXITS` are the only
+    # known, intentional exceptions (out-of-v1-scope features, see
+    # docs/scope.md); those get a quiet, distinct notice. Anything else is
+    # unexpected and warned loudly, since it's most likely a real extraction
+    # gap (e.g. the C4 `national_park_unused_gatehouse` miss caught in
+    # review) rather than a documented scope boundary. Either way this only
+    # warns, it never drops the exit or raises.
     for key, region in regions.items():
         for target in region["exits"]:
-            if target not in regions:
+            if target in regions:
+                continue
+            if target in EXPECTED_V2_DANGLING_EXITS:
                 print(
-                    f"warning: data_gen/regions.toml: {key}.exits references "
-                    f"unknown region {target!r} (expected for Johto<->Kanto "
-                    "boundary regions until a future Kanto task adds it); "
-                    "keeping as-is.",
+                    f"note: data_gen/regions.toml: {key}.exits references "
+                    f"{target!r}, a documented v2/out-of-scope region "
+                    "(docs/scope.md); keeping as-is.",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"WARNING: data_gen/regions.toml: {key}.exits references "
+                    f"unresolved region {target!r}, which is not in "
+                    "EXPECTED_V2_DANGLING_EXITS -- this likely indicates a "
+                    "missing region (a real extraction gap), not a known "
+                    "scope boundary. Keeping as-is, but this should be "
+                    "investigated.",
                     file=sys.stderr,
                 )
 
