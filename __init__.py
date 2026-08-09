@@ -59,6 +59,27 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 
+# Dev/test-only bootstrap (both no-ops in a real Archipelago load, see each
+# guard below): pytest must import this file as part of collecting the repo
+# root (it's a package now, per this module's own docstring above), before
+# any test fixture -- including tests/conftest.py -- gets a chance to run.
+# That makes *this* file, not a conftest.py, the only place early enough to
+# guarantee what's needed below actually exists (see task T1's regression
+# report for the failure this closes: a fresh checkout's pytest run failing
+# outright with `ImportError: cannot import name 'GAME_VERSION' from
+# 'data'`, because nothing had generated `data/` yet).
+try:
+    import BaseClasses  # noqa: F401
+except ImportError:
+    _archipelago_path = os.environ.get("ARCHIPELAGO_PATH", r"E:\Users\Olivier\Desktop\projet\archipelago")
+    if os.path.isdir(_archipelago_path) and _archipelago_path not in sys.path:
+        sys.path.insert(0, _archipelago_path)
+
+if not os.path.isdir(os.path.join(_THIS_DIR, "data")):
+    import subprocess
+
+    subprocess.run([sys.executable, os.path.join(_THIS_DIR, "data_gen.py")], cwd=_THIS_DIR, check=True)
+
 from BaseClasses import CollectionState, Region, Tutorial  # noqa: E402
 from data import GAME_VERSION  # noqa: E402
 from data.items import ITEMS  # noqa: E402
