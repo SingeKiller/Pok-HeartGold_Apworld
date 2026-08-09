@@ -809,3 +809,77 @@ arm9_system_bus_addr`):
   changed byte(s) directly, with no struct-size assumptions at all, the
   same way the `money` address was originally confirmed. Much more
   reliable than deriving an address and hoping it's right.
+
+### T2 live integration test (2026-08-10) -- `CONFIRMED_FLAGS_ARRAY_ADDRESS` DISCONFIRMED under extended play
+
+A same-session follow-up to the "Manual discovery session results
+(2026-08-10)" addendum above (`0x0227D39C`, found via a clean before/after
+Lua dump diff on a single known pickup) ran a real, full T2 integration
+test: a generated seed, a ROM copy patched with `patch_gen.py`'s
+`apply_local_item_substitutions` (345 locations, 217 of them
+cross-verified byte-for-byte against the patched ROM before this test --
+see this session's own commit), a local `MultiServer.py`, and a real
+`BizHawkClient.py` connected to the player's live BizHawk session.
+
+**Local item substitution: confirmed working end-to-end.** The player
+picked up two different item sources and received exactly what the seed
+placed there both times (Route 29's ground item -> Sea Incense, matching
+`AP_..._Spoiler.txt`'s `route_29_potion: SEA_INCENSE`; a vanilla NPC gift
+outside this project's 570-location pool correctly produced no location
+check at all, as expected for untracked content).
+
+**Check detection via `CONFIRMED_FLAGS_ARRAY_ADDRESS`: does not hold up.**
+Over the course of the test:
+
+- Immediately on connecting (before the player had done anything in a
+  fresh, just-started save), **16 locations were reported as already
+  checked** -- all `npc_gift`/`hm_tm` type, none `ground_item`. Cross-
+  checked each flag id against `include/constants/flags.h`: every single
+  one resolved to the *correct*, real `FLAG_GOT_*` constant for its
+  location (e.g. flag 109 -> `FLAG_GOT_APRICORN_BOX`, matching
+  `route_30_apricorn_house_apricorn_box` exactly) -- so this is not a
+  `data_gen`/`location_flags.py` id-mapping bug; the flag ids themselves
+  are right.
+- Later, after the player genuinely picked up Route 29's ground item
+  (confirmed via Sea Incense actually appearing in the Bag), **no check
+  fired for `route_29_potion` at all** -- the one location that
+  definitely should have fired, didn't.
+- In the same window, yet another, unrelated location
+  (`lake_of_rage_hidden_power_house_tm10`) spontaneously flipped to
+  "checked" with no corresponding player action.
+- A one-off diagnostic read of the full 364-byte flags array (via a
+  throwaway script using `worlds._bizhawk` directly, run after the live
+  client was stopped) found it **entirely zero, including the byte for
+  `route_29_potion`'s own flag** -- but this read happened after the
+  player's save was lost to an unrelated emulator restart (unsaved
+  progress, not a client/script side effect), so it reflects a
+  fresh/blank save, not new evidence either way about the address itself.
+
+**Conclusion**: the pattern (real actions not registering; unrelated,
+untouched locations spontaneously toggling on; all of it restricted to
+`npc_gift`/`hm_tm`, never `ground_item`) is not consistent with a stable
+read of the real `SaveVarsFlags.flags[]` array. `0x0227D39C` most likely
+pointed at a genuinely volatile RAM region (a reused scratch/text/script
+buffer, not save data) that happened to produce one clean, single-bit,
+before/after diff during the original 2026-08-10 discovery session by
+coincidence, rather than because that address is `SaveVarsFlags`. The
+`Bag` address (`0x0227CDA0`) is not implicated by any of the above --
+both real pickups this session correctly landed the right item in the
+right pocket, consistent with its earlier, independent (content-match)
+confirmation.
+
+**Status change**: `CONFIRMED_FLAGS_ARRAY_ADDRESS`/
+`HEARTGOLD_FLAGS_ARRAY_ADDRESS` in `client.py` must no longer be treated
+as resolved -- the module's own "*** RESOLVED 2026-08-10 ***" docstring
+section is now only half true (Bag: yes: flags: no) and needs updating.
+Check detection is **effectively disabled/unreliable** until a new
+address is found. Recommended next step: repeat the differential-RAM-
+search idea from the paragraph above, but validated across a **longer
+play session with multiple, spaced-out pickups** (not a single
+before/after diff) specifically to rule out a volatile/reused buffer --
+require the candidate byte to (a) go from 0 to 1 exactly once, (b) stay 1
+afterward across many further ticks/actions, and (c) do this for at least
+two or three independent known pickups at predicted-correct byte offsets
+relative to each other, before trusting it. A single clean diff, as this
+project learned twice now (`0x27D820` in the C16 session, `0x0227D39C`
+here), is not sufficient evidence on its own.

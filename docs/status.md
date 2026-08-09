@@ -1,4 +1,17 @@
-# État du projet & reprise — 2026-08-09
+# État du projet & reprise — 2026-08-10 (mise à jour)
+
+**Lire d'abord** : un vrai test d'intégration (T2) a été mené le
+2026-08-10 avec le jeu réellement en marche (BizHawk + serveur local +
+client). Résultat : la substitution locale d'objets fonctionne
+end-to-end (item reçu = item de la seed, vérifié deux fois en jeu réel),
+mais **la détection de check (adresse des flags) ne tient pas dans la
+durée** -- un vrai ramassage n'a déclenché aucun check, tandis que des
+locations sans rapport se sont activées seules. Voir
+`docs/architecture.md`, section "T2 live integration test (2026-08-10)"
+pour le détail complet. Le reste de ce fichier (rédigé avant ce test)
+décrit l'état *avant* cette découverte -- gardé pour l'historique de la
+procédure de recherche RAM, mais `CONFIRMED_FLAGS_ARRAY_ADDRESS` n'est
+plus fiable, contrairement à ce qui est écrit plus bas.
 
 Ce document est fait pour être lu **en premier** par quiconque (humain ou
 nouvelle session Claude sans mémoire de la conversation précédente) reprend

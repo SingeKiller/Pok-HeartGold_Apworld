@@ -48,25 +48,37 @@
 # a capability this project deliberately set aside, see
 # docs/architecture.md).
 #
-# *** RESOLVED 2026-08-10 *** -- `save_layout.py`'s `CANDIDATE_OFFSETS`
-# model (theoretical, derived from decomp struct sizes) turned out to
-# disagree with the real, live RAM layout by an amount that was never fully
-# root-caused (see docs/architecture.md's "## C16" addenda) -- so rather
-# than route through that unreliable base+offset arithmetic, the two
-# addresses this client actually needs were found directly, empirically, in
-# a live BizHawk session (Lua memory dump, diffed byte-for-byte before/after
-# a real, known in-game pickup -- see docs/architecture.md's "Manual
-# discovery session results", 2026-08-10 entry): `CONFIRMED_BAG_BASE_ADDRESS`
-# (verified by direct content match: a real Potion x7 ItemSlot, and by a
-# Bag quantity byte incrementing 7->8 exactly on a further pickup) and
-# `CONFIRMED_FLAGS_ARRAY_ADDRESS` (verified by a single, clean bit
-# 0->1 flip exactly matching a picked-up ground item's flag id, with no
-# other explanation fitting as well). Both are ARM9 System Bus addresses,
-# specific to this save's actual RAM layout on this BizHawk/core
-# configuration -- override via `HEARTGOLD_BAG_BASE_ADDRESS`/
-# `HEARTGOLD_FLAGS_ARRAY_ADDRESS` env vars if a different setup needs
-# different values; the hardcoded defaults are what was actually confirmed
-# working, not a guess.
+# *** PARTIALLY RESOLVED 2026-08-10, FLAGS ADDRESS RE-BROKEN SAME DAY ***
+# `save_layout.py`'s `CANDIDATE_OFFSETS` model (theoretical, derived from
+# decomp struct sizes) turned out to disagree with the real, live RAM
+# layout by an amount that was never fully root-caused (see
+# docs/architecture.md's "## C16" addenda) -- so rather than route through
+# that unreliable base+offset arithmetic, two addresses were found
+# directly, empirically, in a live BizHawk session (Lua memory dump,
+# diffed byte-for-byte before/after a real, known in-game pickup -- see
+# docs/architecture.md's "Manual discovery session results", 2026-08-10
+# entry): `CONFIRMED_BAG_BASE_ADDRESS` and `CONFIRMED_FLAGS_ARRAY_ADDRESS`.
+#
+# `CONFIRMED_BAG_BASE_ADDRESS` holds up: re-verified by a real T2
+# integration test the same day (see docs/architecture.md's "T2 live
+# integration test" addendum) -- two separate live pickups both landed the
+# correct item in the correct Bag pocket. Safe to use as-is.
+#
+# `CONFIRMED_FLAGS_ARRAY_ADDRESS` does **not** hold up under extended play:
+# the same T2 test found a real pickup that never registered, an unrelated
+# location that spontaneously flipped to "checked" with no corresponding
+# player action, and a later full read of the region back at all-zero.
+# See docs/architecture.md's "T2 live integration test (2026-08-10)"
+# section for the full writeup. Most likely explanation: this address
+# points at a volatile/reused RAM region, not the real `SaveVarsFlags`
+# struct -- the original discovery's single clean before/after diff was
+# not sufficient evidence (see that section's closing recommendation for
+# how to validate a replacement candidate properly: multiple spaced-out
+# pickups, not one diff). **Check detection is effectively unreliable
+# until this address is re-found and validated more rigorously.** Both
+# addresses are ARM9 System Bus addresses -- override via
+# `HEARTGOLD_BAG_BASE_ADDRESS`/`HEARTGOLD_FLAGS_ARRAY_ADDRESS` env vars if
+# a different setup needs different values.
 #
 # `HEARTGOLD_SAVE_DATA_ADDRESS_ENV`/`HEARTGOLD_SAVE_LAYOUT_CASE_ENV` below
 # are now UNUSED (kept only so `_missing_configuration_message` still
