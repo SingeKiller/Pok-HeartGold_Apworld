@@ -74,6 +74,14 @@ Three options were evaluated:
    RAM directly. Lowest cost but no in-game item-received feedback. Kept as
    a fallback if option 2 proves infeasible for a given feature.
 
+`armips` (Kingcom/armips, MIT) is built from source at
+`ressources/armips` (git-ignored, read-only external checkout, never
+committed — cloned `--recursive`, built with CMake+Ninja+MinGW g++). The
+built binary is `ressources/armips/build/armips.exe` (v0.11.0). Not on
+`PATH`; invoke by full path (M4's patch-build tooling should do the same,
+or accept an `ARMIPS_PATH` env var following the same convention as
+`ARCHIPELAGO_PATH`/`HEARTGOLD_ROM_PATH`).
+
 ## Reference projects (read-only, never committed)
 
 - `ressources/Decomposition/pokeheartgold` — `pret/pokeheartgold` decomp.
