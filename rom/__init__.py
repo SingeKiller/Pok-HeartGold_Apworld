@@ -176,6 +176,66 @@ class HeartGoldRom:
         path."""
         self.write_file(nitrofs_path, narc.save())
 
+    # -- ARM9 static binary access (task C14) ---------------------------------
+    #
+    # Narrow, append-only access to the ARM9 executable itself -- distinct
+    # from the NitroFS data-table access above. Added for C14 (ground-item
+    # check mechanism PoC): `patch_gen.py` needs a *safe* place to inject an
+    # assembled armips patch. See docs/architecture.md, "## C14 -- Ground
+    # item check mechanism (proof of concept)" for the full risk analysis
+    # this design is built around; the short version:
+    #
+    # - The first 0x4000 bytes of the ARM9 binary are the Nintendo DS
+    #   "secure area", which the retail cartridge/BIOS validates against a
+    #   CRC (`secureAreaChecksum` in the ROM header). `ndspy` reads that
+    #   checksum but does **not** recompute it on `save()` (confirmed by
+    #   reading `ndspy/rom.py`: the field is round-tripped with a
+    #   `# TODO: Actually recalculate` comment). Any edit that changes bytes
+    #   *within* the secure area would therefore leave a stale/incorrect
+    #   checksum in the saved ROM -- a real risk of failing to boot on
+    #   strict emulators or real hardware.
+    # - `append_to_arm9()` below only ever *appends* bytes after the
+    #   existing ARM9 binary's current end. Since the ARM9 binary is far
+    #   larger than 0x4000 bytes, this never touches the secure area, so the
+    #   existing (stale-but-still-correct-for-the-untouched-bytes) checksum
+    #   remains valid for everything the checksum actually covers.
+    # - This layer deliberately exposes no way to overwrite *existing* ARM9
+    #   bytes (unlike `write_file`/`write_narc` above, which replace
+    #   existing NitroFS file contents) -- only appending new bytes at the
+    #   tail is offered, since that is the one operation this project has
+    #   verified does not touch the checksummed region.
+
+    @property
+    def arm9(self) -> bytes:
+        """The raw ARM9 executable currently packed in this ROM (read-only
+        snapshot; mutate via `append_to_arm9()`, never in place)."""
+        return bytes(self._rom.arm9)
+
+    @property
+    def arm9_ram_address(self) -> int:
+        """The RAM address the ARM9 binary's first byte is loaded at
+        (`arm9RamAddress` in the ROM header)."""
+        return self._rom.arm9RamAddress
+
+    @property
+    def arm9_entry_address(self) -> int:
+        """The RAM address ARM9 execution starts at after the BIOS/secure
+        area handoff (`arm9EntryAddress` in the ROM header). Exposed for
+        documentation/introspection; **not** currently used as a patch
+        target by this layer (see this section's docstring -- hooking the
+        entry point directly would mean editing secure-area bytes)."""
+        return self._rom.arm9EntryAddress
+
+    def append_to_arm9(self, data: bytes) -> int:
+        """Append `data` to the end of the ARM9 binary and return the RAM
+        address it now lives at (i.e. the address to assemble/link the
+        appended code against). See this section's docstring for why this
+        is append-only and why that keeps the DS secure-area checksum
+        valid."""
+        target_address = self._rom.arm9RamAddress + len(self._rom.arm9)
+        self._rom.arm9 = bytes(self._rom.arm9) + bytes(data)
+        return target_address
+
     # -- Output -----------------------------------------------------------------
 
     def save_bytes(self) -> bytes:
