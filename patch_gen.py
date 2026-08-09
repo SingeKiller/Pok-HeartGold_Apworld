@@ -41,6 +41,7 @@ from pathlib import Path
 
 from rom import HeartGoldRom
 from rom import eventscriptdata as rom_eventscriptdata
+from rom import npcgiftdata as rom_npcgiftdata
 
 ROOT = Path(__file__).resolve().parent
 PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
@@ -142,27 +143,58 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
     return actual_address
 
 
-# -- Local item substitution (task C15) --------------------------------------
+# -- Local item substitution (tasks C15/C16) ----------------------------------
 #
 # Unlike the ground-item hook scaffolding above (ARM9 code, not wired to any
 # call site yet -- see this module's own docstring and docs/architecture.md),
 # this is the piece of the "revised after C14" ROM strategy that is actually
-# live: a plain NitroFS data edit (rom/eventscriptdata.py) with no unknown
-# ROM addresses involved. See docs/architecture.md, "## ROM code injection
-# strategy (revised after C14)" for why this is a different risk profile
-# from the ARM-hooks path, and rom/eventscriptdata.py's own docstring for
-# the scr_seq_0141.bin binary format this patches.
+# live: plain NitroFS data edits (rom/eventscriptdata.py,
+# rom/npcgiftdata.py) with no unknown ROM addresses involved. See
+# docs/architecture.md, "## ROM code injection strategy (revised after C14)"
+# for why this is a different risk profile from the ARM-hooks path, and
+# each module's own docstring for the binary format it patches.
+#
+# Covers `ground_item`, `npc_gift`, and `hm_tm` (routed to whichever of the
+# two modules above actually implements that specific `hm_tm` location's
+# vanilla delivery mechanism -- see rom/eventscriptdata.py's
+# `write_ground_item_substitution` and rom/npcgiftdata.py's
+# `write_npc_gift_substitution` docstrings). `hidden_item`/`badge` are out
+# of scope (task C16's own brief: `hidden_item`'s vanilla item ids live in a
+# compiled ARM9 static data table, not a NitroFS script -- a different,
+# not-yet-supported patch shape; `badge`s are not items at all, see
+# data/items.py).
 
 
 def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str]) -> None:
     """Apply a `{location_key: item_key}` mapping (both `data/locations.py`/
-    `data/items.py` keys) to `rom` in place, for `ground_item` locations
-    only -- hidden_item/npc_gift/hm_tm/badge are out of scope for this pass
-    (see this task's own brief and rom/eventscriptdata.py's docstring).
-    Locations not present in `substitutions` are left untouched (keep their
-    vanilla `original_item`)."""
+    `data/items.py` keys) to `rom` in place, for `ground_item`/`npc_gift`/
+    `hm_tm` locations -- hidden_item/badge are out of scope for this pass
+    (see this module's own section header comment above). Locations not
+    present in `substitutions` are left untouched (keep their vanilla
+    `original_item`)."""
+    from data.locations import LOCATIONS
+
     for location_key, item_key in substitutions.items():
-        rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
+        location = LOCATIONS.get(location_key)
+        if location is None:
+            raise KeyError(f"unknown location key: {location_key!r}")
+        location_type = location["type"]
+        if location_type == "ground_item":
+            rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
+        elif location_type == "npc_gift":
+            rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
+        elif location_type == "hm_tm":
+            if location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID:
+                rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
+            else:
+                rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
+        else:
+            raise ValueError(
+                f"location {location_key!r} is type {location_type!r} -- "
+                "apply_local_item_substitutions only supports "
+                "ground_item/npc_gift/hm_tm (hidden_item/badge are out of "
+                "scope, see this module's own section header comment)."
+            )
 
 
 def main(argv: list[str] | None = None) -> int:

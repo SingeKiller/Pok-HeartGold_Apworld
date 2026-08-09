@@ -78,7 +78,8 @@
 # `data_gen/locations.toml`'s own classification of it as `npc_gift`
 # (`celadon_game_corner_coin_case`), not `ground_item` -- so this gap is
 # expected and never hit by `write_ground_item_substitution` below, which
-# only ever looks up `ground_item` locations.
+# only ever looks up `ground_item` locations (and the itemball-shaped half
+# of `hm_tm` locations -- task C16, see that function's own docstring).
 #
 # This module has no dependency on `data/` at import time (matching
 # rom/itemdata.py's "usable before data_gen.py has ever been run"
@@ -429,26 +430,40 @@ def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) ->
 
 
 def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
-    """Patch the itemball script block for a `ground_item` location (a key
-    of `data/locations.py`'s `LOCATIONS`) so it grants a different item (a
-    key of `data/items.py`'s `ITEMS`) instead of its vanilla
-    `original_item`. Lazily imports `data.locations`/`data.items` (see this
-    module's own docstring for why)."""
+    """Patch the itemball script block for a `ground_item` location -- or an
+    itemball-shaped `hm_tm` location (task C16, see this function's own
+    type check) -- (a key of `data/locations.py`'s `LOCATIONS`) so it grants
+    a different item (a key of `data/items.py`'s `ITEMS`) instead of its
+    vanilla `original_item`. Lazily imports `data.locations`/`data.items`
+    (see this module's own docstring for why)."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
 
     location = LOCATIONS.get(location_key)
     if location is None:
         raise KeyError(f"unknown location key: {location_key!r}")
-    if location["type"] != "ground_item":
+    # `hm_tm` locations are accepted too, but only the itemball-shaped half
+    # of them (the ones whose flag id is a real scr_seq_0141.bin block --
+    # see BLOCK_INDEX_BY_ITEMBALL_FLAG_ID below): a `hm_tm` location is just
+    # a `ground_item`/`npc_gift` location re-tagged by delivery method, not
+    # a distinct ROM mechanism of its own (see data_gen/locations.toml's own
+    # header comment). The other half (NPC-delivered hm_tm) belongs to
+    # rom/npcgiftdata.py's write_npc_gift_substitution instead.
+    if location["type"] not in ("ground_item", "hm_tm"):
         raise ScriptDataError(
             f"location {location_key!r} is type {location['type']!r}, not "
-            "'ground_item' -- this module only patches ground_item itemball "
-            "script blocks (hidden_item/npc_gift/hm_tm/badge are out of "
-            "scope, see this task's own brief)."
+            "'ground_item'/'hm_tm' -- this module only patches itemball "
+            "script blocks (hidden_item/npc_gift/badge are out of scope, "
+            "see this task's own brief)."
         )
     block_index = BLOCK_INDEX_BY_ITEMBALL_FLAG_ID.get(location["id"])
     if block_index is None:
+        if location["type"] == "hm_tm":
+            raise ScriptDataError(
+                f"location {location_key!r} (flag id {location['id']}) is a "
+                "NPC-delivered hm_tm location, not an itemball -- use "
+                "rom/npcgiftdata.py's write_npc_gift_substitution instead."
+            )
         raise ScriptDataError(
             f"location {location_key!r} (flag id {location['id']}) has no "
             "known scr_seq_0141.bin block -- see this module's docstring "

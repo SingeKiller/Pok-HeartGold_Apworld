@@ -257,10 +257,50 @@ def test_write_ground_item_substitution_leaves_other_locations_untouched(
 def test_write_ground_item_substitution_rejects_non_ground_item_location(
     rom: HeartGoldRom, generated_data: dict
 ) -> None:
+    """`hm_tm` is accepted too (task C16, for its itemball-shaped half --
+    see tests/test_npc_gift_substitution.py), so this picks a type that is
+    never accepted (`npc_gift`)."""
     locations = generated_data["LOCATIONS"]
-    non_ground_key = next(key for key, loc in locations.items() if loc["type"] != "ground_item")
+    non_ground_key = next(key for key, loc in locations.items() if loc["type"] == "npc_gift")
     with pytest.raises(eventscriptdata.ScriptDataError, match="ground_item"):
         eventscriptdata.write_ground_item_substitution(rom, non_ground_key, "master_ball")
+
+
+def test_write_ground_item_substitution_accepts_itemball_shaped_hm_tm(
+    rom: HeartGoldRom, generated_data: dict
+) -> None:
+    """Task C16: `hm_tm` locations whose flag id is a real
+    `scr_seq_0141.bin` block (i.e. the vanilla delivery mechanism actually
+    is a plain item ball) are patched the exact same way as `ground_item`
+    -- see this function's own docstring."""
+    locations = generated_data["LOCATIONS"]
+    items = generated_data["ITEMS"]
+    itemball_hm_tm_key = next(
+        key
+        for key, loc in locations.items()
+        if loc["type"] == "hm_tm" and loc["id"] in eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID
+    )
+    block_index = eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID[locations[itemball_hm_tm_key]["id"]]
+
+    eventscriptdata.write_ground_item_substitution(rom, itemball_hm_tm_key, "master_ball")
+
+    assert eventscriptdata.read_itemball_item_id(rom, block_index) == items["master_ball"]["id"]
+
+
+def test_write_ground_item_substitution_rejects_npc_delivered_hm_tm(
+    rom: HeartGoldRom, generated_data: dict
+) -> None:
+    """The other half of `hm_tm` (NPC-delivered, no itemball block) is
+    explicitly rejected here -- it belongs to
+    rom/npcgiftdata.py's write_npc_gift_substitution instead."""
+    locations = generated_data["LOCATIONS"]
+    npc_hm_tm_key = next(
+        key
+        for key, loc in locations.items()
+        if loc["type"] == "hm_tm" and loc["id"] not in eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID
+    )
+    with pytest.raises(eventscriptdata.ScriptDataError, match="npcgiftdata"):
+        eventscriptdata.write_ground_item_substitution(rom, npc_hm_tm_key, "master_ball")
 
 
 def test_write_ground_item_substitution_rejects_unknown_keys(rom: HeartGoldRom, generated_data: dict) -> None:
