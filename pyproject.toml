@@ -16,3 +16,16 @@ select = ["E", "F", "W", "I", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# Archipelago requires this project's own Archipelago-World `__init__.py` to
+# live at the repository root (see CLAUDE.md's Repository Structure note),
+# which makes pytest's default "prepend" import mode treat the whole repo
+# root as a package (walking up __init__.py files to build a dotted module
+# name) when collecting tests/conftest.py -- importing the repo root's own
+# __init__.py as a side effect of merely collecting tests, before
+# tests/conftest.py has even had a chance to put a local Archipelago
+# checkout on sys.path for it. "importlib" import mode imports each test
+# file directly by its own file path instead, with no __init__.py package
+# walk at all, sidestepping this entirely (the standard fix for a test
+# suite living alongside a src-layout/package-root `__init__.py`, see
+# https://docs.pytest.org/en/stable/explanation/pythonpath.html).
+addopts = ["--import-mode=importlib"]

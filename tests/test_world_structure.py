@@ -84,10 +84,15 @@ def built_world(world_modules):
     rules_mod = world_modules["rules"]
 
     multiworld = bc.MultiWorld(1)
-    # No World/AutoWorld class exists yet for this project (see
-    # docs/architecture.md); CollectionState.__init__ only asserts that
-    # `multiworld.worlds` is non-empty, so a bare stand-in is enough here.
-    multiworld.worlds[PLAYER] = SimpleNamespace()
+    # This module tests items.py/locations.py/regions.py/rules.py directly,
+    # without going through the real HeartGoldWorld (__init__.py, task C12)
+    # to keep them testable standalone. `.game` is required now that
+    # __init__.py exists: importing it (even indirectly, via pytest's
+    # package collection) registers HeartGoldWorld with worlds.AutoWorld,
+    # whose autoload pulls in every other world's init_mixin (e.g. OOT's),
+    # some of which inspect `multiworld.worlds[player].game` when building a
+    # CollectionState.
+    multiworld.worlds[PLAYER] = SimpleNamespace(game="Pokemon HeartGold")
 
     region_map = regions_mod.create_regions(PLAYER, multiworld)
     locations_mod.create_locations(PLAYER, region_map)
