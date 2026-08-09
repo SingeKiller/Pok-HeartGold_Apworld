@@ -883,3 +883,86 @@ two or three independent known pickups at predicted-correct byte offsets
 relative to each other, before trusting it. A single clean diff, as this
 project learned twice now (`0x27D820` in the C16 session, `0x0227D39C`
 here), is not sufficient evidence on its own.
+
+### Second attempt, same day: `0x0227D340` -- cross-validated across three real pickups
+
+Immediately following the above, the player restarted a fresh save (the
+previous one had never been saved and was lost to an unrelated emulator
+restart -- not a consequence of this project's own tooling) and repeated
+the RAM-diff approach with a fix for the previous attempt's core flaw
+(a single before/after diff over real, unpaused gameplay time is far too
+noisy: a raw ~32 KB window diff around a single ground-item pickup showed
+**433 changed bytes**, the large majority clearly unrelated to save data
+at all -- e.g. a ~700-byte block that looks like dialog/text-box render
+state, another ~800-byte block that looks like a field-object/script
+buffer, both artifacts of the pickup's on-screen message and animation,
+plus ordinary background RNG/audio/timer churn from the game simply
+running unpaused between the two snapshots).
+
+Fix: instead of trusting any single diff, filter every diff down to
+**single-bit** changes only (`before ^ after` is a power of two -- the
+signature of a real flag bit, not multi-bit incidental data), then
+**cross-validate candidates against a second, independent pickup** at a
+different, precisely-known flag id, checking that (a) the predicted byte
+delta between the two flags' ids lands on an actual candidate pair and
+(b) the bit positions match too.
+
+Concretely: `route_29_potion` (flag id 1081 -> byte 135, bit 1) and
+`route_30_potion` (flag id 1088 -> byte 136, bit 0) are exactly 7 flag
+ids -- i.e. exactly 1 byte -- apart. After the first pickup, six
+single-bit candidates remained in the plausible region near `Bag`
+(`0x0227D144`, `0x0227D15C`, `0x0227D270`, `0x0227D353`, `0x0227D3C7`,
+`0x0227D4D4`). After the second pickup, one of the new single-bit
+candidates, `0x0227D3C8`, sat **exactly one byte after** `0x0227D3C7`
+from the first list -- and the bit positions matched too (bit 1, then
+bit 0, exactly as predicted). This is not the kind of match noise
+produces: two independent constraints (exact +1 byte delta *and* the
+exact predicted bit positions) both satisfied by the same pair.
+
+Base address implied: `0x0227D3C7 - 135 = 0x0227D340`.
+
+A third, independent pickup then confirmed it further:
+`route_30_antidote` (flag id 1056 -> byte 132, bit 0) was read directly
+at the predicted address (`0x0227D340 + 132 = 0x0227D3C4`) *after* the
+fact (not found via diffing) and matched exactly. At the same time, the
+first two flags (byte 135 bit 1, byte 136 bit 0) were re-read and were
+**still correctly set**, several minutes and multiple further player
+actions later -- unlike `0x0227D39C`, which had reverted to all-zero
+after less elapsed time in the previous, disconfirmed attempt.
+
+**`CONFIRMED_FLAGS_ARRAY_ADDRESS` updated to `0x0227D340`** in
+`client.py`, with three independent, mutually-consistent, stable data
+points backing it -- meeting the (a)/(b)/(c) bar this document itself set
+above, unlike either of the two previous candidates. Re-ran the full
+local test suite + ruff after the change (green).
+
+**Closing live end-to-end re-test: passed.** Rebuilt the `.apworld` with
+the corrected address, reinstalled it into the local Archipelago
+checkout, reset the server's save state, and ran a fresh
+`MultiServer.py` + `BizHawkClient.py` session against the same live
+BizHawk instance (no manual RAM reads this time -- the real client
+polling loop only). Result: **all four of the player's real, live
+pickups were detected and reported correctly** --
+`route_30_antidote` -> `FULL_HEAL`, `route_30_potion` -> `PECHA_BERRY`,
+`route_29_potion` -> `SEA_INCENSE`, and (confirmed with the player,
+initially flagged as a suspected false positive given the previous
+session's pattern, but genuine this time) `route_30_apricorn_house_
+apricorn_box` -> `MAX_ETHER`. No extra/spurious checks fired. This is
+the first clean confirmation of check detection working for **both**
+`ground_item` (the first three) and `npc_gift` (the fourth) location
+types against a real, live game.
+
+**M4's core client-only strategy (docs/architecture.md's "ROM code
+injection strategy (revised after C14)", option 3) is now fully
+validated end-to-end**: local item substitution (confirmed earlier this
+session, 217/217 `ground_item` locations byte-verified against the
+patched ROM, plus live pickups) and check detection (confirmed here,
+both location-type families, four independent live pickups, zero false
+positives) both work against a real ROM, a real emulator, and a real
+Archipelago server. Remaining open items before M4 can be called fully
+closed: remote-item injection into the Bag (`_apply_next_received_item`)
+has unit-test coverage but was not exercised live this session (would
+need a second player slot to send an item to test); `hidden_item`
+substitution remains out of scope (separate, already-documented
+blocker); a Reviewer pass has not yet been run on the final
+`0x0227D340` change.

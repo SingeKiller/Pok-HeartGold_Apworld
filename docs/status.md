@@ -1,17 +1,35 @@
-# État du projet & reprise — 2026-08-10 (mise à jour)
+# État du projet & reprise — 2026-08-10 (mise à jour finale)
 
-**Lire d'abord** : un vrai test d'intégration (T2) a été mené le
-2026-08-10 avec le jeu réellement en marche (BizHawk + serveur local +
-client). Résultat : la substitution locale d'objets fonctionne
-end-to-end (item reçu = item de la seed, vérifié deux fois en jeu réel),
-mais **la détection de check (adresse des flags) ne tient pas dans la
-durée** -- un vrai ramassage n'a déclenché aucun check, tandis que des
-locations sans rapport se sont activées seules. Voir
-`docs/architecture.md`, section "T2 live integration test (2026-08-10)"
-pour le détail complet. Le reste de ce fichier (rédigé avant ce test)
-décrit l'état *avant* cette découverte -- gardé pour l'historique de la
-procédure de recherche RAM, mais `CONFIRMED_FLAGS_ARRAY_ADDRESS` n'est
-plus fiable, contrairement à ce qui est écrit plus bas.
+**Lire d'abord** : M4 est maintenant validé end-to-end en conditions
+réelles. Un premier test d'intégration (T2) le 2026-08-10 avait trouvé
+que l'adresse des flags "confirmée" la session précédente
+(`0x0227D39C`) ne tenait pas dans la durée (voir
+`docs/architecture.md`, section "T2 live integration test (2026-08-10)").
+Un second essai la même session, avec une méthode de validation croisée
+plus rigoureuse (plusieurs ramassages indépendants, positions
+byte/bit prédites vérifiées, stabilité confirmée dans le temps), a
+trouvé la bonne adresse : **`0x0227D340`** (voir "Second attempt, same
+day" dans `docs/architecture.md`). Un test final bout-en-bout (serveur +
+client réels, ROM patché, BizHawk réel) a confirmé **4 ramassages réels
+sur 4 correctement détectés et remontés au serveur**, sans faux positif
+(3 `ground_item` + 1 `npc_gift`). `client.py` a été mis à jour avec
+cette adresse et commité.
+
+Le reste de ce fichier (rédigé avant ces découvertes) décrit l'état
+*avant* -- gardé pour l'historique de la procédure de recherche RAM, mais
+l'adresse citée plus bas (`0x27D820`, candidate d'une session antérieure)
+est obsolète : c'est `0x0227D340` qui est la valeur actuellement utilisée
+par `client.py`.
+
+## Ce qui reste avant de clore M4 formellement
+
+- Injection d'items distants (`_apply_next_received_item`) : couverte par
+  les tests unitaires, mais pas testée en direct cette session (il
+  faudrait un deuxième slot joueur pour envoyer un item et vérifier sa
+  réception réelle dans le sac).
+- `hidden_item` reste hors scope (bloqueur séparé déjà documenté, table
+  ARM9 statique).
+- Passe Reviewer sur le changement final d'adresse, pas encore faite.
 
 Ce document est fait pour être lu **en premier** par quiconque (humain ou
 nouvelle session Claude sans mémoire de la conversation précédente) reprend

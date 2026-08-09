@@ -122,7 +122,19 @@ HEARTGOLD_SAVE_LAYOUT_CASE_ENV = "HEARTGOLD_SAVE_LAYOUT_CASE"
 HEARTGOLD_BAG_BASE_ADDRESS_ENV = "HEARTGOLD_BAG_BASE_ADDRESS"
 HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV = "HEARTGOLD_FLAGS_ARRAY_ADDRESS"
 CONFIRMED_BAG_BASE_ADDRESS = 0x0227CDA0
-CONFIRMED_FLAGS_ARRAY_ADDRESS = 0x0227D39C
+# Re-derived 2026-08-10 (see docs/architecture.md's "T2 live integration
+# test" addendum, "second attempt" entry) -- the earlier 0x0227D39C value
+# was disconfirmed by that same day's first T2 attempt. This value was
+# cross-validated from three independent, live, real pickups
+# (route_29_potion, route_30_potion, route_30_antidote) whose flag ids
+# predict byte/bit offsets 135/1, 136/0 and 132/0 respectively -- all
+# three landed exactly on their predicted byte/bit from this one base
+# address, and the first two stayed correctly set over several further
+# minutes of play (unlike the disconfirmed candidate, which reverted to
+# all-zero). Three independent, mutually-consistent, stable data points --
+# much stronger evidence than the single before/after diff that produced
+# the previous, wrong value.
+CONFIRMED_FLAGS_ARRAY_ADDRESS = 0x0227D340
 
 
 def _resolve_bag_base_address() -> int:
