@@ -512,3 +512,222 @@ binary.
   (`SetVar VAR_SPECIAL_x8008, <item id>` inside `scr_seq_0141.bin`) as a
   `rom/eventscriptdata.py`-style module, following `rom/itemdata.py`'s
   pattern.
+
+## C16 -- client.py (BizHawk connector)
+
+Task C16 built `client.py`, the actual `BizHawkClient` implementing the
+protocol C14 designed: read vanilla savedata flags to detect checks, write
+remote items directly into the running game's `Bag` savedata. Local items
+need no client involvement (already patched into the ROM's own data, see
+C14/C15). This section documents what was found, what was built, and the
+one genuinely open blocker -- in the same spirit as C14's own "two
+blockers" writeup, and following this project's standing risk policy
+("prudence over progress" for anything that writes to a real player's save
+file, if anything a *stricter* bar than C14's read-only ROM-patch case).
+
+### The problem: `SaveData` is not a fixed-offset struct
+
+The natural first assumption -- "`SaveVarsFlags`/`Bag` each live at some
+fixed byte offset inside the save file, findable once and hardcoded" -- is
+wrong for this game's save system, confirmed by reading
+`ressources/Decomposition/pokeheartgold/include/save.h` and `src/save.c`:
+
+- `SaveData` (the RAM struct a running game keeps: `flashChipDetected`,
+  `saveFileExists`, `isNewGame`, `statusFlags`, then a flat
+  `dynamic_region[SAVE_PAGE_MAX * SAVE_SECTOR_SIZE]` byte array, then
+  bookkeeping tables) has **no named field per substructure at all**. Every
+  named piece of save state (`SysInfo`, `PLAYERDATA`, `Party`, `Bag`,
+  `SaveVarsFlags`, ... 42 in total, `include/constants/save_arrays.h`'s
+  `SAVE_SYSINFO`..`SAVE_PCSTORAGE`) is instead a numbered "chunk":
+  `SaveArray_Get(saveData, id)` returns
+  `&saveData->dynamic_region[saveData->arrayHeaders[id].offset]`.
+- Those per-chunk `offset`s are **not** save-file data either -- they are
+  computed once, at `SaveData_New()`/`Save_InitDynamicRegion()` time, by
+  `SaveData_InitSubstructs()`: walk `gSaveChunkHeaders` (`src/save_arrays.c`,
+  a fixed, compile-time-ordered table: id 0 `SAVE_SYSINFO` ..  id 4
+  `SAVE_FLAGS` .. id 40 `SAVE_PCSTORAGE`) in order, accumulating each
+  chunk's `GetSaveChunkSizePlusCRC()` (`((sizeof(chunk) + 3) & ~3) + 4`) --
+  i.e. **every chunk's offset is a deterministic function of every earlier
+  chunk's `sizeof()`**, not something read from the save file. This is
+  genuinely good news: it means the offsets *can* in principle be
+  recovered by pure C-struct arithmetic from the decomp source, with no
+  ROM/RAM access needed at all -- unlike C14's Blocker 1 (a real ROM
+  address, unrecoverable without a link or a disassembler).
+
+`save_layout.py` (new, pure Python, no BizHawk/Archipelago imports)
+re-implements this exact algorithm (`compute_chunk_offsets`,
+mirroring `SaveData_InitSubstructs`/`GetSaveChunkSizePlusCRC` line for
+line) for chunk ids 0 (`SysInfo`) through 4 (`SaveVarsFlags`) -- `SAVE_BAG`
+is id 3, `SAVE_FLAGS` is id 4, both share save "block" 0 with `SysInfo`/
+`PLAYERDATA`/`Party` (ids 0-39; only id 40, `SAVE_PCSTORAGE`, starts a new
+block/adds page-boundary padding), so no footer/padding is crossed before
+id 4 and the accumulation is a straight-line sum.
+
+### What is fully determined vs. the one open ambiguity
+
+Computing each chunk's `sizeof()` from its C definition
+(`include/sav_system_info.h`, `include/player_data.h`,
+`include/pokemon_types_def.h`, `include/bag_types_def.h`,
+`include/save_vars_flags.h`) field-by-field:
+
+- **`Party` (id 2) and `Bag` (id 3) have no ambiguity.** Neither struct (nor
+  anything they contain -- `Pokemon`/`BoxPokemon`, whose `// size: 0xEC`
+  is stated directly in the decomp itself; `ItemSlot { u16 id; u16
+  quantity; }`) has any 8-byte (`s64`/`u64`) member or a bitfield spanning
+  a byte boundary that a plain 4-byte-aligned C ABI would lay out
+  ambiguously. `PLAYERDATA` (id 1) likewise has none (`Options` is a single
+  `u16` bitfield; `IGT`/`PlayerProfile` are plain 8/16/32-bit fields).
+  `save_layout.PLAYER_DATA_SIZE` (44) and `save_layout.PARTY_SIZE` (1456)
+  are therefore high-confidence, derived once and fixed.
+- **`SysInfo` (id 0, the very first chunk) does have 8-byte members**
+  (`rtc_offset`; `SysInfo_RTC.seconds_since_nitro_epoch`/
+  `seconds_at_game_clear`) -- and how the retail **MWCC 2.0/sp2p2** ARM9
+  compiler aligns those is a toolchain ABI fact, not something derivable
+  from C source alone (same category of unknown as C14's Blocker 1: no
+  real compiler/linker available in this dev environment to just check).
+  Two internally-consistent, standard C layouts are possible: the older
+  ARM "APCS" convention (8-byte members align like any 4-byte-or-smaller
+  member, no extra padding -- `sizeof(SysInfo) == 72`) or the modern
+  AAPCS/EABI convention (8-byte members force 8-byte alignment, including
+  of the *enclosing* struct's own size -- `sizeof(SysInfo) == 80`).
+  Because `SysInfo` is chunk id 0 (first in line), this is exactly an
+  8-byte uncertainty that propagates **unchanged** through every later
+  offset (`PLAYERDATA`/`Party`/`Bag`/`SaveVarsFlags` all shift by the same
+  8 bytes) -- not an unbounded unknown, a well-bounded choice between
+  **two** named candidates (`save_layout.CANDIDATE_OFFSETS`:
+  `"apcs_4byte_longlong"` / `"eabi_8byte_longlong"`).
+
+### The other open unknown: `SaveData`'s own RAM address
+
+Independent of the above: everything in `save_layout.py` only gives
+offsets *relative to* the start of the RAM `SaveData` struct. Its absolute
+address is a `static` C global (`sSaveDataPtr`, `src/save.c`) with no
+documented value -- unlike `pokemon_emerald`'s `gSaveBlock1Ptr` (a real,
+linked-build address that project's own decomp bakes into `data.py`), this
+project has no real linked build to read such an address from (same MWCC/
+Nitro-SDK unavailability already recorded above and in C14's Blocker 1).
+This project's "client-only, no ROM code" v1 strategy (chosen after C14)
+also does not give itself a self-locating magic marker in RAM the way
+`ressources/platinum_archipelago`'s own client can (its
+`AP_STRUCT_PTR_ADDRESS` trick only works because that project's build
+burns a real, linked `ap.bin`/protocol struct into the ROM -- a capability
+this project deliberately set aside).
+
+**Decision (same "prudence over progress" call as C14's ARM-hook
+address, arguably with a higher bar since this is a write path that could
+corrupt a real save file):** `client.py` never guesses this address. Two
+settings are **required**, read from environment variables
+(`HEARTGOLD_SAVE_DATA_ADDRESS`, `HEARTGOLD_SAVE_LAYOUT_CASE`) -- until both
+are set, the client logs one actionable message
+(`client._missing_configuration_message()`) and does not read or write any
+RAM at all.
+
+**Manual discovery procedure** (for the project owner to run once, in a
+real BizHawk session -- this is the "what remains to be validated
+manually" for this task, mirroring C14's own such section):
+
+1. In BizHawk's RAM Search, domain **"ARM9 System Bus"**, search for the
+   player's current in-game money as a signed/unsigned 4-byte value (it is
+   stored in plaintext, `PlayerProfile.money`, no encryption). Narrow it
+   down with a couple of "changed value" re-searches after spending/
+   earning coins in-game.
+2. For each candidate money address, compute
+   `candidate_address - save_layout.CANDIDATE_OFFSETS[case].money_offset_in_savedata`
+   for both `case`s (`money_offset_in_savedata` is exposed exactly for this
+   purpose) -- this is the candidate `SaveData` base address for that case.
+3. Disambiguate the two cases by then reading
+   `base + save_layout.CANDIDATE_OFFSETS[case].bag_offset_in_savedata`
+   bytes and checking which one looks like a real `Bag` (an array of
+   `ItemSlot{u16 id; u16 qty}` with item ids under ~537, `id == 0`/`qty ==
+   0` for empty slots, matching the player's actual current bag contents)
+   -- the wrong case will read 8 bytes off and produce implausible ids.
+4. Set `HEARTGOLD_SAVE_DATA_ADDRESS` (the confirmed base, from step 2) and
+   `HEARTGOLD_SAVE_LAYOUT_CASE` (`"apcs_4byte_longlong"` or
+   `"eabi_8byte_longlong"`, whichever matched in step 3) as environment
+   variables before launching the client.
+5. Confirm end-to-end: pick up a local, already-substituted item ball and
+   watch the corresponding location get checked server-side; have another
+   test slot send this slot a filler item and watch it appear in the bag
+   next `game_watcher` tick (no in-game "item received" toast for v1, see
+   below -- check the bag contents directly).
+
+None of this (steps 1-5) could be run in this agent's own session -- no
+BizHawk, no emulator, no live game process available here.
+
+### Check detection and item reception, as actually implemented
+
+- **Check detection** (`location_flags.py`, new): `data/locations.py`'s
+  `ground_item`/`npc_gift`/`hm_tm` locations already store a real vanilla
+  flag id directly as their own `id` (cross-checked against
+  `rom/eventscriptdata.py`'s `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID`, whose keys
+  -- e.g. 1081, 1056 -- are real `FLAG_HIDE_ITEMBALL_*` values, not small
+  indices); `hidden_item` locations store the small `HIDDENITEM_*` index
+  instead, needing `+ HIDDEN_ITEMS_FLAG_BASE` (800,
+  `include/constants/flags.h`) to become a real flag id. A handful of
+  `npc_gift` locations have no single-purpose `FLAG_GOT_*` constant at all
+  and were given a synthetic id in a reserved `9000+` band instead
+  (`data_gen/locations.toml`'s own header) -- these have **no vanilla flag
+  this client can currently read**, `location_flags.flag_id_for_location`
+  returns `None` for them (`location_flags.unsupported_location_keys()`
+  lists exactly which). Badge locations are events with no real AP
+  location id to begin with (`locations.py`) and never reach this client
+  either way. `client.py`'s `game_watcher` reads the whole
+  `SaveVarsFlags.flags[]` array once per tick and checks every location
+  this way in one pass.
+- **Item reception**: `save_layout.plan_bag_item_write` decides where to
+  write an incoming item inside its Bag pocket (stack onto a matching slot
+  under a per-pocket cap, else the first free slot) purely from the raw
+  pocket bytes -- deliberately simpler than `Bag_AddItem`'s real TM/HM/
+  Berry pocket re-sort (an accepted v1 simplification: the item still lands
+  in a valid, correctly-typed slot, just not necessarily where vanilla
+  sorting would place it). Since there is no ROM/save-side counter this
+  client controls (no `ap.bin`-equivalent, see above), "how many of
+  `ctx.items_received` have already been written into the bag" is tracked
+  in Archipelago's own server-side data storage (`Set`/`ctx.set_notify`,
+  key `pokemon_heartgold_applied_item_count_{team}_{slot}`) so it survives
+  client restarts. **Known, inherent limitation**: this does *not* survive
+  the player reloading an in-game save state/file from before some
+  already-applied items were written -- those items will not be
+  re-granted, since nothing about their delivery lives in the save file
+  itself. Fixing this for real needs the ROM/ARM-hook side of C14's own
+  protocol design (`patches/ground_item_hook.s`'s scaffolding, still
+  unwired per Blocker 1), out of scope for this client-only v1. There is
+  also no in-game "item received" message/animation for v1, the
+  already-acknowledged cost of the client-only strategy recorded above.
+
+### What C16 delivers, and what remains manual
+
+- `save_layout.py` -- pure struct-layout/chunk-offset model (see above),
+  fully unit-tested (`tests/test_client.py`).
+- `location_flags.py` -- location -> vanilla flag id mapping, unit-tested
+  against every real `ground_item`/`hidden_item`/`badge` location once
+  `data/` is generated.
+- `client.py` -- `HeartGoldClient(BizHawkClient)`: detects the ROM via its
+  `IPKE` header game code (`rom.HEARTGOLD_US_ID_CODE`, no per-seed ROM
+  marker exists yet, see `__init__.py`'s docstring on why `patch_gen.py`
+  doesn't produce a single distributable patch file yet), polls
+  `SaveVarsFlags.flags[]` for checks, and writes remote items into `Bag`
+  once both required settings above are present. Registered with
+  `worlds._bizhawk`'s `AutoBizHawkClientRegister` via a
+  `from client import HeartGoldClient` in `__init__.py` (same convention
+  `worlds/pokemon_emerald/__init__.py` documents for itself).
+- `tests/test_client.py` -- covers everything statable without a real
+  BizHawk/emulator connection: `save_layout.py`'s arithmetic (including
+  that the two candidate cases differ by exactly the expected 8 bytes
+  everywhere), `location_flags.py`'s mapping against every real location,
+  and `client.py`'s async read/write orchestration
+  (`_check_locations`/`_apply_next_received_item`/
+  `_store_applied_item_count`) driven end-to-end against a fake, in-memory
+  `ctx` with `worlds._bizhawk.read`/`guarded_write` monkeypatched (real
+  network/RAM I/O never happens in these tests). **Not, and cannot be,
+  tested here**: anything requiring an actual running HeartGold instance
+  (BizHawk + the real `connector_bizhawk_generic.lua` script + a real save
+  file) -- that is the "manual discovery procedure" above, entirely the
+  project owner's to run.
+- `archipelago.json` needed no change: cross-checked against
+  `worlds/pokemon_emerald/archipelago.json` in the local Archipelago
+  clone, which also declares a `BizHawkClient` subclass and has no
+  client-related manifest field -- client registration is purely a Python
+  import-time side effect (`AutoBizHawkClientRegister`), not something
+  `archipelago.json` (game/version/authors/minimum_ap_version metadata
+  only) participates in.

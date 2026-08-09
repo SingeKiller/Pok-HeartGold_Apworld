@@ -106,6 +106,13 @@ from data.locations import LOCATIONS  # noqa: E402
 from data.rules import BADGES  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 
+# Unused, but required to register HeartGoldClient with BizHawkClient (task
+# C16) -- same convention worlds/pokemon_emerald/__init__.py's own `from
+# .client import PokemonEmeraldClient` comment documents: AutoBizHawkClient
+# Register (worlds/_bizhawk/client.py) only learns about a client the moment
+# its defining module is imported, and nothing else in this file's own
+# import chain ever imports client.py.
+from client import HeartGoldClient  # noqa: E402, F401
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import badge_event_item_name, create_location_label_to_code_map, create_locations  # noqa: E402
 from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402
