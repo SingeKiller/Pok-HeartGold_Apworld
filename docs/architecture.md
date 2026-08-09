@@ -782,11 +782,30 @@ arm9_system_bus_addr`):
   four addresses above (money/bag confirmed, flags candidate, "no 1300-byte
   gap") as the actual ground truth, not `save_layout.py`'s own current
   arithmetic output.
-- **Recommended next step**: use `0x27CDA0` (Main RAM) directly as the
-  confirmed `Bag` address for remote-item injection (client.py can be
-  pointed at it directly, bypassing the `HEARTGOLD_SAVE_DATA_ADDRESS`/
-  `HEARTGOLD_SAVE_LAYOUT_CASE` derivation for this field specifically, if
-  that's simpler than fully reconciling the model). For check-detection,
-  confirm `0x27D820` by picking a *specific*, already-known-true flag
-  (e.g. an item ball already picked up this save) and checking the
-  matching bit, before wiring it into `client.py` for real.
+- **`0x27D820` is now DISCONFIRMED, not just unconfirmed.** Direct test:
+  Route 30's Antidote ball (`FLAG_HIDE_ITEMBALL` id 1056,
+  `data_gen/locations.toml`'s `route_30_antidote`) was picked up live,
+  bracketed by two Hex Editor screenshots of `0x27D8A4` (byte offset
+  `1056/8=132=0x84` from `0x27D820`, the bit this specific flag should
+  set). The byte (`4E3B945C`, the row containing it) is **byte-identical
+  before and after** -- the expected bit never flipped. So despite the
+  arithmetic agreeing with `arrayHeaders` on three independent paths
+  (chunk sizes), `0x27D820` is not where the game actually keeps this
+  flag. Likely explanations, untested: the live RAM working copy of
+  `SaveData` is laid out differently from the `dynamic_region`-relative
+  model this whole derivation assumes (e.g. `SaveArray_Get`'s pointer
+  arithmetic might not correspond 1:1 to a flat byte offset the way
+  assumed); or `arrayHeaders` itself was read from a stale/inactive save
+  slot copy, not the live one being played.
+- **Recommended next step (revised)**: for `Bag`, `0x27CDA0` (Main RAM)
+  remains solid (confirmed a completely different way -- direct content
+  match, not struct arithmetic) and is safe to hardcode/use as-is for
+  remote-item injection. For check-detection, **abandon the
+  arithmetic-derivation approach** for `SaveVarsFlags` and instead do a
+  live **differential RAM search** next session: open BizHawk RAM Search
+  (domain Main RAM, 1 Byte, "Different by" a `New Search` taken
+  immediately *before* picking up a known item ball, re-searched
+  immediately *after* for "changed" values) -- this finds the real
+  changed byte(s) directly, with no struct-size assumptions at all, the
+  same way the `money` address was originally confirmed. Much more
+  reliable than deriving an address and hoping it's right.
