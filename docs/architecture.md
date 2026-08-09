@@ -59,20 +59,42 @@ follows:
 | `/Roam` (rom) | `rom/` |
 | `/docs` | `docs/` (unchanged) |
 
-## ROM code injection strategy (decided)
+## ROM code injection strategy (revised after C14)
 
 Three options were evaluated:
 
 1. **Full decomp rebuild** (as `platinum_archipelago` does) — requires the
    proprietary MWCC 2.0/sp2p2 compiler and Nitro SDK 4.2, not available on
-   this machine. **Rejected** for now.
+   this machine. **Rejected**.
 2. **ARM hooks via `armips`** — the `pret/pokeheartgold` decomp is used only
    as a map of symbols/addresses; targeted assembly patches are injected
    without rebuilding the whole ROM. No proprietary toolchain required.
-   **Chosen.**
-3. **Client-only (RAM-only)** — no ROM code changes, client reads/writes game
-   RAM directly. Lowest cost but no in-game item-received feedback. Kept as
-   a fallback if option 2 proves infeasible for a given feature.
+   **Originally chosen; set aside for v1 after C14** — the `armips`+`patch_gen.py`
+   pipeline itself works (proven end-to-end against the real ROM, see task
+   C14), but the one real hook point identified (`ScrCmd_GiveItem` via
+   `gScriptCmdTable`) has no known ROM address, and neither a decomp build
+   nor an automated signature scan could recover it (see C14's "Blocker
+   1"; would need a proper disassembler with cross-reference analysis,
+   e.g. Ghidra/IDA, not available in this session). Revisit if that
+   tooling becomes available.
+3. **Client-only (RAM-only)** — no ROM code changes for the check/receive
+   mechanism itself; the BizHawk client reads/writes game RAM and savedata
+   directly. **Chosen for v1.** Concretely, per C14's own investigation:
+   - **Check detection**: read the existing `FLAG_HIDE_ITEMBALL_*` (etc.)
+     savedata bits directly — genuinely vanilla behavior
+     (`MapObject_Delete`, see C14), no ROM patch needed at all.
+   - **Local items** (an AP location whose generation-decided item belongs
+     to this same player/world): still patched directly into the ROM's
+     data via `rom/` (C13) — rewriting an item ball's script bytecode
+     item-id operand is a plain NitroFS data edit, no ARM code involved,
+     same risk profile as `rom/itemdata.py` etc. This is *not* the
+     "ARM hooks" strategy being set aside; it was always going to be a
+     data-only edit (see C14's protocol design section).
+   - **Remote items** (destined for another player): the client injects
+     them directly into the player's bag via a savedata/RAM write, once
+     the check-detection flag fires — no in-game "item received" message
+     animation for v1 (the acknowledged cost of this option), but no
+     unknown ROM addresses required either.
 
 `armips` (Kingcom/armips, MIT) is built from source at
 `ressources/armips` (git-ignored, read-only external checkout, never
