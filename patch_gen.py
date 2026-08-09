@@ -40,6 +40,7 @@ import tempfile
 from pathlib import Path
 
 from rom import HeartGoldRom
+from rom import eventscriptdata as rom_eventscriptdata
 
 ROOT = Path(__file__).resolve().parent
 PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
@@ -139,6 +140,29 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
         "this should never happen for a single-threaded, single-call use."
     )
     return actual_address
+
+
+# -- Local item substitution (task C15) --------------------------------------
+#
+# Unlike the ground-item hook scaffolding above (ARM9 code, not wired to any
+# call site yet -- see this module's own docstring and docs/architecture.md),
+# this is the piece of the "revised after C14" ROM strategy that is actually
+# live: a plain NitroFS data edit (rom/eventscriptdata.py) with no unknown
+# ROM addresses involved. See docs/architecture.md, "## ROM code injection
+# strategy (revised after C14)" for why this is a different risk profile
+# from the ARM-hooks path, and rom/eventscriptdata.py's own docstring for
+# the scr_seq_0141.bin binary format this patches.
+
+
+def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str]) -> None:
+    """Apply a `{location_key: item_key}` mapping (both `data/locations.py`/
+    `data/items.py` keys) to `rom` in place, for `ground_item` locations
+    only -- hidden_item/npc_gift/hm_tm/badge are out of scope for this pass
+    (see this task's own brief and rom/eventscriptdata.py's docstring).
+    Locations not present in `substitutions` are left untouched (keep their
+    vanilla `original_item`)."""
+    for location_key, item_key in substitutions.items():
+        rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
 
 
 def main(argv: list[str] | None = None) -> int:
