@@ -309,6 +309,38 @@ def test_resolve_save_data_address_parses_hex_and_decimal(client_module, monkeyp
     assert client_module._resolve_save_data_address() is None
 
 
+def test_bag_base_and_flags_array_address_default_to_confirmed_constants(client_module, monkeypatch):
+    # No env var set at all -- both the instance attributes (set in
+    # `__init__`/`validate_rom`) and the resolver functions themselves must
+    # fall back to the hardcoded, empirically-confirmed addresses (see
+    # client.py's own module docstring, "RESOLVED 2026-08-10").
+    monkeypatch.delenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, raising=False)
+    monkeypatch.delenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, raising=False)
+
+    handler = client_module.HeartGoldClient()
+    assert handler.bag_base_address == client_module.CONFIRMED_BAG_BASE_ADDRESS
+    assert handler.flags_array_address == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+
+    assert client_module._resolve_bag_base_address() == client_module.CONFIRMED_BAG_BASE_ADDRESS
+    assert client_module._resolve_flags_array_address() == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+
+    # An invalid env var must not propagate a bad address -- fall back to
+    # the confirmed constant, same as the absent case above.
+    monkeypatch.setenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, "not-a-number")
+    assert client_module._resolve_bag_base_address() == client_module.CONFIRMED_BAG_BASE_ADDRESS
+
+    monkeypatch.setenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, "not-a-number")
+    assert client_module._resolve_flags_array_address() == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+
+    # A valid override is still honored (the fallback above is only for the
+    # absent/invalid cases, not a blanket ignore of the env var).
+    monkeypatch.setenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, "0x02100000")
+    assert client_module._resolve_bag_base_address() == 0x02100000
+
+    monkeypatch.setenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, "34603008")
+    assert client_module._resolve_flags_array_address() == 34603008
+
+
 def test_resolve_save_layout_case_name_only_accepts_known_cases(client_module, monkeypatch):
     monkeypatch.setenv(client_module.HEARTGOLD_SAVE_LAYOUT_CASE_ENV, "apcs_4byte_longlong")
     assert client_module._resolve_save_layout_case_name() == "apcs_4byte_longlong"
@@ -398,13 +430,10 @@ def test_check_locations_reads_flags_and_reports_newly_set_ones(client_module, d
     monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
 
     handler = client_module.HeartGoldClient()
-    handler.save_data_address = 0x02100000
-    handler.save_layout_case_name = "apcs_4byte_longlong"
 
     ctx = _make_fake_ctx(missing_locations={ap_location_id}, items_received=[])
-    offsets = save_layout.CANDIDATE_OFFSETS[handler.save_layout_case_name]
 
-    asyncio.run(handler._check_locations(ctx, offsets))
+    asyncio.run(handler._check_locations(ctx))
 
     assert ctx._checked_calls == [{ap_location_id}]
     assert handler.local_checked_locations == {ap_location_id}
@@ -425,14 +454,11 @@ def test_check_locations_ignores_flags_for_locations_not_missing(client_module, 
     monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
 
     handler = client_module.HeartGoldClient()
-    handler.save_data_address = 0x02100000
-    handler.save_layout_case_name = "apcs_4byte_longlong"
 
     # ap_location_id already checked server-side -> not in missing_locations.
     ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
-    offsets = save_layout.CANDIDATE_OFFSETS[handler.save_layout_case_name]
 
-    asyncio.run(handler._check_locations(ctx, offsets))
+    asyncio.run(handler._check_locations(ctx))
 
     assert ctx._checked_calls == []
 
@@ -461,16 +487,13 @@ def test_apply_next_received_item_writes_into_free_bag_slot(client_module, data_
     monkeypatch.setattr(client_module.bizhawk, "guarded_write", fake_guarded_write)
 
     handler = client_module.HeartGoldClient()
-    handler.save_data_address = 0x02100000
-    handler.save_layout_case_name = "apcs_4byte_longlong"
-    offsets = save_layout.CANDIDATE_OFFSETS[handler.save_layout_case_name]
 
     ctx = _make_fake_ctx(
         missing_locations=set(),
         items_received=[NetworkItem(item=poke_ball_ap_id, location=0, player=1, flags=0)],
     )
 
-    asyncio.run(handler._apply_next_received_item(ctx, offsets, "some_key"))
+    asyncio.run(handler._apply_next_received_item(ctx, "some_key"))
 
     assert handler._applied_item_count == 1
     assert len(written) == 1
@@ -479,7 +502,7 @@ def test_apply_next_received_item_writes_into_free_bag_slot(client_module, data_
     assert bytes(value) == poke_ball["id"].to_bytes(2, "little") + (1).to_bytes(2, "little")
 
     pocket_offset, _capacity = save_layout.BAG_POCKET_OFFSETS["balls"]
-    expected_address = handler.save_data_address + offsets.bag_offset_in_savedata + pocket_offset
+    expected_address = handler.bag_base_address + pocket_offset
     assert address == expected_address
 
     # Bookkeeping was persisted to data storage too.
@@ -496,14 +519,11 @@ def test_apply_next_received_item_skips_items_it_does_not_own(client_module, mon
     monkeypatch.setattr(client_module.bizhawk, "read", fail_read)
 
     handler = client_module.HeartGoldClient()
-    handler.save_data_address = 0x02100000
-    handler.save_layout_case_name = "apcs_4byte_longlong"
-    offsets = save_layout.CANDIDATE_OFFSETS[handler.save_layout_case_name]
 
     # An id that is not any real HeartGold item's AP id.
     ctx = _make_fake_ctx(missing_locations=set(), items_received=[NetworkItem(item=-1, location=0, player=1, flags=0)])
 
-    asyncio.run(handler._apply_next_received_item(ctx, offsets, "some_key"))
+    asyncio.run(handler._apply_next_received_item(ctx, "some_key"))
 
     assert handler._applied_item_count == 1
     assert ctx.stored_data["some_key"] == 1
@@ -511,32 +531,11 @@ def test_apply_next_received_item_skips_items_it_does_not_own(client_module, mon
 
 def test_apply_next_received_item_does_nothing_when_already_caught_up(client_module):
     handler = client_module.HeartGoldClient()
-    handler.save_data_address = 0x02100000
-    handler.save_layout_case_name = "apcs_4byte_longlong"
     handler._applied_item_count = 0
-    offsets = save_layout.CANDIDATE_OFFSETS[handler.save_layout_case_name]
 
     ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
 
-    asyncio.run(handler._apply_next_received_item(ctx, offsets, "some_key"))
+    asyncio.run(handler._apply_next_received_item(ctx, "some_key"))
 
     assert handler._applied_item_count == 0
     assert ctx._sent_msgs == []
-
-
-def test_game_watcher_idles_and_logs_once_when_unconfigured(client_module, monkeypatch, caplog):
-    handler = client_module.HeartGoldClient()
-    assert handler.save_data_address is None
-    assert handler.save_layout_case_name is None
-
-    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
-
-    async def fail_read(*_args, **_kwargs):
-        raise AssertionError("must not touch RAM while unconfigured")
-
-    monkeypatch.setattr(client_module.bizhawk, "read", fail_read)
-
-    asyncio.run(handler.game_watcher(ctx))
-    asyncio.run(handler.game_watcher(ctx))
-
-    assert handler._warned_missing_configuration is True

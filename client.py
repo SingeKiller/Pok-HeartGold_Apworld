@@ -48,22 +48,32 @@
 # a capability this project deliberately set aside, see
 # docs/architecture.md).
 #
-# `save_layout.py`'s own docstring documents everything that COULD be
-# recovered from the decomp alone (the exact byte layout of `Bag` and
-# `SaveVarsFlags`, and their offset *relative to* the start of `SaveData`,
-# down to two well-bounded, 8-byte-apart candidate cases -- see
-# `save_layout.CANDIDATE_OFFSETS`). What remains is purely the *absolute*
-# RAM base address of `SaveData` itself, and which of the two candidate
-# cases the real retail compiler actually used -- both are, by design,
-# **required, explicit settings** below (`HEARTGOLD_SAVE_DATA_ADDRESS_ENV`/
-# `HEARTGOLD_SAVE_LAYOUT_CASE_ENV`), never guessed or silently defaulted:
-# writing to a wrong address risks corrupting a real player's save file,
-# a materially worse failure mode than C14's "no ROM patch applied" one, so
-# this client refuses to touch RAM at all until a human has supplied both
-# (see `_missing_configuration_message` below for the exact, actionable
-# manual discovery procedure -- also mirrored in docs/architecture.md's
-# "## C16" section). This is intentionally the same "prudence over
-# progress" call already made for C14's ARM-hook address.
+# *** RESOLVED 2026-08-10 *** -- `save_layout.py`'s `CANDIDATE_OFFSETS`
+# model (theoretical, derived from decomp struct sizes) turned out to
+# disagree with the real, live RAM layout by an amount that was never fully
+# root-caused (see docs/architecture.md's "## C16" addenda) -- so rather
+# than route through that unreliable base+offset arithmetic, the two
+# addresses this client actually needs were found directly, empirically, in
+# a live BizHawk session (Lua memory dump, diffed byte-for-byte before/after
+# a real, known in-game pickup -- see docs/architecture.md's "Manual
+# discovery session results", 2026-08-10 entry): `CONFIRMED_BAG_BASE_ADDRESS`
+# (verified by direct content match: a real Potion x7 ItemSlot, and by a
+# Bag quantity byte incrementing 7->8 exactly on a further pickup) and
+# `CONFIRMED_FLAGS_ARRAY_ADDRESS` (verified by a single, clean bit
+# 0->1 flip exactly matching a picked-up ground item's flag id, with no
+# other explanation fitting as well). Both are ARM9 System Bus addresses,
+# specific to this save's actual RAM layout on this BizHawk/core
+# configuration -- override via `HEARTGOLD_BAG_BASE_ADDRESS`/
+# `HEARTGOLD_FLAGS_ARRAY_ADDRESS` env vars if a different setup needs
+# different values; the hardcoded defaults are what was actually confirmed
+# working, not a guess.
+#
+# `HEARTGOLD_SAVE_DATA_ADDRESS_ENV`/`HEARTGOLD_SAVE_LAYOUT_CASE_ENV` below
+# are now UNUSED (kept only so `_missing_configuration_message` still
+# documents how the underlying `SaveChunkOffsets` model works, for anyone
+# extending this client to a field the confirmed addresses don't cover) --
+# this client no longer refuses to run by default, since the two addresses
+# it actually needs now have confirmed, safe values baked in.
 
 from __future__ import annotations
 
@@ -80,10 +90,8 @@ from rom import HEARTGOLD_US_ID_CODE
 from save_layout import (
     BAG_POCKET_OFFSETS,
     CANDIDATE_OFFSETS,
-    FLAGS_ARRAY_OFFSET,
     FLAGS_ARRAY_SIZE,
     POCKET_KEY_TO_BAG_FIELD,
-    SaveChunkOffsets,
     is_flag_set,
     plan_bag_item_write,
     stack_cap_for_pocket,
@@ -96,6 +104,33 @@ if TYPE_CHECKING:
 
 HEARTGOLD_SAVE_DATA_ADDRESS_ENV = "HEARTGOLD_SAVE_DATA_ADDRESS"
 HEARTGOLD_SAVE_LAYOUT_CASE_ENV = "HEARTGOLD_SAVE_LAYOUT_CASE"
+
+# Confirmed 2026-08-10 (see this module's docstring above). ARM9 System Bus
+# addresses (Main RAM domain + 0x02000000).
+HEARTGOLD_BAG_BASE_ADDRESS_ENV = "HEARTGOLD_BAG_BASE_ADDRESS"
+HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV = "HEARTGOLD_FLAGS_ARRAY_ADDRESS"
+CONFIRMED_BAG_BASE_ADDRESS = 0x0227CDA0
+CONFIRMED_FLAGS_ARRAY_ADDRESS = 0x0227D39C
+
+
+def _resolve_bag_base_address() -> int:
+    raw = os.environ.get(HEARTGOLD_BAG_BASE_ADDRESS_ENV)
+    if not raw:
+        return CONFIRMED_BAG_BASE_ADDRESS
+    try:
+        return int(raw, 0)
+    except ValueError:
+        return CONFIRMED_BAG_BASE_ADDRESS
+
+
+def _resolve_flags_array_address() -> int:
+    raw = os.environ.get(HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV)
+    if not raw:
+        return CONFIRMED_FLAGS_ARRAY_ADDRESS
+    try:
+        return int(raw, 0)
+    except ValueError:
+        return CONFIRMED_FLAGS_ARRAY_ADDRESS
 
 # Server data-storage key this client uses to remember, across client
 # restarts, how many of `ctx.items_received` have already been written into
@@ -193,17 +228,15 @@ class HeartGoldClient(BizHawkClient):
     patch_suffix = None
 
     local_checked_locations: set[int]
-    save_data_address: int | None
-    save_layout_case_name: str | None
-    _warned_missing_configuration: bool
+    bag_base_address: int
+    flags_array_address: int
     _applied_item_count: int
 
     def __init__(self) -> None:
         super().__init__()
         self.local_checked_locations = set()
-        self.save_data_address = None
-        self.save_layout_case_name = None
-        self._warned_missing_configuration = False
+        self.bag_base_address = CONFIRMED_BAG_BASE_ADDRESS
+        self.flags_array_address = CONFIRMED_FLAGS_ARRAY_ADDRESS
         self._applied_item_count = 0
 
     async def validate_rom(self, ctx: BizHawkClientContext) -> bool:
@@ -218,19 +251,14 @@ class HeartGoldClient(BizHawkClient):
         ctx.game = self.game
         # Ask for remote items too (0b001 locations-only | 0b010
         # remote-items -- see CommonClient's own `items_handling` bit
-        # convention): this client's `game_watcher` gates *applying* them on
-        # `save_data_address`/`save_layout_case_name` being configured (see
-        # this module's own docstring), but there is no reason to also
-        # delay *receiving* the list itself -- `ctx.items_received` simply
-        # accumulates safely in memory either way.
+        # convention).
         ctx.items_handling = 0b011
         ctx.want_slot_data = True
         ctx.watcher_timeout = 1.0
 
         self.local_checked_locations = set()
-        self.save_data_address = _resolve_save_data_address()
-        self.save_layout_case_name = _resolve_save_layout_case_name()
-        self._warned_missing_configuration = False
+        self.bag_base_address = _resolve_bag_base_address()
+        self.flags_array_address = _resolve_flags_array_address()
         self._applied_item_count = 0
 
         return True
@@ -239,31 +267,21 @@ class HeartGoldClient(BizHawkClient):
         if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None:
             return
 
-        if self.save_data_address is None or self.save_layout_case_name is None:
-            if not self._warned_missing_configuration:
-                from CommonClient import logger
-
-                logger.info(_missing_configuration_message())
-                self._warned_missing_configuration = True
-            return
-
-        offsets = CANDIDATE_OFFSETS[self.save_layout_case_name]
-
         applied_key = _APPLIED_ITEM_COUNT_KEY_TEMPLATE.format(team=ctx.team, slot=ctx.slot)
         ctx.set_notify(applied_key)
         self._applied_item_count = max(self._applied_item_count, int(ctx.stored_data.get(applied_key, 0) or 0))
 
         try:
-            await self._check_locations(ctx, offsets)
-            await self._apply_next_received_item(ctx, offsets, applied_key)
+            await self._check_locations(ctx)
+            await self._apply_next_received_item(ctx, applied_key)
         except bizhawk.RequestFailedError:
             # Exit handler and return to main loop to reconnect, same
             # convention as worlds/pokemon_emerald/client.py's own
             # game_watcher.
             pass
 
-    async def _check_locations(self, ctx: BizHawkClientContext, offsets: SaveChunkOffsets) -> None:
-        flags_address = self.save_data_address + offsets.vars_flags_offset_in_savedata + FLAGS_ARRAY_OFFSET
+    async def _check_locations(self, ctx: BizHawkClientContext) -> None:
+        flags_address = self.flags_array_address
         flags_bytes = (await bizhawk.read(ctx.bizhawk_ctx, [(flags_address, FLAGS_ARRAY_SIZE, "ARM9 System Bus")]))[0]
 
         newly_checked = {
@@ -276,9 +294,7 @@ class HeartGoldClient(BizHawkClient):
             self.local_checked_locations = newly_checked
             await ctx.check_locations(newly_checked)
 
-    async def _apply_next_received_item(
-        self, ctx: BizHawkClientContext, offsets: SaveChunkOffsets, applied_key: str
-    ) -> None:
+    async def _apply_next_received_item(self, ctx: BizHawkClientContext, applied_key: str) -> None:
         if self._applied_item_count >= len(ctx.items_received):
             return
 
@@ -296,7 +312,7 @@ class HeartGoldClient(BizHawkClient):
 
         native_item_id, bag_field = write_info
         pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS[bag_field]
-        pocket_address = self.save_data_address + offsets.bag_offset_in_savedata + pocket_offset
+        pocket_address = self.bag_base_address + pocket_offset
         pocket_size = pocket_capacity * 4
 
         pocket_bytes = (await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_size, "ARM9 System Bus")]))[0]
