@@ -731,3 +731,62 @@ BizHawk, no emulator, no live game process available here.
   import-time side effect (`AutoBizHawkClientRegister`), not something
   `archipelago.json` (game/version/authors/minimum_ap_version metadata
   only) participates in.
+
+### Manual discovery session results (2026-08-09, project owner + live BizHawk)
+
+Real addresses found in a live session (melonDS core, domain "Main RAM" --
+note this is the *same* memory as "ARM9 System Bus" but with the
+`0x02000000` EWRAM base subtracted, i.e. `main_ram_addr + 0x02000000 ==
+arm9_system_bus_addr`):
+
+- **`PlayerProfile.money`: Main RAM `0x27C2C0`.** Confirmed via BizHawk RAM
+  Search changed-value tracking (2400 -> 2300 after an in-game purchase,
+  matched the in-game HUD exactly). High confidence.
+- **`Bag` (pocket `items`, first field of the chunk): Main RAM `0x27CDA0`.**
+  Confirmed **directly** -- the raw bytes at this address are `11 00 07
+  00`, i.e. `ItemSlot{id=0x0011=17 (Potion), quantity=7}`, matching the
+  player's real inventory (7 Potions) exactly. Independently
+  cross-confirmed a second way: `SaveData.arrayHeaders[3]` (the game's own
+  chunk offset table, `include/save.h`'s `SaveArrayHeader`, read live at
+  Main RAM `0x29F280`-ish) reports `size=0x7A0 (1952)` for chunk id 3
+  (`SAVE_BAG`), exactly matching `save_layout.chunk_size_with_footer(
+  save_layout.BAG_SIZE)` -- strong independent confirmation this really is
+  the `Bag` chunk. **High confidence, safe to use as-is.**
+- **`SaveVarsFlags.flags[]` (the actual bit array, after the leading
+  `vars[]` array): Main RAM `0x27D820` -- candidate, NOT independently
+  confirmed.** Derived arithmetically from the confirmed `Bag` address
+  (`0x27CDA0 + chunk_size_with_footer(BAG_SIZE) + vars[]'s 0x2E0-byte
+  size`) and cross-checked against `arrayHeaders[4]` (`offset=0xDE4`,
+  `size=0x450`), which agrees with the arithmetic to the byte -- so the
+  *math* is internally consistent on three independent paths. But the
+  bytes actually observed there don't unambiguously look like flag data:
+  a clean run of zeros for the first 16 bytes, then some `FFFF` (which can
+  legitimately happen -- flash-erased-pattern padding, or 8 genuinely-set
+  early-game flags), then ~100 bytes that look like high-entropy noise
+  with what might be a ~240-byte repeat -- consistent with either (a)
+  genuine flag data (plausible: many small story/pickup flags could
+  already be true) or (b) uninitialized-RAM poison fill from the
+  emulator core. Not disambiguated in this session.
+- **This resolves the earlier "1300-byte unexplained gap"** (see the
+  Debugger investigation above) as **not real** -- it was an artifact of
+  comparing the wrong two numbers (money-to-bag delta computed one way vs.
+  another), not an actual bug in the chunk-size model. The `arrayHeaders`-
+  based cross-checks above show the `Bag`/`SaveVarsFlags` *sizes* the
+  model computes are exactly right; whatever residual small discrepancy
+  exists between the model's predicted absolute `money`-to-`Bag` delta and
+  the confirmed one was not fully re-derived algebraically before this
+  session ran out of context budget, and `save_layout.py` itself was
+  **not modified** this session (too high-risk to patch under time
+  pressure without a fully closed derivation) -- it still reflects the
+  pre-this-session model. Anyone picking this up next should treat the
+  four addresses above (money/bag confirmed, flags candidate, "no 1300-byte
+  gap") as the actual ground truth, not `save_layout.py`'s own current
+  arithmetic output.
+- **Recommended next step**: use `0x27CDA0` (Main RAM) directly as the
+  confirmed `Bag` address for remote-item injection (client.py can be
+  pointed at it directly, bypassing the `HEARTGOLD_SAVE_DATA_ADDRESS`/
+  `HEARTGOLD_SAVE_LAYOUT_CASE` derivation for this field specifically, if
+  that's simpler than fully reconciling the model). For check-detection,
+  confirm `0x27D820` by picking a *specific*, already-known-true flag
+  (e.g. an item ball already picked up this save) and checking the
+  matching bit, before wiring it into `client.py` for real.
