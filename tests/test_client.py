@@ -309,36 +309,209 @@ def test_resolve_save_data_address_parses_hex_and_decimal(client_module, monkeyp
     assert client_module._resolve_save_data_address() is None
 
 
-def test_bag_base_and_flags_array_address_default_to_confirmed_constants(client_module, monkeypatch):
+def test_address_overrides_default_to_none(client_module, monkeypatch):
     # No env var set at all -- both the instance attributes (set in
-    # `__init__`/`validate_rom`) and the resolver functions themselves must
-    # fall back to the hardcoded, empirically-confirmed addresses (see
-    # client.py's own module docstring, "RESOLVED 2026-08-10").
+    # `__init__`/`validate_rom`) and the override-resolver functions
+    # themselves must be `None`, i.e. "not manually overridden, use the
+    # dynamic `arrayHeaders` scan" (see client.py's own module docstring,
+    # "Dynamic SaveData location").
     monkeypatch.delenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, raising=False)
     monkeypatch.delenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, raising=False)
 
     handler = client_module.HeartGoldClient()
-    assert handler.bag_base_address == client_module.CONFIRMED_BAG_BASE_ADDRESS
-    assert handler.flags_array_address == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+    assert handler.bag_base_address is None
+    assert handler.flags_array_address is None
 
-    assert client_module._resolve_bag_base_address() == client_module.CONFIRMED_BAG_BASE_ADDRESS
-    assert client_module._resolve_flags_array_address() == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+    assert client_module._resolve_bag_base_address_override() is None
+    assert client_module._resolve_flags_array_address_override() is None
 
-    # An invalid env var must not propagate a bad address -- fall back to
-    # the confirmed constant, same as the absent case above.
+    # An invalid env var must not produce a bogus address -- `None`, same
+    # as the absent case above (caller falls back to the dynamic scan).
     monkeypatch.setenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, "not-a-number")
-    assert client_module._resolve_bag_base_address() == client_module.CONFIRMED_BAG_BASE_ADDRESS
+    assert client_module._resolve_bag_base_address_override() is None
 
     monkeypatch.setenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, "not-a-number")
-    assert client_module._resolve_flags_array_address() == client_module.CONFIRMED_FLAGS_ARRAY_ADDRESS
+    assert client_module._resolve_flags_array_address_override() is None
 
     # A valid override is still honored (the fallback above is only for the
     # absent/invalid cases, not a blanket ignore of the env var).
     monkeypatch.setenv(client_module.HEARTGOLD_BAG_BASE_ADDRESS_ENV, "0x02100000")
-    assert client_module._resolve_bag_base_address() == 0x02100000
+    assert client_module._resolve_bag_base_address_override() == 0x02100000
 
     monkeypatch.setenv(client_module.HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV, "34603008")
-    assert client_module._resolve_flags_array_address() == 34603008
+    assert client_module._resolve_flags_array_address_override() == 34603008
+
+
+def _build_fake_array_headers_blob(bag_offset: int, flags_offset: int) -> bytes:
+    """A synthetic `SaveData.arrayHeaders[]` blob: 5 sequential
+    `SaveArrayHeader{int id; u32 size; u32 offset; u16 crc; u16 slot;}`
+    records (ids 0-4), with `_BAG_CHUNK_ID`/`_FLAGS_CHUNK_ID`'s `offset`
+    fields set to the given values -- everything else is arbitrary but
+    valid-shaped."""
+    import struct
+
+    out = bytearray()
+    for chunk_id in range(5):
+        offset = bag_offset if chunk_id == 3 else flags_offset if chunk_id == 4 else 0
+        out += struct.pack("<iIIHH", chunk_id, 100, offset, 0, 0)
+    return bytes(out)
+
+
+def test_looks_like_array_headers_matches_real_signature_and_rejects_near_misses(client_module):
+    blob = _build_fake_array_headers_blob(bag_offset=1604, flags_offset=3556)
+    assert client_module._looks_like_array_headers(blob, 0) is True
+
+    # Same shape but ids off by one (0,1,2,3,5 instead of 0,1,2,3,4) --
+    # must not match, this is exactly the kind of near-miss the scan needs
+    # to reject to stay reliable.
+    import struct
+
+    broken = bytearray(blob)
+    struct.pack_into("<i", broken, 4 * 16, 5)
+    assert client_module._looks_like_array_headers(bytes(broken), 0) is False
+
+    # Too short to even contain the signature.
+    assert client_module._looks_like_array_headers(blob[:10], 0) is False
+
+
+def test_locate_save_addresses_derives_bag_and_flags_from_array_headers(client_module, monkeypatch):
+    array_headers_address = 0x0229F26C
+    bag_chunk_offset = 1604
+    flags_chunk_offset = 3556
+    blob = _build_fake_array_headers_blob(bag_offset=bag_chunk_offset, flags_offset=flags_chunk_offset)
+
+    scan_start = client_module._ARRAY_HEADERS_SCAN_START
+    signature_position_in_scan = array_headers_address - scan_start
+
+    async def fake_read(bizhawk_ctx, read_list):
+        (address, size, domain) = read_list[0]
+        assert domain == "ARM9 System Bus"
+        # The scan reads the whole window in chunks; only the chunk(s)
+        # overlapping our planted signature need real bytes, the rest can
+        # be zero (no other 0,1,2,3,4 sequence will appear by chance).
+        result = bytearray(size)
+        blob_start_in_this_chunk = signature_position_in_scan - address + scan_start
+        for i, byte in enumerate(blob):
+            pos = blob_start_in_this_chunk + i
+            if 0 <= pos < size:
+                result[pos] = byte
+        return [bytes(result)]
+
+    monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
+
+    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
+    located = asyncio.run(client_module._locate_save_addresses(ctx))
+    assert located is not None
+    bag_address, flags_array_address, found_array_headers_address = located
+
+    assert found_array_headers_address == array_headers_address
+    dynamic_region_base = array_headers_address - client_module._SAVE_COUNTER_SIZE - client_module._DYNAMIC_REGION_SIZE
+    assert bag_address == dynamic_region_base + bag_chunk_offset
+    assert flags_array_address == dynamic_region_base + flags_chunk_offset + client_module.FLAGS_ARRAY_OFFSET
+
+
+def test_locate_save_addresses_returns_none_when_signature_not_found(client_module, monkeypatch):
+    async def fake_read(bizhawk_ctx, read_list):
+        (address, size, domain) = read_list[0]
+        return [bytes(size)]  # all zero, no signature anywhere
+
+    monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
+
+    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
+    located = asyncio.run(client_module._locate_save_addresses(ctx))
+    assert located is None
+
+
+def test_ensure_addresses_located_prefers_manual_overrides_without_scanning(client_module, monkeypatch):
+    async def fail_read(*_args, **_kwargs):
+        raise AssertionError("must not scan RAM when both addresses are manually overridden")
+
+    monkeypatch.setattr(client_module.bizhawk, "read", fail_read)
+
+    handler = client_module.HeartGoldClient()
+    handler._manual_bag_base_override = 0x0227C8AC
+    handler._manual_flags_array_override = 0x0227D32C
+
+    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
+    assert asyncio.run(handler._ensure_addresses_located(ctx)) is True
+
+
+def test_ensure_addresses_located_scans_once_then_caches(client_module, monkeypatch):
+    array_headers_address = 0x0229F26C
+    blob = _build_fake_array_headers_blob(bag_offset=1604, flags_offset=3556)
+    scan_start = client_module._ARRAY_HEADERS_SCAN_START
+    signature_position_in_scan = array_headers_address - scan_start
+
+    read_calls: list[int] = []
+
+    async def fake_read(bizhawk_ctx, read_list):
+        (address, size, domain) = read_list[0]
+        read_calls.append(address)
+        result = bytearray(size)
+        blob_start_in_this_chunk = signature_position_in_scan - address + scan_start
+        for i, byte in enumerate(blob):
+            pos = blob_start_in_this_chunk + i
+            if 0 <= pos < size:
+                result[pos] = byte
+        return [bytes(result)]
+
+    monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
+
+    handler = client_module.HeartGoldClient()
+    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
+
+    assert asyncio.run(handler._ensure_addresses_located(ctx)) is True
+    assert handler.bag_base_address is not None
+    assert handler.flags_array_address is not None
+    calls_after_first_locate = len(read_calls)
+
+    # Second call: the cached `arrayHeaders` address is still valid (same
+    # fake_read still serves the signature there), so this must be a
+    # single cheap validation read, not a full re-scan of the window.
+    assert asyncio.run(handler._ensure_addresses_located(ctx)) is True
+    assert len(read_calls) == calls_after_first_locate + 1
+
+
+def test_ensure_addresses_located_rescans_when_cache_goes_stale(client_module, monkeypatch):
+    # Simulates exactly the scenario that motivated this module: the save
+    # was reloaded and `SaveData` (and therefore `arrayHeaders`) moved to
+    # a different address -- the previously-cached address no longer
+    # contains the signature, so a fresh scan must find the new one.
+    old_array_headers_address = 0x0229F26C
+    new_array_headers_address = 0x0229EA00
+    old_blob = _build_fake_array_headers_blob(bag_offset=1604, flags_offset=3556)
+    new_blob = _build_fake_array_headers_blob(bag_offset=2000, flags_offset=4000)
+    scan_start = client_module._ARRAY_HEADERS_SCAN_START
+
+    active_address = {"value": old_array_headers_address}
+    active_blob = {"value": old_blob}
+
+    async def fake_read(bizhawk_ctx, read_list):
+        (address, size, domain) = read_list[0]
+        signature_position_in_scan = active_address["value"] - scan_start
+        result = bytearray(size)
+        blob_start_in_this_chunk = signature_position_in_scan - address + scan_start
+        for i, byte in enumerate(active_blob["value"]):
+            pos = blob_start_in_this_chunk + i
+            if 0 <= pos < size:
+                result[pos] = byte
+        return [bytes(result)]
+
+    monkeypatch.setattr(client_module.bizhawk, "read", fake_read)
+
+    handler = client_module.HeartGoldClient()
+    ctx = _make_fake_ctx(missing_locations=set(), items_received=[])
+
+    assert asyncio.run(handler._ensure_addresses_located(ctx)) is True
+    first_bag_address = handler.bag_base_address
+
+    # "Reload the save": the old location no longer has the signature,
+    # the new one does.
+    active_address["value"] = new_array_headers_address
+    active_blob["value"] = new_blob
+
+    assert asyncio.run(handler._ensure_addresses_located(ctx)) is True
+    assert handler.bag_base_address != first_bag_address
 
 
 def test_resolve_save_layout_case_name_only_accepts_known_cases(client_module, monkeypatch):
@@ -487,6 +660,9 @@ def test_apply_next_received_item_writes_into_free_bag_slot(client_module, data_
     monkeypatch.setattr(client_module.bizhawk, "guarded_write", fake_guarded_write)
 
     handler = client_module.HeartGoldClient()
+    # The address itself is arbitrary here -- see the "Dynamic SaveData
+    # location" tests above for how it's actually derived in practice.
+    handler.bag_base_address = 0x0227C8AC
 
     ctx = _make_fake_ctx(
         missing_locations=set(),

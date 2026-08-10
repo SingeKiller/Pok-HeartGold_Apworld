@@ -952,6 +952,114 @@ the first clean confirmation of check detection working for **both**
 `ground_item` (the first three) and `npc_gift` (the fourth) location
 types against a real, live game.
 
+### Remote item injection: real save corruption found live, then a fixed absolute-address model found to be the wrong architecture entirely
+
+Continuing the same session's T2 testing, remote item reception
+(`_apply_next_received_item`, previously untested live) was exercised via
+the server's `!getitem` self-cheat command. Result: **the player's save
+was corrupted** -- the in-game Start menu lost its Bag/Status/Save/
+Options entries, requiring a save reload to recover (the player had
+saved recently enough that only a few minutes of progress were lost).
+
+Root cause investigation: `save_layout.py`'s `BAG_POCKET_OFFSETS`
+(pocket byte offsets, computed from declared per-pocket capacities like
+`NUM_BAG_ITEMS = 165`) was only ever independently verified for the
+*first* pocket -- the one `CONFIRMED_BAG_BASE_ADDRESS` itself was
+content-matched against. If any pocket's declared capacity is wrong,
+every *later* pocket's computed offset is wrong too, and a write can
+land outside the real `Bag` struct entirely, into adjacent save data.
+**Fix applied immediately**: `ctx.items_handling` downgraded from
+`0b011` (locations + remote items) to `0b001` (locations only) --
+`_apply_next_received_item` now never runs (the server never sends
+remote items to a client that didn't ask for them), so no RAM writes
+happen at all until every pocket offset is independently re-verified
+against the real game, the same rigor `CONFIRMED_BAG_BASE_ADDRESS`
+itself went through. This is a `client.py` code change (`validate_rom`),
+not merely a runtime toggle -- re-enabling it requires deliberately
+restoring `0b011` and doing that verification work first.
+
+**A second, deeper problem surfaced investigating the corruption**: a
+live scan for a known Bag item (`route_30_apricorn_house` had left the
+player with exactly one distinctively-quantified item, cross-checked by
+byte-scanning a wide RAM window for it) found it at a **completely
+different absolute address** than `CONFIRMED_BAG_BASE_ADDRESS` -- after
+the player reloaded their save (recovering from the corruption above),
+`Bag` had moved by roughly 1.3 KB. `include/save.h`'s `SaveSlotSpec
+saveSlotSpecs[2]` explains why: the game double-buffers save data across
+two physical slots (ordinary write-safety practice -- a failed write
+never corrupts the other copy), and either slot's in-RAM working copy
+can end up active depending on which was written last. **There is no
+reason a fixed absolute address should ever have been expected to
+survive a save reload** -- the whole "confirm an address empirically,
+hardcode it" approach used throughout this session (`CONFIRMED_BAG_BASE_
+ADDRESS`/`CONFIRMED_FLAGS_ARRAY_ADDRESS`) was the wrong shape of fix, not
+just imprecisely executed.
+
+**The actual fix: locate `SaveData` dynamically, every session, via
+`SaveData.arrayHeaders[]` itself** (`include/save.h`), rather than any
+fixed address. `arrayHeaders[0..4]` are five consecutive 16-byte
+`SaveArrayHeader{int id; u32 size; u32 offset; u16 crc; u16 slot;}`
+records whose `id` fields are exactly `0,1,2,3,4` in order (`SAVE_
+SYSINFO`.."SAVE_FLAGS", `include/constants/save_arrays.h`) -- a
+distinctive, content-independent signature (unlike scanning for actual
+item data, which depends on what the player happens to own) that a
+bounded RAM scan can reliably find regardless of which physical save
+slot is active. Once found, `arrayHeaders[SAVE_BAG].offset`/
+`arrayHeaders[SAVE_FLAGS].offset` give the real chunk offsets directly
+from the game's own bookkeeping table -- ground truth, no struct-size
+modeling and no pocket-capacity assumptions (the exact category of
+assumption that caused the corruption above) required at all.
+
+Implemented in `client.py` (`_find_array_headers_address`, `_locate_
+save_addresses`, `_ensure_addresses_located`): the scan runs once at
+first connection, and again automatically any time a cheap per-tick
+validity check on the cached `arrayHeaders` address fails (i.e. a save
+reload happened mid-session) -- `game_watcher` skips its tick entirely
+rather than read/write at a stale address while relocating. Verified
+twice, independently, the same session: the derived `Bag` address landed
+byte-for-byte on the address a blind content-scan for a known-owned item
+had separately found; and a fresh end-to-end live test (server + real
+BizHawk client, dynamic location only, no manual address anywhere)
+correctly detected two further real pickups
+(`route_29_potion` -> `SEA_INCENSE`, `route_30_potion` -> `PECHA_BERRY`)
+with zero false positives, immediately after a save reload that would
+have broken the old fixed-address model. `CONFIRMED_BAG_BASE_ADDRESS`/
+`CONFIRMED_FLAGS_ARRAY_ADDRESS` are removed from `client.py` entirely
+(no longer meaningful); `HEARTGOLD_BAG_BASE_ADDRESS`/`HEARTGOLD_FLAGS_
+ARRAY_ADDRESS` env vars remain as a manual override for troubleshooting,
+unset by default.
+
+**Update, same session: remote item injection re-verified and re-enabled.**
+On reflection, the corruption above was very likely caused simply by the
+*wrong base address* (the old `CONFIRMED_BAG_BASE_ADDRESS` was not
+actually the start of `Bag`) rather than by `BAG_POCKET_OFFSETS`'s
+pocket-capacity model itself, which is sourced directly from the
+decomp's own `bag_types_def.h` (`NUM_BAG_ITEMS` etc. are cited decomp
+constants, not guesses). With the base now correctly located dynamically
+(above), a read-only, live scan of all 8 Bag pockets (via the same
+dynamically-located base) found every non-empty slot correctly matching
+the player's actual, known inventory (`items`: Big Pearl x5 + Sea
+Incense; `berries`: Pecha Berry; every other pocket empty, consistent
+with an early-game save) -- zero anomalies, zero misplaced items. This
+independently confirms the pocket-offset model itself was never the
+problem.
+
+`ctx.items_handling` was restored to `0b011` (locations + remote items)
+and re-tested live via the server's `!getitem` cheat command
+(`POKE_BALL`, chosen as a pocket with no existing contents to make a
+misplacement obvious): the client correctly wrote `Poke Ball x1` into
+the `balls` pocket at its expected address, verified again via the same
+read-only all-pocket scan afterward -- every other pocket's contents
+unchanged and correctly placed, no menu corruption, no misplaced data.
+**Remote item injection is confirmed working, live, on top of the
+dynamically-located addresses.**
+
+**M4 status after this**: local item substitution, check detection, and
+remote item injection are all robust and confirmed live, including
+across a save reload. What remains open: `hidden_item` substitution
+(separate, already-documented blocker -- static ARM9 table) and a
+Reviewer pass on this session's `client.py` changes as a whole.
+
 **M4's core client-only strategy (docs/architecture.md's "ROM code
 injection strategy (revised after C14)", option 3) is now fully
 validated end-to-end**: local item substitution (confirmed earlier this
