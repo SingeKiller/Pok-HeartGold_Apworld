@@ -28,9 +28,11 @@
 # deterministic and friends).
 #
 # `options.py` (created in parallel by another agent, see task brief) now
-# exists and defines `RandomizeWildPokemon`/`RandomizeStarters`/
-# `RandomizeTrainers`/`RandomizeEvolutions`/`RandomizeBaseStats`/
-# `RandomizeMoves`. This module deliberately does NOT import it: `options.py` itself imports `Options` from the local
+# exists and defines `RandomizeWildPokemon`/`RandomizeTrainers`/
+# `RandomizeEvolutions`/`RandomizeBaseStats`/`RandomizeMoves` (no
+# `RandomizeStarters` -- starters is shelved, see `options.py`'s own
+# docstring; `randomize_starters` below stays as tested, unconnected
+# computation). This module deliberately does NOT import it: `options.py` itself imports `Options` from the local
 # Archipelago clone (see its own docstring), and this module has no other
 # reason to need that dependency (unlike `rules.py`, which genuinely needs
 # `BaseClasses.Entrance`/`CollectionState` types) -- keeping it out lets
@@ -329,6 +331,52 @@ def randomize_evolutions(rng: Random, mode: int, species: dict = SPECIES) -> dic
 # --- 5. Base stats -----------------------------------------------------------
 
 
+# `BASE_STATS_FULL_RANDOM`'s redistribution (added after live playtest
+# feedback, see this function's own docstring): each stat must land in a
+# real, ROM-representable range. `rom/speciesdata.py`'s `_BASE_STAT_FIELD_
+# OFFSETS` writes each stat as a single unsigned byte (0-255) -- 255 is
+# therefore the hard ceiling here regardless of how high a species' own
+# BST happens to be (Arceus's 720 spread evenly would only need ~120 per
+# stat, so this only ever binds for a deliberately lopsided draw). 1 is the
+# floor: a real 0 in any stat (especially HP) is degenerate/unplayable,
+# not just "low".
+_BASE_STAT_MIN = 1
+_BASE_STAT_MAX = 255
+
+
+def _redistribute_preserving_total(rng: Random, total: int, count: int) -> list[int]:
+    """`count` positive integers, each in `[_BASE_STAT_MIN, _BASE_STAT_MAX]`,
+    summing to exactly `total` -- a uniformly random composition (the
+    "stars and bars" construction: reserve the minimum for every part
+    up front, then cut the remaining budget at `count - 1` random points).
+    Order is not meaningful (caller shuffles); retries (rejection
+    sampling) if an unlucky cut pushes any single part over the max --
+    astronomically rare for real base-stat totals (even a legendary's
+    ~680-720 BST across 6 stats averages ~120), but not impossible, so
+    this is a real loop, not a formality."""
+    reserve = _BASE_STAT_MIN * count
+    remainder = total - reserve
+    if remainder < 0:
+        raise ValueError(f"total {total} is too small to give {count} stats at least {_BASE_STAT_MIN} each")
+
+    for _ in range(500):
+        cuts = sorted(rng.randint(0, remainder) for _ in range(count - 1))
+        parts = []
+        previous = 0
+        for cut in cuts:
+            parts.append(cut - previous)
+            previous = cut
+        parts.append(remainder - previous)
+        parts = [p + _BASE_STAT_MIN for p in parts]
+        if all(p <= _BASE_STAT_MAX for p in parts):
+            return parts
+
+    # Reachable only for a pathologically lopsided total across very few
+    # stats (not the case for this project's 6-stat calls) -- clamp and
+    # accept a slightly-off total rather than loop forever.
+    return [min(p, _BASE_STAT_MAX) for p in parts]
+
+
 def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dict:
     """Randomize each species' `base_stats` dict (`hp`/`atk`/`def`/`spatk`/
     `spdef`/`speed`). Growth rate and every other species field are never
@@ -338,12 +386,20 @@ def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dic
     - `BASE_STATS_SHUFFLE`: each stat column is shuffled independently
       across every species (`rng.shuffle`) -- the same multiset of values
       in that column still appears somewhere, just reassigned.
-    - `BASE_STATS_FULL_RANDOM`: each stat is independently replaced by a
-      fresh `rng.randint` draw within the real min-max range some vanilla
-      species actually has for that same stat.
+    - `BASE_STATS_FULL_RANDOM`: each species' own base stat *total* (the
+      sum of all 6 stats, i.e. its BST) is preserved exactly -- only how
+      that total is split across the 6 stats is randomized (`rng`-driven
+      composition, see `_redistribute_preserving_total`). Chosen after
+      live playtest feedback: independently randint-ing each stat (the
+      original behavior) could and did produce results disconnected from
+      a species' own power level (e.g. a lopsidedly weak or absurdly
+      strong-for-its-BST result) -- redistributing a real, preserved
+      total keeps every species roughly as strong overall as it started,
+      while still fully scrambling *which* stat that strength shows up
+      in.
 
-    Walks `species` in its own dict order and `_BASE_STAT_FIELDS` in its
-    own fixed order, so the result is fully determined by `rng`'s seed."""
+    Walks `species` in its own dict order, so the result is fully
+    determined by `rng`'s seed."""
     if mode == BASE_STATS_OFF:
         return species
 
@@ -357,11 +413,12 @@ def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dic
             for key, value in zip(keys, values):
                 new_stats[key][field] = value
     elif mode == BASE_STATS_FULL_RANDOM:
-        for field in _BASE_STAT_FIELDS:
-            values = [species[key]["base_stats"][field] for key in keys]
-            low, high = min(values), max(values)
-            for key in keys:
-                new_stats[key][field] = rng.randint(low, high)
+        for key in keys:
+            total = sum(species[key]["base_stats"][field] for field in _BASE_STAT_FIELDS)
+            parts = _redistribute_preserving_total(rng, total, len(_BASE_STAT_FIELDS))
+            rng.shuffle(parts)
+            for field, value in zip(_BASE_STAT_FIELDS, parts):
+                new_stats[key][field] = value
     else:
         raise ValueError(f"unknown base-stat randomization mode: {mode!r}")
 
@@ -369,6 +426,107 @@ def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dic
 
 
 # --- 6. Move stats -----------------------------------------------------------
+#
+# `MOVES_FULL_RANDOM`'s power/accuracy/PP ranges below (added after live
+# playtest feedback -- the original independent-randint-per-field design
+# produced disconnected, un-fun results: e.g. a live-tested seed's Tackle
+# landing on power=9/accuracy=89/PP=1) are a deliberate design, not a
+# derived-from-the-ROM constant like this module's other tables:
+#
+# - PP: a multiple of 5 in [5, 40] -- every *vanilla* PP value already is
+#   a multiple of 5 (HGSS's own convention bar Struggle, which this
+#   randomizer never touches at all, see data/moves.py), so this keeps
+#   randomized PP looking like a real value a player would recognize.
+# - Power (physical/special moves only -- status moves keep their
+#   vanilla power, almost always 0, untouched: power is meaningless for
+#   a move that deals no direct damage): [40, 250] for an ordinary
+#   single-hit move. Multi-hit moves (`_MULTI_HIT_MOVES` below) get their
+#   power divided down by their average hit count instead of the raw
+#   [40, 250] roll, so a move that hits 2-5 times doesn't also hit
+#   2-5x as hard per hit as a single-hit move -- both land on
+#   comparable *total expected damage*.
+# - Accuracy (physical/special moves with a real, non-zero vanilla
+#   accuracy -- see the `accuracy == 0` sentinel note below): linear in
+#   the move's own (pre-multi-hit-division) power, from 100% at the
+#   lowest possible power (40) down to 40% at the highest (250), plus a
+#   little random jitter, then rounded to the nearest multiple of 5 (still
+#   clamped to [40, 100]) -- every *vanilla* HGSS accuracy value is
+#   already a multiple of 5, same reasoning as PP above. Status moves'
+#   own accuracy (when not the `0` sentinel) keeps the *previous* simple
+#   independent-randint-within-vanilla-range behavior (also rounded to a
+#   multiple of 5), since status moves have no power to derive it from.
+
+# Average hit count for each of HGSS's known multi-hit moves (used only to
+# scale `MOVES_FULL_RANDOM`'s power draw down, see this section's own
+# docstring) -- fixed-count moves (Double Kick, Twineedle) use their exact
+# count; the rest use HGSS's own classic 2/3/4/5-hit probability weights
+# (37.5%/37.5%/12.5%/12.5%), whose expected value is exactly 3. Not derived
+# from a decomp data source (`data/moves.py` itself has no hit-count field,
+# see this section's own docstring) -- a hardcoded list of Gen IV's own
+# well-known multi-hit moves.
+_MULTI_HIT_MOVES: dict[str, float] = {
+    "double_kick": 2.0,
+    "twineedle": 2.0,
+    "triple_kick": 3.0,
+    "double_slap": 3.0,
+    "comet_punch": 3.0,
+    "fury_attack": 3.0,
+    "pin_missile": 3.0,
+    "spike_cannon": 3.0,
+    "barrage": 3.0,
+    "fury_swipes": 3.0,
+    "bone_rush": 3.0,
+    "bullet_seed": 3.0,
+    "icicle_spear": 3.0,
+    "rock_blast": 3.0,
+    "arm_thrust": 3.0,
+}
+
+# A second sentinel, discovered while writing this section's own tests:
+# `power == 1` marks a move whose real damage is computed by special-case
+# battle-engine code, not a literal base-power multiplication (every OHKO
+# move; weight/HP/happiness/item-dependent moves like Low Kick/Flail/
+# Return/Fling; fixed/variable-formula moves like Seismic Toss/Counter/
+# Hidden Power/Psywave; ...). Exactly analogous to the `accuracy == 0`
+# "never misses" sentinel already documented above -- neither field is a
+# real value to randomize for these moves, so both are left exactly as
+# vanilla.
+_MOVE_POWER_SENTINEL = 1
+
+_SINGLE_HIT_POWER_RANGE = (40, 250)
+_MULTI_HIT_MIN_PER_HIT_POWER = 10
+_MOVE_ACCURACY_RANGE = (40, 100)
+_MOVE_ACCURACY_JITTER = 10
+_MOVE_ACCURACY_STEP = 5
+_PP_CHOICES = (5, 10, 15, 20, 25, 30, 35, 40)
+
+
+def _round_to_multiple(value: float, multiple: int, low: int, high: int) -> int:
+    """`value` rounded to the nearest multiple of `multiple`, then clamped
+    to `[low, high]` (both already exact multiples for every caller here,
+    so the clamp never itself breaks the multiple-of invariant)."""
+    rounded = round(value / multiple) * multiple
+    return max(low, min(high, rounded))
+
+
+def _random_power_and_accuracy(rng: Random, move_key: str, category: str, vanilla_power: int) -> tuple[int, int]:
+    """One `(power, accuracy)` draw for `MOVES_FULL_RANDOM`, per this
+    section's own docstring. `accuracy` here is the damaging-move formula
+    only -- callers handle the `accuracy == 0` sentinel and status moves'
+    own fallback separately, this function is never called for either."""
+    low, high = _SINGLE_HIT_POWER_RANGE
+    rolled_power = rng.randint(low, high)
+
+    hits = _MULTI_HIT_MOVES.get(move_key)
+    power = rolled_power if hits is None else max(_MULTI_HIT_MIN_PER_HIT_POWER, round(rolled_power / hits))
+
+    acc_low, acc_high = _MOVE_ACCURACY_RANGE
+    fraction = (rolled_power - low) / (high - low)
+    target_accuracy = acc_high - fraction * (acc_high - acc_low)
+    jitter = rng.randint(-_MOVE_ACCURACY_JITTER, _MOVE_ACCURACY_JITTER)
+    accuracy = _round_to_multiple(target_accuracy + jitter, _MOVE_ACCURACY_STEP, acc_low, acc_high)
+
+    return power, accuracy
 
 
 def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
@@ -379,23 +537,25 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
 
     - `MOVES_OFF`: returns `moves` unchanged.
     - `MOVES_SHUFFLE`: each of power/accuracy/pp is shuffled independently
-      across every move (`rng.shuffle`).
-    - `MOVES_FULL_RANDOM`: each of power/accuracy/pp is independently
-      replaced by a fresh `rng.randint` draw within the real min-max range
-      some vanilla move actually has for that same field.
+      across every move (`rng.shuffle`) -- the same multiset of real
+      vanilla values still appears somewhere, just reassigned, so this
+      mode is unaffected by the `MOVES_FULL_RANDOM`-only balance rules
+      this section's own docstring describes.
+    - `MOVES_FULL_RANDOM`: PP is an independent multiple-of-5 draw; power
+      and accuracy are drawn jointly per move (accuracy derived from that
+      same move's own power) for physical/special moves, or independently
+      within the vanilla range for status moves' accuracy (power stays
+      untouched) -- see this section's own docstring for the full design
+      and why.
 
     `accuracy == 0` is a sentinel, not a real percentage -- HGSS's own
     convention for "never misses" (Swift, Aerial Ace, ...; the OHKO moves
     Fissure/Horn Drill/Guillotine/Sheer Cold use a different, non-zero
     encoding for their level-based accuracy check and are unaffected by
-    this). Moves with `accuracy == 0` keep it exactly as-is in every mode,
-    and are excluded from the pool other moves' accuracy is drawn from --
-    otherwise `shuffle`/`full_random` could hand `0` to an ordinary move
-    (making it unmissable) or take it away from Swift/Aerial Ace (making
-    them missable), neither a "randomize the percentage" outcome.
+    this). Moves with `accuracy == 0` keep it exactly as-is in every mode.
 
-    Walks `moves` in its own dict order and `_MOVE_COMBAT_FIELDS` in its
-    own fixed order, so the result is fully determined by `rng`'s seed."""
+    Walks `moves` in its own dict order, so the result is fully determined
+    by `rng`'s seed."""
     if mode == MOVES_OFF:
         return moves
 
@@ -410,12 +570,44 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
             for key, value in zip(eligible_keys, values):
                 new_combat_stats[key][field] = value
     elif mode == MOVES_FULL_RANDOM:
-        for field in _MOVE_COMBAT_FIELDS:
-            eligible_keys = tuple(key for key in keys if not (field == "accuracy" and moves[key][field] == 0))
-            values = [moves[key][field] for key in eligible_keys]
-            low, high = min(values), max(values)
-            for key in eligible_keys:
-                new_combat_stats[key][field] = rng.randint(low, high)
+        for key in keys:
+            new_combat_stats[key]["pp"] = rng.choice(_PP_CHOICES)
+
+        eligible_accuracy_keys = tuple(key for key in keys if moves[key]["accuracy"] != 0)
+        fallback_accuracy_values = [moves[key]["accuracy"] for key in eligible_accuracy_keys]
+        acc_low, acc_high = _MOVE_ACCURACY_RANGE
+        # Clamped into the same [40, 100] floor/ceiling the power-derived
+        # formula uses below -- the raw vanilla pool includes OHKO moves'
+        # real 30% (a power-sentinel, excluded from *this* draw entirely,
+        # see the loop below), which would otherwise let a status move's
+        # fallback accuracy land under the intended floor too.
+        fallback_low = max(acc_low, min(fallback_accuracy_values))
+        fallback_high = min(acc_high, max(fallback_accuracy_values))
+
+        for key in keys:
+            data = moves[key]
+            if data["accuracy"] == 0 or data["power"] == _MOVE_POWER_SENTINEL:
+                # `accuracy == 0` ("never misses") and `power == 1`
+                # ("variable/special-mechanic power, computed elsewhere at
+                # battle time" -- OHKO moves, Low Kick, Seismic Toss,
+                # Counter, Flail, Hidden Power, ... see this section's own
+                # docstring) are both sentinels, not real values to
+                # randomize -- a move with either keeps *both* fields
+                # exactly as vanilla (deriving a fake accuracy from a fake
+                # power would be meaningless for these).
+                new_combat_stats[key]["accuracy"] = data["accuracy"]
+                new_combat_stats[key]["power"] = data["power"]
+                continue
+            if data["category"] == "status":
+                new_combat_stats[key]["power"] = data["power"]
+                rolled = rng.randint(fallback_low, fallback_high)
+                new_combat_stats[key]["accuracy"] = _round_to_multiple(
+                    rolled, _MOVE_ACCURACY_STEP, fallback_low, fallback_high
+                )
+                continue
+            power, accuracy = _random_power_and_accuracy(rng, key, data["category"], data["power"])
+            new_combat_stats[key]["power"] = power
+            new_combat_stats[key]["accuracy"] = accuracy
     else:
         raise ValueError(f"unknown move-stat randomization mode: {mode!r}")
 

@@ -313,6 +313,136 @@ def test_evolutions_edge_count_is_preserved(species_logic, species_data) -> None
             assert len(result[key]["evolutions"]) == len(data["evolutions"])
 
 
+# --- 5. Base stats (task M4.5, balance revision) -----------------------------
+
+
+def test_base_stats_full_random_preserves_total_per_species(species_logic, species_data) -> None:
+    result = species_logic.randomize_base_stats(Random(11), species_logic.BASE_STATS_FULL_RANDOM, species_data)
+    fields = species_logic._BASE_STAT_FIELDS
+    for key, data in species_data.items():
+        original_total = sum(data["base_stats"][f] for f in fields)
+        new_total = sum(result[key]["base_stats"][f] for f in fields)
+        assert new_total == original_total
+
+
+def test_base_stats_full_random_each_stat_in_valid_byte_range(species_logic, species_data) -> None:
+    result = species_logic.randomize_base_stats(Random(12), species_logic.BASE_STATS_FULL_RANDOM, species_data)
+    for data in result.values():
+        for value in data["base_stats"].values():
+            assert species_logic._BASE_STAT_MIN <= value <= species_logic._BASE_STAT_MAX
+
+
+def test_base_stats_full_random_changes_the_split_not_just_a_noop(species_logic, species_data) -> None:
+    result = species_logic.randomize_base_stats(Random(13), species_logic.BASE_STATS_FULL_RANDOM, species_data)
+    assert any(result[key]["base_stats"] != data["base_stats"] for key, data in species_data.items())
+
+
+def test_base_stats_full_random_is_deterministic(species_logic, species_data) -> None:
+    first = species_logic.randomize_base_stats(Random(14), species_logic.BASE_STATS_FULL_RANDOM, species_data)
+    second = species_logic.randomize_base_stats(Random(14), species_logic.BASE_STATS_FULL_RANDOM, species_data)
+    assert first == second
+
+
+# --- 6. Move stats (task M4.5, balance revision) ------------------------------
+
+
+def test_move_stats_full_random_pp_is_a_multiple_of_5_in_range(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(21), species_logic.MOVES_FULL_RANDOM, moves_data)
+    for data in result.values():
+        assert data["pp"] % 5 == 0
+        assert 5 <= data["pp"] <= 40
+
+
+def test_move_stats_full_random_status_moves_keep_vanilla_power(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(22), species_logic.MOVES_FULL_RANDOM, moves_data)
+    for key, data in moves_data.items():
+        if data["category"] == "status":
+            assert result[key]["power"] == data["power"]
+
+
+def test_move_stats_full_random_single_hit_damaging_power_in_range(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(23), species_logic.MOVES_FULL_RANDOM, moves_data)
+    low, high = species_logic._SINGLE_HIT_POWER_RANGE
+    for key, data in moves_data.items():
+        if (
+            data["category"] != "status"
+            and key not in species_logic._MULTI_HIT_MOVES
+            and data["power"] != species_logic._MOVE_POWER_SENTINEL
+        ):
+            assert low <= result[key]["power"] <= high
+
+
+def test_move_stats_full_random_power_sentinel_moves_keep_vanilla_power_and_accuracy(
+    species_logic, moves_data
+) -> None:
+    """`power == 1` (OHKO moves, Low Kick, Seismic Toss, Counter, Hidden
+    Power, ...) is a special-mechanic sentinel, not a real value -- both
+    fields must stay exactly vanilla."""
+    result = species_logic.randomize_move_stats(Random(28), species_logic.MOVES_FULL_RANDOM, moves_data)
+    sentinel_keys = [k for k, v in moves_data.items() if v["power"] == species_logic._MOVE_POWER_SENTINEL]
+    assert sentinel_keys  # sanity: HGSS's own move table really has some
+    for key in sentinel_keys:
+        assert result[key]["power"] == moves_data[key]["power"]
+        assert result[key]["accuracy"] == moves_data[key]["accuracy"]
+
+
+def test_move_stats_full_random_multi_hit_power_is_scaled_down(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(24), species_logic.MOVES_FULL_RANDOM, moves_data)
+    _, high = species_logic._SINGLE_HIT_POWER_RANGE
+    for key in species_logic._MULTI_HIT_MOVES:
+        if key in moves_data:
+            assert result[key]["power"] < high
+            assert result[key]["power"] >= species_logic._MULTI_HIT_MIN_PER_HIT_POWER
+
+
+def test_move_stats_full_random_accuracy_decreases_as_power_increases(species_logic, moves_data) -> None:
+    """Not a strict monotonic guarantee (jitter is deliberate, see
+    species.py's own docstring) -- but averaged over every damaging move
+    in one seed, higher power must correlate with lower accuracy."""
+    result = species_logic.randomize_move_stats(Random(25), species_logic.MOVES_FULL_RANDOM, moves_data)
+    damaging_non_multi_hit = [
+        (result[key]["power"], result[key]["accuracy"])
+        for key, data in moves_data.items()
+        if data["category"] != "status"
+        and data["accuracy"] != 0
+        and data["power"] != species_logic._MOVE_POWER_SENTINEL
+        and key not in species_logic._MULTI_HIT_MOVES
+    ]
+    low_power = [acc for power, acc in damaging_non_multi_hit if power < 100]
+    high_power = [acc for power, acc in damaging_non_multi_hit if power > 190]
+    assert low_power and high_power
+    assert (sum(low_power) / len(low_power)) > (sum(high_power) / len(high_power))
+
+
+def test_move_stats_full_random_accuracy_in_valid_range_or_never_miss_sentinel(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(26), species_logic.MOVES_FULL_RANDOM, moves_data)
+    acc_low, acc_high = species_logic._MOVE_ACCURACY_RANGE
+    for key, data in moves_data.items():
+        accuracy = result[key]["accuracy"]
+        if data["accuracy"] == 0:
+            assert accuracy == 0
+        elif data["power"] == species_logic._MOVE_POWER_SENTINEL:
+            # power-sentinel moves (OHKO, ...) keep their real vanilla
+            # accuracy untouched -- e.g. Fissure's 30% is real and can
+            # fall outside the randomized range on purpose.
+            assert accuracy == data["accuracy"]
+        else:
+            assert acc_low <= accuracy <= acc_high
+
+
+def test_move_stats_full_random_accuracy_is_a_multiple_of_5(species_logic, moves_data) -> None:
+    result = species_logic.randomize_move_stats(Random(29), species_logic.MOVES_FULL_RANDOM, moves_data)
+    for key, data in moves_data.items():
+        if data["accuracy"] != 0 and data["power"] != species_logic._MOVE_POWER_SENTINEL:
+            assert result[key]["accuracy"] % 5 == 0
+
+
+def test_move_stats_full_random_is_deterministic(species_logic, moves_data) -> None:
+    first = species_logic.randomize_move_stats(Random(27), species_logic.MOVES_FULL_RANDOM, moves_data)
+    second = species_logic.randomize_move_stats(Random(27), species_logic.MOVES_FULL_RANDOM, moves_data)
+    assert first == second
+
+
 # --- Full pipeline: the most important property ---------------------------------
 
 
