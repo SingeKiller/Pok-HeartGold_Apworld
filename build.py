@@ -43,7 +43,13 @@ def whitelisted_paths() -> list[Path]:
         if rel.endswith("/"):
             directory = ROOT / rel
             if directory.is_dir():
-                paths.extend(sorted(p for p in directory.rglob("*") if p.is_file()))
+                paths.extend(
+                    sorted(
+                        p
+                        for p in directory.rglob("*")
+                        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
+                    )
+                )
         else:
             paths.append(ROOT / rel)
     return paths

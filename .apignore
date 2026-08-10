@@ -18,6 +18,8 @@
 !/items.py
 !/locations.py
 !/options.py
+!/output_patch.py
+!/patch_gen.py
 !/regions.py
 !/rules.py
 !/species.py

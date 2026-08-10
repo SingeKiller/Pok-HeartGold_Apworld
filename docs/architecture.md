@@ -1542,3 +1542,66 @@ a live capture starting from map load / task creation for the selection
 screen (before the screen is even visible) rather than from
 "already on the selection screen," to catch a true initializing write
 instead of steady-state re-reads.
+
+## M5 -- `generate_output` (the missing M4 piece, done first)
+
+Before starting M5's own build/CI work, a real gap surfaced: `__init__.py`
+had no `generate_output` method at all. Every M4/M4.5 randomizer
+(`patch_gen.py`'s `apply_*` functions) had been exercised only via tests
+and ad-hoc live-test scripts -- there was no code path a real `Generate.py`
+run (or the WebHost) could actually call to produce a player's patched
+ROM. Implemented now, following the same pattern every other ROM-patching
+Archipelago world uses (`worlds/pokemon_emerald`, `ressources/
+platinum_archipelago`): never embed/transmit the vanilla ROM's own bytes
+anywhere in a generated file -- only a small JSON *description* of the
+changes goes in the patch file; `.patch()` re-reads the player's own local
+ROM copy (from a `settings.Group`, `host.yaml`'s `pokemon_heartgold_
+settings.rom_file`) fresh every time it actually runs, possibly on a
+different machine than the one that generated the seed.
+
+- New file `output_patch.py`: `HeartGoldProcedurePatch(APAutoPatchInterface)`
+  stores 5 JSON blobs (`trainers.json`/`encounters.json`/`species.json`/
+  `moves.json`/`item_substitutions.json`) inside a `.apheartgold` zip;
+  `.patch(target)` decodes them and calls `patch_gen.py`'s existing,
+  already-tested `apply_trainer_randomization`/`apply_encounter_
+  randomization`/`apply_evolution_and_stat_randomization`/`apply_move_
+  randomization`/`apply_local_item_substitutions` against the player's own
+  vanilla ROM, then `rom.save(target)`. Reuses the existing library
+  functions verbatim -- no new ROM-writing logic, just the Archipelago-
+  facing glue.
+- `build_item_substitutions(world)`: walks `world.multiworld.get_locations
+  (world.player)`, keeping only locations whose placed item's `.player ==
+  world.player` (a *local* item -- see `client.py`'s own docstring for why
+  only local items are baked into the ROM at all; a location holding
+  another player's item is left at its vanilla `original_item`, which
+  `client.py`'s check-detection/remote-injection logic already expects).
+  **hidden_item is deliberately excluded from the substitutable types for
+  now** (`_SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift",
+  "hm_tm")`), pending the still-unresolved white-screen investigation from
+  the M4.5 session above -- ground_item/npc_gift/hm_tm were all confirmed
+  fine in the same isolation test that white screen came from, so only
+  hidden_item's bulk ARM9 write is held back. Re-add once root-caused.
+- `HeartGoldSettings` (in `__init__.py`, `settings_key = "pokemon_
+  heartgold_settings"`): a `settings.Group` with one `RomFile` (`settings.
+  UserFilePath`, `md5s=[HEARTGOLD_US_MD5]`) -- the per-machine `host.yaml`
+  setting every ROM-patching world needs.
+- `HeartGoldWorld.generate_output()`: one line, delegates to `output_
+  patch.generate_output(self, output_directory)`.
+
+**Verified end-to-end**, not just unit-tested in isolation: a real
+`setup_multiworld` -> `Fill.distribute_items_restrictive` -> `world.
+generate_output()` run produced a real `.apheartgold`
+(`AP_<seed>_P1_<name>.apheartgold`, ~139KB), which was then read back and
+`.patch()`-ed against the real ROM, producing a real, correctly-sized
+`.nds` (126,645,960 bytes, matching every other successful build this
+session) whose species base stats and move stats matched the computed
+`generated_species`/`generated_moves` exactly (spot-checked, then covered
+by `tests/test_generate_output.py`'s own `test_patch_applies_and_matches_
+computed_randomization`, which does the same thing as a permanent test).
+4 new tests total, all passing.
+
+`.apignore` was missing `output_patch.py`/`patch_gen.py` entirely (both
+now genuinely required at runtime, not just NitroFS-access-layer
+dependencies) -- added. `build.py`'s directory-recursion also picked up
+`rom/__pycache__/*.pyc` files it had no business packaging -- excluded
+now.

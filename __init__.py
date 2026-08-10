@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
+from typing import Any, ClassVar
 
 # Every sibling module in this project (items.py/locations.py/regions.py/
 # rules.py/options.py/species.py, and the generated data/ package) uses
@@ -101,6 +101,7 @@ if os.path.isdir(_THIS_DIR) and not os.path.isdir(os.path.join(_THIS_DIR, "data"
 
     subprocess.run([sys.executable, os.path.join(_THIS_DIR, "data_gen.py")], cwd=_THIS_DIR, check=True)
 
+import settings  # noqa: E402
 from BaseClasses import CollectionState, Item, Region, Tutorial  # noqa: E402
 from data import GAME_VERSION  # noqa: E402
 from data.items import ITEMS  # noqa: E402
@@ -118,7 +119,16 @@ from client import HeartGoldClient  # noqa: E402, F401
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import badge_event_item_name, create_location_label_to_code_map, create_locations  # noqa: E402
 from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402
+
+# HeartGoldProcedurePatch itself is never referenced by name below -- the
+# import's side effect (AutoPatchRegister's metaclass registers it by
+# patch_file_ending at class-definition time) is what actually matters,
+# same convention this file's own `from client import HeartGoldClient`
+# import above already uses for the same reason.
+from output_patch import HeartGoldProcedurePatch  # noqa: E402, F401
+from output_patch import generate_output as write_output_patch  # noqa: E402
 from regions import create_regions as build_region_graph  # noqa: E402
+from rom import HEARTGOLD_US_MD5  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
 from species import (  # noqa: E402
     randomize_base_stats,
@@ -194,6 +204,22 @@ class HeartGoldWebWorld(WebWorld):
     tutorials: list[Tutorial] = []
 
 
+class HeartGoldSettings(settings.Group):
+    """Per-machine settings (`host.yaml`'s `pokemon_heartgold_options`) --
+    distinct from `HeartGoldOptions` (per-player, YAML-configured game
+    options): `rom_file` is *where this machine's own copy of the ROM
+    lives*, read fresh every time `HeartGoldProcedurePatch.patch()` runs
+    (see `output_patch.py`'s own docstring for why the ROM itself is never
+    embedded in a generated patch file)."""
+
+    class RomFile(settings.UserFilePath):
+        description = "Pokemon HeartGold (USA) ROM file"
+        copy_to = "Pokemon - HeartGold Version (USA).nds"
+        md5s = [HEARTGOLD_US_MD5]
+
+    rom_file: RomFile = RomFile(RomFile.copy_to)
+
+
 # pytest's own `Package` collector (any directory with an `__init__.py`,
 # including this project's own repository root once this file exists --
 # see `pytest.Package`'s own docstring in the local venv's
@@ -216,6 +242,9 @@ class HeartGoldWorld(World):
     game = "Pokemon HeartGold"
     web = HeartGoldWebWorld()
     topology_present = True
+
+    settings_key = "pokemon_heartgold_settings"
+    settings: ClassVar[HeartGoldSettings]
 
     options_dataclass = HeartGoldOptions
     options: HeartGoldOptions
@@ -268,3 +297,13 @@ class HeartGoldWorld(World):
             "goal": self.options.goal.value,
             "goal_badge_count": self.options.goal_badge_count.value,
         }
+
+    def generate_output(self, output_directory: str) -> None:
+        """The real per-player output step (task M5): builds a
+        `HeartGoldProcedurePatch` from this player's own `generated_*`
+        randomizer output (computed in `set_rules()` above) plus local
+        item substitutions, and writes it to `output_directory` as a
+        `.apheartgold` file -- see `output_patch.py`'s own docstring for
+        why the actual ROM patching happens later, in `.patch()`, not
+        here."""
+        write_output_patch(self, output_directory)
