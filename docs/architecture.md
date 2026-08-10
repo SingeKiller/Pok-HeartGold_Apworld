@@ -1192,7 +1192,14 @@ Cyndaquil/Totodile**, not the seed's rolled starters. The candidate
 address is wrong (or the write mechanism has a bug -- not
 distinguished). Wild-encounter randomization was cross-checked in the
 same live session and confirmed working (a Swalot on Route 29, nowhere
-near a vanilla Route 29 encounter).
+near a vanilla Route 29 encounter). A follow-up live check (a
+`rare_candy` x15 injected directly into the Bag via the same live-RAM
+technique `client.py` already uses, no server needed) confirmed
+evolution-target randomization working too: a level-up evolution landed
+on a different, non-vanilla target. Base stats and move stats were not
+part of this particular test seed (`randomize_base_stats`/`randomize_
+moves` both `off`) -- confirmed only via the ROM-level round-trip tests
+above, not yet cross-checked live in a running game.
 
 **Status: disconfirmed, not just unverified.** `rom/starterdata.py` and
 the overlay read/write plumbing in `rom/__init__.py` are left in place
