@@ -24,10 +24,12 @@
 # own documented contract: "the caller is expected to pass world.random ...
 # here") and stores their output on `self` (generated_starters/
 # generated_encounters/generated_trainer_parties/generated_species/
-# generated_moves) for `patch_gen.py`'s `apply_species_randomization` (task
-# M4.5, see CLAUDE.md's "building ROMS" section) to consume -- the same
-# division of labour species.py's own module docstring describes for itself
-# ("a later task wires these functions' output into the actual world").
+# generated_moves) for `patch_gen.py`'s `apply_trainer_randomization`/
+# `apply_encounter_randomization`/`apply_evolution_and_stat_randomization`/
+# `apply_move_randomization` (task M4.5, see CLAUDE.md's "building ROMS"
+# section) to consume -- the same division of labour species.py's own
+# module docstring describes for itself ("a later task wires these
+# functions' output into the actual world").
 
 from __future__ import annotations
 
@@ -100,6 +102,10 @@ if os.path.isdir(_THIS_DIR) and not os.path.isdir(os.path.join(_THIS_DIR, "data"
     subprocess.run([sys.executable, os.path.join(_THIS_DIR, "data_gen.py")], cwd=_THIS_DIR, check=True)
 
 from BaseClasses import CollectionState, Item, Region, Tutorial  # noqa: E402
+from data import GAME_VERSION  # noqa: E402
+from data.items import ITEMS  # noqa: E402
+from data.locations import LOCATIONS  # noqa: E402
+from data.rules import BADGES  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 
 # Unused, but required to register HeartGoldClient with BizHawkClient (task
@@ -109,10 +115,6 @@ from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 # its defining module is imported, and nothing else in this file's own
 # import chain ever imports client.py.
 from client import HeartGoldClient  # noqa: E402, F401
-from data import GAME_VERSION  # noqa: E402
-from data.items import ITEMS  # noqa: E402
-from data.locations import LOCATIONS  # noqa: E402
-from data.rules import BADGES  # noqa: E402
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import badge_event_item_name, create_location_label_to_code_map, create_locations  # noqa: E402
 from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402

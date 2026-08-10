@@ -115,49 +115,76 @@ def write_party_entry(rom: HeartGoldRom, trainer_id: int, data: bytes) -> None:
 # moves -- but in every variant, the fixed-size prefix is identical:
 # `u8 difficulty; u8 genderAbilityOverride; u16 level; u16 species;` (6
 # bytes), so `species` is always at byte offset 4 regardless of variant.
-# Only each *slot*'s total size (and therefore the next slot's starting
-# offset) depends on the variant:
-#   TRPOKE_NOITEM_DFLTMOVES   (no item, no moves):        8 bytes
-#   TRPOKE_ITEM_DFLTMOVES     (item, no moves):           10 bytes
-#   TRPOKE_NOITEM_CUSTMOVES   (no item, moves):           16 bytes (4 u16 moves)
-#   TRPOKE_ITEM_CUSTMOVES     (item, moves):               18 bytes
-# `data/trainers.py`'s own party-slot dicts already carry this exact
-# information (`held_item`/`moves` keys present or absent, see
-# `data_gen/trainers.toml`'s own extraction) -- `_slot_size` below mirrors
-# that directly, so no separate "which variant" table is needed.
+#
+# *** The variant is a property of the *trainer*, not of any individual
+# mon (confirmed against `src/trainer_data.c`'s own comment: "bit 0 being
+# custom moveset and bit 1 being held item", read from `TrainerData.
+# trainerType` -- the stats entry's very first byte, `rom/trainerdata.py`'s
+# own `read_stats_entry`). Deriving each slot's stride from whether that
+# particular mon's `data/trainers.py` dict happens to carry a `held_item`/
+# `moves` key (an earlier version of this function did exactly that) is
+# wrong: when a trainer has the items bit set but one particular mon holds
+# `ITEM_NONE`, `data_gen` does not emit a `held_item` key for that mon,
+# so a per-mon guess silently uses the wrong (too-small) stride and every
+# later slot in that party reads/writes at the wrong offset -- found via
+# Reviewer live-verification against the real ROM (Falkner's `trainerType
+# == 0x03`, 18-byte slots; the old per-mon guess computed 16, corrupting
+# the second mon's `level` field with a stray species id). *** Always
+# read the trainer's own `trainerType` and derive one stride for the
+# whole party from it, never from individual mon dicts.
 _SPECIES_OFFSET_WITHIN_SLOT = 4
+_SPECIES_FORM_MASK = 0xFC00  # upper 6 bits of the species u16 (Platinum+)
+_SPECIES_ID_MASK = 0x03FF
+
+_TRPOKE_HAS_CUSTOM_MOVES_BIT = 0b01
+_TRPOKE_HAS_HELD_ITEM_BIT = 0b10
+_TRPOKE_BASE_SLOT_SIZE = 8  # difficulty(1) + genderAbilityOverride(1) + level(2) + species(2) + capsule(2)
+_TRPOKE_ITEM_FIELD_SIZE = 2
+_TRPOKE_MOVES_FIELD_SIZE = 8  # 4 x u16
 
 
-def _slot_size(mon: dict) -> int:
-    has_item = "held_item" in mon
-    has_moves = "moves" in mon
-    if has_item and has_moves:
-        return 18
-    if has_moves:
-        return 16
-    if has_item:
-        return 10
-    return 8
+def _slot_size_for_trainer_type(trainer_type: int) -> int:
+    size = _TRPOKE_BASE_SLOT_SIZE
+    if trainer_type & _TRPOKE_HAS_HELD_ITEM_BIT:
+        size += _TRPOKE_ITEM_FIELD_SIZE
+    if trainer_type & _TRPOKE_HAS_CUSTOM_MOVES_BIT:
+        size += _TRPOKE_MOVES_FIELD_SIZE
+    return size
 
 
 def write_party_species(rom: HeartGoldRom, trainer_id: int, party: Sequence[dict]) -> None:
     """Overwrite one trainer's party species fields in place, leaving
-    every other byte (level, difficulty, held item, moves, capsule/form)
-    untouched -- `species.py`'s `randomize_trainer_parties` only ever
-    reassigns each slot's `species` (see that function's own docstring:
-    "only `species` is replaced"), so `party` is expected to be `data/
-    trainers.py`'s own per-trainer party tuple shape with only `species`
-    values possibly changed from vanilla. Slot count/order/variant must
-    match the existing entry exactly (this never changes how many mons a
-    trainer has, or which variant a given slot uses)."""
+    every other byte (level, difficulty, held item, moves, capsule) and
+    each species' own form bits (upper 6 bits, Platinum+) untouched --
+    `species.py`'s `randomize_trainer_parties` only ever reassigns each
+    slot's `species` (see that function's own docstring: "only `species`
+    is replaced"), so `party` is expected to be `data/trainers.py`'s own
+    per-trainer party tuple shape with only `species` values possibly
+    changed from vanilla. Slot count/order must match the existing entry
+    exactly (this never changes how many mons a trainer has); the slot
+    *stride* is read from the trainer's own `trainerType` byte (see this
+    module's own section comment above for why that, not any per-mon
+    dict field, is the only correct source)."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
+    trainer_type = read_stats_entry(rom, trainer_id)[0]
+    slot_size = _slot_size_for_trainer_type(trainer_type)
+
     entry = bytearray(read_party_entry(rom, trainer_id))
+    if slot_size * len(party) > len(entry):
+        raise ValueError(
+            f"trainer {trainer_id}: {len(party)} mons x {slot_size}-byte slots "
+            f"({slot_size * len(party)} bytes) exceeds the {len(entry)}-byte party entry"
+        )
 
     offset = 0
     for mon in party:
         species_id = SPECIES_KEY_TO_RAW_INDEX[mon["species"]]
-        struct.pack_into("<H", entry, offset + _SPECIES_OFFSET_WITHIN_SLOT, species_id)
-        offset += _slot_size(mon)
+        existing_species = struct.unpack_from("<H", entry, offset + _SPECIES_OFFSET_WITHIN_SLOT)[0]
+        form = existing_species & _SPECIES_FORM_MASK
+        struct.pack_into("<H", entry, offset + _SPECIES_OFFSET_WITHIN_SLOT, (species_id & _SPECIES_ID_MASK) | form)
+        offset += slot_size
+
+    write_party_entry(rom, trainer_id, bytes(entry))
 
     write_party_entry(rom, trainer_id, bytes(entry))

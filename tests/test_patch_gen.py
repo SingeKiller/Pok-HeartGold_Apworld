@@ -184,3 +184,157 @@ def test_patched_rom_protocol_region_matches_assembled_code(rom_bytes: bytes, ar
 
     appended = rom.arm9[load_address - rom.arm9_ram_address:]
     assert appended == expected_code
+
+
+# --- task M4.5: species/move/trainer/encounter randomization patching -------
+#
+# `apply_trainer_randomization`/`apply_encounter_randomization`/
+# `apply_evolution_and_stat_randomization`/`apply_move_randomization` are the
+# one piece of task M4.5 not otherwise covered by tests/test_rom_access.py's
+# rom/*.py-level round-trips: the *orchestration* that turns a real
+# `species.py` randomizer result into a full set of ROM writes. A Reviewer
+# pass caught a real bug (rom/trainerdata.py's stride computation) that only
+# manifested at this integration layer -- these tests exist specifically so
+# a regression like that fails a fast, local test rather than only a live
+# BizHawk session.
+
+
+@pytest.fixture(scope="module")
+def m45_generated_data():
+    """Same regenerate-data/ pattern as tests/test_rom_access.py's
+    `generated_data`, plus the two new M4.5 data_gen outputs."""
+    import importlib
+    import shutil
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parent.parent
+    data_dir = root / "data"
+    shutil.rmtree(data_dir, ignore_errors=True)
+    subprocess.run([sys.executable, "data_gen.py"], cwd=root, check=True)
+
+    importlib.invalidate_caches()
+    species_mod = importlib.reload(importlib.import_module("data.species"))
+    trainers_mod = importlib.reload(importlib.import_module("data.trainers"))
+    encounters_mod = importlib.reload(importlib.import_module("data.encounters"))
+    moves_mod = importlib.reload(importlib.import_module("data.moves"))
+    species_index_mod = importlib.reload(importlib.import_module("data.species_index"))
+    encounter_zone_index_mod = importlib.reload(importlib.import_module("data.encounter_zone_index"))
+    yield {
+        "SPECIES": species_mod.SPECIES,
+        "TRAINERS": trainers_mod.TRAINERS,
+        "ENCOUNTERS": encounters_mod.ENCOUNTERS,
+        "MOVES": moves_mod.MOVES,
+        "SPECIES_KEY_TO_RAW_INDEX": species_index_mod.SPECIES_KEY_TO_RAW_INDEX,
+        "ENCOUNTER_ZONE_KEY_TO_RAW_INDEX": encounter_zone_index_mod.ENCOUNTER_ZONE_KEY_TO_RAW_INDEX,
+    }
+    shutil.rmtree(data_dir, ignore_errors=True)
+
+
+def test_apply_trainer_randomization_writes_every_party_correctly(rom_bytes: bytes, m45_generated_data) -> None:
+    """Real seed, every trainer's party -- including multi-mon, items-
+    bearing trainers (the exact shape that exposed the stride bug)."""
+    import random
+
+    from rom import trainerdata
+    from species import randomize_trainer_parties
+
+    rng = random.Random(20260810)
+    trainers = randomize_trainer_parties(rng, True, trainers=m45_generated_data["TRAINERS"])
+
+    rom = HeartGoldRom(rom_bytes)
+    patch_gen.apply_trainer_randomization(rom, trainers)
+
+    species_index = m45_generated_data["SPECIES_KEY_TO_RAW_INDEX"]
+    mismatches = []
+    for data in trainers.values():
+        if not data["party"]:
+            continue
+        raw = trainerdata.read_party_entry(rom, data["id"])
+        stride = len(raw) // len(data["party"])
+        for i, mon in enumerate(data["party"]):
+            offset = i * stride
+            species = int.from_bytes(raw[offset + 4 : offset + 6], "little")
+            expected = species_index[mon["species"]]
+            if species != expected:
+                mismatches.append((data["id"], i, species, expected))
+    assert mismatches == []
+
+
+def test_apply_encounter_randomization_writes_every_zone_correctly(rom_bytes: bytes, m45_generated_data) -> None:
+    import random
+    import struct
+
+    from rom import encounterdata
+    from species import randomize_wild_encounters
+
+    rng = random.Random(20260810)
+    encounters = randomize_wild_encounters(rng, 2, encounters=m45_generated_data["ENCOUNTERS"])  # full_random
+
+    rom = HeartGoldRom(rom_bytes)
+    patch_gen.apply_encounter_randomization(rom, encounters)
+
+    species_index = m45_generated_data["SPECIES_KEY_TO_RAW_INDEX"]
+    zone_index = m45_generated_data["ENCOUNTER_ZONE_KEY_TO_RAW_INDEX"]
+    for zone_key, zone in encounters.items():
+        if zone_key not in zone_index:
+            continue
+        entry = encounterdata.read_entry(rom, zone_index[zone_key])
+        if zone["land"]["slots"]:
+            morn0 = struct.unpack_from("<H", entry, 0x14)[0]
+            assert morn0 == species_index[zone["land"]["slots"][0]["morn"]]
+        if zone["surf"]["slots"]:
+            surf0 = struct.unpack_from("<H", entry, 0x64 + 2)[0]
+            assert surf0 == species_index[zone["surf"]["slots"][0]["species"]]
+
+
+def test_apply_evolution_and_stat_randomization_writes_every_species_correctly(
+    rom_bytes: bytes, m45_generated_data
+) -> None:
+    import random
+
+    from rom import evodata, speciesdata
+    from species import randomize_base_stats, randomize_evolutions
+
+    rng = random.Random(20260810)
+    species = randomize_evolutions(rng, 2, species=m45_generated_data["SPECIES"])  # any_method
+    species = randomize_base_stats(rng, 2, species=species)  # full_random
+
+    rom = HeartGoldRom(rom_bytes)
+    patch_gen.apply_evolution_and_stat_randomization(rom, species)
+
+    species_index = m45_generated_data["SPECIES_KEY_TO_RAW_INDEX"]
+    sample_keys = list(species.keys())[:15]
+    for key in sample_keys:
+        data = species[key]
+        assert speciesdata.read_base_stats(rom, key) == data["base_stats"]
+
+        raw_evolutions = evodata.read_species_evolutions(rom, species_index[key])
+        assert len(raw_evolutions) == len(data["evolutions"])
+        for (method, param, target), evo in zip(raw_evolutions, data["evolutions"]):
+            assert target == species_index[evo["target"]]
+            assert method == patch_gen._EVOLUTION_METHOD_TO_RAW[evo["method"]]
+
+
+def test_apply_move_randomization_writes_every_move_correctly(rom_bytes: bytes, m45_generated_data) -> None:
+    import random
+
+    from rom import movedata
+    from species import randomize_move_stats
+
+    rng = random.Random(20260810)
+    moves = randomize_move_stats(rng, 2, moves=m45_generated_data["MOVES"])  # full_random
+
+    rom = HeartGoldRom(rom_bytes)
+    sample_keys = list(moves.keys())[:20]
+    types_before = {key: movedata.read_combat_stats(rom, key)[1] for key in sample_keys}
+
+    patch_gen.apply_move_randomization(rom, moves)
+
+    for key in sample_keys:
+        data = moves[key]
+        power, move_type, accuracy, pp = movedata.read_combat_stats(rom, key)
+        assert (power, accuracy, pp) == (data["power"], data["accuracy"], data["pp"])
+        # "conservation du Type" -- must still be the real, vanilla type,
+        # not touched by randomize_move_stats or by write_combat_stats.
+        assert move_type == types_before[key]

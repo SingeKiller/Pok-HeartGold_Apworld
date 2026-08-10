@@ -78,6 +78,13 @@ MOVES_OFF = 0
 MOVES_SHUFFLE = 1
 MOVES_FULL_RANDOM = 2
 
+# This order is only the sequence `randomize_base_stats` below consumes
+# `rng` in (part of this module's own determinism contract) -- it is
+# deliberately independent of `rom/speciesdata.py`'s
+# `_BASE_STAT_FIELD_OFFSETS`, whose order is dictated by the real ROM
+# struct layout instead. Both are correct for their own purpose; do not
+# "align" one to the other, that would just perturb existing seeds' RNG
+# draw order for no behavior change.
 _BASE_STAT_FIELDS = ("hp", "atk", "def", "spatk", "spdef", "speed")
 _MOVE_COMBAT_FIELDS = ("power", "accuracy", "pp")
 
@@ -377,6 +384,16 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
       replaced by a fresh `rng.randint` draw within the real min-max range
       some vanilla move actually has for that same field.
 
+    `accuracy == 0` is a sentinel, not a real percentage -- HGSS's own
+    convention for "never misses" (Swift, Aerial Ace, ...; the OHKO moves
+    Fissure/Horn Drill/Guillotine/Sheer Cold use a different, non-zero
+    encoding for their level-based accuracy check and are unaffected by
+    this). Moves with `accuracy == 0` keep it exactly as-is in every mode,
+    and are excluded from the pool other moves' accuracy is drawn from --
+    otherwise `shuffle`/`full_random` could hand `0` to an ordinary move
+    (making it unmissable) or take it away from Swift/Aerial Ace (making
+    them missable), neither a "randomize the percentage" outcome.
+
     Walks `moves` in its own dict order and `_MOVE_COMBAT_FIELDS` in its
     own fixed order, so the result is fully determined by `rng`'s seed."""
     if mode == MOVES_OFF:
@@ -387,15 +404,17 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
 
     if mode == MOVES_SHUFFLE:
         for field in _MOVE_COMBAT_FIELDS:
-            values = [moves[key][field] for key in keys]
+            eligible_keys = tuple(key for key in keys if not (field == "accuracy" and moves[key][field] == 0))
+            values = [moves[key][field] for key in eligible_keys]
             rng.shuffle(values)
-            for key, value in zip(keys, values):
+            for key, value in zip(eligible_keys, values):
                 new_combat_stats[key][field] = value
     elif mode == MOVES_FULL_RANDOM:
         for field in _MOVE_COMBAT_FIELDS:
-            values = [moves[key][field] for key in keys]
+            eligible_keys = tuple(key for key in keys if not (field == "accuracy" and moves[key][field] == 0))
+            values = [moves[key][field] for key in eligible_keys]
             low, high = min(values), max(values)
-            for key in keys:
+            for key in eligible_keys:
                 new_combat_stats[key][field] = rng.randint(low, high)
     else:
         raise ValueError(f"unknown move-stat randomization mode: {mode!r}")

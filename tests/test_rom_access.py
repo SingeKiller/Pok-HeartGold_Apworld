@@ -337,6 +337,43 @@ def test_trainerdata_write_party_species_preserves_other_slot_bytes(rom: HeartGo
     assert rebuilt_raw == raw
 
 
+def test_trainerdata_write_party_species_uses_trainer_type_not_per_mon_keys(
+    rom: HeartGoldRom, generated_data
+) -> None:
+    """Regression test for a real bug a Reviewer pass caught live against
+    the ROM: an earlier version derived each slot's byte stride from
+    whether that mon's own dict happened to carry a `held_item`/`moves`
+    key, instead of from the trainer's own `trainerType` byte (`include/
+    trainer_data.h`: the variant is a per-*trainer* property, not
+    per-mon). Falkner (`trainerType == 3`, both mons carry `moves` but
+    neither carries `held_item` since both hold `ITEM_NONE`) is exactly
+    the case that broke: the old code computed a too-small stride and
+    wrote the second mon's species over the first mon's neighboring
+    bytes."""
+    falkner = generated_data["TRAINERS"]["leader_falkner_falkner"]
+    trainer_id = falkner["id"]
+    assert len(falkner["party"]) == 2
+
+    before = trainerdata.read_party_entry(rom, trainer_id)
+    new_party = [dict(mon, species="rattata") for mon in falkner["party"]]
+
+    trainerdata.write_party_species(rom, trainer_id, new_party)
+    after = trainerdata.read_party_entry(rom, trainer_id)
+
+    rattata_id = generated_data["SPECIES_KEY_TO_RAW_INDEX"]["rattata"]
+    slot_size = len(after) // len(new_party)
+    for i in range(len(new_party)):
+        offset = i * slot_size
+        species = int.from_bytes(after[offset + 4 : offset + 6], "little")
+        assert species == rattata_id
+        # The level bytes (offset 2-3 within the slot) must be exactly
+        # what they were before -- this is what a wrong stride corrupts.
+        assert after[offset + 2 : offset + 4] == before[offset + 2 : offset + 4]
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    assert trainerdata.read_party_entry(rebuilt, trainer_id) == after
+
+
 def test_encounterdata_write_zone_encounters_only_changes_species(rom: HeartGoldRom, generated_data) -> None:
     zone_key = "route_29"
     zone = generated_data["ENCOUNTERS"][zone_key]
@@ -356,9 +393,15 @@ def test_encounterdata_write_zone_encounters_only_changes_species(rom: HeartGold
 
 
 def test_starterdata_roundtrips_mechanically(rom: HeartGoldRom) -> None:
-    """Mechanical round-trip only -- see rom/starterdata.py's own
-    docstring: the target address is a well-evidenced candidate, not a
-    live-verified one."""
+    """Mechanical round-trip -- see rom/starterdata.py's own docstring:
+    the target address is a well-evidenced candidate, disconfirmed live
+    (see docs/architecture.md's "## M4.5" section). This test asserts
+    real compression integrity, not just that the 3 species values read
+    back correctly: an earlier version of `write_overlay` produced a
+    payload with no valid compression header at all, which `decompress()`
+    silently passes through unchanged rather than erroring -- a naive
+    version of this test (re-read the 3 values only) passed against that
+    broken payload, hiding the bug from tests entirely."""
     before = starterdata.read_starters(rom)
     assert before == (152, 155, 158)  # vanilla Chikorita/Cyndaquil/Totodile raw indices
 
@@ -367,3 +410,11 @@ def test_starterdata_roundtrips_mechanically(rom: HeartGoldRom) -> None:
 
     rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
     assert starterdata.read_starters(rebuilt) == (1, 4, 7)
+
+    overlays = rebuilt._rom.loadArm9Overlays(idsToLoad=(starterdata.OVERLAY_ID,))
+    overlay = overlays[starterdata.OVERLAY_ID]
+    assert overlay.compressed is True
+    assert len(overlay.data) == 7104  # unchanged decompressed size
+    stored_bytes = rebuilt._rom.files[overlay.fileID]
+    assert len(stored_bytes) <= overlay.ramSize
+    assert len(stored_bytes) == overlay.compressedSize

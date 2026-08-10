@@ -1144,12 +1144,26 @@ already-documented "headbutt-only" flag for those 3 map codes.
 - **Trainer parties** (`include/trainer_data.h`'s `TRPOKE` union, 4
   variants depending on held-item/custom-moves presence): in every
   variant, `species` sits at the same fixed offset (4 bytes in), only
-  each *slot*'s total size differs (8/10/16/18 bytes) -- `data/
-  trainers.py`'s own party-slot dicts already carry `held_item`/`moves`
-  keys precisely when the real slot needs the wider variant, so `rom/
-  trainerdata.py`'s new `write_party_species` derives each slot's stride
-  from the same dict shape rather than needing a separate "which variant"
-  table. `data/trainers.py`'s `id` is already 1:1 with the raw
+  each *slot*'s total size differs (8/10/16/18 bytes). **The variant is a
+  property of the whole trainer, not of any individual mon** -- read from
+  `TrainerData.trainerType` (`trdata`'s own first byte: bit 0 = custom
+  moves, bit 1 = held item, `src/trainer_data.c`'s own comment). A first
+  version of `rom/trainerdata.py`'s `write_party_species` guessed each
+  slot's stride from whether that mon's own `data/trainers.py` dict
+  happened to carry a `held_item`/`moves` key -- wrong whenever a trainer
+  has the held-item bit set but one particular mon holds `ITEM_NONE`
+  (`data_gen` then emits no `held_item` key for that mon): a Reviewer
+  pass caught this live against the real ROM (Falkner, `trainerType ==
+  3`, both mons using 18-byte slots; the guess computed 16, writing the
+  second mon's species over the first mon's `level` field). Fixed to
+  always derive one stride for the whole party from `read_stats_entry`'s
+  own first byte -- see `rom/trainerdata.py`'s own section comment for
+  the full story, and `tests/test_patch_gen.py`'s
+  `test_apply_trainer_randomization_writes_every_party_correctly` (all
+  738 trainers, not just a sample) plus `tests/test_rom_access.py`'s
+  `test_trainerdata_write_party_species_uses_trainer_type_not_per_mon_
+  keys` (a Falkner-specific regression test) for the tests that would
+  have caught this. `data/trainers.py`'s `id` is already 1:1 with the raw
   `trdata`/`trpoke` NARC index (`rom/trainerdata.py`'s own docstring
   already established this at C13, exactly 738 = 738, no gap).
 - **Wild encounters** (`include/wild_encounter.h`'s `EncounterData`,
@@ -1181,44 +1195,52 @@ Added generic ARM9 overlay read/write to `rom/__init__.py`
 (`read_overlay`/`write_overlay`, handling the overlay's own compression
 flag and patching `arm9OverlayTable`'s stale `compressedSize` field after
 recompressing -- overlay 61 is LZ-compressed, 7104 decompressed / 5968
-compressed bytes) and `rom/starterdata.py` on top, mechanically
-round-trip verified against the real ROM. Correctly kept out of `patch_
-gen.py`'s normal apply path pending live verification (same "a single
-clean result is not sufficient evidence" lesson as client.py's RAM-
-address saga) -- and that caution paid off: a live test the same
-session (full-randomizer seed, patched ROM including the starter write,
-booted in BizHawk, new game started) showed **vanilla Chikorita/
-Cyndaquil/Totodile**, not the seed's rolled starters. The candidate
-address is wrong (or the write mechanism has a bug -- not
-distinguished). Wild-encounter randomization was cross-checked in the
-same live session and confirmed working (a Swalot on Route 29, nowhere
-near a vanilla Route 29 encounter). A follow-up live check (a
-`rare_candy` x15 injected directly into the Bag via the same live-RAM
-technique `client.py` already uses, no server needed) confirmed
-evolution-target randomization working too: a level-up evolution landed
-on a different, non-vanilla target. Base stats and move stats were not
-part of this particular test seed (`randomize_base_stats`/`randomize_
-moves` both `off`) -- confirmed only via the ROM-level round-trip tests
-above, not yet cross-checked live in a running game.
+compressed bytes) and `rom/starterdata.py` on top. Correctly kept out of
+`patch_gen.py`'s normal apply path pending live verification (same "a
+single clean result is not sufficient evidence" lesson as client.py's
+RAM-address saga) -- and that caution paid off, though not in the way
+first thought: a live test the same session (full-randomizer seed,
+patched ROM including the starter write, booted in BizHawk, new game
+started) showed **vanilla Chikorita/Cyndaquil/Totodile**, not the seed's
+rolled starters, which was first written up here as "the candidate
+address is wrong". **That conclusion was itself wrong.** A Reviewer pass
+found the real bug: `write_overlay` called `ndspy.codeCompression.
+compress(data, isArm9=True)` -- the `isArm9=True` mode reserves the
+first 0x4000 bytes uncompressed (the DS secure-area convention for the
+*main* ARM9 binary), meaningless for an overlay. For any overlay smaller
+than 0x4000 bytes (true for overlay 61, and for most overlays this
+project might ever target), that degenerates into "everything is the
+uncompressed prefix", producing a payload with **no valid compression
+header at all** -- and `ndspy.codeCompression.decompress()` silently
+returns such a payload *unchanged* rather than raising, so the original
+"mechanically round-trip verified" claim for `rom/starterdata.py` was
+true only in the narrow sense that garbage-in-garbage-out round-trips
+correctly; the live game almost certainly failed to decompress the
+overlay at all and fell back to something else (vanilla data, most
+likely, consistent with what was observed). Fixed to `isArm9=False`
+(matching `ndspy.code.Overlay.save()`'s own convention) plus an explicit
+`compressed_size <= overlay.ramSize` guard; `tests/test_rom_access.py`'s
+starter test now asserts real compression integrity (`overlay.
+compressed`, decompressed size unchanged, stored size `<= ramSize`)
+instead of only re-reading the 3 species values.
 
-**Status: disconfirmed, not just unverified.** `rom/starterdata.py` and
-the overlay read/write plumbing in `rom/__init__.py` are left in place
-(the mechanism itself -- generic overlay compression/size-table
-handling -- may still be useful for a future candidate), but `OVERLAY_
-ID`/`_SPECIES_ARRAY_OFFSET` must not be trusted without re-deriving from
-scratch. Possible next angles, untried this session: confirm overlay 61
-is really the *loaded* overlay for the starter-choice scene (vs. some
-other unrelated function that happens to declare the same 3-species
-literal by coincidence -- the match was unique but uniqueness alone
-already failed once tonight for a different address); check whether
-`choose_starter_app.c` (the actual rendering "app", a separate file from
-the simpler `choose_starter.c` task wrapper that was searched) has its
-own, different copy of the species list that the ARM9-wide byte search
-somehow missed (e.g. encoded as individual immediate-load instructions
-rather than a literal-pool array); or fall back to a disassembler-based
-approach (Ghidra/IDA, previously ruled out for C14's own Blocker 1 as
-unavailable in this dev environment -- worth rechecking if that
-constraint has changed).
+**Status: back to unverified (not disconfirmed).** The live test that
+seemed to disconfirm overlay 61 / offset 0x1A98 was run through a
+provably broken write mechanism, so it provides no real evidence either
+way about the *address*. Re-run the same live test (patch a ROM with the
+now-fixed `rom/starterdata.py`, boot in BizHawk, start a new game) before
+drawing any conclusion about whether this candidate is right. Wild-
+encounter randomization was cross-checked in the same session and
+confirmed working (a Swalot on Route 29, nowhere near a vanilla Route 29
+encounter) -- that path never touched overlay code, so it is unaffected
+by this bug. A follow-up live check (`rare_candy` x15 injected directly
+into the Bag via the same live-RAM technique `client.py` already uses,
+no server needed) confirmed evolution-target randomization working too:
+a level-up evolution landed on a different, non-vanilla target. Base
+stats and move stats were not part of this particular test seed
+(`randomize_base_stats`/`randomize_moves` both `off`) -- confirmed only
+via the ROM-level round-trip tests above, not yet cross-checked live in
+a running game.
 
 ### New randomizers: base stats and move stats (user-added scope, same session)
 

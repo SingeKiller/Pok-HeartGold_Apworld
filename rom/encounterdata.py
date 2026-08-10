@@ -126,11 +126,22 @@ _SUPER_ROD_SLOTS_OFFSET = 0xA8
 _ENCOUNTER_DATA_SLOT_SIZE = 4  # EncounterDataSlot{u8 min; u8 max; u16 species;}
 _ENCOUNTER_DATA_SLOT_SPECIES_OFFSET = 2
 
+# Capacity of each slot array -- the distance to the *next* field in
+# `EncounterData` (see this module's own docstring's byte-offset list),
+# divided by `_ENCOUNTER_DATA_SLOT_SIZE`. Writing past these would land in
+# the next field entirely, silently -- every write path below checks
+# against these rather than trusting `zone`'s own slot counts.
+_SURF_SLOT_CAPACITY = 5
+_ROCK_SMASH_SLOT_CAPACITY = 2
+_FISHING_SLOT_CAPACITY = 5
+
 
 def _write_land_species(entry: bytearray, land: dict, species_index: dict[str, int]) -> None:
     slots = land["slots"]
     if not slots:
         return
+    if len(slots) != _LAND_SLOT_COUNT:
+        raise ValueError(f"land encounter data has {len(slots)} slots, expected exactly {_LAND_SLOT_COUNT}")
     for time_key, offset in (
         ("morn", _LAND_SPECIES_MORN_OFFSET),
         ("day", _LAND_SPECIES_DAY_OFFSET),
@@ -142,8 +153,10 @@ def _write_land_species(entry: bytearray, land: dict, species_index: dict[str, i
 
 
 def _write_slot_array_species(
-    entry: bytearray, slots: Sequence[dict], base_offset: int, species_index: dict[str, int]
+    entry: bytearray, slots: Sequence[dict], base_offset: int, species_index: dict[str, int], capacity: int
 ) -> None:
+    if len(slots) > capacity:
+        raise ValueError(f"{len(slots)} slots given for a {capacity}-slot array at offset {base_offset:#x}")
     for i, slot in enumerate(slots):
         offset = base_offset + i * _ENCOUNTER_DATA_SLOT_SIZE + _ENCOUNTER_DATA_SLOT_SPECIES_OFFSET
         struct.pack_into("<H", entry, offset, species_index[slot["species"]])
@@ -167,18 +180,36 @@ def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     entry = bytearray(read_entry(rom, raw_index))
 
     _write_land_species(entry, zone["land"], SPECIES_KEY_TO_RAW_INDEX)
-    _write_slot_array_species(entry, zone["surf"]["slots"], _SURF_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX)
     _write_slot_array_species(
-        entry, zone["rock_smash"]["slots"], _ROCK_SMASH_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX
+        entry, zone["surf"]["slots"], _SURF_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX, _SURF_SLOT_CAPACITY
     )
     _write_slot_array_species(
-        entry, zone["fishing"]["old_rod"]["slots"], _OLD_ROD_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX
+        entry,
+        zone["rock_smash"]["slots"],
+        _ROCK_SMASH_SLOTS_OFFSET,
+        SPECIES_KEY_TO_RAW_INDEX,
+        _ROCK_SMASH_SLOT_CAPACITY,
     )
     _write_slot_array_species(
-        entry, zone["fishing"]["good_rod"]["slots"], _GOOD_ROD_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX
+        entry,
+        zone["fishing"]["old_rod"]["slots"],
+        _OLD_ROD_SLOTS_OFFSET,
+        SPECIES_KEY_TO_RAW_INDEX,
+        _FISHING_SLOT_CAPACITY,
     )
     _write_slot_array_species(
-        entry, zone["fishing"]["super_rod"]["slots"], _SUPER_ROD_SLOTS_OFFSET, SPECIES_KEY_TO_RAW_INDEX
+        entry,
+        zone["fishing"]["good_rod"]["slots"],
+        _GOOD_ROD_SLOTS_OFFSET,
+        SPECIES_KEY_TO_RAW_INDEX,
+        _FISHING_SLOT_CAPACITY,
+    )
+    _write_slot_array_species(
+        entry,
+        zone["fishing"]["super_rod"]["slots"],
+        _SUPER_ROD_SLOTS_OFFSET,
+        SPECIES_KEY_TO_RAW_INDEX,
+        _FISHING_SLOT_CAPACITY,
     )
 
     write_entry(rom, raw_index, bytes(entry))

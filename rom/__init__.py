@@ -280,7 +280,26 @@ class HeartGoldRom:
                 "an overlay, only replaces its contents."
             )
         if overlay.compressed:
-            payload = ndspy.codeCompression.compress(data, isArm9=True)
+            # `isArm9=False`: the `isArm9=True` mode reserves the first
+            # 0x4000 bytes uncompressed (the DS secure-area convention
+            # for the *main* ARM9 binary, see the section above) -- wrong
+            # semantics for an overlay, which has no secure area of its
+            # own. `ndspy.code.Overlay.save()` itself always calls
+            # `compress(self.data, False)`. Confirmed the bug this fix
+            # closes: for an overlay smaller than 0x4000 bytes (true for
+            # every overlay `rom/starterdata.py` targets),
+            # `isArm9=True` degenerates into "prefix = everything, body =
+            # nothing", producing a payload with no valid compression
+            # header at all -- `decompress()` silently returns it
+            # unchanged rather than erroring, so a naive round-trip test
+            # can pass while the data is actually corrupt in the ROM.
+            payload = ndspy.codeCompression.compress(data, isArm9=False)
+            if len(payload) > overlay.ramSize:
+                raise ValueError(
+                    f"overlay {overlay_id}: recompressed to {len(payload)} bytes, "
+                    f"which exceeds its {overlay.ramSize}-byte RAM allocation -- "
+                    "the DS overlay loader would read past the end of its buffer."
+                )
             self._patch_overlay_table_compressed_size(overlay_id, len(payload))
         else:
             payload = bytes(data)

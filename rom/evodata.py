@@ -87,7 +87,7 @@ def encode_evolutions(evolutions: Sequence[tuple[int, int, int]]) -> bytes:
     if len(evolutions) > MAX_EVOS_PER_SPECIES:
         raise ValueError(f"{len(evolutions)} evolutions given, a species can have at most {MAX_EVOS_PER_SPECIES}")
 
-    out = bytearray(ENTRY_SIZE)
+    out = bytearray(MAX_EVOS_PER_SPECIES * _EVOLUTION_STRUCT_SIZE)  # 42 bytes -- the 2 trailing bytes are not this
     for i, (method, param, target) in enumerate(evolutions):
         offset = i * _EVOLUTION_STRUCT_SIZE
         struct.pack_into("<HHH", out, offset, method, param, target)
