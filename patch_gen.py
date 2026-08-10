@@ -43,6 +43,7 @@ from rom import HeartGoldRom
 from rom import encounterdata as rom_encounterdata
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import evodata as rom_evodata
+from rom import hiddenitemdata as rom_hiddenitemdata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
 from rom import speciesdata as rom_speciesdata
@@ -159,21 +160,23 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
 # for why this is a different risk profile from the ARM-hooks path, and
 # each module's own docstring for the binary format it patches.
 #
-# Covers `ground_item`, `npc_gift`, and `hm_tm` (routed to whichever of the
-# two modules above actually implements that specific `hm_tm` location's
+# Covers `ground_item`, `npc_gift`, `hm_tm` (routed to whichever of the two
+# modules above actually implements that specific `hm_tm` location's
 # vanilla delivery mechanism -- see rom/eventscriptdata.py's
 # `write_ground_item_substitution` and rom/npcgiftdata.py's
-# `write_npc_gift_substitution` docstrings). `hidden_item`/`badge` are out
-# of scope (task C16's own brief: `hidden_item`'s vanilla item ids live in a
-# compiled ARM9 static data table, not a NitroFS script -- a different,
-# not-yet-supported patch shape; `badge`s are not items at all, see
-# data/items.py).
+# `write_npc_gift_substitution` docstrings), and `hidden_item` (task M4.5 --
+# originally out of scope because its vanilla item ids live in a compiled
+# ARM9 static data table rather than a NitroFS script, a fundamentally
+# different patch shape; resolved once that table's real RAM address was
+# found via a live BizHawk memory-write breakpoint + instruction trace, see
+# rom/hiddenitemdata.py's own docstring for the full story). `badge` is
+# still out of scope (not an item at all, see data/items.py).
 
 
 def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str]) -> None:
     """Apply a `{location_key: item_key}` mapping (both `data/locations.py`/
     `data/items.py` keys) to `rom` in place, for `ground_item`/`npc_gift`/
-    `hm_tm` locations -- hidden_item/badge are out of scope for this pass
+    `hm_tm`/`hidden_item` locations -- badge is out of scope for this pass
     (see this module's own section header comment above). Locations not
     present in `substitutions` are left untouched (keep their vanilla
     `original_item`)."""
@@ -188,6 +191,8 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
         elif location_type == "npc_gift":
             rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
+        elif location_type == "hidden_item":
+            rom_hiddenitemdata.write_hidden_item_substitution(rom, location_key, item_key)
         elif location_type == "hm_tm":
             if location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID:
                 rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
@@ -197,7 +202,7 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             raise ValueError(
                 f"location {location_key!r} is type {location_type!r} -- "
                 "apply_local_item_substitutions only supports "
-                "ground_item/npc_gift/hm_tm (hidden_item/badge are out of "
+                "ground_item/npc_gift/hm_tm/hidden_item (badge is out of "
                 "scope, see this module's own section header comment)."
             )
 

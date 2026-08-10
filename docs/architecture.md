@@ -1327,3 +1327,125 @@ need a second player slot to send an item to test); `hidden_item`
 substitution remains out of scope (separate, already-documented
 blocker); a Reviewer pass has not yet been run on the final
 `0x0227D340` change.
+
+## M4.5 continued -- `hidden_item` substitution resolved (was a documented blocker, now implemented)
+
+The user asked, mid-M4.5, whether hidden items were randomized and
+explicitly required both this and starters be resolved before shipping
+v1 rather than staying documented limitations. Starters remains
+unresolved (see its own section above); `hidden_item` was fully solved
+this pass. Full story, since the investigation itself is instructive for
+any future similar work:
+
+**Why this was hard, unlike every other table this project patches**:
+`sHiddenItemParam` (`src/data/fieldmap/hidden_items.h`, read by
+`GetHiddenItemParams` in `script_manager.c`) is a genuine `static const`
+C array compiled directly into the ARM9 main binary (confirmed via
+`main.lsf`: `script_manager.o` links into "Static main", not any
+overlay) -- not a NitroFS NARC sub-file like every other randomized
+table (species/moves/evolutions/encounters/trainers/items). A blind
+byte-pattern search across the entire ~745KB `rom.arm9` (every
+plausible struct layout, every stride/offset hypothesis, and a loose
+statistical scan for long runs of merely *plausible*-range values) found
+nothing at all -- not even a partial match. This is the same category of
+problem that blocked starters.
+
+**Root cause, found only after live debugging**: `rom.arm9` (both this
+project's `HeartGoldRom.arm9` and `ndspy`'s own underlying property)
+returns the ARM9 binary exactly as packed in the ROM -- which, for
+HeartGold, is itself **LZ-compressed beyond the first 0x4000-byte secure
+area** (`ndspy.codeCompression`'s `isArm9=True` convention: secure area
+raw, everything after compressed). `len(rom.arm9)` is 762,644 bytes; the
+real decompressed image (`ndspy.codeCompression.decompress(rom.arm9)`)
+is 1,122,040 bytes. Every static search this session (and, in
+retrospect, probably every one of C14's original "blocked" attempts
+too) was searching *compressed* bytes for an *uncompressed* pattern --
+guaranteed to find nothing, regardless of how correct the struct layout
+guess was.
+
+**How the real address was actually found (live BizHawk debugging, not
+static analysis)**: with the user's help live-testing in BizHawk --
+
+1. A full before/after Main RAM diff (`"ARM9 System Bus"` domain,
+   0x02000000-0x023FFFFF) around a real hidden-item pickup (New Bark
+   Town's Potion) found the transient write: RAM `0x22A6C1C` going from
+   zero to `11 00 01 00 20 03 00 00` (itemId=17/Potion, quantity=1,
+   flag=800) -- this is `ScriptEnvironment.specialVars[]`
+   (`VAR_SPECIAL_x8000`/`x8001`/`x8002`), a heap-allocated, per-session
+   scratch location, not useful for patching directly but confirming the
+   mechanism and the decomp's item-id modeling.
+2. A Lua `event.onmemorywrite` breakpoint on that address, armed
+   *before* a pickup (needed a BizHawk savestate to retry, since
+   hidden-item flags are one-shot), captured `emu.getregisters()` at the
+   moment of the write -- but the captured PC did not disassemble to
+   anything sensible (`lsl r1,r4,#0x1c`, not a store), a red herring that
+   cost real time: **the Lua-reported PC is not the address of the
+   instruction that just executed** (a pipeline/fetch-stage artifact),
+   consistently off by a fixed 4 bytes in this case.
+3. BizHawk's native Trace Logger resolved the ambiguity, but only once
+   used correctly: run continuously in real time it logs every single
+   instruction on both CPUs and effectively freezes the game (a single
+   frame's trace was ~150MB). **Paused + single-frame-advanced** instead
+   (so logging only covers the handful of frames around the actual
+   button press), it produced a small, readable trace with real
+   disassembly and per-instruction register state, confirming the real
+   store instructions: `strh r1,[r7,#0x0]` at `0x020405FA` (itemId),
+   `strh r0,[r6,#0x0]` at `0x02040602` (quantity), `strh r0,[r4,#0x0]`
+   at `0x0204060A` (flag) -- each exactly 4 bytes before what the Lua
+   breakpoint had reported, confirming the pipeline-offset theory.
+   Immediately before the itemId store: `ldr r3,[pc,#0x38]` at
+   `0x020405D4`, loading `r3 = 0x020FA558`, then `ldrh r0,[r3,#0x6]`
+   (the struct's `index` field, offset 6) -- exactly the decomp's `for
+   (...) table[i].index` loop. Since this was the very first loop
+   iteration (idx=0, immediate match), `r3` at that point *is*
+   `sHiddenItemParam`'s own base address.
+4. `0x020FA558` is outside both the (still-compressed-assumption) main
+   arm9 range *and* every overlay's RAM window -- looked like a heap
+   address at first. It is not: reading live RAM at that address
+   (reconnecting to BizHawk, small targeted read rather than a full 4MB
+   dump) returned the exact expected table content byte-for-byte, and
+   `ndspy.codeCompression.decompress(rom.arm9)[0xFA558:]` (i.e. the
+   *decompressed* main ARM9 image, static, no BizHawk needed) matches
+   that live read exactly, entry-for-entry, all 231 entries -- full
+   round-trip confidence, both live and offline.
+
+**Fix, `rom/__init__.py`**: new "ARM9 main-image decompressed access"
+section: `read_main_code_decompressed()` (thin wrapper over
+`ndspy.codeCompression.decompress`) and `write_main_code_region(offset,
+data)` (decompress, patch in place, recompress with `isArm9=True`,
+replace `self._rom.arm9` -- refuses any offset under `0x4000`, the same
+secure-area safety constraint `write_overlay` and `append_to_arm9`
+already established for their own regions). A decompress -> recompress
+-> decompress round trip was verified byte-identical before trusting
+this for real writes.
+
+**New module, `rom/hiddenitemdata.py`**: `ARM9_TABLE_RAM_ADDRESS =
+0x020FA558`, `read_all`/`read_entry`/`write_item_id`, and
+`write_hidden_item_substitution(rom, location_key, item_key)` matching
+the existing `write_ground_item_substitution`/`write_npc_gift_
+substitution` shape. One real subtlety: `sHiddenItemParam` is **not**
+sorted by its own `index` field (e.g. array position 1 has index 1, but
+position 2 has index 225) -- `data/locations.py`'s `id` for a
+`hidden_item` location is that `index` value (a `HIDDENITEM_*`
+constant), so `_find_position_by_index` linearly scans the live table
+for a matching `index` field rather than ever treating `id` as a
+position directly (mirrors the C engine's own linear-scan lookup in
+`GetHiddenItemParams`).
+
+**Wired into `patch_gen.apply_local_item_substitutions`**: `hidden_item`
+is now a fourth routed location type alongside `ground_item`/`npc_gift`/
+`hm_tm` (only `badge` remains out of scope, since badges aren't items).
+
+**Tests**: `tests/test_hidden_item_substitution.py`, 7 tests against the
+real ROM -- entry-0 exact-byte-match, **all 225 real `hidden_item`
+locations** cross-checked against their vanilla `original_item` (zero
+mismatches), single-entry-touched-only substitution, error handling,
+`apply_local_item_substitutions` routing + save/reload round trip, and
+every location substitutable without crashing. All pass. Performance
+note for later: the "every location substitutable" test alone takes
+~34 minutes, since each `write_hidden_item_substitution` call currently
+decompresses + recompresses the full 1.1MB ARM9 image independently --
+correct but not batched; fine for test/generation-time use (a real seed
+patches a bounded, usually much smaller number of hidden-item locations
+once), but worth batching into a single decompress/recompress pass if
+this ever needs to scale further.

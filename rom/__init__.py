@@ -320,6 +320,64 @@ class HeartGoldRom:
             return
         raise ValueError(f"overlay {overlay_id} not found in arm9OverlayTable")
 
+    # -- ARM9 main-image decompressed access (task M4.5, hidden_item) -----------
+    #
+    # `arm9` above (and `ndspy`'s own `NintendoDSRom.arm9`) is the ARM9
+    # binary exactly as packed in the ROM -- for HeartGold (and apparently
+    # every retail HGSS ROM) that packed form is itself LZ-compressed
+    # beyond the first 0x4000-byte secure area (`ndspy.codeCompression`'s
+    # `isArm9=True` mode: secure area stored raw, everything after it
+    # compressed). This was discovered the hard way during the hidden_item
+    # investigation (task M4.5): every blind byte-pattern search against
+    # `arm9` directly found nothing, because it was searching compressed
+    # bytes for an uncompressed pattern -- `ndspy.codeCompression.
+    # decompress(rom.arm9)` (762,644 -> 1,122,040 bytes here) is required
+    # before any content search/read against static ARM9 data can work.
+    # `sHiddenItemParam` (`src/data/fieldmap/hidden_items.h`'s static
+    # table, read by `GetHiddenItemParams`/`script_manager.c`) was located
+    # this way: live BizHawk memory-write breakpoints + a manual
+    # instruction trace pinpointed its RAM address as 0x020FA558 (an
+    # exact, live-verified byte match against the decomp's own table,
+    # all 231 entries), which is offset 0xFA558 into this decompressed
+    # image (`0x020FA558 - arm9RamAddress`).
+    #
+    # Writing back: decompress, patch the target bytes (must stay entirely
+    # past the 0x4000-byte secure area -- see `arm9` section's own
+    # docstring for why touching that region is unsafe), recompress with
+    # `isArm9=True` (preserves the secure area verbatim; confirmed via a
+    # decompress->recompress->decompress round trip producing byte-
+    # identical output), and replace `self._rom.arm9` wholesale --
+    # `ndspy` recomputes the ROM header's own size field from this on
+    # `save()`, same as every other mutable property here.
+
+    def read_main_code_decompressed(self) -> bytes:
+        """Return the ARM9 main binary fully decompressed (see this
+        section's own docstring for why this differs from the raw `arm9`
+        property)."""
+        return ndspy.codeCompression.decompress(self._rom.arm9)
+
+    def write_main_code_region(self, offset: int, data: bytes) -> None:
+        """Overwrite `len(data)` bytes at `offset` within the decompressed
+        ARM9 main image in place (never resizes), then recompresses and
+        replaces the ROM's packed ARM9 binary. `offset` (and `offset +
+        len(data)`) must be at or past 0x4000 -- the DS secure area is
+        never a valid target for this layer (see this section's own
+        docstring)."""
+        if offset < 0x4000:
+            raise ValueError(
+                f"offset {offset:#x} is inside the first 0x4000 bytes (the DS secure area) -- "
+                "this layer refuses to touch it, see this module's ARM9 docstrings for why."
+            )
+        decompressed = bytearray(self.read_main_code_decompressed())
+        if offset + len(data) > len(decompressed):
+            raise ValueError(
+                f"write of {len(data)} bytes at offset {offset:#x} runs past the decompressed "
+                f"ARM9 image's own size ({len(decompressed):#x})."
+            )
+        decompressed[offset : offset + len(data)] = data
+        recompressed = ndspy.codeCompression.compress(bytes(decompressed), isArm9=True)
+        self._rom.arm9 = recompressed
+
     # -- Output -----------------------------------------------------------------
 
     def save_bytes(self) -> bytes:
