@@ -1,5 +1,7 @@
 # Pokémon HeartGold — APWorld
 
+*[English version](README.en.md)*
+
 Un monde [Archipelago](https://archipelago.gg) pour **Pokémon HeartGold**
 (version US) : rencontres sauvages, équipes de dresseurs, évolutions,
 stats de base, stats des capacités, objets au sol, cadeaux PNJ, CT/CS et
@@ -20,6 +22,16 @@ ce qui est randomisé en v1 (et ce qui est prévu pour plus tard).
 
 ## Installation rapide
 
+0. **Prérequis important : la librairie Python `ndspy`.** Ce monde en a
+   besoin pour lire/patcher la ROM. Si tu utilises la release officielle
+   Windows d'Archipelago (le cas le plus courant), c'est une version
+   "portable" sans `pip` accessible — il faut donc copier manuellement le
+   dossier `ndspy` (pur Python, récupérable via `pip download ndspy
+   --no-deps -d .` puis extraction, ou depuis
+   [son dépôt](https://github.com/RoadrunnerWMC/ndspy)) dans
+   `<ton install Archipelago>\lib\`, à côté du dossier `worlds\`. Sans
+   cette étape, HeartGold n'apparaîtra dans aucune liste d'options.
+   Détails complets dans [docs/setup_en.md](docs/setup_en.md).
 1. Place `pokemon_heartgold.apworld` dans le dossier `custom_worlds` de
    ton installation Archipelago (pas dans `lib/worlds`).
 2. Génère ton fichier d'options (YAML) via `Generate Templates` dans
