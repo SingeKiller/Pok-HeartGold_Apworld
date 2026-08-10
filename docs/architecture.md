@@ -1060,6 +1060,88 @@ across a save reload. What remains open: `hidden_item` substitution
 (separate, already-documented blocker -- static ARM9 table) and a
 Reviewer pass on this session's `client.py` changes as a whole.
 
+## M4.5 -- applying species.py's randomizers to the ROM (planned, not started)
+
+`docs/scope.md`'s v1 list includes wild encounters, starters, trainer
+parties and evolutions, and `species.py` already computes all four
+(`randomize_wild_encounters`/`randomize_starters`/
+`randomize_trainer_parties`/`randomize_evolutions`, seeded from
+`world.random`) -- but `__init__.py`'s `set_rules()` only *runs* them and
+stores the result on `self` (see that file's own docstring, "for a later
+task (ROM patch generation) to consume"). **Nothing writes this output
+into the ROM yet** -- discovered/confirmed this session while answering
+the user's direct question about whether these randomizers actually
+affect real gameplay (they don't, yet). Decided (2026-08-10): stay on the
+documented v1 scope (not descoping to an items-only release) and tackle
+this as its own milestone, taking as long as it needs, once picked back
+up.
+
+Investigated this session, to make the next pickup fast:
+
+- **Trainer parties**: `rom/trainerdata.py` already has `write_party_
+  entry(rom, trainer_id, data)`/`write_all_parties`. Should be the
+  most direct of the four -- `randomize_trainer_parties`'s output
+  (`trainers[key]["party"]` tuples with a new `"species"` per slot)
+  needs encoding into that entry's raw byte format (not yet
+  reverse-engineered here; `rom/trainerdata.py`'s own module docstring
+  should have or need the field layout) and an index/order mapping
+  between `data/trainers.py` keys and raw `trainer_id`s (likely already
+  established, since `read_party_entry(rom, trainer_id)` exists and
+  presumably data_gen already cross-references it -- check
+  `data_gen/trainers.toml`/`data_gen.py` first before assuming this is
+  unresolved).
+- **Wild encounters**: `rom/encounterdata.py` already has `write_entry`/
+  `write_all`. Similarly needs `randomize_wild_encounters`'s per-zone,
+  per-slot species output encoded into each zone's raw entry format and
+  an index mapping to `data/encounters.py` zone keys.
+- **Species (for evolutions)**: `rom/speciesdata.py` (`a/0/0/2`,
+  personal stats) does **not** hold evolution data -- evolutions live in
+  a **separate NARC**, `poketool/personal/evo.narc` -> NitroFS path
+  `a/0/3/4` (`filesystem.mk`), not yet read or written by any `rom/`
+  module (`rom/evodata.py` does not exist yet). Struct (Decomposition
+  `include/pokemon_types_def.h`): `struct Evolution { u16 method; u16
+  param; u16 target; }` (6 bytes), `MAX_EVOS_PER_POKE = 7` per species
+  (so each species' raw entry is likely a fixed 7 x 6 = 42-byte block,
+  unconfirmed against the real ROM). **Open question already flagged in
+  `rom/speciesdata.py`'s own docstring, unresolved**: the raw NARC has
+  508 entries, `data/species.py`'s `SPECIES` has 505 (493 real + 12 HGSS
+  forms) -- which raw index maps to which `data/species.py` key is not
+  established (very likely a leading placeholder + a couple of
+  engine-reserved slots, per that docstring's own guess, but not
+  verified). This mapping blocks writing *any* per-species table
+  correctly (evolutions here, but would also block ever patching base
+  stats/learnsets/TM compatibility later) -- resolve this first, it's
+  shared prerequisite work, not evolution-specific.
+- **Starters**: not yet investigated *at all* this session -- unlike the
+  other three, starters aren't a flat data table, they're granted via
+  Prof. Elm's starter-selection event script (New Bark Town lab). Likely
+  the same shape of problem C14's ground-item hook and the eventual
+  `rom/eventscriptdata.py` local-item-substitution work solved (a
+  NitroFS script bytecode edit -- probably simpler than an ARM hook,
+  possibly similar to how `write_ground_item_substitution` patches an
+  item-id operand in place), but the actual script/table has not been
+  located in the decomp yet this session. Start here with the same
+  method C14/C15 used: find the vanilla starter-selection logic in the
+  decomp (`event script` handling the lab cutscene), confirm whether it
+  reads species ids from a small, easily-patched literal/table vs.
+  something requiring real code changes.
+
+Recommended order for the next session picking this up: (1) resolve the
+508-vs-505 species index mapping (blocks evolutions and is worth getting
+right once); (2) trainer parties (most direct, existing write primitive,
+no new NARC); (3) wild encounters (same shape as trainer parties); (4)
+evolutions (needs the new `rom/evodata.py` module, but otherwise similar
+shape once the index mapping is resolved); (5) starters last (the one
+with a genuinely unknown shape of solution, do the investigation spike
+first before committing to an approach, same "prudence over progress"
+policy as C14). Each of these four probably deserves the same rigor as
+C13-C16 did for items: a Coder pass building the `rom/*.py`/`patch_gen.py`
+plumbing, then a **mandatory** Tester pass (M4-tier risk -- these write
+to NitroFS data in a patched ROM copy, same real-corruption stakes as
+`client.py`'s RAM writes), and ideally a live spot-check against the
+real ROM the same way `test_apply_local_item_substitutions` and this
+session's live BizHawk tests did for items/client.py.
+
 **M4's core client-only strategy (docs/architecture.md's "ROM code
 injection strategy (revised after C14)", option 3) is now fully
 validated end-to-end**: local item substitution (confirmed earlier this
