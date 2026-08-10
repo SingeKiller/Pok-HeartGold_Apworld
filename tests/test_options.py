@@ -38,7 +38,6 @@ def test_instantiates_with_defaults() -> None:
     assert options.goal.value == Goal.option_elite_four
     assert options.goal_badge_count.value == 16
     assert options.randomize_wild_pokemon.value == RandomizeWildPokemon.option_vanilla
-    assert options.randomize_starters.value == 0
     assert options.randomize_trainers.value == 0
     assert options.randomize_evolutions.value == RandomizeEvolutions.option_off
     assert options.trainersanity.value == 0

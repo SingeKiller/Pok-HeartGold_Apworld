@@ -30,7 +30,7 @@ helper -- the same helper Archipelago's own world test suites use) followed
 by Archipelago's own real `Fill.distribute_items_restrictive` fill
 algorithm and `MultiWorld.can_beat_game()` accessibility sweep, for 5
 different seeds across varied option combinations (every `goal` value,
-every `randomize_wild_pokemon` mode, starters/trainers/evolutions on and
+every `randomize_wild_pokemon` mode, trainers/evolutions on and
 off, Trainersanity/Dexsanity on and off) -- checking no exception (in
 particular no `Fill.FillError`) is raised and the resulting seed is
 actually completable.
@@ -114,7 +114,7 @@ def _import_heartgold_world_module():
 
 # The 5 seed/option combinations this task's brief asks for -- one per
 # `goal` value at least once, every `randomize_wild_pokemon` mode at least
-# once, starters/trainers/evolutions both on and off, Trainersanity/
+# once, trainers/evolutions both on and off, Trainersanity/
 # Dexsanity both on and off. Mirrors the 5 player YAMLs hand-run against a
 # real `Generate.py` for this task (see this module's own docstring).
 _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
@@ -124,7 +124,6 @@ _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
             "goal": "elite_four",
             "goal_badge_count": 16,
             "randomize_wild_pokemon": "vanilla",
-            "randomize_starters": False,
             "randomize_trainers": False,
             "randomize_evolutions": "off",
             "trainersanity": False,
@@ -137,7 +136,6 @@ _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
             "goal": "n_badges",
             "goal_badge_count": 8,
             "randomize_wild_pokemon": "full_random",
-            "randomize_starters": True,
             "randomize_trainers": True,
             "randomize_evolutions": "any_method",
             "trainersanity": True,
@@ -150,7 +148,6 @@ _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
             "goal": "champion_red",
             "goal_badge_count": 16,
             "randomize_wild_pokemon": "shuffle",
-            "randomize_starters": True,
             "randomize_trainers": False,
             "randomize_evolutions": "keep_method",
             "trainersanity": False,
@@ -163,7 +160,6 @@ _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
             "goal": "elite_four",
             "goal_badge_count": 16,
             "randomize_wild_pokemon": "vanilla",
-            "randomize_starters": False,
             "randomize_trainers": True,
             "randomize_evolutions": "off",
             "trainersanity": True,
@@ -176,7 +172,6 @@ _SEED_OPTION_COMBINATIONS: tuple[tuple[int, dict[str, Any]], ...] = (
             "goal": "n_badges",
             "goal_badge_count": 1,
             "randomize_wild_pokemon": "full_random",
-            "randomize_starters": True,
             "randomize_trainers": True,
             "randomize_evolutions": "any_method",
             "trainersanity": False,
@@ -253,7 +248,6 @@ def test_generation_steps_run_without_exception(heartgold_world_type):
 
     assert len(multiworld.get_locations(1)) == len(heartgold_world_type.location_name_to_id) + 16  # + 16 badges
     assert len(multiworld.itempool) == len(heartgold_world_type.location_name_to_id)
-    assert hasattr(world, "generated_starters")
     assert hasattr(world, "generated_encounters")
     assert hasattr(world, "generated_trainer_parties")
     assert hasattr(world, "generated_species")
@@ -289,14 +283,12 @@ def test_completion_condition_n_badges_not_met_with_empty_inventory(heartgold_wo
 def test_species_randomization_is_deterministic_given_the_same_seed(heartgold_world_type):
     options = {
         "randomize_wild_pokemon": "full_random",
-        "randomize_starters": True,
         "randomize_trainers": True,
         "randomize_evolutions": "any_method",
     }
     first = _setup(heartgold_world_type, options=options, seed=99).worlds[1]
     second = _setup(heartgold_world_type, options=options, seed=99).worlds[1]
 
-    assert first.generated_starters == second.generated_starters
     assert first.generated_encounters == second.generated_encounters
     assert first.generated_trainer_parties == second.generated_trainer_parties
     assert first.generated_species == second.generated_species

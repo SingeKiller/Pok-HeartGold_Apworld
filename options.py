@@ -1,9 +1,15 @@
 # options.py
 #
 # Archipelago option definitions for the HeartGold & SoulSilver world (v1
-# scope, see docs/scope.md): wild-encounter/starter/trainer/evolution
+# scope, see docs/scope.md): wild-encounter/trainer/evolution
 # randomization toggles, a configurable victory condition, and the two v1
-# stretch goals (Trainersanity, Dexsanity), off by default. Follows the
+# stretch goals (Trainersanity, Dexsanity), off by default. Starters is
+# shelved for a later resume (task M4.5 -- see docs/architecture.md's "M4.5
+# continued" sections: the vanilla species assignment couldn't be located
+# in the ROM after extensive live/static investigation), so no
+# `RandomizeStarters` option is exposed here; `species.py`'s own
+# `randomize_starters` computation stays in place, tested, ready to be
+# reconnected once/if a patch target is found. Follows the
 # `Options.py` API of the local Archipelago clone (`Toggle`/`Choice`/
 # `Range`/`PerGameCommonOptions`/`OptionGroup`) the same way
 # `ressources/platinum_archipelago/options.py` does (read-only reference,
@@ -52,12 +58,6 @@ class RandomizeWildPokemon(Choice):
     option_shuffle = 1
     option_full_random = 2
     default = 0
-
-
-class RandomizeStarters(Toggle):
-    """Randomize the three starter Pokémon (and the rival's) given by Prof. Elm."""
-
-    display_name = "Randomize Starters"
 
 
 class RandomizeTrainers(Toggle):
@@ -186,7 +186,6 @@ class HeartGoldOptions(PerGameCommonOptions):
     goal_badge_count: GoalBadgeCount
 
     randomize_wild_pokemon: RandomizeWildPokemon
-    randomize_starters: RandomizeStarters
     randomize_trainers: RandomizeTrainers
     randomize_evolutions: RandomizeEvolutions
     randomize_base_stats: RandomizeBaseStats
@@ -205,7 +204,6 @@ OPTION_GROUPS = [
         "Randomizers",
         [
             RandomizeWildPokemon,
-            RandomizeStarters,
             RandomizeTrainers,
             RandomizeEvolutions,
             RandomizeBaseStats,

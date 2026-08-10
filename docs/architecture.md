@@ -1449,3 +1449,96 @@ correct but not batched; fine for test/generation-time use (a real seed
 patches a bounded, usually much smaller number of hidden-item locations
 once), but worth batching into a single decompress/recompress pass if
 this ever needs to scale further.
+
+## M4.5 continued -- starters: further investigation, still unresolved (documented v1 limitation)
+
+After hidden_item's compression discovery, retried starters with the
+same live-BizHawk technique (memory-write breakpoint + paused/frame-
+stepped Trace Logger), plus a fresh Ghidra project built from the
+**properly decompressed** ARM9 image this time (`ndspy.codeCompression.
+decompress(rom.arm9)`, 1,122,040 bytes -- the earlier starters/hidden_item
+Ghidra attempts had all been analyzing the *compressed* 762,644-byte
+`arm9.bin`, which explains why every prior Ghidra disassembly attempt
+produced garbage regardless of mode/alignment tried).
+
+**Four live capture sessions this pass** (New Bark Town's lab, picking
+Chikorita each time, raw species index 152/0x98):
+
+1. Before/after full Main RAM diff around a pick found two clean,
+   isolated write sites: RAM `0x0227D032` and `0x0227D090`, both going
+   from their old value to `0x98` cleanly (no surrounding noise) --
+   promising candidates for "the party's species field."
+2. A Lua `event.onmemorywrite` breakpoint on both, combined with a
+   paused/frame-stepped Trace Logger capture (same working recipe as
+   hidden_item), found the real store instructions: `strh r0,[r4,#0x0]`
+   at `0x0204D1D6` and `strh r4,[r0,#0x0]` at `0x02066AA4` (again ~4
+   bytes before what the Lua breakpoint alone reported -- confirms the
+   pipeline-offset caveat generalizes, at least in this ROM/core).
+   Tracing backward from both sites through the live trace log found
+   they are **generic, heavily-reused utility functions** -- one is a
+   PRNG-based save-block checksum routine (`0x41C64E6D`, the well-known
+   LCG multiplier constant, confirms it), the other a generic `SetVar
+   (varId, value)` accessor (Ghidra-decompiled: checks `0x3FFF < varId <
+   0x8001`, writes through a computed pointer) -- not starter-specific
+   code, and not a data table.
+3. Traced backward further and found the species value is *read* (not
+   computed) from RAM `0x0227C2EC` via `ldrh r4,[r5,#0x0]` at
+   `0x0206E8F0` just before being copied into the party-commit path --
+   i.e. `0x0227C2EC` holds the "currently selected starter" ahead of
+   this whole commit/checksum sequence, and is itself just being copied
+   forward, not originated, by anything traced so far.
+4. Ghidra's own cross-reference search for callers of the `SetVar`/
+   `GetVar` functions confirmed they are used for dozens of unrelated
+   purposes throughout the game (a Union Room status-polling loop was
+   one real example decompiled) -- chasing all callers is a dead end,
+   too broad. Re-armed the breakpoint on `0x0227C2EC` itself and
+   recaptured from before the selection screen even appears (no cursor
+   movement, no pick) -- still only caught the same generic checksum
+   loop re-reading the value every frame the screen is up (67 hits, all
+   at the same PC), never an initializing write. BizHawk crashed during
+   this capture (~14GB of Trace Logger output across the session,
+   cleaned up afterward) without revealing the true origin.
+
+**Conclusion**: the starter species value is set via some initialization
+this session's four capture windows never actually contained (most
+likely a one-time write when the selection screen's script/task first
+starts, before any of the captures were armed) -- unlike hidden_item,
+which had a single clean static table, starters appears to flow through
+either a script-level `SetVar` (matching the `0x3FFF`-`0x8001` varId
+range the `SetVar`-shaped function checks -- worth searching `scr_seq.
+narc` for directly, the same way `npcgiftdata.py`'s `TABLE` was derived,
+though a first attempt with a guessed var id found nothing) or a
+still-unlocated ARM9 code path that hasn't been captured live yet.
+`rom/starterdata.py`/the overlay plumbing in `rom/__init__.py` remain in
+the codebase (sound, unused). Overlay 61/offset 0x1A98 (the original
+candidate from earlier in this project) is confirmed wrong (disconfirmed
+live, see the section above); this pass didn't produce a replacement
+candidate.
+
+Two more rounds after this, still with the user, before finally stopping:
+(a) an exhaustive search for a tightly-packed `{152,155,158}` u16/u8
+table -- both orderings, both widths -- across the **properly
+decompressed** main ARM9 image and all 129 overlays (two coincidental
+hits, overlay 80 and overlay 99, both ruled out live: overlay 80's RAM
+region was entirely zeroed -- not loaded -- during the capture, and
+overlay 99 wasn't the overlay actually resident at its declared RAM
+address at the time, overlay 1 ["field", the always-loaded overworld
+overlay] was) and a loose cluster search for 3 nearby `MOV Rd,#imm`
+Thumb instructions loading the three species values in any register,
+anywhere in the main image; (b) a broadened `scr_seq.narc` search for a
+`SetVar` (opcode 41) command with *any* varId in `0x4000`-`0x8000` and
+any of the three species raw indices as the value operand. **Both came
+back with zero matches.**
+
+**Decided (2026-08-10): starters is removed from v1's exposed option
+surface** (`options.py` no longer declares `RandomizeStarters`,
+`__init__.py` no longer calls `randomize_starters`/stores
+`generated_starters` -- see `docs/scope.md`'s new "Shelved" section).
+`species.py`'s `randomize_starters` function and its own direct unit
+tests are left in place (pure computation, zero risk, already tested,
+ready to reconnect); `rom/starterdata.py` and the overlay write-plumbing
+in `rom/__init__.py` also stay, unused. Next angles if picked up again:
+a live capture starting from map load / task creation for the selection
+screen (before the screen is even visible) rather than from
+"already on the selection screen," to catch a true initializing write
+instead of steady-state re-reads.

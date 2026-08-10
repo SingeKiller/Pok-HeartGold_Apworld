@@ -10,7 +10,6 @@ world).
 
 - Wild encounters: grass / surf / fishing (old/good/super rod) / rock smash /
   headbutt, with HGSS's morning/day/night time-of-day tables.
-- Starters.
 - Trainer parties (including the Elite Four and Red).
 - Evolutions (logic-aware: evolution methods stay reachable in logic).
 - Base stats (added 2026-08-10, task M4.5): HP/Attack/Defense/Sp. Attack/
@@ -26,6 +25,19 @@ world).
   condition TBD at implementation time, kept configurable via `options.py`).
 - Trainersanity / Dexsanity as stretch goals *within* v1 if the budget
   allows once the core above is stable — not a hard requirement to ship v1.
+
+## Shelved (task M4.5, 2026-08-10)
+
+- **Starters.** Was in v1 scope; removed after extensive investigation
+  (live BizHawk memory-write breakpoints + Trace Logger captures across
+  5 sessions, plus exhaustive static search -- no packed species table
+  anywhere in the ROM, main ARM9 or any of the 129 overlays, no matching
+  `SetVar` script operand) failed to locate a patchable vanilla-species
+  source. `species.py`'s `randomize_starters` (pure computation) and
+  `rom/starterdata.py` (ROM-write plumbing for the since-disconfirmed
+  overlay 61 candidate) both stay in the codebase, tested, ready to
+  reconnect if a real patch target is found later. Full investigation
+  write-up: `docs/architecture.md`'s "M4.5 continued" sections.
 
 ## v2 (explicitly deferred, not started until v1 ships)
 

@@ -18,13 +18,13 @@
 # Species randomization (species.py) has no Location/Item of its own yet in
 # this project's v1 data model (data/locations.py only models ground items /
 # hidden items / HMs-TMs / NPC gifts / badges -- wild encounters, trainer
-# parties, starters, evolutions, base stats and move stats are not placed on
-# any Location, see docs/scope.md), so set_rules() below only *runs*
+# parties, evolutions, base stats and move stats are not placed on any
+# Location, see docs/scope.md), so set_rules() below only *runs*
 # species.py's randomizers (seeded from self.random, matching species.py's
 # own documented contract: "the caller is expected to pass world.random ...
-# here") and stores their output on `self` (generated_starters/
-# generated_encounters/generated_trainer_parties/generated_species/
-# generated_moves) for `patch_gen.py`'s `apply_trainer_randomization`/
+# here") and stores their output on `self` (generated_encounters/
+# generated_trainer_parties/generated_species/generated_moves) for
+# `patch_gen.py`'s `apply_trainer_randomization`/
 # `apply_encounter_randomization`/`apply_evolution_and_stat_randomization`/
 # `apply_move_randomization` (task M4.5, see CLAUDE.md's "building ROMS"
 # section) to consume -- the same division of labour species.py's own
@@ -124,7 +124,6 @@ from species import (  # noqa: E402
     randomize_base_stats,
     randomize_evolutions,
     randomize_move_stats,
-    randomize_starters,
     randomize_trainer_parties,
     randomize_wild_encounters,
 )
@@ -246,7 +245,6 @@ class HeartGoldWorld(World):
     def set_rules(self) -> None:
         apply_exit_rules(self.player, self.multiworld, self.regions)
 
-        self.generated_starters = randomize_starters(self.random, bool(self.options.randomize_starters.value))
         self.generated_encounters = randomize_wild_encounters(self.random, self.options.randomize_wild_pokemon.value)
         self.generated_trainer_parties = randomize_trainer_parties(
             self.random, bool(self.options.randomize_trainers.value)
