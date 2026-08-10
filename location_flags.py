@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from data.locations import LOCATIONS
 
-from locations import create_location_label_to_code_map
+from locations import SHELVED_LOCATION_TYPES, create_location_label_to_code_map
 from save_layout import HIDDEN_ITEMS_FLAG_BASE
 
 # Location types whose `data/locations.py` `id` is already a real vanilla
@@ -45,7 +45,9 @@ def flag_id_for_location(location_key: str) -> int | None:
     is triggered in-game, or `None` if this location has no such flag this
     client can currently observe (badge locations -- never real AP
     locations to begin with, see `locations.py`'s own module docstring --
-    and the synthetic-id npc_gift band above)."""
+    shelved-type locations -- also never real AP locations, see
+    `locations.SHELVED_LOCATION_TYPES` -- and the synthetic-id npc_gift band
+    above)."""
     data = LOCATIONS.get(location_key)
     if data is None:
         raise KeyError(f"unknown location key: {location_key!r}")
@@ -53,11 +55,15 @@ def flag_id_for_location(location_key: str) -> int | None:
     location_type = data["type"]
     raw_id = data.get("id")
 
-    if location_type == "badge" or raw_id is None:
+    if location_type == "badge" or location_type in SHELVED_LOCATION_TYPES or raw_id is None:
         return None
     if location_type in _DIRECT_FLAG_ID_TYPES:
         return None if raw_id >= _SYNTHETIC_ID_BASE else raw_id
     if location_type == "hidden_item":
+        # Currently unreachable (hidden_item is in SHELVED_LOCATION_TYPES,
+        # caught above) -- the transform itself is real, live-verified ROM
+        # knowledge (see docs/architecture.md), kept ready for when
+        # hidden_item is reconnected.
         return HIDDEN_ITEMS_FLAG_BASE + raw_id
     return None
 
@@ -75,18 +81,28 @@ def build_flag_id_to_ap_location_id() -> dict[int, int]:
             continue
         ap_id = ap_ids.get(key)
         if ap_id is None:
-            # Should not happen (badges are the only LOCATIONS entries
-            # missing from create_location_label_to_code_map, and badges
-            # never reach here -- flag_id_for_location returns None for
-            # them above), but never silently drop a real flag mapping.
+            # Should not happen (badges and shelved-type locations are the
+            # only LOCATIONS entries missing from
+            # create_location_label_to_code_map, and both never reach here
+            # -- flag_id_for_location returns None for them above), but
+            # never silently drop a real flag mapping.
             raise KeyError(f"location {key!r} has a flag id but no AP location id")
         result[flag_id] = ap_id
     return result
 
 
 def unsupported_location_keys() -> list[str]:
-    """Location keys this client cannot detect via a savedata flag read
-    (currently: only the synthetic-id npc_gift/hm_tm band, see this
-    module's own docstring) -- exposed for diagnostics/logging, not used in
-    the hot polling path."""
-    return sorted(key for key in LOCATIONS if LOCATIONS[key]["type"] != "badge" and flag_id_for_location(key) is None)
+    """Location keys with a real AP location that this client cannot detect
+    via a savedata flag read (currently: only the synthetic-id npc_gift/
+    hm_tm band, see this module's own docstring) -- exposed for
+    diagnostics/logging, not used in the hot polling path. Badge and
+    shelved-type (locations.SHELVED_LOCATION_TYPES) keys are excluded here
+    too -- they have no real AP location to begin with, so "undetectable"
+    doesn't apply to them the same way."""
+    return sorted(
+        key
+        for key in LOCATIONS
+        if LOCATIONS[key]["type"] != "badge"
+        and LOCATIONS[key]["type"] not in SHELVED_LOCATION_TYPES
+        and flag_id_for_location(key) is None
+    )

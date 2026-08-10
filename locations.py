@@ -42,10 +42,25 @@ HEARTGOLD_LOCATION_ID_BASE = 201_000_000
 
 BADGE_EVENT_ITEM_PREFIX = "Badge Obtained - "
 
+# `hidden_item` is excluded from the AP location pool entirely for v1
+# (2026-08-11, see docs/scope.md's "Shelved" section): check-detection for
+# these 225 locations works (location_flags.py), but the ROM substitution
+# that delivers a *local* item there is still disabled (unresolved
+# white-screen boot issue, docs/architecture.md), and this project's
+# local-item delivery mechanism has no other path -- a local progression
+# item placed here would never actually reach the player. Same treatment
+# as starters: shelved, not exposed, `rom/hiddenitemdata.py` stays tested
+# and ready to reconnect once the underlying ROM bug is fixed.
+SHELVED_LOCATION_TYPES = {"hidden_item"}
+
 # Deterministic id assignment: sorted by location key. Badge-type locations
 # are excluded here -- they are events (address=None), which never get a
-# real Archipelago location id (see module docstring).
-_ID_ASSIGNABLE_KEYS = sorted(key for key, data in LOCATIONS.items() if data["type"] != "badge")
+# real Archipelago location id (see module docstring). Shelved types (see
+# SHELVED_LOCATION_TYPES above) are excluded the same way -- no AP location
+# at all for now.
+_ID_ASSIGNABLE_KEYS = sorted(
+    key for key, data in LOCATIONS.items() if data["type"] != "badge" and data["type"] not in SHELVED_LOCATION_TYPES
+)
 _LOCATION_INDEX: dict[str, int] = {key: index for index, key in enumerate(_ID_ASSIGNABLE_KEYS)}
 
 # data/locations.py badge entries' own `id` field is the badge's index into
@@ -83,6 +98,8 @@ def create_locations(player: int, regions: dict[str, Region]) -> None:
     docstring)."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
+        if data["type"] in SHELVED_LOCATION_TYPES:
+            continue
         region = regions[data["region"]]
         if data["type"] == "badge":
             badge_name = _BADGE_INDEX_TO_NAME[data["id"]]

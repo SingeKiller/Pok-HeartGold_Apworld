@@ -41,6 +41,18 @@ world).
 
 ## v2 (explicitly deferred, not started until v1 ships)
 
+- **Real badge randomization** (as a tradeable/shufflable item, not just a
+  fixed logic milestone). HGSS models badges as a savedata flag bit, not a
+  bag item (unlike `platinum_archipelago`'s reference world, where badges
+  *can* be real pool items when its own `badges` option is enabled --
+  `ressources/platinum_archipelago/locations.py`'s `create_locations`).
+  Doing the same here needs a new client-side mechanism to remotely set an
+  arbitrary savedata flag bit on receiving a badge item (`client.py`'s
+  current remote-item injection only writes Bag items) -- real but
+  non-trivial client work, not attempted for v1. For now (v1), each badge
+  is still obtained from its normal vanilla gym in the normal order, only
+  used as an internal logic milestone (see `locations.py`'s own module
+  docstring) -- not randomized, not a real tradeable AP check.
 - Pokéwalker.
 - Pokéathlon.
 - Bug Catching Contest / Safari Zone.

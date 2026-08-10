@@ -117,7 +117,12 @@ from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 # import chain ever imports client.py.
 from client import HeartGoldClient  # noqa: E402, F401
 from items import create_item, create_item_label_to_code_map  # noqa: E402
-from locations import badge_event_item_name, create_location_label_to_code_map, create_locations  # noqa: E402
+from locations import (  # noqa: E402
+    SHELVED_LOCATION_TYPES,
+    badge_event_item_name,
+    create_location_label_to_code_map,
+    create_locations,
+)
 from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402
 
 # HeartGoldProcedurePatch itself is never referenced by name below -- the
@@ -143,12 +148,19 @@ from species import (  # noqa: E402
 # inventory already exercises).
 ORIGIN_REGION_NAME = "new_bark"
 
-# The 570 non-badge data/locations.py entries each carry an `original_item`
+# Each real-AP-location data/locations.py entry (i.e. not "badge" and not a
+# SHELVED_LOCATION_TYPES type, see locations.py) carries an `original_item`
 # (see locations.py's own module docstring) -- create_items() below places
-# exactly that item's `HeartGoldItem` into the pool per non-badge location,
-# so the pool and the unfilled-location count always match 1:1, whatever
-# item the AP fill algorithm actually ends up placing at any given location.
-_NON_BADGE_LOCATION_KEYS = tuple(sorted(key for key, data in LOCATIONS.items() if data["type"] != "badge"))
+# exactly that item's `HeartGoldItem` into the pool per such location, so
+# the pool and the unfilled-location count always match 1:1, whatever item
+# the AP fill algorithm actually ends up placing at any given location.
+_NON_BADGE_LOCATION_KEYS = tuple(
+    sorted(
+        key
+        for key, data in LOCATIONS.items()
+        if data["type"] != "badge" and data["type"] not in SHELVED_LOCATION_TYPES
+    )
+)
 
 _FILLER_ITEM_LABELS = tuple(sorted(data["label"] for data in ITEMS.values() if data["classification"] == "filler"))
 
