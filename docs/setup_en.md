@@ -9,6 +9,29 @@
   match.
 - [BizHawk](https://tasvideos.org/BizHawk/ReleaseHistory) version 2.10 or
   later
+- The [`ndspy`](https://github.com/RoadrunnerWMC/ndspy) Python library
+  (used to read/patch the ROM). If you installed Archipelago from the
+  official Windows release (the common case -- a frozen/portable build),
+  it has no `pip`-accessible environment to install into, so this world
+  cannot import `ndspy` unless you add it manually:
+
+  1. Download `ndspy`'s source (e.g. `pip download ndspy --no-deps -d .`
+     from any machine with Python/pip, then unzip/extract the wheel, or
+     clone [its repo](https://github.com/RoadrunnerWMC/ndspy)) to get a
+     plain `ndspy/` folder (pure Python, no compiled files needed).
+  2. Copy that `ndspy/` folder into your Archipelago install's `lib/`
+     folder, next to the `worlds/` folder already there (e.g.
+     `C:\ArchipelagoWhatever\lib\ndspy\`).
+  3. Restart the Archipelago Launcher. Pokémon HeartGold should now
+     appear in `Generate Template Options` / `Option Creator`.
+
+  (If you built/installed Archipelago from source into your own venv
+  instead, a plain `pip install ndspy` into that venv is enough --
+  skip the manual copy above.)
+
+  `ndspy` is GPLv3-licensed; this project only depends on it as an
+  external tool you install yourself, it is never bundled inside
+  `pokemon_heartgold.apworld`.
 
 ### Configuring BizHawk
 
@@ -69,3 +92,7 @@ perfectly safe to make progress offline; everything will re-sync when you reconn
 1. **Problem**: "No handler was found for this game." in the client. **Solution**: Update to at least BizHawk version 2.10.
 2. **Problem**: The client says my ROM doesn't match. **Solution**: Make sure you're patching a US Pokémon HeartGold
    ROM, not SoulSilver, another region, or another revision.
+3. **Problem**: Pokémon HeartGold never shows up in `Generate Template Options` / `Option Creator`, even after
+   installing the `.apworld`. **Solution**: this almost always means `ndspy` isn't importable by Archipelago -- see
+   "Required Software" above. Check your `logs/Launcher_*.txt` for a `ModuleNotFoundError: No module named 'ndspy'`
+   to confirm.
