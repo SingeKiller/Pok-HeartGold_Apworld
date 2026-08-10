@@ -1161,7 +1161,7 @@ already-documented "headbutt-only" flag for those 3 map codes.
   `write_zone_encounters` only ever touches the species `u16` fields,
   never the shared level/rate bytes.
 
-### Starters -- experimental, NOT live-verified
+### Starters -- DISCONFIRMED live (candidate address was wrong)
 
 Unlike the other five, the starter choice is not NitroFS data: `src/
 choose_starter.c`'s `const int species[] = {SPECIES_CHIKORITA,
@@ -1181,18 +1181,37 @@ Added generic ARM9 overlay read/write to `rom/__init__.py`
 (`read_overlay`/`write_overlay`, handling the overlay's own compression
 flag and patching `arm9OverlayTable`'s stale `compressedSize` field after
 recompressing -- overlay 61 is LZ-compressed, 7104 decompressed / 5968
-compressed bytes) and `rom/starterdata.py` on top. **Mechanically
-round-trip verified** against the real ROM (write, save, reopen, read
-back correctly) -- but **not** live-verified that overwriting these 12
-bytes actually changes which 3 Pokémon appear in the starter-choice
-scene in a running game. Per this project's own repeated lesson this
-session (client.py's RAM-address saga: "a single clean result is not
-sufficient evidence on its own"), `patch_gen.py`'s normal apply path
-does **not** call `rom/starterdata.py` -- it is implemented, tested for
-its own mechanical correctness, and left for whoever picks this up next
-to live-verify (load a patched ROM in BizHawk, start a new game, confirm
-the 3 starters shown match the seed) before wiring it into the default
-patch flow.
+compressed bytes) and `rom/starterdata.py` on top, mechanically
+round-trip verified against the real ROM. Correctly kept out of `patch_
+gen.py`'s normal apply path pending live verification (same "a single
+clean result is not sufficient evidence" lesson as client.py's RAM-
+address saga) -- and that caution paid off: a live test the same
+session (full-randomizer seed, patched ROM including the starter write,
+booted in BizHawk, new game started) showed **vanilla Chikorita/
+Cyndaquil/Totodile**, not the seed's rolled starters. The candidate
+address is wrong (or the write mechanism has a bug -- not
+distinguished). Wild-encounter randomization was cross-checked in the
+same live session and confirmed working (a Swalot on Route 29, nowhere
+near a vanilla Route 29 encounter).
+
+**Status: disconfirmed, not just unverified.** `rom/starterdata.py` and
+the overlay read/write plumbing in `rom/__init__.py` are left in place
+(the mechanism itself -- generic overlay compression/size-table
+handling -- may still be useful for a future candidate), but `OVERLAY_
+ID`/`_SPECIES_ARRAY_OFFSET` must not be trusted without re-deriving from
+scratch. Possible next angles, untried this session: confirm overlay 61
+is really the *loaded* overlay for the starter-choice scene (vs. some
+other unrelated function that happens to declare the same 3-species
+literal by coincidence -- the match was unique but uniqueness alone
+already failed once tonight for a different address); check whether
+`choose_starter_app.c` (the actual rendering "app", a separate file from
+the simpler `choose_starter.c` task wrapper that was searched) has its
+own, different copy of the species list that the ARM9-wide byte search
+somehow missed (e.g. encoded as individual immediate-load instructions
+rather than a literal-pool array); or fall back to a disassembler-based
+approach (Ghidra/IDA, previously ruled out for C14's own Blocker 1 as
+unavailable in this dev environment -- worth rechecking if that
+constraint has changed).
 
 ### New randomizers: base stats and move stats (user-added scope, same session)
 
