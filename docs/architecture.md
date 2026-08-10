@@ -1224,23 +1224,42 @@ starter test now asserts real compression integrity (`overlay.
 compressed`, decompressed size unchanged, stored size `<= ramSize`)
 instead of only re-reading the 3 species values.
 
-**Status: back to unverified (not disconfirmed).** The live test that
-seemed to disconfirm overlay 61 / offset 0x1A98 was run through a
-provably broken write mechanism, so it provides no real evidence either
-way about the *address*. Re-run the same live test (patch a ROM with the
-now-fixed `rom/starterdata.py`, boot in BizHawk, start a new game) before
-drawing any conclusion about whether this candidate is right. Wild-
-encounter randomization was cross-checked in the same session and
+**Status: re-tested with the fixed mechanism, DISCONFIRMED for real this
+time.** The first live test (which seemed to disconfirm overlay 61 /
+offset 0x1A98) was run through the broken `isArm9=True` compression call
+and so proved nothing about the address either way. After fixing
+`write_overlay`, a second test ROM was built (compression integrity
+checked before handoff: `overlay.compressed == True`, decompressed size
+unchanged at 7104 bytes, recompressed to 5964 bytes -- comfortably under
+the 7104-byte `ramSize` ceiling and close to the original 5968-byte
+compressed size, i.e. a healthy, real compressed payload this time, not
+the empty-header garbage the old code produced) and booted fresh in
+BizHawk. Result: still **vanilla Chikorita/Cyndaquil/Totodile** at the
+selection screen, and picking one confirmed it in-party (Cyndaquil, not
+one of the seed's rolled starters Bastiodon/Palkia/Dugtrio). With a
+verified-correct write mechanism this time, this is now a real,
+trustworthy disconfirmation: **overlay 61, offset 0x1A98 is not the
+right location** (or overlay 61 is not the overlay actually loaded for
+this scene). `rom/starterdata.py` and the overlay read/write plumbing in
+`rom/__init__.py` stay in the codebase (the plumbing itself is sound and
+reusable for a future candidate), but `OVERLAY_ID`/
+`_SPECIES_ARRAY_OFFSET` must be re-derived from scratch, not reused. See
+the "possible next angles" list above (confirm overlay 61 is really
+loaded for this scene; check `choose_starter_app.c` for its own,
+separately-encoded copy; consider a disassembler-based approach) for
+where to pick this up.
+
+Wild-encounter randomization was cross-checked in the same session and
 confirmed working (a Swalot on Route 29, nowhere near a vanilla Route 29
-encounter) -- that path never touched overlay code, so it is unaffected
-by this bug. A follow-up live check (`rare_candy` x15 injected directly
-into the Bag via the same live-RAM technique `client.py` already uses,
-no server needed) confirmed evolution-target randomization working too:
-a level-up evolution landed on a different, non-vanilla target. Base
-stats and move stats were not part of this particular test seed
-(`randomize_base_stats`/`randomize_moves` both `off`) -- confirmed only
-via the ROM-level round-trip tests above, not yet cross-checked live in
-a running game.
+encounter) -- that path never touched overlay code, so it was unaffected
+by the compression bug either way. A follow-up live check (`rare_candy`
+x15 injected directly into the Bag via the same live-RAM technique
+`client.py` already uses, no server needed) confirmed evolution-target
+randomization working too: a level-up evolution landed on a different,
+non-vanilla target. Base stats and move stats were not part of either
+test seed (`randomize_base_stats`/`randomize_moves` both `off`) --
+confirmed only via the ROM-level round-trip tests above, not yet
+cross-checked live in a running game.
 
 ### New randomizers: base stats and move stats (user-added scope, same session)
 
