@@ -204,6 +204,16 @@ def _goal_rule(player: int, goal: int, badge_count: int):
     return rule
 
 
+_setup_en = Tutorial(
+    "Multiworld Setup Guide",
+    "A guide to playing Pokémon HeartGold with Archipelago",
+    "English",
+    "setup_en.md",
+    "setup/en",
+    ["SingeKiller"],
+)
+
+
 class HeartGoldWebWorld(WebWorld):
     theme = "ocean"
     # A copy, not an alias: Archipelago's WebWorld/AutoWorld registration
@@ -213,7 +223,7 @@ class HeartGoldWebWorld(WebWorld):
     # anything else in the same process that imports options.py directly
     # (e.g. tests/test_options.py) -- confirmed by reproducing the mutation.
     option_groups = list(OPTION_GROUPS)
-    tutorials: list[Tutorial] = []
+    tutorials: list[Tutorial] = [_setup_en]
 
 
 class HeartGoldSettings(settings.Group):
