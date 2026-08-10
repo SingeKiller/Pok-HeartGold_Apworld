@@ -1,0 +1,40 @@
+name: Build .apworld
+
+# This repository only ships the source needed to build/run/modify the
+# APWorld (see .apignore) -- dev-only tooling (tests, lint config) is kept
+# locally and is not part of the public repo, so this workflow only
+# verifies the package actually builds, the same way a contributor would
+# with `python build.py` after `python data_gen.py` (see README.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sanity-check source compiles
+        run: python -m compileall -q .
+
+      - name: Generate data/ (from data_gen/ + data_gen_templates/)
+        run: python data_gen.py
+
+      - name: Build .apworld
+        run: python build.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pokemon_heartgold-apworld
+          path: "*.apworld"
