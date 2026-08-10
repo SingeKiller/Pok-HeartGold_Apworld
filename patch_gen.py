@@ -40,8 +40,13 @@ import tempfile
 from pathlib import Path
 
 from rom import HeartGoldRom
+from rom import encounterdata as rom_encounterdata
 from rom import eventscriptdata as rom_eventscriptdata
+from rom import evodata as rom_evodata
+from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
+from rom import speciesdata as rom_speciesdata
+from rom import trainerdata as rom_trainerdata
 
 ROOT = Path(__file__).resolve().parent
 PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
@@ -195,6 +200,140 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
                 "ground_item/npc_gift/hm_tm (hidden_item/badge are out of "
                 "scope, see this module's own section header comment)."
             )
+
+
+# -- Species/move/trainer/encounter randomization (task M4.5) ----------------
+#
+# Applies `species.py`'s randomizer output (`HeartGoldWorld.generated_
+# starters`/`generated_encounters`/`generated_trainer_parties`/
+# `generated_species`/`generated_moves`, see `__init__.py`'s own docstring)
+# to a ROM copy, via the rom/*.py write layers built for this task
+# (rom/trainerdata.py's `write_party_species`, rom/encounterdata.py's
+# `write_zone_encounters`, rom/evodata.py's `write_species_evolutions`,
+# rom/speciesdata.py's `write_base_stats`, rom/movedata.py's
+# `write_combat_stats`). Every one of these was round-trip verified against
+# the real ROM this same task (write, save, reopen, read back) -- see
+# docs/architecture.md's "## M4.5" section for that verification.
+#
+# `rom/starterdata.py` is deliberately **not** called here -- see that
+# module's own docstring: its target address is a well-evidenced candidate,
+# not a live-verified one, and this project's standing policy (learned the
+# hard way this same session for `client.py`'s RAM addresses) is to never
+# wire an unverified address into the normal patch path.
+
+# Decomposition `include/constants/pokemon.h`'s `EvoMethod` enum -- see
+# docs/architecture.md's "## M4.5" section for how this was cross-checked
+# against a real evolution read live off the ROM (bulbasaur: method 4 ==
+# EVO_LEVEL, matching this table exactly).
+_EVOLUTION_METHOD_TO_RAW: dict[str, int] = {
+    "friendship": 1,
+    "friendship_day": 2,
+    "friendship_night": 3,
+    "level": 4,
+    "trade": 5,
+    "trade_item": 6,
+    "stone": 7,
+    "level_atk_gt_def": 8,
+    "level_atk_eq_def": 9,
+    "level_atk_lt_def": 10,
+    "level_pid_lo": 11,
+    "level_pid_hi": 12,
+    "level_ninjask": 13,
+    "level_shedinja": 14,
+    "beauty": 15,
+    "stone_male": 16,
+    "stone_female": 17,
+    "item_day": 18,
+    "item_night": 19,
+    "has_move": 20,
+    "other_party_mon": 21,
+    "level_male": 22,
+    "level_female": 23,
+    "coronet": 24,
+    "eterna": 25,
+    "route217": 26,
+}
+
+# Evolution methods whose `param` is a `data/items.py` key (an item to use/
+# hold), a `data/moves.py` key (a move the Pokémon must know), or a
+# `data/species.py` key (another party member's species) rather than a
+# plain integer -- see docs/architecture.md's "## M4.5" section for the
+# full param-shape survey this was derived from (every method+param pair
+# actually used in `data/species.py`, one example each).
+_ITEM_PARAM_METHODS = {"stone", "trade_item", "item_day", "item_night", "stone_male", "stone_female"}
+_MOVE_PARAM_METHODS = {"has_move"}
+_SPECIES_PARAM_METHODS = {"other_party_mon"}
+
+
+def _encode_evolution_param(method: str, param: object) -> int:
+    """Convert one evolution's `param` (an int, or an item/move/species key
+    depending on `method`, see this module's own constants above) into the
+    raw `u16` value `rom/evodata.py` writes to the ROM."""
+    if method in _ITEM_PARAM_METHODS:
+        from data.items import ITEMS
+
+        return ITEMS[param]["id"]
+    if method in _MOVE_PARAM_METHODS:
+        from data.moves import MOVES
+
+        return MOVES[param]["id"]
+    if method in _SPECIES_PARAM_METHODS:
+        from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+        return SPECIES_KEY_TO_RAW_INDEX[param]
+    return int(param)
+
+
+def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
+    """Apply `species.py`'s `randomize_trainer_parties` output. Trainers
+    with an empty party (e.g. `data/trainers.py`'s `none` entry, id 0) are
+    skipped -- nothing to write."""
+    for data in trainers.values():
+        if not data["party"]:
+            continue
+        rom_trainerdata.write_party_species(rom, data["id"], data["party"])
+
+
+def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
+    """Apply `species.py`'s `randomize_wild_encounters` output. Zones with
+    no raw NARC entry (see `data/encounter_zone_index.py`'s own docstring:
+    the 3 headbutt-only zones) are skipped -- there is nothing in
+    `g_enc_data.narc` for them to patch."""
+    from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
+
+    for zone_key, zone in encounters.items():
+        if zone_key not in ENCOUNTER_ZONE_KEY_TO_RAW_INDEX:
+            continue
+        rom_encounterdata.write_zone_encounters(rom, zone_key, zone)
+
+
+def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
+    """Apply `species.py`'s `randomize_evolutions`/`randomize_base_stats`
+    output (both live on the same `generated_species` dict, see
+    `__init__.py`'s `set_rules`) -- writes both the evolution table
+    (rom/evodata.py) and the base-stats table (rom/speciesdata.py) for
+    every species."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    for species_key, data in species.items():
+        raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+
+        raw_evolutions = [
+            (
+                _EVOLUTION_METHOD_TO_RAW[evo["method"]],
+                _encode_evolution_param(evo["method"], evo["param"]),
+                SPECIES_KEY_TO_RAW_INDEX[evo["target"]],
+            )
+            for evo in data["evolutions"]
+        ]
+        rom_evodata.write_species_evolutions(rom, raw_index, raw_evolutions)
+        rom_speciesdata.write_base_stats(rom, species_key, data["base_stats"])
+
+
+def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
+    """Apply `species.py`'s `randomize_move_stats` output."""
+    for move_key, data in moves.items():
+        rom_movedata.write_combat_stats(rom, move_key, power=data["power"], accuracy=data["accuracy"], pp=data["pp"])
 
 
 def main(argv: list[str] | None = None) -> int:

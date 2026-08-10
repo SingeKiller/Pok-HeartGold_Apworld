@@ -1,8 +1,10 @@
 # species.py
 #
-# Randomization logic for HeartGold & SoulSilver (task C11): starters, wild
-# encounters (data/encounters.py), trainer parties (data/trainers.py) and
-# evolution targets (data/species.py). This module only *transforms* the
+# Randomization logic for HeartGold & SoulSilver (task C11, extended by
+# task M4.5): starters, wild encounters (data/encounters.py), trainer
+# parties (data/trainers.py), evolution targets, base stats
+# (data/species.py) and move power/accuracy/PP (data/moves.py). This
+# module only *transforms* the
 # generated `data/` tables into new, equally-shaped ones -- it never mutates
 # `data/*.py` itself (generated, gitignored, read-only from here) and it
 # never builds any Archipelago `Region`/`Location`/`Item` object (see
@@ -27,8 +29,8 @@
 #
 # `options.py` (created in parallel by another agent, see task brief) now
 # exists and defines `RandomizeWildPokemon`/`RandomizeStarters`/
-# `RandomizeTrainers`/`RandomizeEvolutions`. This module deliberately does
-# NOT import it: `options.py` itself imports `Options` from the local
+# `RandomizeTrainers`/`RandomizeEvolutions`/`RandomizeBaseStats`/
+# `RandomizeMoves`. This module deliberately does NOT import it: `options.py` itself imports `Options` from the local
 # Archipelago clone (see its own docstring), and this module has no other
 # reason to need that dependency (unlike `rules.py`, which genuinely needs
 # `BaseClasses.Entrance`/`CollectionState` types) -- keeping it out lets
@@ -47,6 +49,7 @@ from __future__ import annotations
 from random import Random
 
 from data.encounters import ENCOUNTERS
+from data.moves import MOVES
 from data.species import SPECIES
 from data.trainers import TRAINERS
 
@@ -62,6 +65,21 @@ WILD_FULL_RANDOM = 2
 EVOLUTIONS_OFF = 0
 EVOLUTIONS_KEEP_METHOD = 1
 EVOLUTIONS_ANY_METHOD = 2
+
+# Mirrors options.RandomizeBaseStats's option_off/option_shuffle/
+# option_full_random values.
+BASE_STATS_OFF = 0
+BASE_STATS_SHUFFLE = 1
+BASE_STATS_FULL_RANDOM = 2
+
+# Mirrors options.RandomizeMoves's option_off/option_shuffle/
+# option_full_random values.
+MOVES_OFF = 0
+MOVES_SHUFFLE = 1
+MOVES_FULL_RANDOM = 2
+
+_BASE_STAT_FIELDS = ("hp", "atk", "def", "spatk", "spdef", "speed")
+_MOVE_COMBAT_FIELDS = ("power", "accuracy", "pp")
 
 # HGSS's vanilla starter trio (Prof. Elm's lab / rival_silver_2/rival_silver_3
 # in data/trainers.py), used when starter randomization is disabled.
@@ -299,3 +317,87 @@ def randomize_evolutions(rng: Random, mode: int, species: dict = SPECIES) -> dic
                 raise ValueError(f"unknown evolution randomization mode: {mode!r}")
         new_species[key] = {**data, "evolutions": tuple(new_evolutions)}
     return new_species
+
+
+# --- 5. Base stats -----------------------------------------------------------
+
+
+def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dict:
+    """Randomize each species' `base_stats` dict (`hp`/`atk`/`def`/`spatk`/
+    `spdef`/`speed`). Growth rate and every other species field are never
+    touched by this function -- it only ever replaces `base_stats`.
+
+    - `BASE_STATS_OFF`: returns `species` unchanged.
+    - `BASE_STATS_SHUFFLE`: each stat column is shuffled independently
+      across every species (`rng.shuffle`) -- the same multiset of values
+      in that column still appears somewhere, just reassigned.
+    - `BASE_STATS_FULL_RANDOM`: each stat is independently replaced by a
+      fresh `rng.randint` draw within the real min-max range some vanilla
+      species actually has for that same stat.
+
+    Walks `species` in its own dict order and `_BASE_STAT_FIELDS` in its
+    own fixed order, so the result is fully determined by `rng`'s seed."""
+    if mode == BASE_STATS_OFF:
+        return species
+
+    keys = tuple(species.keys())
+    new_stats: dict[str, dict[str, int]] = {key: dict(species[key]["base_stats"]) for key in keys}
+
+    if mode == BASE_STATS_SHUFFLE:
+        for field in _BASE_STAT_FIELDS:
+            values = [species[key]["base_stats"][field] for key in keys]
+            rng.shuffle(values)
+            for key, value in zip(keys, values):
+                new_stats[key][field] = value
+    elif mode == BASE_STATS_FULL_RANDOM:
+        for field in _BASE_STAT_FIELDS:
+            values = [species[key]["base_stats"][field] for key in keys]
+            low, high = min(values), max(values)
+            for key in keys:
+                new_stats[key][field] = rng.randint(low, high)
+    else:
+        raise ValueError(f"unknown base-stat randomization mode: {mode!r}")
+
+    return {key: {**data, "base_stats": new_stats[key]} for key, data in species.items()}
+
+
+# --- 6. Move stats -----------------------------------------------------------
+
+
+def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
+    """Randomize each move's `power`/`accuracy`/`pp`. `type` (and every
+    other move field: effect, category, ...) is never touched by this
+    function -- "conservation du Type" is a hard invariant here, not just
+    a default.
+
+    - `MOVES_OFF`: returns `moves` unchanged.
+    - `MOVES_SHUFFLE`: each of power/accuracy/pp is shuffled independently
+      across every move (`rng.shuffle`).
+    - `MOVES_FULL_RANDOM`: each of power/accuracy/pp is independently
+      replaced by a fresh `rng.randint` draw within the real min-max range
+      some vanilla move actually has for that same field.
+
+    Walks `moves` in its own dict order and `_MOVE_COMBAT_FIELDS` in its
+    own fixed order, so the result is fully determined by `rng`'s seed."""
+    if mode == MOVES_OFF:
+        return moves
+
+    keys = tuple(moves.keys())
+    new_combat_stats: dict[str, dict[str, int]] = {key: {} for key in keys}
+
+    if mode == MOVES_SHUFFLE:
+        for field in _MOVE_COMBAT_FIELDS:
+            values = [moves[key][field] for key in keys]
+            rng.shuffle(values)
+            for key, value in zip(keys, values):
+                new_combat_stats[key][field] = value
+    elif mode == MOVES_FULL_RANDOM:
+        for field in _MOVE_COMBAT_FIELDS:
+            values = [moves[key][field] for key in keys]
+            low, high = min(values), max(values)
+            for key in keys:
+                new_combat_stats[key][field] = rng.randint(low, high)
+    else:
+        raise ValueError(f"unknown move-stat randomization mode: {mode!r}")
+
+    return {key: {**data, **new_combat_stats[key]} for key, data in moves.items()}

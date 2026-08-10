@@ -13,6 +13,11 @@ world).
 - Starters.
 - Trainer parties (including the Elite Four and Red).
 - Evolutions (logic-aware: evolution methods stay reachable in logic).
+- Base stats (added 2026-08-10, task M4.5): HP/Attack/Defense/Sp. Attack/
+  Sp. Defense/Speed, growth rate untouched (unrelated to the deferred
+  "level scaling" v2 item below).
+- Move stats (added 2026-08-10, task M4.5): Power/PP/Accuracy, Type
+  always preserved.
 - Static/gift Pokémon (Eevee, Lapras, red Gyarados, Dratini/Poliwag catching
   contest prizes, static legendaries).
 - Ground items, **hidden items**, NPC gifts, HMs/TMs, badges.

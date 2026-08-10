@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from data_gen_templates import (
+    generate_encounter_zone_index,
     generate_encounters,
     generate_init,
     generate_items,
@@ -26,6 +27,7 @@ from data_gen_templates import (
     generate_regions,
     generate_rules,
     generate_species,
+    generate_species_index,
     generate_trainers,
 )
 
@@ -41,6 +43,7 @@ def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     _write("__init__.py", generate_init())
     _write("species.py", generate_species())
+    _write("species_index.py", generate_species_index())
     _write("moves.py", generate_moves())
     _write("items.py", generate_items())
     _write("regions.py", generate_regions())
@@ -48,6 +51,7 @@ def main() -> None:
     _write("rules.py", generate_rules())
     _write("trainers.py", generate_trainers())
     _write("encounters.py", generate_encounters())
+    _write("encounter_zone_index.py", generate_encounter_zone_index())
 
 
 if __name__ == "__main__":

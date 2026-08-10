@@ -39,8 +39,11 @@ from rom import (  # noqa: E402
     NitroFsFileNotFoundError,
     encounterdata,
     eventdata,
+    evodata,
     itemdata,
+    movedata,
     speciesdata,
+    starterdata,
     trainerdata,
 )
 
@@ -92,11 +95,17 @@ def generated_data():
     species_mod = importlib.reload(importlib.import_module("data.species"))
     trainers_mod = importlib.reload(importlib.import_module("data.trainers"))
     encounters_mod = importlib.reload(importlib.import_module("data.encounters"))
+    moves_mod = importlib.reload(importlib.import_module("data.moves"))
+    species_index_mod = importlib.reload(importlib.import_module("data.species_index"))
+    encounter_zone_index_mod = importlib.reload(importlib.import_module("data.encounter_zone_index"))
     yield {
         "ITEMS": items_mod.ITEMS,
         "SPECIES": species_mod.SPECIES,
         "TRAINERS": trainers_mod.TRAINERS,
         "ENCOUNTERS": encounters_mod.ENCOUNTERS,
+        "MOVES": moves_mod.MOVES,
+        "SPECIES_KEY_TO_RAW_INDEX": species_index_mod.SPECIES_KEY_TO_RAW_INDEX,
+        "ENCOUNTER_ZONE_KEY_TO_RAW_INDEX": encounter_zone_index_mod.ENCOUNTER_ZONE_KEY_TO_RAW_INDEX,
     }
     shutil.rmtree(DATA_DIR, ignore_errors=True)
 
@@ -257,3 +266,104 @@ def test_encounter_table_covers_data_encounters(rom: HeartGoldRom, generated_dat
     during data_gen extraction."""
     entries = encounterdata.read_all(rom)
     assert len(entries) >= len(generated_data["ENCOUNTERS"]) == 137
+
+
+# --- task M4.5: species/move/trainer/encounter randomization patching -------
+
+
+def test_species_index_covers_every_species(rom: HeartGoldRom, generated_data) -> None:
+    """`data/species_index.py`'s own generation claim (see
+    docs/architecture.md's "## M4.5" section): all 505 real species map to
+    a raw index, and every raw index is a real, readable ROM entry."""
+    index = generated_data["SPECIES_KEY_TO_RAW_INDEX"]
+    assert len(index) == len(generated_data["SPECIES"]) == 505
+    entries = speciesdata.read_all(rom)
+    assert all(0 <= raw_index < len(entries) for raw_index in index.values())
+
+
+def test_encounter_zone_index_covers_most_zones(rom: HeartGoldRom, generated_data) -> None:
+    """134 of 137 -- see data/encounter_zone_index.py's own docstring for
+    the 3 headbutt-only exceptions."""
+    index = generated_data["ENCOUNTER_ZONE_KEY_TO_RAW_INDEX"]
+    assert len(index) == 134
+    entries = encounterdata.read_all(rom)
+    assert all(0 <= raw_index < len(entries) for raw_index in index.values())
+
+
+def test_speciesdata_base_stats_roundtrip(rom: HeartGoldRom) -> None:
+    before = speciesdata.read_base_stats(rom, "bulbasaur")
+    modified = {**before, "hp": (before["hp"] + 1) % 256}
+    speciesdata.write_base_stats(rom, "bulbasaur", modified)
+    assert speciesdata.read_base_stats(rom, "bulbasaur") == modified
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    assert speciesdata.read_base_stats(rebuilt, "bulbasaur") == modified
+
+
+def test_movedata_combat_stats_roundtrip_preserves_type(rom: HeartGoldRom) -> None:
+    power, move_type, accuracy, pp = movedata.read_combat_stats(rom, "tackle")
+    movedata.write_combat_stats(rom, "tackle", power=power + 1, accuracy=accuracy - 1, pp=pp + 1)
+
+    new_power, new_type, new_accuracy, new_pp = movedata.read_combat_stats(rom, "tackle")
+    assert (new_power, new_accuracy, new_pp) == (power + 1, accuracy - 1, pp + 1)
+    assert new_type == move_type  # "conservation du Type" is a hard invariant
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    assert movedata.read_combat_stats(rebuilt, "tackle")[1] == move_type
+
+
+def test_evodata_species_evolutions_roundtrip(rom: HeartGoldRom, generated_data) -> None:
+    raw_index = generated_data["SPECIES_KEY_TO_RAW_INDEX"]["bulbasaur"]
+    new_evolutions = [(4, 16, 999)]  # EVO_LEVEL, level 16, an arbitrary raw target
+    evodata.write_species_evolutions(rom, raw_index, new_evolutions)
+    assert evodata.read_species_evolutions(rom, raw_index) == new_evolutions
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    assert evodata.read_species_evolutions(rebuilt, raw_index) == new_evolutions
+
+
+def test_trainerdata_write_party_species_preserves_other_slot_bytes(rom: HeartGoldRom, generated_data) -> None:
+    trainer_id = generated_data["TRAINERS"]["rival_silver"]["id"]
+    party = generated_data["TRAINERS"]["rival_silver"]["party"]
+    new_party = [dict(party[0], species="rattata"), *party[1:]]
+
+    trainerdata.write_party_species(rom, trainer_id, new_party)
+    raw = trainerdata.read_party_entry(rom, trainer_id)
+    slot0_species = int.from_bytes(raw[4:6], "little")
+    assert slot0_species == generated_data["SPECIES_KEY_TO_RAW_INDEX"]["rattata"]
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    rebuilt_raw = trainerdata.read_party_entry(rebuilt, trainer_id)
+    assert rebuilt_raw == raw
+
+
+def test_encounterdata_write_zone_encounters_only_changes_species(rom: HeartGoldRom, generated_data) -> None:
+    zone_key = "route_29"
+    zone = generated_data["ENCOUNTERS"][zone_key]
+    before_entry = encounterdata.read_entry(rom, generated_data["ENCOUNTER_ZONE_KEY_TO_RAW_INDEX"][zone_key])
+
+    new_slots = [dict(slot, morn="rattata") for slot in zone["land"]["slots"]]
+    new_zone = {**zone, "land": {**zone["land"], "slots": tuple(new_slots)}}
+    encounterdata.write_zone_encounters(rom, zone_key, new_zone)
+
+    after_entry = encounterdata.read_entry(rom, generated_data["ENCOUNTER_ZONE_KEY_TO_RAW_INDEX"][zone_key])
+    morn_species = int.from_bytes(after_entry[0x14:0x16], "little")
+    assert morn_species == generated_data["SPECIES_KEY_TO_RAW_INDEX"]["rattata"]
+    # Only the morn species slots changed -- everything else (rates, day/
+    # nite species, fishing/surf/rock_smash) is byte-identical to before.
+    assert after_entry[:0x14] == before_entry[:0x14]
+    assert after_entry[0x2C:] == before_entry[0x2C:]
+
+
+def test_starterdata_roundtrips_mechanically(rom: HeartGoldRom) -> None:
+    """Mechanical round-trip only -- see rom/starterdata.py's own
+    docstring: the target address is a well-evidenced candidate, not a
+    live-verified one."""
+    before = starterdata.read_starters(rom)
+    assert before == (152, 155, 158)  # vanilla Chikorita/Cyndaquil/Totodile raw indices
+
+    starterdata.write_starters(rom, (1, 4, 7))
+    assert starterdata.read_starters(rom) == (1, 4, 7)
+
+    rebuilt = HeartGoldRom(rom.save_bytes(), expect_vanilla=False)
+    assert starterdata.read_starters(rebuilt) == (1, 4, 7)

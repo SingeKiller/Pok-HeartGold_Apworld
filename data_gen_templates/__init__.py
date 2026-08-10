@@ -90,6 +90,7 @@ def generate_init() -> str:
 # call `load_toml`/reference `GENERATED_FILE_HEADER` from this module at
 # import time, so they must be defined above before these submodules are
 # imported.
+from .encounter_zone_index import generate_encounter_zone_index  # noqa: E402
 from .encounters import generate_encounters  # noqa: E402
 from .items import generate_items  # noqa: E402
 from .locations import generate_locations  # noqa: E402
@@ -97,10 +98,12 @@ from .moves import generate_moves  # noqa: E402
 from .regions import generate_regions  # noqa: E402
 from .rules import generate_rules  # noqa: E402
 from .species import generate_species  # noqa: E402
+from .species_index import generate_species_index  # noqa: E402
 from .trainers import generate_trainers  # noqa: E402
 
 __all__ = [
     "generate_init",
+    "generate_encounter_zone_index",
     "generate_encounters",
     "generate_items",
     "generate_locations",
@@ -108,5 +111,6 @@ __all__ = [
     "generate_regions",
     "generate_rules",
     "generate_species",
+    "generate_species_index",
     "generate_trainers",
 ]

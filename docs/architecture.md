@@ -1060,87 +1060,191 @@ across a save reload. What remains open: `hidden_item` substitution
 (separate, already-documented blocker -- static ARM9 table) and a
 Reviewer pass on this session's `client.py` changes as a whole.
 
-## M4.5 -- applying species.py's randomizers to the ROM (planned, not started)
+## M4.5 -- applying species.py's randomizers to the ROM (implemented)
 
 `docs/scope.md`'s v1 list includes wild encounters, starters, trainer
-parties and evolutions, and `species.py` already computes all four
+parties and evolutions, and `species.py` already computed all four
 (`randomize_wild_encounters`/`randomize_starters`/
 `randomize_trainer_parties`/`randomize_evolutions`, seeded from
-`world.random`) -- but `__init__.py`'s `set_rules()` only *runs* them and
-stores the result on `self` (see that file's own docstring, "for a later
-task (ROM patch generation) to consume"). **Nothing writes this output
-into the ROM yet** -- discovered/confirmed this session while answering
-the user's direct question about whether these randomizers actually
-affect real gameplay (they don't, yet). Decided (2026-08-10): stay on the
-documented v1 scope (not descoping to an items-only release) and tackle
-this as its own milestone, taking as long as it needs, once picked back
-up.
+`world.random`) -- but `__init__.py`'s `set_rules()` only *ran* them and
+stored the result on `self` (see that file's own docstring, "for a later
+task (ROM patch generation) to consume"). **Nothing wrote this output
+into the ROM** -- discovered while answering the user's direct question
+about whether these randomizers actually affect real gameplay (they
+didn't, yet). Decided (2026-08-10): stay on the documented v1 scope
+(not descoping to an items-only release) and implement all of it the
+same session, plus two randomizers the user added to scope at the same
+time -- base stats and move power/PP/accuracy (type preserved). Every
+randomizer now has its own on/off (or off/shuffle/full_random) option.
 
-Investigated this session, to make the next pickup fast:
+### Prerequisite: the species raw-index mapping (508 vs 505)
 
-- **Trainer parties**: `rom/trainerdata.py` already has `write_party_
-  entry(rom, trainer_id, data)`/`write_all_parties`. Should be the
-  most direct of the four -- `randomize_trainer_parties`'s output
-  (`trainers[key]["party"]` tuples with a new `"species"` per slot)
-  needs encoding into that entry's raw byte format (not yet
-  reverse-engineered here; `rom/trainerdata.py`'s own module docstring
-  should have or need the field layout) and an index/order mapping
-  between `data/trainers.py` keys and raw `trainer_id`s (likely already
-  established, since `read_party_entry(rom, trainer_id)` exists and
-  presumably data_gen already cross-references it -- check
-  `data_gen/trainers.toml`/`data_gen.py` first before assuming this is
-  unresolved).
-- **Wild encounters**: `rom/encounterdata.py` already has `write_entry`/
-  `write_all`. Similarly needs `randomize_wild_encounters`'s per-zone,
-  per-slot species output encoded into each zone's raw entry format and
-  an index mapping to `data/encounters.py` zone keys.
-- **Species (for evolutions)**: `rom/speciesdata.py` (`a/0/0/2`,
-  personal stats) does **not** hold evolution data -- evolutions live in
-  a **separate NARC**, `poketool/personal/evo.narc` -> NitroFS path
-  `a/0/3/4` (`filesystem.mk`), not yet read or written by any `rom/`
-  module (`rom/evodata.py` does not exist yet). Struct (Decomposition
-  `include/pokemon_types_def.h`): `struct Evolution { u16 method; u16
-  param; u16 target; }` (6 bytes), `MAX_EVOS_PER_POKE = 7` per species
-  (so each species' raw entry is likely a fixed 7 x 6 = 42-byte block,
-  unconfirmed against the real ROM). **Open question already flagged in
-  `rom/speciesdata.py`'s own docstring, unresolved**: the raw NARC has
-  508 entries, `data/species.py`'s `SPECIES` has 505 (493 real + 12 HGSS
-  forms) -- which raw index maps to which `data/species.py` key is not
-  established (very likely a leading placeholder + a couple of
-  engine-reserved slots, per that docstring's own guess, but not
-  verified). This mapping blocks writing *any* per-species table
-  correctly (evolutions here, but would also block ever patching base
-  stats/learnsets/TM compatibility later) -- resolve this first, it's
-  shared prerequisite work, not evolution-specific.
-- **Starters**: not yet investigated *at all* this session -- unlike the
-  other three, starters aren't a flat data table, they're granted via
-  Prof. Elm's starter-selection event script (New Bark Town lab). Likely
-  the same shape of problem C14's ground-item hook and the eventual
-  `rom/eventscriptdata.py` local-item-substitution work solved (a
-  NitroFS script bytecode edit -- probably simpler than an ARM hook,
-  possibly similar to how `write_ground_item_substitution` patches an
-  item-id operand in place), but the actual script/table has not been
-  located in the decomp yet this session. Start here with the same
-  method C14/C15 used: find the vanilla starter-selection logic in the
-  decomp (`event script` handling the lab cutscene), confirm whether it
-  reads species ids from a small, easily-patched literal/table vs.
-  something requiring real code changes.
+`rom/speciesdata.py`'s own docstring had flagged this as unresolved:
+`personal.narc` (a/0/0/2) has 508 entries, `data/species.py`'s `SPECIES`
+has 505. Resolved by finding `ressources/Decomposition/pokeheartgold/
+files/poketool/personal/personal.json` -- a decomp-authored, human-edited
+JSON export whose `baseStats` array is compiled *back* into the real
+NARC by the decomp's own build system, meaning its index order **is**
+the real raw sub-file index. Matched every `data/species.py` entry's
+`label` against `baseStats[i].species`: **505/505 matched**, and the 3
+unmatched raw entries were exactly `NONE` (index 0), `EGG` (494), `BAD_
+EGG` (495) -- engine-reserved placeholders, confirming both the count
+and which indices are the "extra" 3. Verified independently against the
+real ROM: reading `personal.narc[1]` gives Bulbasaur's exact real base
+stats.
 
-Recommended order for the next session picking this up: (1) resolve the
-508-vs-505 species index mapping (blocks evolutions and is worth getting
-right once); (2) trainer parties (most direct, existing write primitive,
-no new NARC); (3) wild encounters (same shape as trainer parties); (4)
-evolutions (needs the new `rom/evodata.py` module, but otherwise similar
-shape once the index mapping is resolved); (5) starters last (the one
-with a genuinely unknown shape of solution, do the investigation spike
-first before committing to an approach, same "prudence over progress"
-policy as C14). Each of these four probably deserves the same rigor as
-C13-C16 did for items: a Coder pass building the `rom/*.py`/`patch_gen.py`
-plumbing, then a **mandatory** Tester pass (M4-tier risk -- these write
-to NitroFS data in a patched ROM copy, same real-corruption stakes as
-`client.py`'s RAM writes), and ideally a live spot-check against the
-real ROM the same way `test_apply_local_item_substitutions` and this
-session's live BizHawk tests did for items/client.py.
+Generated once into `data/species_index.py`'s `SPECIES_KEY_TO_RAW_INDEX`
+via a new `data_gen` step (`data_gen/species_index.toml` -> `data_gen_
+templates/species_index.py`), the same toml-source-of-truth pattern
+every other `data/*.py` table already follows -- not a hand-rolled
+static table, reproducible the same way as everything else.
+
+The same technique resolved a second, analogous gap: `data/encounters.py`
+has 137 zones, the raw `g_enc_data.narc` (a/0/3/7) has 142. `gs_enc_data.
+json`'s own array order is the real raw index (confirmed against the
+real ROM: index 0 == map code T20 == `data/encounters.py`'s `new_bark`
+zone, byte-for-byte -- its surf slots decode to Tentacool/Tentacruel
+exactly). Matched each zone's own `map_code` against `gs_enc_data.
+json[i].map`: **134/137 matched** (`data/encounter_zone_index.py`'s
+`ENCOUNTER_ZONE_KEY_TO_RAW_INDEX`, same `data_gen` pattern) -- the other
+3 (`route_16`/`pewter`/`azalea`) have a *headbutt* table only (a
+different NARC, not touched by this work) and no `gs_enc_data.json`
+entry to map at all, exactly matching `data_gen/encounters.toml`'s own
+already-documented "headbutt-only" flag for those 3 map codes.
+
+### Byte formats (Decomposition headers, each cross-checked live against the real ROM)
+
+- **Base stats** (`include/pokemon_types_def.h`'s `BaseStats`): `hp`/
+  `atk`/`def`/`speed`/`spatk`/`spdef` are the entry's first 6 bytes, one
+  `u8` each, in that exact order. `rom/speciesdata.py`'s new `write_base_
+  stats`/`read_base_stats` touch only those 6 bytes.
+- **Moves** (`include/move.h`'s `MoveTbl`, new `rom/movedata.py`,
+  `waza_tbl.narc` -> `a/0/1/1`, 471 raw entries, 16 bytes each): `power`
+  @ offset 3, `type` @ offset 4, `accuracy` @ offset 5, `pp` @ offset 6.
+  `data/moves.py`'s own `id` field is directly usable as the raw index
+  here -- unlike species, no separate mapping needed (spot-checked 4
+  moves -- tackle/thunderbolt/flamethrower/pound -- against the real ROM,
+  power/accuracy/pp/type all matched exactly at `waza_tbl.narc[id]`).
+  `write_combat_stats` only ever touches power/accuracy/pp, never type.
+- **Evolutions** (`include/pokemon_types_def.h`'s `struct Evolution
+  {u16 method; u16 param; u16 target;}`, new `rom/evodata.py`, `evo.narc`
+  -> `a/0/3/4`, 508 entries index-aligned with `personal.narc`, 44 bytes
+  each = 7 x 6-byte records + 2 unstudied trailing bytes never touched).
+  Evolution `method` strings (`data/species.py`'s own `evolutions[i]
+  ["method"]`, e.g. `"level"`/`"stone"`/`"trade_item"`) map 1:1 onto
+  Decomposition `include/constants/pokemon.h`'s `EvoMethod` enum
+  (`EVO_LEVEL = 4` etc.) -- cross-checked live: Bulbasaur's real
+  evolution read directly off the ROM was `(method=4, param=16,
+  target=2)`, exactly `EVO_LEVEL`, level 16, Ivysaur's raw index.
+  `param`'s *type* depends on `method`: a plain int for level/friendship/
+  beauty-style methods, an item key for stone/trade_item/item_day/
+  item_night, a move key for has_move, a species key for
+  other_party_mon -- `patch_gen.py`'s `_encode_evolution_param` dispatches
+  on that.
+- **Trainer parties** (`include/trainer_data.h`'s `TRPOKE` union, 4
+  variants depending on held-item/custom-moves presence): in every
+  variant, `species` sits at the same fixed offset (4 bytes in), only
+  each *slot*'s total size differs (8/10/16/18 bytes) -- `data/
+  trainers.py`'s own party-slot dicts already carry `held_item`/`moves`
+  keys precisely when the real slot needs the wider variant, so `rom/
+  trainerdata.py`'s new `write_party_species` derives each slot's stride
+  from the same dict shape rather than needing a separate "which variant"
+  table. `data/trainers.py`'s `id` is already 1:1 with the raw
+  `trdata`/`trpoke` NARC index (`rom/trainerdata.py`'s own docstring
+  already established this at C13, exactly 738 = 738, no gap).
+- **Wild encounters** (`include/wild_encounter.h`'s `EncounterData`,
+  0xC4 = 196 bytes, confirmed against the real ROM's entry size): land
+  morn/day/nite species arrays at 0x14/0x2C/0x44 (12 x u16 each, shared
+  `levels[12]` never touched), surf/rock_smash/old_rod/good_rod/
+  super_rod each an `EncounterDataSlot{u8 min; u8 max; u16 species;}`
+  array at 0x64/0x78/0x80/0x94/0xA8. `rom/encounterdata.py`'s new
+  `write_zone_encounters` only ever touches the species `u16` fields,
+  never the shared level/rate bytes.
+
+### Starters -- experimental, NOT live-verified
+
+Unlike the other five, the starter choice is not NitroFS data: `src/
+choose_starter.c`'s `const int species[] = {SPECIES_CHIKORITA,
+SPECIES_CYNDAQUIL, SPECIES_TOTODILE};` is a compiled literal inside an
+ARM9 **overlay** -- the same general category of problem as C14's
+ground-item ARM hook, but narrower (an in-place *data* patch, not code
+injection/call-site hooking). Found by searching the raw species indices
+(152/155/158) as a literal `int[3]` (three consecutive little-endian
+`u32`s) across the main ARM9 binary and all 129 ARM9 overlays: zero
+matches in the main binary, exactly **one** match total across every
+overlay -- overlay 61, offset 0x1A98. A second, unrelated 16-bit-pattern
+match in overlays 80/99 was inspected and discarded (a long run of
+sequential-looking species ids, consistent with a Pokédex-order table,
+not a 3-element list).
+
+Added generic ARM9 overlay read/write to `rom/__init__.py`
+(`read_overlay`/`write_overlay`, handling the overlay's own compression
+flag and patching `arm9OverlayTable`'s stale `compressedSize` field after
+recompressing -- overlay 61 is LZ-compressed, 7104 decompressed / 5968
+compressed bytes) and `rom/starterdata.py` on top. **Mechanically
+round-trip verified** against the real ROM (write, save, reopen, read
+back correctly) -- but **not** live-verified that overwriting these 12
+bytes actually changes which 3 Pokémon appear in the starter-choice
+scene in a running game. Per this project's own repeated lesson this
+session (client.py's RAM-address saga: "a single clean result is not
+sufficient evidence on its own"), `patch_gen.py`'s normal apply path
+does **not** call `rom/starterdata.py` -- it is implemented, tested for
+its own mechanical correctness, and left for whoever picks this up next
+to live-verify (load a patched ROM in BizHawk, start a new game, confirm
+the 3 starters shown match the seed) before wiring it into the default
+patch flow.
+
+### New randomizers: base stats and move stats (user-added scope, same session)
+
+Both added by the user mid-session, both follow the exact same
+off/shuffle/full_random `Choice` pattern already established for wild
+encounters (`options.RandomizeBaseStats`/`options.RandomizeMoves`,
+`species.randomize_base_stats`/`species.randomize_move_stats`):
+`shuffle` permutes each stat/field independently across every species/
+move; `full_random` draws each stat/field independently within the real
+observed min-max range for that column (avoids literal 1/255-style
+extremes no vanilla entry ever has). Base stats never touch growth
+rate/EXP curve or any other species field (unrelated to the deferred
+"level scaling" v2 item, docs/scope.md). Move stats never touch `type`
+(hard invariant, tested).
+
+### Integration
+
+`__init__.py`'s `set_rules()` now also calls `randomize_base_stats`
+(chained onto `randomize_evolutions`'s output, so both land on the same
+`generated_species`) and `randomize_move_stats` (`generated_moves`).
+`patch_gen.py` gained `apply_trainer_randomization`/`apply_encounter_
+randomization`/`apply_evolution_and_stat_randomization`/`apply_move_
+randomization`, each taking a `HeartGoldWorld`'s `generated_*` dict and
+applying it to a `HeartGoldRom` via the layers above.
+
+### Verification
+
+Every new `rom/*.py` write function was round-trip tested against the
+real ROM (write, `rom.save_bytes()`, reopen, read back) both as one-off
+manual checks during development and as permanent additions to
+`tests/test_rom_access.py` (8 new tests: species-index/encounter-zone-
+index completeness, base-stats round-trip, move-stats round-trip +
+type-preservation, evolution round-trip, trainer-party round-trip
+verifying untouched slots stay byte-identical, encounter-zone round-trip
+verifying untouched fields stay byte-identical, starter mechanical
+round-trip). Then a full, real, live integration pass: instantiated a
+real `HeartGoldWorld` via `test.general.setup_multiworld` with every
+randomizer on `full_random`/`shuffle`/`True`, applied all four `patch_
+gen.py` functions to a real ROM copy, saved, reopened, and spot-checked
+the result -- e.g. `rival_silver`'s randomized party (`smoochum`/`seel`/
+`abra` for that seed) read back correctly from the patched ROM's
+`trpoke` table, byte-for-byte matching the world's own computed
+`generated_trainer_parties`. Full test suite: 193 passed + 42 skipped
+without a local ROM, 235 passed with one (`HEARTGOLD_ROM_PATH` set),
+ruff clean throughout.
+
+**What's still open**: starters (mechanically works, not live-verified
+in-game -- see above); headbutt encounters (a separate, smaller NARC,
+not wired up -- the wild-encounter randomizer's *computation* still
+covers headbutt, only the ROM write doesn't yet); a Reviewer pass on
+this whole body of work; `hidden_item` substitution (separate,
+already-documented, unrelated blocker).
 
 **M4's core client-only strategy (docs/architecture.md's "ROM code
 injection strategy (revised after C14)", option 3) is now fully

@@ -1,0 +1,155 @@
+# data_gen/encounter_zone_index.toml
+#
+# Source: ressources/Decomposition/pokeheartgold/files/fielddata/encountdata/
+# gs_enc_data.json ("encounters" array) -- this array's own index order is
+# the real raw g_enc_data.narc (a/0/3/7) sub-file index, confirmed against
+# the real ROM (index 0 == map T20 == new_bark, byte-for-byte: surf slots
+# decode to Tentacool/Tentacruel exactly matching data/encounters.py's own
+# new_bark zone). Generated once by matching each data/encounters.py zone's
+# own "map_code" field against gs_enc_data.json's "encounters[i].map" (see
+# docs/architecture.md's "## M4.5" section for the verification this ran).
+#
+# 134 of data/encounters.py's 137 zones matched -- the other 3
+# (route_16/R16, pewter/T03, azalea/T23) have a headbutt table
+# (files/arc/headbutt.json / the headbutt NARC, a *different* table, not
+# read/written by rom/encounterdata.py at all) but no gs_enc_data.json entry
+# whatsoever -- see data_gen/encounters.toml's own header, which already
+# flags these exact 3 map codes as "headbutt-only". Not resolvable here
+# because there is no raw index to resolve: these zones have no
+# land/surf/rock_smash/fishing encounter data in the ROM at all to patch.
+
+[raw_index]
+new_bark = 0
+route_29 = 1
+cherrygrove = 2
+route_30 = 3
+route_31 = 4
+violet = 5
+sprout_tower_2f = 6
+sprout_tower_3f = 7
+route_32 = 8
+ruins_of_alph = 9
+ruins_of_alph_underground_hall = 10
+ruins_of_alph_underground_hall_sinjoh_event = 11
+ruins_of_alph_underground_hall_sinjoh_event_2 = 12
+ruins_of_alph_hall_entrance_sinjoh_event = 13
+union_cave_1f = 14
+union_cave_b1f = 15
+union_cave_b2f = 16
+route_33 = 17
+slowpoke_well_b1f = 18
+slowpoke_well_b2f = 19
+ilex_forest = 20
+route_34 = 21
+route_35 = 22
+national_park = 23
+national_park_bug_catching_contest = 24
+route_36 = 25
+route_37 = 26
+ecruteak = 27
+burned_tower_1f = 28
+burned_tower_b1f = 29
+bell_tower_2f = 30
+bell_tower_3f = 31
+bell_tower_4f = 32
+bell_tower_5f = 33
+bell_tower_6f = 34
+bell_tower_7f = 35
+bell_tower_8f = 36
+bell_tower_9f = 37
+route_38 = 38
+route_39 = 39
+olivine = 40
+route_40 = 41
+route_41 = 42
+whirl_islands_1f = 43
+whirl_islands_b1f = 44
+whirl_islands_b2f = 46
+whirl_islands_b3f = 48
+cianwood = 51
+route_42 = 52
+mount_mortar_1f_entrance = 53
+mount_mortar_1f_back = 54
+mount_mortar_2f = 55
+mount_mortar_b1f = 56
+route_43 = 57
+lake_of_rage = 58
+route_44 = 59
+ice_path_1f = 60
+ice_path_b1f = 61
+ice_path_b2f = 62
+ice_path_b3f = 63
+blackthorn = 65
+dragons_den = 66
+route_45 = 67
+route_46 = 68
+dark_cave_route_31_side = 69
+dark_cave_route_45_side = 70
+route_47 = 71
+mount_moon_square = 72
+mount_moon_square_clefairy_event = 73
+seafoam_islands_1f = 74
+seafoam_islands_b1f = 75
+seafoam_islands_b2f = 76
+seafoam_islands_b3f = 77
+seafoam_islands_b4f = 78
+mount_silver_cave_moltres_chamber = 79
+mount_silver_cave_2f = 80
+mount_silver_cave_3f = 81
+cliff_edge_gate = 82
+cliff_cave = 83
+bell_tower_10f = 84
+mount_silver = 85
+mount_silver_cave_1f = 86
+mount_silver_cave_lower_mountainside = 87
+mount_silver_cave_expert_belt_chamber = 88
+mount_silver_cave_upper_mountainside = 89
+route_12 = 92
+route_19 = 93
+route_20 = 94
+pallet = 95
+viridian = 96
+cerulean = 97
+vermilion = 98
+celadon = 99
+fuchsia = 100
+cinnabar_island = 101
+route_48 = 102
+route_26 = 103
+route_27 = 104
+route_28 = 105
+mount_moon = 106
+mount_moon_square_entrance = 107
+rock_tunnel_1f = 108
+rock_tunnel_b1f = 109
+victory_road_1f = 110
+route_1 = 111
+route_2 = 112
+route_3 = 113
+route_4 = 114
+route_5 = 115
+route_6 = 116
+route_7 = 117
+route_8 = 118
+route_9 = 119
+route_10 = 120
+route_11 = 121
+route_13 = 122
+route_14 = 123
+route_15 = 124
+route_16_east = 125
+route_17 = 126
+route_18 = 127
+route_21 = 128
+route_22 = 129
+route_24 = 130
+route_25 = 131
+tohjo_falls = 132
+diglett_cave = 133
+victory_road_2f = 134
+victory_road_3f = 135
+route_2_east = 136
+viridian_forest = 137
+cerulean_cave_1f = 139
+cerulean_cave_2f = 140
+cerulean_cave_b1f = 141

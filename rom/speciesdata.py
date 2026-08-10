@@ -14,17 +14,18 @@
 # directly against the real US HeartGold ROM: readable, parses as a NARC
 # with exactly 508 sub-files.
 #
-# Open question, deliberately left unresolved here (same reasoning as
-# rom/itemdata.py's own docstring): `data/species.py`'s `SPECIES` table has
-# 505 entries (493 real Pokedex species + 12 HGSS alternate forms, see
-# species.py's own `real_species_pool` docstring), 3 fewer than this NARC's
-# 508 sub-files. The extra slots are very likely a leading placeholder
-# entry (index 0, "no species") plus a couple of additional
-# engine-reserved/egg-related slots, but which raw index corresponds to
-# which `data/species.py` key is not resolved here -- left to whichever
-# later task writes species-stat patches. `tests/test_rom_access.py` only
-# asserts the NARC has at least as many entries as `SPECIES` (a loose but
-# verifiable sanity check), not an index<->species equivalence.
+# Index question, RESOLVED (task M4.5, see docs/architecture.md's "## M4.5"
+# section): `data/species.py`'s `SPECIES` table has 505 entries (493 real
+# Pokedex species + 12 HGSS alternate forms, see species.py's own
+# `real_species_pool` docstring), 3 fewer than this NARC's 508 sub-files.
+# The extra 3 are index 0 ("no species" placeholder) and 494/495 ("EGG"/
+# "BAD_EGG", engine-reserved) -- every one of the other 505 raw entries
+# matches exactly one `data/species.py` key by label, generated once into
+# `data/species_index.py`'s `SPECIES_KEY_TO_RAW_INDEX` (see
+# `data_gen/species_index.toml`'s own header for the derivation).
+# `tests/test_rom_access.py`'s loose entry-count check predates this and
+# was not tightened further (not needed -- the real mapping now lives in
+# `data/species_index.py`, generated and tested on its own terms).
 
 from __future__ import annotations
 
@@ -38,6 +39,18 @@ NITROFS_PATH = "a/0/0/2"
 
 # Sub-file count confirmed against the real US HeartGold ROM.
 EXPECTED_ENTRY_COUNT = 508
+
+# Decomposition `include/pokemon_types_def.h`, `struct BaseStats`: the six
+# base-stat fields are the entry's first 6 bytes, one `u8` each, in this
+# exact order -- no padding/alignment ambiguity (plain byte fields).
+_BASE_STAT_FIELD_OFFSETS: dict[str, int] = {
+    "hp": 0,
+    "atk": 1,
+    "def": 2,
+    "speed": 3,
+    "spatk": 4,
+    "spdef": 5,
+}
 
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
@@ -72,3 +85,31 @@ def write_entry(rom: HeartGoldRom, index: int, data: bytes) -> None:
     narc = rom.read_narc(NITROFS_PATH)
     narc.files[index] = data
     rom.write_narc(NITROFS_PATH, narc)
+
+
+def write_base_stats(rom: HeartGoldRom, species_key: str, base_stats: dict[str, int]) -> None:
+    """Overwrite one species' six base-stat bytes (`hp`/`atk`/`def`/
+    `speed`/`spatk`/`spdef`, matching `data/species.py`'s own
+    `base_stats` dict shape) in place, leaving every other byte of its
+    entry (types, catch rate, abilities, TM/HM compatibility, ...)
+    untouched -- the base-stat randomizer's own documented contract:
+    only the six stat values change, everything else (including the
+    species' growth rate/EXP curve, "on garde le scaling") stays vanilla."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = bytearray(read_entry(rom, raw_index))
+    for field, offset in _BASE_STAT_FIELD_OFFSETS.items():
+        entry[offset] = base_stats[field]
+    write_entry(rom, raw_index, bytes(entry))
+
+
+def read_base_stats(rom: HeartGoldRom, species_key: str) -> dict[str, int]:
+    """Read one species' six base-stat bytes directly from the ROM --
+    mainly for tests/verification, `write_base_stats` is the normal write
+    path."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = read_entry(rom, raw_index)
+    return {field: entry[offset] for field, offset in _BASE_STAT_FIELD_OFFSETS.items()}

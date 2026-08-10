@@ -24,8 +24,10 @@
 from __future__ import annotations
 
 import hashlib
+import struct
 from pathlib import Path
 
+import ndspy.codeCompression
 import ndspy.narc
 import ndspy.rom
 
@@ -235,6 +237,69 @@ class HeartGoldRom:
         target_address = self._rom.arm9RamAddress + len(self._rom.arm9)
         self._rom.arm9 = bytes(self._rom.arm9) + bytes(data)
         return target_address
+
+    # -- ARM9 overlay access (task M4.5) ---------------------------------------
+    #
+    # Unlike the main ARM9 binary above (append-only, see that section's own
+    # docstring for why: the DS secure-area checksum), an overlay is a plain
+    # NitroFS file referenced by the ARM9 overlay table (`arm9OverlayTable`),
+    # with its own independent per-overlay compression flag and no DS-wide
+    # checksum concern -- so in-place edits (not just appends) are safe here
+    # *with respect to boot integrity*. This does **not** make editing
+    # compiled code/data inside an overlay low-risk in general: unlike the
+    # NitroFS data tables `read_narc`/`write_narc` above operate on, an
+    # overlay mixes real ARM machine code with whatever constant data the
+    # compiler placed alongside it -- a wrong offset can corrupt an
+    # instruction, not just misplace a value. Every caller of `write_overlay`
+    # is expected to have independently, precisely located the exact bytes
+    # it means to change (see e.g. rom/starterdata.py's own docstring for
+    # how that was done for the one caller that exists as of this writing).
+
+    def read_overlay(self, overlay_id: int) -> bytes:
+        """Return one ARM9 overlay's data, decompressed if needed
+        (`ndspy.code.loadOverlayTable` handles that transparently)."""
+        overlays = self._rom.loadArm9Overlays(idsToLoad=(overlay_id,))
+        return bytes(overlays[overlay_id].data)
+
+    def write_overlay(self, overlay_id: int, data: bytes) -> None:
+        """Replace one ARM9 overlay's data in place, re-compressing first
+        if the overlay was originally compressed (preserving its existing
+        compressed/uncompressed state -- never changes that flag). Also
+        patches the recompressed size back into `arm9OverlayTable`'s own
+        32-byte record for this overlay (`compressedSize_Flags`'s low 24
+        bits, see `ndspy.code.loadOverlayTable`'s own unpack format) --
+        recompressing essentially never reproduces the exact original
+        byte count, and leaving that field stale would tell the game's own
+        overlay loader the wrong length to read/decompress."""
+        overlays = self._rom.loadArm9Overlays(idsToLoad=(overlay_id,))
+        overlay = overlays[overlay_id]
+        if len(data) != len(overlay.data):
+            raise ValueError(
+                f"overlay {overlay_id} is {len(overlay.data)} bytes, got "
+                f"{len(data)} replacement bytes -- this layer never resizes "
+                "an overlay, only replaces its contents."
+            )
+        if overlay.compressed:
+            payload = ndspy.codeCompression.compress(data, isArm9=True)
+            self._patch_overlay_table_compressed_size(overlay_id, len(payload))
+        else:
+            payload = bytes(data)
+        self._rom.files[overlay.fileID] = payload
+
+    def _patch_overlay_table_compressed_size(self, overlay_id: int, compressed_size: int) -> None:
+        table = bytearray(self._rom.arm9OverlayTable)
+        record_size = 32
+        for offset in range(0, len(table), record_size):
+            (record_overlay_id,) = struct.unpack_from("<I", table, offset)
+            if record_overlay_id != overlay_id:
+                continue
+            (old_field,) = struct.unpack_from("<I", table, offset + 28)
+            flags = old_field >> 24
+            new_field = (compressed_size & 0xFFFFFF) | (flags << 24)
+            struct.pack_into("<I", table, offset + 28, new_field)
+            self._rom.arm9OverlayTable = bytes(table)
+            return
+        raise ValueError(f"overlay {overlay_id} not found in arm9OverlayTable")
 
     # -- Output -----------------------------------------------------------------
 

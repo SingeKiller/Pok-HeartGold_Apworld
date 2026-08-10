@@ -86,6 +86,51 @@ class RandomizeEvolutions(Choice):
     default = 0
 
 
+class RandomizeBaseStats(Choice):
+    """Randomize each Pokémon species' base stats (HP/Attack/Defense/Sp.
+    Attack/Sp. Defense/Speed). Growth rate (the EXP curve used to level
+    up) and every other species field (types, abilities, catch rate,
+    TM/HM compatibility, learnset, ...) are never touched -- this option
+    is unrelated to level scaling (docs/scope.md's v2 list).
+
+    - off: base stats stay vanilla.
+    - shuffle: shuffles each stat column independently across every
+      species (a permutation -- the same multiset of, say, HP values
+      still appears somewhere, just reassigned to different species).
+    - full_random: each of the six stats is independently replaced by a
+      fresh random value, drawn from the range actually used by some real
+      species' stat in that same column (e.g. HP is randomized within the
+      real min-max HP range across all species) -- avoids literal
+      1/255 extremes that no vanilla species ever has.
+    """
+
+    display_name = "Randomize Base Stats"
+    option_off = 0
+    option_shuffle = 1
+    option_full_random = 2
+    default = 0
+
+
+class RandomizeMoves(Choice):
+    """Randomize each move's Power/PP/Accuracy. A move's Type is never
+    changed (so TM/HM compatibility and STAB stay meaningful), and
+    nothing else about it (effect, category, priority, ...) is touched.
+
+    - off: move stats stay vanilla.
+    - shuffle: shuffles each of Power/PP/Accuracy independently across
+      every move (a permutation).
+    - full_random: each of Power/PP/Accuracy is independently replaced by
+      a fresh random value, drawn from the range actually used by some
+      real move in that same column.
+    """
+
+    display_name = "Randomize Moves"
+    option_off = 0
+    option_shuffle = 1
+    option_full_random = 2
+    default = 0
+
+
 class Goal(Choice):
     """The victory condition for this world.
 
@@ -144,6 +189,8 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_starters: RandomizeStarters
     randomize_trainers: RandomizeTrainers
     randomize_evolutions: RandomizeEvolutions
+    randomize_base_stats: RandomizeBaseStats
+    randomize_moves: RandomizeMoves
 
     trainersanity: Trainersanity
     dexsanity: Dexsanity
@@ -156,7 +203,14 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Randomizers",
-        [RandomizeWildPokemon, RandomizeStarters, RandomizeTrainers, RandomizeEvolutions],
+        [
+            RandomizeWildPokemon,
+            RandomizeStarters,
+            RandomizeTrainers,
+            RandomizeEvolutions,
+            RandomizeBaseStats,
+            RandomizeMoves,
+        ],
     ),
     OptionGroup(
         "Stretch Goals",
