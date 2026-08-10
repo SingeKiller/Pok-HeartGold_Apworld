@@ -1605,3 +1605,21 @@ now genuinely required at runtime, not just NitroFS-access-layer
 dependencies) -- added. `build.py`'s directory-recursion also picked up
 `rom/__pycache__/*.pyc` files it had no business packaging -- excluded
 now.
+
+## M5 -- public repo scoped to source + build tooling only
+
+Decided 2026-08-11: this repository only tracks what's needed to build,
+run, or modify the APWorld -- `tests/`, `requirements-dev.txt`,
+`pyproject.toml`, and `CONTRIBUTING.md` are gitignored, not part of the
+public GitHub history. They still exist locally for development (pytest/
+ruff continue to work exactly as before), they're just never committed.
+This mirrors what `.apignore` already scoped the packaged `.apworld`
+itself to -- the git repo now follows the same principle one level up.
+
+Consequently `.github/workflows/build.yml` is **build-only**: checkout ->
+`pip install -r requirements.txt` -> `python -m compileall` (syntax
+sanity check) -> `python data_gen.py` -> `python build.py` -> upload the
+resulting `.apworld` as a workflow artifact. No test job -- there is
+nothing to run in CI since tests aren't part of this repo. The full test
+suite still runs locally the normal way; it's just a dev-time practice,
+not a CI gate, going forward.
