@@ -25,6 +25,16 @@ world).
   condition TBD at implementation time, kept configurable via `options.py`).
 - Trainersanity / Dexsanity as stretch goals *within* v1 if the budget
   allows once the core above is stable - not a hard requirement to ship v1.
+  **Status (2026-08-11): budget didn't allow it.** Both are exposed as
+  YAML options (`options.py`) but have no implementation behind them --
+  `create_locations` never creates a trainer-battle or Pokédex-entry
+  Location, so enabling either option currently has no effect on
+  generation or gameplay (found via community feedback, confirmed by
+  exhaustive code search -- see docs/architecture.md's "Community
+  feedback round" section). Left in place as inert options for now
+  (2026-08-11 decision: "continue tels quels") rather than removed from
+  the option surface -- revisit either by actually implementing them or
+  by hiding them if this proves confusing to players.
 
 ## Shelved (task M4.5, 2026-08-10)
 

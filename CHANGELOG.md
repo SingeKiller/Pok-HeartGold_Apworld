@@ -17,8 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a playable, patched `.nds` from a generated seed.
 - BizHawk client (check detection, remote item delivery) via
   Archipelago's generic BizHawk connector.
-- Configurable victory condition (Elite Four / Red / N badges),
-  Trainersanity and Dexsanity stretch-goal toggles.
+- Configurable victory condition (Elite Four / Red / N badges).
 - Build tooling (`data_gen.py`, `build.py`/`Makefile`) and a build-only
   GitHub Actions workflow.
 - Setup guide and game info page for the Archipelago WebHost.
@@ -29,3 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unresolved boot issue -- see `docs/architecture.md`).
 - Gym badges are not randomized (HGSS represents them as a save-data
   flag, not a bag item).
+- Trainersanity/Dexsanity are exposed as YAML options but currently do
+  nothing -- no real Locations are created for them yet, so enabling
+  them has no effect on generation or gameplay.

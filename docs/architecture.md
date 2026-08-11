@@ -1738,15 +1738,29 @@ written normally. 2 new tests (one confirming the skip, one confirming a
 same-location-id-but-different-player item still gets delivered, to
 guard against the filter matching on location id alone).
 
+**Trainersanity/Dexsanity confirmed to be completely inert** (investigated
+via a dispatched Explore agent, 2026-08-11): exhaustive search across
+every root-level module found zero references to either option outside
+`options.py`'s own declaration. `create_locations` (`locations.py`) never
+receives `self.options` at all and only ever iterates `data/locations.py`
+-- a statically generated dataset with exactly 5 location types (`badge`,
+`ground_item`, `hidden_item`, `hm_tm`, `npc_gift`), none of which
+represent a trainer battle or a Pokédex entry. So no real Location is
+ever created for either feature, regardless of the option's value -- the
+spoiler log showing "YES" only reflects Archipelago's generic per-world
+option serialization, not any HeartGold-specific implementation.
+`docs/scope.md`'s own "stretch goal within v1 if the budget allows" note
+is now updated to record that the budget didn't allow it. Decision
+(2026-08-11, "continue tels quels"): leave both options in place, inert,
+for now -- not removed from the option surface, not implemented either.
+
 Still open from this same feedback round (see task list): some npc_gift
 locations reportedly aren't detected by the client's check-detection at
 all ("many ... not seen by client") -- broader than the already-known
-synthetic-id-band (9000+) gap, not yet root-caused; trainersanity/
-dexsanity toggle on in options/spoiler log but grant no items -- not yet
-confirmed whether real Locations are even created for them; a spoiler
-log that "stops" without a full path to victory shown. Also: `docs
-architecture.md`'s own Spike 1 incorrectly claimed `apnds` (platinum_
-archipelago's vendored NDS library, see the M6 ndspy/GPL section above)
-was an unpublished precompiled binary -- a tester pointed out it's real,
-public, pure-Python (github.com/ljtpetersen/apnds, also on PyPI) --
-worth revisiting as a potential MIT-licensed `ndspy` replacement.
+synthetic-id-band (9000+) gap, not yet root-caused; a spoiler log that
+"stops" without a full path to victory shown. Also: `docs/architecture.
+md`'s own Spike 1 incorrectly claimed `apnds` (platinum_archipelago's
+vendored NDS library, see the M6 ndspy/GPL section above) was an
+unpublished precompiled binary -- a tester pointed out it's real, public,
+pure-Python (github.com/ljtpetersen/apnds, also on PyPI) -- worth
+revisiting as a potential MIT-licensed `ndspy` replacement.
