@@ -1,0 +1,61 @@
+name: Archipelago unit tests
+
+# Runs Archipelago's suite against this world, scoped with AP_TEST_WORLDS.
+# Archipelago is pinned to a commit so a red run always means this world
+# changed, not that upstream moved. Bump AP_REF in its own commit.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # ArchipelagoMW/Archipelago main as of 2026-08-11.
+  AP_REF: fe5b49e1899b32bcb9f65e91cb7f74d6aa6d0ff8
+  # Must match build.py's module_name().
+  WORLD_MODULE: pokemon_heartgold
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Archipelago unit tests
+
+    steps:
+      # Archipelago first: checkout cleans its target, and this world goes
+      # inside its worlds/ folder.
+      - name: Check out Archipelago (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: ArchipelagoMW/Archipelago
+          ref: ${{ env.AP_REF }}
+          path: Archipelago
+
+      - name: Check out this world
+        uses: actions/checkout@v4
+        with:
+          path: Archipelago/worlds/${{ env.WORLD_MODULE }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # data/ is generated and git-ignored (see data_gen.py).
+      - name: Generate data/
+        working-directory: Archipelago/worlds/${{ env.WORLD_MODULE }}
+        run: python data_gen.py
+
+      # Mirrors Archipelago's own unittests.yml.
+      - name: Install Archipelago dependencies
+        working-directory: Archipelago
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ci-requirements.txt
+          python ModuleUpdate.py --yes --force --append "WebHostLib/requirements.txt"
+          python Launcher.py --update_settings  # make sure host.yaml exists for tests
+
+      - name: Run unit tests
+        working-directory: Archipelago
+        env:
+          AP_TEST_WORLDS: ${{ env.WORLD_MODULE }}
+        run: pytest -n auto
