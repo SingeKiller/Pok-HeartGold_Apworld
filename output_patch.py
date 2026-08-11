@@ -102,26 +102,39 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         rom.save(target)
 
 
-def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str]:
+def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
     """`{location_key: item_key}` for every one of this player's own
     ground_item/npc_gift/hm_tm locations (see this module's own docstring
-    for why hidden_item is excluded for now) whose placed item belongs to
-    this *same* player -- items belonging to another player's world are
-    never baked into the ROM (see `client.py`'s own docstring: those are
-    injected live, over the network, at check time instead; a location
-    with a remote item is left at its vanilla `original_item` here, which
-    `client.py`'s local-substitution logic already knows to override)."""
+    for why hidden_item is excluded for now).
+
+    A location whose placed item belongs to this *same* player gets its
+    real item key -- ROM-substituted so picking it up in-game hands over
+    exactly that item. A location whose item belongs to *another*
+    multiworld player gets `None` (JSON `null`) instead of being skipped:
+    this project has no way to deliver a real item to this player for a
+    check that isn't theirs (unlike a remote item *received* from another
+    player, which `client.py`'s runtime injection handles regardless of
+    where it was found), and leaving the vanilla item in the ROM would
+    silently hand the player a real, unearned item every time (found via a
+    real playtest, 2026-08-11 -- see docs/architecture.md). `None` tells
+    `patch_gen.apply_local_item_substitutions` to write the "empty"
+    substitution instead (see that function's own docstring): the location
+    still fires this project's flag-read check-detection correctly, but
+    physically grants nothing."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
 
     label_to_key = {data["label"]: key for key, data in ITEMS.items()}
 
-    substitutions: dict[str, str] = {}
+    substitutions: dict[str, str | None] = {}
     for location in world.multiworld.get_locations(world.player):
-        if location.item is None or location.item.player != world.player:
+        if location.item is None:
             continue
         location_data = LOCATIONS.get(location.name)
         if location_data is None or location_data["type"] not in _SUBSTITUTABLE_LOCATION_TYPES:
+            continue
+        if location.item.player != world.player:
+            substitutions[location.name] = None
             continue
         item_key = label_to_key.get(location.item.name)
         if item_key is not None:

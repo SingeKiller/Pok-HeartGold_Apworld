@@ -173,13 +173,24 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
 # still out of scope (not an item at all, see data/items.py).
 
 
-def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str]) -> None:
+def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str | None]) -> None:
     """Apply a `{location_key: item_key}` mapping (both `data/locations.py`/
     `data/items.py` keys) to `rom` in place, for `ground_item`/`npc_gift`/
     `hm_tm`/`hidden_item` locations -- badge is out of scope for this pass
     (see this module's own section header comment above). Locations not
     present in `substitutions` are left untouched (keep their vanilla
-    `original_item`)."""
+    `original_item`).
+
+    A `None` value (JSON `null`) instead of a real item key is the "empty"
+    sentinel for a location whose placed item belongs to *another*
+    multiworld player (see `output_patch.build_item_substitutions`'s own
+    docstring): writes item id 0 instead of a real item, so picking it up
+    still fires this project's flag-read check-detection but never hands
+    the player a real, unearned vanilla item (live-verified 2026-08-11, see
+    `rom/eventscriptdata.write_ground_item_empty`/`rom/npcgiftdata.
+    write_npc_gift_empty`'s own docstrings). hidden_item has no `_empty`
+    counterpart -- it stays fully excluded from substitution regardless of
+    `item_key` (see this module's own section header comment)."""
     from data.locations import LOCATIONS
 
     for location_key, item_key in substitutions.items():
@@ -188,13 +199,32 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             raise KeyError(f"unknown location key: {location_key!r}")
         location_type = location["type"]
         if location_type == "ground_item":
-            rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
+            if item_key is None:
+                rom_eventscriptdata.write_ground_item_empty(rom, location_key)
+            else:
+                rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
         elif location_type == "npc_gift":
-            rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
+            if item_key is None:
+                rom_npcgiftdata.write_npc_gift_empty(rom, location_key)
+            else:
+                rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
         elif location_type == "hidden_item":
+            if item_key is None:
+                raise ValueError(
+                    f"location {location_key!r} is type 'hidden_item', which has no "
+                    "'_empty' substitution -- hidden_item locations should never appear "
+                    "in a substitutions mapping at all right now (see this module's own "
+                    "section header comment)."
+                )
             rom_hiddenitemdata.write_hidden_item_substitution(rom, location_key, item_key)
         elif location_type == "hm_tm":
-            if location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID:
+            is_itemball = location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID
+            if item_key is None:
+                if is_itemball:
+                    rom_eventscriptdata.write_ground_item_empty(rom, location_key)
+                else:
+                    rom_npcgiftdata.write_npc_gift_empty(rom, location_key)
+            elif is_itemball:
                 rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
             else:
                 rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)

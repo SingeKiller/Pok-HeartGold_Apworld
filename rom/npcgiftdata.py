@@ -226,14 +226,12 @@ def write_npc_gift_item_id(rom: HeartGoldRom, narc_index: int, offset: int, item
     rom.write_narc(NITROFS_PATH, narc)
 
 
-def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
-    """Patch every script site that grants a `npc_gift` location (or the
-    NPC-delivered half of a `hm_tm` location -- see this module's
-    docstring) so it grants a different item instead of its vanilla
-    `original_item`. Lazily imports `data.locations`/`data.items` (same
-    reason as rom/eventscriptdata.py's own
-    `write_ground_item_substitution`)."""
-    from data.items import ITEMS
+def _resolve_npc_gift_sites(location_key: str) -> list[tuple[int, int]]:
+    """Shared validation for `write_npc_gift_substitution`/
+    `write_npc_gift_empty`: resolve `location_key` (a `data/locations.py`
+    key) to its `TABLE` script sites, or raise. Lazily imports
+    `data.locations` (same reason as rom/eventscriptdata.py's own
+    `_resolve_ground_item_block_index`)."""
     from data.locations import LOCATIONS
 
     location = LOCATIONS.get(location_key)
@@ -255,9 +253,35 @@ def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: 
             "covers every npc_gift/NPC-delivered hm_tm location as of this "
             "task, so this should not happen for a real location key)."
         )
+    return sites
+
+
+def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
+    """Patch every script site that grants a `npc_gift` location (or the
+    NPC-delivered half of a `hm_tm` location -- see this module's
+    docstring) so it grants a different item instead of its vanilla
+    `original_item`. Lazily imports `data.items` (same reason as
+    rom/eventscriptdata.py's own `write_ground_item_substitution`)."""
+    from data.items import ITEMS
+
+    sites = _resolve_npc_gift_sites(location_key)
     item = ITEMS.get(item_key)
     if item is None:
         raise KeyError(f"unknown item key: {item_key!r}")
 
     for narc_index, offset in sites:
         write_npc_gift_item_id(rom, narc_index, offset, item["id"])
+
+
+def write_npc_gift_empty(rom: HeartGoldRom, location_key: str) -> None:
+    """Patch every script site that grants `location_key` so it grants item
+    id 0 instead of its vanilla `original_item` -- used for locations whose
+    placed item belongs to *another* multiworld player (see
+    `output_patch.build_item_substitutions`'s own docstring): live-verified
+    (2026-08-11, see docs/architecture.md) that an item-id-0 npc_gift shows
+    a garbled "Obtained ???!" message but adds nothing real to the Bag
+    (confirmed empty afterwards), same outcome as the itemball case in
+    `rom/eventscriptdata.write_ground_item_empty`."""
+    sites = _resolve_npc_gift_sites(location_key)
+    for narc_index, offset in sites:
+        write_npc_gift_item_id(rom, narc_index, offset, 0)

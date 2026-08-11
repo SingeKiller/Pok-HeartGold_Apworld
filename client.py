@@ -90,9 +90,9 @@ import struct
 from typing import TYPE_CHECKING
 
 import worlds._bizhawk as bizhawk
+from data.items import ITEMS
 from worlds._bizhawk.client import BizHawkClient
 
-from data.items import ITEMS
 from items import HEARTGOLD_ITEM_ID_BASE
 from location_flags import build_flag_id_to_ap_location_id
 from rom import HEARTGOLD_US_ID_CODE

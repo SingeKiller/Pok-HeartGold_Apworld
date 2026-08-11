@@ -1623,3 +1623,80 @@ resulting `.apworld` as a workflow artifact. No test job -- there is
 nothing to run in CI since tests aren't part of this repo. The full test
 suite still runs locally the normal way; it's just a dev-time practice,
 not a CI gate, going forward.
+
+## M6 -- real install testing found real bugs, plus "empty" item substitution for remote locations
+
+A real Archipelago install test (`D:\Archipelago`, the actual portable/
+frozen Windows release, not the local dev checkout) found and fixed two
+release-blocking bugs no from-source test could ever have caught:
+`archipelago.json`'s `minimum_ap_version` was `"0.6.8"` (just copied from
+the dev checkout's own version, not a real dependency -- lowered to
+`"0.6.7"`, the actually-verified floor), and `client.py`'s `patch_suffix`
+was still `None` (a leftover from before `output_patch.py` existed) --
+`AutoBizHawkClientRegister` only registers a class's patch suffix onto
+the generic "BizHawk Client" launcher component when it's not `None`, so
+the Launcher's "Open Patch" dialog never recognized `.apheartgold` at all
+until this was fixed. Also documented (`docs/setup_en.md`,
+`README.md`/`README.en.md`): `ndspy` (an external, GPLv3-licensed
+dependency, never bundled in the `.apworld`) cannot be installed the
+normal way on a frozen/portable Archipelago release (no pip-accessible
+environment) -- confirmed live that copying `ndspy`'s pure-Python source
+into the install's `lib/` folder (next to the loose `kivymd` package
+cx_Freeze already keeps there) makes it importable.
+
+### Remote-item locations no longer leave a real vanilla item behind
+
+A live playtest surfaced a real design question: a `ground_item`/
+`npc_gift`/`hm_tm` location whose placed item belongs to *another*
+multiworld player was left at its vanilla `original_item` in the ROM (see
+`output_patch.py`'s original docstring) -- meaning the player physically
+received a real, unearned vanilla item (e.g. a Potion) every time they
+checked a location that wasn't "theirs". Not a logic bug (this vanilla
+item is never tracked by Archipelago), but a real, user-flagged UX
+problem.
+
+The "obvious" fix -- make the pickup grant literally nothing -- was
+originally assumed to need reopening the still-unresolved `ScrCmd_
+GiveItem` ROM-hook investigation from task C14 (`patches/
+ground_item_hook.s`, never wired to a real call site, same risk category
+as the starters investigation). It didn't: this project already has full,
+tested write access to the item-id operand for both `ground_item`
+(`rom/eventscriptdata.py`) and `npc_gift` (`rom/npcgiftdata.py`)
+locations -- the open question was only "what does the vanilla pickup
+script do with an *invalid* item id", not "how do we intercept the pickup
+at all".
+
+Tested live (2026-08-11), on the real ROM, via BizHawk:
+
+- **`ground_item`** (Route 29 Potion, itemball, item id 0): shows a
+  garbled "Found ???!" message (item 0 has no real name string), but nothing
+  is actually added to the Bag -- confirmed via manual Bag inspection.
+  Crucially, the location's real vanilla savedata flag **is still set**
+  (independently verified via a live RAM read of `SaveVarsFlags.flags[]`,
+  the same flag this project's check-detection already reads) -- so
+  `location_flags.py`'s existing flag-read check-detection keeps working
+  completely unchanged.
+- **`npc_gift`** (New Bark Town Elm's Lab, NPC-delivered, item id 0):
+  shows "Obtained ???!" and briefly appears to add an item to the Items
+  pocket, but a manual Bag check afterward confirmed it doesn't actually
+  persist -- same end result as the itemball case, via a different
+  script/NARC path.
+
+Implemented as a proper "empty" substitution, not a special case bolted
+onto the existing one: `rom/eventscriptdata.write_ground_item_empty` /
+`rom/npcgiftdata.write_npc_gift_empty` (both share their validation logic
+with the existing `write_*_substitution` functions via a new private
+`_resolve_*` helper each) write item id 0 to a location's script site(s).
+`patch_gen.apply_local_item_substitutions`'s `substitutions` dict now
+allows `None` (JSON `null`) as an item value -- the sentinel routed to
+these new `_empty` functions instead of a real item lookup.
+`output_patch.build_item_substitutions` now includes *every*
+ground_item/npc_gift/hm_tm location, not just this player's own: a
+remote-item location gets `None` instead of being skipped entirely.
+`hidden_item` still has no `_empty` counterpart and stays fully excluded
+from substitution either way (unrelated, still-unresolved white-screen
+issue above).
+
+Not yet explored: replacing the garbled "???" name with something
+cleaner (e.g. a reserved, renamed item slot showing "Item sent!" instead
+of a blank name) -- a real refinement, not attempted this session.

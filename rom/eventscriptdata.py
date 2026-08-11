@@ -429,14 +429,11 @@ def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) ->
     write_itemball_script_blob(rom, bytes(blob))
 
 
-def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
-    """Patch the itemball script block for a `ground_item` location -- or an
-    itemball-shaped `hm_tm` location (task C16, see this function's own
-    type check) -- (a key of `data/locations.py`'s `LOCATIONS`) so it grants
-    a different item (a key of `data/items.py`'s `ITEMS`) instead of its
-    vanilla `original_item`. Lazily imports `data.locations`/`data.items`
-    (see this module's own docstring for why)."""
-    from data.items import ITEMS
+def _resolve_ground_item_block_index(location_key: str) -> int:
+    """Shared validation for `write_ground_item_substitution`/
+    `write_ground_item_empty`: resolve `location_key` (a `data/locations.py`
+    key) to its `scr_seq_0141.bin` block index, or raise. Lazily imports
+    `data.locations` (see this module's own docstring for why)."""
     from data.locations import LOCATIONS
 
     location = LOCATIONS.get(location_key)
@@ -470,8 +467,35 @@ def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_ke
             "for the one documented gap (block 58/coin_case, which is not "
             "a ground_item location so should never reach here)."
         )
+    return block_index
+
+
+def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
+    """Patch the itemball script block for a `ground_item` location -- or an
+    itemball-shaped `hm_tm` location (task C16, see this function's own
+    type check) -- (a key of `data/locations.py`'s `LOCATIONS`) so it grants
+    a different item (a key of `data/items.py`'s `ITEMS`) instead of its
+    vanilla `original_item`."""
+    from data.items import ITEMS
+
+    block_index = _resolve_ground_item_block_index(location_key)
     item = ITEMS.get(item_key)
     if item is None:
         raise KeyError(f"unknown item key: {item_key!r}")
 
     write_itemball_item_id(rom, block_index, item["id"])
+
+
+def write_ground_item_empty(rom: HeartGoldRom, location_key: str) -> None:
+    """Patch the itemball script block for `location_key` so it grants item
+    id 0 instead of its vanilla `original_item` -- used for locations whose
+    placed item belongs to *another* multiworld player (see
+    `output_patch.build_item_substitutions`'s own docstring): live-verified
+    (2026-08-11, see docs/architecture.md) that picking up an item id 0
+    itemball shows a garbled "Found ???!" message but adds nothing real to
+    the Bag, while still setting the location's real vanilla savedata flag
+    -- so this project's existing flag-read check-detection
+    (`location_flags.py`) keeps working unchanged, and the player never
+    receives a real, unearned vanilla item."""
+    block_index = _resolve_ground_item_block_index(location_key)
+    write_itemball_item_id(rom, block_index, 0)
