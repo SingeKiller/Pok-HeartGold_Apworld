@@ -41,9 +41,11 @@ jobs:
         with:
           path: Archipelago/worlds/${{ env.WORLD_MODULE }}
 
+      # Archipelago supports 3.11 through 3.13 (ModuleUpdate.py enforces it);
+      # 3.13 is the version its own workflows treat as current.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       # data/ is generated and git-ignored (see data_gen.py). __init__.py
       # regenerates it on import if missing, but doing it here keeps a
