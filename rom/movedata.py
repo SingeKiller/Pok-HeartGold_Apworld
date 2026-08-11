@@ -54,6 +54,31 @@ _TYPE_OFFSET = 4
 _ACCURACY_OFFSET = 5
 _PP_OFFSET = 6
 
+# `include/constants/pokemon.h`'s `TYPE_*` constants -- the raw byte this
+# table's `type` field (offset 4) uses. `data/moves.py`'s own `type` field
+# is the lowercase name (e.g. "fire"), matching these 1:1; `TYPE_NONE`
+# (255) is a species-table sentinel, never a real move type, not included.
+TYPE_NAME_TO_ID: dict[str, int] = {
+    "normal": 0,
+    "fighting": 1,
+    "flying": 2,
+    "poison": 3,
+    "ground": 4,
+    "rock": 5,
+    "bug": 6,
+    "ghost": 7,
+    "steel": 8,
+    "mystery": 9,  # "???" -- Gen IV Curse's real vanilla type, never a randomization target
+    "fire": 10,
+    "water": 11,
+    "grass": 12,
+    "electric": 13,
+    "psychic": 14,
+    "ice": 15,
+    "dragon": 16,
+    "dark": 17,
+}
+
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
     """Return every move's entry as a raw bytes blob, one per NARC
@@ -104,6 +129,21 @@ def write_combat_stats(rom: HeartGoldRom, move_key: str, *, power: int, accuracy
     entry[_POWER_OFFSET] = power
     entry[_ACCURACY_OFFSET] = accuracy
     entry[_PP_OFFSET] = pp
+    write_entry(rom, move_id, bytes(entry))
+
+
+def write_type(rom: HeartGoldRom, move_key: str, move_type: int) -> None:
+    """Overwrite one move's `type` byte in place, leaving power/accuracy/pp
+    and everything else untouched -- the counterpart to `write_combat_
+    stats`'s deliberate exclusion of `type` (see that function's own
+    docstring), for `randomize_move_types` (species.py)."""
+    from data.moves import MOVES
+
+    move_id = MOVES[move_key]["id"]
+    entry = bytearray(read_entry(rom, move_id))
+    if len(entry) != ENTRY_SIZE:
+        raise ValueError(f"move {move_key!r} (id {move_id}) entry is {len(entry)} bytes, expected {ENTRY_SIZE}")
+    entry[_TYPE_OFFSET] = move_type
     write_entry(rom, move_id, bytes(entry))
 
 

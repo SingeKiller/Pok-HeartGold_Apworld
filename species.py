@@ -266,6 +266,28 @@ def randomize_trainer_parties(rng: Random, enabled: bool, trainers: dict = TRAIN
     return new_trainers
 
 
+_MIN_LEVEL = 1
+_MAX_LEVEL = 100  # HGSS's own level cap
+
+
+def scale_trainer_levels(scale_percent: int, trainers: dict = TRAINERS) -> dict:
+    """Scale every trainer party mon's `level` by `scale_percent` (100 =
+    vanilla, a difficulty knob the player picks once in their YAML --
+    not randomized). Clamped to HGSS's own 1-100 level range after
+    scaling. `scale_percent=100` returns `trainers` unchanged."""
+    if scale_percent == 100:
+        return trainers
+
+    new_trainers: dict[str, dict] = {}
+    for key, trainer in trainers.items():
+        new_party = tuple(
+            {**mon, "level": max(_MIN_LEVEL, min(_MAX_LEVEL, round(mon["level"] * scale_percent / 100)))}
+            for mon in trainer["party"]
+        )
+        new_trainers[key] = {**trainer, "party": new_party}
+    return new_trainers
+
+
 # --- 4. Evolutions -----------------------------------------------------------
 
 
@@ -423,6 +445,34 @@ def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dic
         raise ValueError(f"unknown base-stat randomization mode: {mode!r}")
 
     return {key: {**data, "base_stats": new_stats[key]} for key, data in species.items()}
+
+
+def randomize_species_types(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
+    """Randomize each species' `types` tuple. `enabled=False` returns
+    `species` unchanged.
+
+    A species keeps its original *typing complexity* -- a single-type
+    species (`types` is a 1-tuple) gets one fresh random type; a dual-type
+    species (a 2-tuple) gets two fresh, *distinct* random types -- only
+    *which* type(s) is randomized, same "preserve structure, randomize
+    content" approach `randomize_base_stats`'s `BASE_STATS_FULL_RANDOM`
+    mode uses. Never draws "mystery" ("???", engine-special-cased, not a
+    genuine 18th type) -- same reasoning as `randomize_move_types`.
+
+    Each species independently gets a fresh draw, walking `species` in its
+    own dict order, so the result is fully determined by `rng`'s seed."""
+    if not enabled:
+        return species
+
+    real_types = tuple(sorted({t for data in species.values() for t in data["types"]} - {"mystery"}))
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        if len(data["types"]) == 1:
+            new_types = (rng.choice(real_types),)
+        else:
+            new_types = tuple(rng.sample(real_types, 2))
+        new_species[key] = {**data, "types": new_types}
+    return new_species
 
 
 # --- 6. Move stats -----------------------------------------------------------
@@ -612,3 +662,23 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
         raise ValueError(f"unknown move-stat randomization mode: {mode!r}")
 
     return {key: {**data, **new_combat_stats[key]} for key, data in moves.items()}
+
+
+def randomize_move_types(rng: Random, enabled: bool, moves: dict = MOVES) -> dict:
+    """Randomize each move's `type`. `enabled=False` returns `moves`
+    unchanged.
+
+    Never *draws* "mystery" ("???", HGSS's real vanilla type for Curse) as
+    a new type -- it's engine-special-cased (immunity/effectiveness
+    behavior differs from every real type) rather than a genuine
+    18th element of the pool. A move whose *vanilla* type already is
+    "mystery" can still be reassigned away from it like any other move.
+
+    Each move independently gets a fresh `rng.choice`, walking `moves` in
+    its own dict order, so the result is fully determined by `rng`'s
+    seed."""
+    if not enabled:
+        return moves
+
+    real_types = tuple(sorted({data["type"] for data in moves.values()} - {"mystery"}))
+    return {key: {**data, "type": rng.choice(real_types)} for key, data in moves.items()}

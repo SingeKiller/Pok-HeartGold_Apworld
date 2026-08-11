@@ -122,7 +122,7 @@ decomp, to de-risk the architecture above before committing to it further.
 
 ### Spike 1 - Reading/writing NitroFS
 
-**Library chosen: [`ndspy`](https://pypi.org/project/ndspy/) (pip, MIT).**
+**Library chosen: [`ndspy`](https://pypi.org/project/ndspy/) (pip).**
 `apnds` was ruled out per the task brief (it's a precompiled binary tool
 built for `platinum_archipelago`'s own ARM hack, not a reusable library -
 confirmed by inspecting `ressources/platinum_archipelago/rom/__init__.py`,
@@ -131,6 +131,31 @@ reference repo at all, i.e. it's an external, project-specific dependency).
 Writing an equivalent "from scratch" NitroFS reader/writer (FNT/FAT parsing,
 ARM9 secure-area handling, alignment rules) would be reinventing a
 well-tested wheel for no benefit here.
+
+**CORRECTION (2026-08-11, from community feedback + a dispatched research
+agent): both claims above about `apnds` and `ndspy`'s license were wrong.**
+`ndspy` is **GPLv3**, not MIT (see the M6 ndspy/GPL section below -- this
+was only discovered much later, during a real install test, and drove the
+whole "manual `lib/` copy" workaround since GPLv3 code can't be bundled
+in this MIT-licensed `.apworld`). `apnds` is real, public, actively
+maintained, pure-Python, and **MIT-licensed**:
+[GitHub](https://github.com/ljtpetersen/apnds),
+[PyPI](https://pypi.org/project/apnds/) (latest 0.2.4, June 2026) -- the
+Spike 1-era investigation apparently only looked at the *vendored copy*
+inside `ressources/platinum_archipelago/apnds/` (no `pyproject.toml`/
+package metadata in a vendored copy) rather than checking whether it also
+existed as a real standalone package. Confirmed via research: `apnds`'s
+`rom.py`/`narc.py`/`lz.py` modules cover the same ROM/NARC/ARM9-code-
+decompression functionality this project actually uses from `ndspy`
+(plus AES/modcrypt support `ndspy` doesn't have), and
+`DarthMDev/hgss_archipelago` (a competing HGSS Archipelago world) already
+vendors `apnds` directly inside its own repo and uses it in production --
+proof this migration path is real and works. See the M6 section below
+for the full license story as it was actually discovered, and "## ndspy
+-> apnds migration" near the end of this document for the actual port
+(done 2026-08-11): `rom/__init__.py` now runs entirely on a vendored
+`apnds` copy, both the GPL concern and the "copy ndspy into `lib/`
+manually" player-facing install step are gone.
 
 PoC findings (against the real 128 MiB HeartGold (US) ROM, MD5
 `258cea3a62ac0d6eb04b5a0fd764d788`):
@@ -1575,12 +1600,10 @@ different machine than the one that generated the seed.
   only local items are baked into the ROM at all; a location holding
   another player's item is left at its vanilla `original_item`, which
   `client.py`'s check-detection/remote-injection logic already expects).
-  **hidden_item is deliberately excluded from the substitutable types for
-  now** (`_SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift",
-  "hm_tm")`), pending the still-unresolved white-screen investigation from
-  the M4.5 session above -- ground_item/npc_gift/hm_tm were all confirmed
-  fine in the same isolation test that white screen came from, so only
-  hidden_item's bulk ARM9 write is held back. Re-add once root-caused.
+  `hidden_item` briefly needed exclusion from `_SUBSTITUTABLE_LOCATION_
+  TYPES` (2026-08-10 to 2026-08-11, after a live playtest hit a boot
+  white screen with ~225 hidden_item locations patched) -- root-caused
+  and reconnected, see "SDK_COMPRESSED_STATIC_END" below.
 - `HeartGoldSettings` (in `__init__.py`, `settings_key = "pokemon_
   heartgold_settings"`): a `settings.Group` with one `RomFile` (`settings.
   UserFilePath`, `md5s=[HEARTGOLD_US_MD5]`) -- the per-machine `host.yaml`
@@ -1693,9 +1716,9 @@ these new `_empty` functions instead of a real item lookup.
 `output_patch.build_item_substitutions` now includes *every*
 ground_item/npc_gift/hm_tm location, not just this player's own: a
 remote-item location gets `None` instead of being skipped entirely.
-`hidden_item` still has no `_empty` counterpart and stays fully excluded
-from substitution either way (unrelated, still-unresolved white-screen
-issue above).
+`hidden_item` gained the same `_empty` treatment once reconnected (see
+"SDK_COMPRESSED_STATIC_END" below): `rom/hiddenitemdata.write_hidden_
+item_substitutions` accepts `None` as a per-location value the same way.
 
 Not yet explored: replacing the garbled "???" name with something
 cleaner (e.g. a reserved, renamed item slot showing "Item sent!" instead
@@ -1754,13 +1777,382 @@ is now updated to record that the budget didn't allow it. Decision
 (2026-08-11, "continue tels quels"): leave both options in place, inert,
 for now -- not removed from the option surface, not implemented either.
 
-Still open from this same feedback round (see task list): some npc_gift
-locations reportedly aren't detected by the client's check-detection at
-all ("many ... not seen by client") -- broader than the already-known
-synthetic-id-band (9000+) gap, not yet root-caused; a spoiler log that
-"stops" without a full path to victory shown. Also: `docs/architecture.
-md`'s own Spike 1 incorrectly claimed `apnds` (platinum_archipelago's
-vendored NDS library, see the M6 ndspy/GPL section above) was an
-unpublished precompiled binary -- a tester pointed out it's real, public,
-pure-Python (github.com/ljtpetersen/apnds, also on PyPI) -- worth
-revisiting as a potential MIT-licensed `ndspy` replacement.
+**npc_gift/hm_tm check-detection gap: root-caused, not a new bug**
+(dispatched Explore agent, 2026-08-11). The tester's report ("many...not
+seen by client") is fully explained by the already-known synthetic-id
+band (`location_flags._SYNTHETIC_ID_BASE = 9000`) -- both examples the
+tester actually named (`route_29_poke_ball`, `new_bark_elms_lab_1f_
+potion`) are in that band. No new bug found: exhaustively checked for
+duplicate flag ids among the 98 "should be detectable" (id < 9000)
+locations (zero found) and for gaps in `rom/npcgiftdata.py`'s `TABLE`
+coverage (none -- all 55 npc_gift and all 36 NPC-delivered hm_tm
+locations are present). What the agent did find: the scale is bigger
+than the code's own "a handful of gifts" comment suggests -- **30 of 128
+npc_gift/hm_tm locations (23.4%)** are in the undetectable band,
+including recognizable ones like the starter-kit Potion and Route 29's 5
+Poké Balls. Worth deciding later whether to leave this as a documented
+limitation (current state) or exclude these 30 locations from the AP
+pool entirely, same treatment as `hidden_item`/starters -- not decided
+yet, since (unlike hidden_item) the *local* delivery still works
+correctly here (ROM substitution + the fixed double-delivery bug above);
+only cross-player check completion for a *remote* item at one of these
+30 locations would silently never reach the other player, which is the
+real, still-unresolved failure mode worth weighing.
+
+**Competing HGSS Archipelago worlds reviewed** (dispatched general-
+purpose research agent, 2026-08-11): `DarthMDev/hgss_archipelago` uses
+the same overall approach as this project (vendored NDS library, vanilla
+savedata flag reads for check-detection via `connector_bizhawk_generic.
+lua`) -- and, notably, its `items_received` handling does **not**
+distinguish local from remote items either (a commented-out, unfinished
+`remote_items` option is visible in its source) -- independent
+confirmation that the double-delivery bug fixed above is a real, easy-to-
+miss trap in this whole class of world, not something this project
+uniquely got wrong. `EyeballSweat/hgss_archipelago` turned out to be an
+unmodified fork of the main Archipelago framework repo with zero
+HeartGold-specific code -- a dead end, nothing to learn from it.
+
+## SDK_COMPRESSED_STATIC_END: hidden_item's real white-screen root cause (2026-08-11)
+
+The white-screen boot failure that forced `hidden_item` back out of
+`_SUBSTITUTABLE_LOCATION_TYPES` (see above) was root-caused offline,
+before any further live testing, by reading `crt0.s`'s own boot sequence.
+
+**The field**: `_start_ModuleParams + 0x14` (ARM9 RAM address
+`0x02000BB4`) is read early in boot (`ldr r0,[r1,#0x14]; bl MIi_
+UncompressBackward`) to tell the decompressor where the LZ-compressed
+static region *ends* in RAM. Vanilla value = `arm9_ram_address +
+len(packed_arm9_bytes)`. This field itself lives inside the DS secure
+area (`rom.arm9`'s first `0x4000` bytes), which is never LZ-compressed --
+only the bytes *after* `0x4000` are.
+
+**Why every edit broke it**: `ndspy.codeCompression.compress(data,
+isArm9=True)` copies `data[:0x4000]` through completely unchanged -- it
+never updates this field to match the new compressed size it just
+produced. Any real edit that changes the compressed region's size (which
+a genuine content change to that region essentially always does) leaves
+this field stale. At boot, `MIi_UncompressBackward` then starts
+decompressing from the *wrong* address -- corrupting memory before the
+game can even show a title screen. Live-verified: 225 hidden_item
+substitutions shifted the compressed size from 762,644 to 763,008 bytes
+(delta 364) -- exactly the kind of size change this field never
+tracked. `write_main_code_region`'s single-edit round trip from the
+M4.5 section above never happened to hit this because it was only ever
+tested with edits that didn't change the compressed size enough to be
+caught before this pass.
+
+**Fix, `rom/__init__.py`**: `write_main_code_regions(edits: list[tuple[
+int, bytes]])` -- a two-pass compression. Pass 1 decompresses, applies
+every edit, recompresses once to learn the *real* new compressed size,
+then patches that size into the never-compressed secure-area prefix at
+`_MODULE_PARAMS_ARM9_RAM_ADDRESS + _COMPRESSED_STATIC_END_FIELD_OFFSET`
+(`0x02000BA0 + 0x14`). Pass 2 recompresses the now-correctly-prefixed
+image for real. Since the field being patched sits in the region that is
+never itself compressed, this is mathematically guaranteed to converge
+in exactly two passes -- no iteration needed. `write_main_code_region`
+(the pre-existing single-edit function) is now a thin wrapper calling
+this with a one-element list. This also batches every hidden_item write
+into a single decompress/recompress pass instead of one pass per
+location -- the "every location substitutable" test dropped from ~34
+minutes to seconds.
+
+**`rom/hiddenitemdata.py`**: new `write_hidden_item_substitutions(rom,
+substitutions: dict[str, str | None])`, batched via `write_main_code_
+regions`, supporting the same `None` "empty" sentinel as ground_item/
+npc_gift/hm_tm.
+
+**Reconnected**: `hidden_item` is back in `output_patch._SUBSTITUTABLE_
+LOCATION_TYPES` and `location_flags.build_locally_substituted_ap_
+location_ids()` (the double-delivery-bug fix above now covers it too --
+forgetting to add a newly-reconnected type there would silently
+reintroduce that exact bug). `locations.py`'s `SHELVED_LOCATION_TYPES`
+mechanism (kept as reusable infrastructure, currently `set()`) is what
+`hidden_item` used while excluded, generalized from the earlier
+starters-specific removal so any future type needing the same treatment
+doesn't need bespoke plumbing.
+
+**New regression test**: `tests/test_hidden_item_substitution.py`'s
+`test_bulk_substitution_keeps_compressed_static_end_in_sync` reads the
+field directly after a real bulk substitution and asserts it matches the
+actual recompressed size -- the specific failure mode this section
+documents.
+
+**Status**: fixed and verified via rigorous offline forensics (byte-
+delta math, round-trip decompress/recompress checks) -- not yet
+confirmed via an actual live BizHawk boot of a real patched ROM with
+hidden_item substitutions active. That live confirmation is the explicit
+condition the user set before starting the `apnds` migration (see
+`docs/scope.md` and this project's own task tracking).
+
+## v0.1.1 batch: constrained undetectable locations, trainer levels/types, client.py cleanup, SoulSilver (2026-08-11)
+
+Follow-up work after the community feedback round and the SDK_
+COMPRESSED_STATIC_END fix above, all still uncommitted locally pending
+the v0.1.1 release (per the user's own explicit "batch until release"
+instruction).
+
+**B1 -- 30 undetectable npc_gift/hm_tm locations constrained, not
+excluded**: rather than dropping the 30 locations identified in the
+"Community feedback round" section from the AP pool entirely (the
+`hidden_item`/starters treatment), `__init__.py`'s new `_constrain_
+undetectable_locations(player, multiworld)` sets `item_rule` on exactly
+those 30 so they can only ever hold *this* player's own non-progression
+items. This keeps all 30 as real, playable checks (local delivery
+already worked correctly for them) while eliminating the actual risk: a
+remote player's item, or a progression item, landing on a location whose
+completion this project's client-side check-detection can never confirm
+back to the server.
+
+**B4 -- duplicate `write_party_entry` call**: `rom/trainerdata.py` had
+one trainer-party-writing code path invoking `write_party_entry` twice
+for the same slot (a leftover from an earlier edit) -- harmless when both
+calls agreed, but pure waste and a landmine for any future edit that
+touched one call site and not the other. Removed the duplicate.
+
+**C1/C2/C3 -- three v2 features pulled forward into v1** (all off-by-
+default `options.py` toggles, approved by the user as "simple, additive"
+work suitable for this release rather than the full v2 backlog):
+- **Trainer level scaling** (`trainer_level_scaling`, `Range` 50-200,
+  default 100): `species.scale_trainer_levels(scale_percent, trainers)`
+  is a deterministic percentage scale (not RNG-driven), clamped to
+  1-100 in-game. `rom/trainerdata.write_party_levels` writes the result
+  -- level lives at offset 2 within each `TRPOKE` slot (`u8 difficulty;
+  u8 genderAbilityOverride; u16 level; u16 species;`), a fact already
+  established for species substitution in the M4.5 section above, reused
+  here for the level field specifically.
+- **Move type randomization** (`randomize_move_types`, `Toggle`):
+  `species.randomize_move_types(rng, enabled, moves)` draws a new type
+  per move, uniformly from the 17 real types -- **never** "mystery"
+  (type id 9, "???", not a real move type any hand-designed move should
+  land on). `rom/movedata.TYPE_NAME_TO_ID` (18 entries, matched against
+  decomp's `include/constants/pokemon.h`) and `write_type` write it --
+  offset 4 within each 16-byte move struct, live-verified against all
+  467 real moves in the ROM with zero mismatches.
+- **Species type randomization** (`randomize_species_types`, `Toggle`):
+  `species.randomize_species_types(rng, enabled, species)` preserves
+  each species' mono/dual-type structure (a mono-type species stays
+  mono-type, just with a different single type; a dual-type species
+  draws 2 *distinct* types via `rng.sample`) -- also never draws
+  "mystery". `rom/speciesdata.write_types`/`read_types` write/read
+  offsets 6/7 of the `BaseStats` struct (`personal.narc`), live-verified
+  against all 505 real species' type bytes with zero mismatches
+  (confirming mono-type species really do have `type1 == type2` in the
+  vanilla data, as the randomizer's own preservation logic assumes).
+
+All three are wired into `__init__.py`'s `set_rules()` immediately after
+their respective base randomizers, and covered by both `tests/test_
+randomization.py` (pure-computation tests) and `tests/test_patch_gen.py`
+(real-ROM write-and-read-back integration tests).
+
+**client.py review, prompted directly by community feedback**: a
+tester's independent code review ("projects that rely heavily on LLMs...
+tend to heavily overengineer and overcomment things... the solution for
+finding the save data isn't great, and it looks like it's going to be
+flaky") was taken at face value and acted on, not dismissed:
+- Removed genuinely dead code: `HEARTGOLD_SAVE_DATA_ADDRESS_ENV`,
+  `HEARTGOLD_SAVE_LAYOUT_CASE_ENV`, `_resolve_save_data_address`,
+  `_resolve_save_layout_case_name`, `_missing_configuration_message`,
+  and the unused `CANDIDATE_OFFSETS` import -- all leftover from an
+  earlier, since-abandoned address-resolution approach.
+- Merged `_resolve_bag_base_address_override`/`_resolve_flags_array_
+  address_override` (near-identical bodies) into one `_resolve_address_
+  override(env_var)`.
+- Trimmed the module docstring from ~86 to ~28 lines -- it had
+  accumulated restated detail already covered by individual function
+  docstrings, exactly the "overcomment" pattern named in the feedback.
+- **The real bug** the "flaky" comment pointed at: `_locate_save_
+  addresses`'s `arrayHeaders` scan (looking for 5 sequential ints 0-4)
+  is a real signature but not a *unique* one across a 64KB scan window --
+  the old code trusted the first match unconditionally. New `_find_
+  array_headers_candidates(data)` returns every match instead of just
+  the first; new `_bag_looks_plausible(ctx, bag_address)` reads
+  `_PLAUSIBILITY_CHECK_SLOT_COUNT` (8) `ItemSlot` entries at a
+  candidate's derived Bag address and checks each looks like real data
+  (`item_id == 0`, or `1 <= item_id <= _MAX_PLAUSIBLE_ITEM_ID` (536)
+  with `quantity <= _MAX_PLAUSIBLE_ITEM_QUANTITY` (999)); `_locate_save_
+  addresses` now tries every candidate in signature order until one
+  passes plausibility, instead of trusting the first blindly. New
+  regression test `test_locate_save_addresses_skips_an_implausible_
+  candidate_for_a_later_one` hand-builds a two-candidate scan window
+  (one garbage, one real-looking) to confirm the skip actually happens.
+
+**build.py / archipelago.json corrections**, prompted by a second piece
+of direct feedback ("ton fichier `build.py` ne devrait pas être
+nécessaire... mentionne également `make` et `curl`, qui ne sont pas
+utilisés par AP"): confirmed Archipelago's own native "Build APWorlds"
+tool (`worlds/LauncherComponents.py`'s `_build_apworlds`) uses standard
+`GitIgnoreSpec`, compatible with this project's existing `.apignore`,
+and that `worlds/__init__.py`'s `load()` does `manifest.pop("compatible_
+version", None)` when loading a world -- confirming that field has zero
+functional effect, so this project's stale `compatible_version: 5` (now
+corrected to `7`, matching the native tool's own hardcoded value) was
+cosmetically wrong but never actually broken anything. The native tool
+itself needs the world already installed inside a real Archipelago
+`worlds/` folder, so it isn't usable standalone in CI or for a quick
+local rebuild -- `build.py` stays for that purpose, but its docstring no
+longer claims `make`/`curl` are used (they never were) and now
+recommends the native tool for real releases.
+
+## SoulSilver support (2026-08-11)
+
+Requested directly by the user, who supplied a legally-dumped US
+SoulSilver ROM locally. Chosen architecture (`AskUserQuestion`, "Un seul
+monde, deux ROMs acceptées"): **one** Archipelago world (`game =
+"Pokemon HeartGold"` stays unchanged -- renaming it would be a breaking
+change to every existing YAML/spoiler log referencing it) that accepts
+*either* ROM via dual-MD5 validation, rather than a second, parallel
+world.
+
+**Why this was tractable without a parallel implementation**:
+reconnaissance found HeartGold and SoulSilver share near-identical
+internal structure -- identical decompressed ARM9 length (1,122,040
+bytes both), identical NitroFS numbered-path sub-file counts across
+every table this project reads (items 514, species 508, trdata/trpoke
+738 each, moves 471, hidden_item_script 965), the hidden_item ARM9 table
+at the exact same RAM address with plausible content in both, and
+`SDK_COMPRESSED_STATIC_END` self-consistent for SoulSilver too. Every
+existing offset/struct assumption this project already relies on for
+HeartGold holds for SoulSilver without modification.
+
+**`rom/__init__.py`**: `SOULSILVER_US_MD5`, `SOULSILVER_US_ID_CODE =
+b"IPGE"` alongside the existing HeartGold constants; `_VERSION_BY_MD5`/
+`_ID_CODE_BY_VERSION` lookup tables; `HeartGoldRom.version: str | None`
+set during `open()`. `_validate_size_and_hash` now returns the detected
+version string (or `None` when `expect_vanilla=False`, i.e. opening an
+already-patched ROM where no vanilla hash can match). `_validate_game_
+code()` checks the version-appropriate expected id code when the version
+is known, or that the id code is one of the known values when it isn't.
+
+**Every other MD5/id-code check point extended to a list/tuple of both
+values**, not a version-branching rewrite: `client.py`'s `validate_rom`
+(`bytes(id_code) not in (HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE)`),
+`output_patch.HeartGoldProcedurePatch.hashes` (`[HEARTGOLD_US_MD5,
+SOULSILVER_US_MD5]`), `__init__.py`'s `HeartGoldSettings.RomFile.md5s`
+(same list) -- `settings.UserFilePath.md5s` already accepted a list of
+valid hashes, so no new settings mechanism was needed at all.
+
+**Verified against the real SoulSilver ROM file**, not just structural
+reconnaissance: `tests/test_rom_access.py` gained a `soulsilver_rom_
+bytes` fixture (same skip-cleanly-if-env-var-unset convention as the
+existing `HEARTGOLD_ROM_PATH` one, new `SOULSILVER_ROM_PATH`) and 4
+dedicated tests (open, decompressed ARM9 length match, NARC sub-file
+count match, hidden_item table address match) -- all pass against the
+real file. The full fast suite (283 tests, excluding the ~9-minute
+hidden_item bulk-substitution test) also passes unchanged with both ROM
+env vars set, confirming no HeartGold-only regression. Beyond the ROM-
+access layer, the full `generate_output()` -> `.patch()` pipeline was
+run end-to-end against the real SoulSilver ROM specifically (not just
+HeartGold): a real seed's trainer/species/move randomization was
+generated, written to a `.apheartgold`, and patched onto the SoulSilver
+ROM, producing a correctly-sized `.nds` whose species base stats, types,
+and move stats/types all matched the computed randomization exactly --
+mirroring `tests/test_generate_output.py`'s existing HeartGold
+integration test, just targeted at the other ROM.
+
+## ndspy -> apnds migration (2026-08-11)
+
+The last pillar of the v0.1.1 release, sequenced explicitly after the
+SoulSilver work and both live BizHawk confirmations above (the user's own
+condition -- "on preconisera le passage a apnds si le hidden_item
+fonctionne est stable"): removing `ndspy` (GPLv3, could not legally be
+bundled inside this MIT-licensed `.apworld` -- see "## Spikes", Spike 1's
+correction paragraph, and the M6 ndspy/GPL section) in favor of `apnds`
+0.2.4 (MIT, James Petersen), vendored directly into this repository so
+the built `.apworld` needs zero separate install step -- the "copy ndspy
+into `lib/` manually" workaround this project has documented since M6 is
+gone entirely.
+
+**Empirical validation before touching any code (a Planner-dispatched
+plan's "A0" gate)**: rather than porting blind, every load-bearing
+assumption was checked against both real ROMs first. Confirmed: `apnds.
+rom.Rom.from_bytes` is silent (no stray `print()` output); `apnds.rom.
+Rom.files` uses slash-prefixed keys unlike `ndspy`'s bare-path `getFile
+ByName`/`setFileByName`; `apnds.rom.Rom.arm9` includes a 12-byte
+"nitrocode" trailer (signature `2106C0DE` + an offset word + a reserved
+word) that `ndspy`'s own `.arm9` never exposed; `apnds.lz.decompress_
+code`/`compress_code` (the "backward code" algorithm) reproduce `ndspy.
+codeCompression.decompress`/`compress(isArm9=True)` byte-for-byte on both
+ROMs' full ~1.1 MB ARM9 image; the plain-LZ10 `apnds.lz.decompress`/
+`compress` pair is the *wrong* algorithm for ARM9 overlays (raises
+outright on real overlay data -- `decompress_code` is correct there too,
+confirmed against the starter-selection overlay, id 61); and `apnds.
+code.CodeStartParams.compressed_end`, found via signature search, is
+*exactly* the `SDK_COMPRESSED_STATIC_END` field this project hand-
+diagnosed and fixed earlier the same day -- same address (`0x02000BA0`),
+same value, on both ROMs. This last point meant apnds' own high-level
+`code` module could have replaced this project's whole manual two-pass-
+compression fix outright (`get_sections`/`pack_code_from_sections`/
+`write_start_info` round-tripped cleanly with zero edits in the spike),
+but the migration deliberately did **not** take that path -- see below.
+
+**Design decision: keep the existing `write_main_code_regions` algorithm,
+only swap the compressor.** `apnds.code.CodeStartParams`'s higher-level
+API also rewrites the autoload-section table on every repack, which is
+strictly more surface area than this project's already-live-verified
+fix needs to touch. `rom/__init__.py`'s `write_main_code_regions` keeps
+its exact double-compression-pass structure (pass 1 learns the new
+compressed length, patches `SDK_COMPRESSED_STATIC_END` into the never-
+compressed secure-area prefix, pass 2 recompresses with the corrected
+field) -- only `ndspy.codeCompression.decompress`/`compress(isArm9=True)`
+were replaced by the equivalent apnds primitives. This was a deliberate
+minimal-diff choice on top of a fix that had been live-confirmed working
+on real hardware-adjacent emulation (BizHawk) just hours earlier, not an
+oversight -- `CodeStartParams` remains available for later adoption if
+ever needed (its own round-trip already checked out clean in the A0
+spike), but was never load-bearing for this migration to succeed.
+
+**The one genuinely new piece of engineering**: `apnds.rom.Rom.arm9`
+folds the 12-byte nitrocode trailer *into* `arm9`, unlike `ndspy`. Every
+existing caller of this class's own `arm9` property (`patch_gen.py`'s
+ground-item-hook load-address arithmetic in particular) is written
+against the trailer-*excluded* convention, so `HeartGoldRom.arm9` still
+returns the trailer-excluded body (`_split_arm9_footer`), and the
+trailer itself is regenerated -- not blindly copied through -- after
+every `write_main_code_regions` call, via `apnds.code.get_start_info_
+offset` (the same signature search apnds' own high-level API uses
+internally). This was verified empirically before being trusted for real
+writes: the `DSStartParams` structure the trailer's offset word points
+at sits inside the never-edited, never-recompressed 0x4000-byte secure
+area on both real ROMs, so a no-op edit (decompress -> recompress with
+zero changes -> compare) reproduces the *exact* original trailer bytes,
+confirmed on both HeartGold and SoulSilver before shipping.
+
+**Verification, in layers**: 291 tests independently re-run (not just
+the implementing agent's own report) against both real ROMs with `ndspy`
+actually `pip uninstall`ed from the environment first -- including the
+full `tests/test_hidden_item_substitution.py` (the 225-location bulk
+substitution that originally surfaced the `SDK_COMPRESSED_STATIC_END`
+bug), `tests/test_patch_gen.py`, and `tests/test_generate_output.py` --
+all green, zero skips. `python build.py` rebuilt and independently
+unzipped to confirm `apnds/*.py` genuinely sits inside the packaged
+`.apworld`, not just present in the source tree.
+
+**Real Archipelago install test found a second, unrelated bug**: after
+installing the rebuilt `.apworld` into a real portable Archipelago
+instance (`D:\Archipelago\custom_worlds`), the world still failed to
+load -- but `D:\Archipelago\logs\Launcher_*.txt` showed `ModuleNotFound
+Error: No module named 'data.locations'`, not anything apnds-related.
+Root cause: `build.py` had been run at a moment when the gitignored,
+dev-time-generated `data/` package didn't exist on disk (deleted by
+`tests/test_generate_output.py`'s own `world_modules` fixture teardown,
+which runs `shutil.rmtree(DATA_DIR)` after the test module finishes --
+the full test suite had just been run, including that file, right after
+the earlier build). `build.py`'s `whitelisted_paths()` silently
+contributed zero files for a `.apignore`-whitelisted directory that
+didn't exist at all, with no warning printed -- a real, if narrow, gap:
+missing an *individual* whitelisted file already warned to stderr, but a
+missing whitelisted *directory* did not. Fixed: `whitelisted_paths()`
+now raises `RuntimeError` immediately if a whitelisted directory entry
+doesn't exist, naming the directory and pointing at `data_gen.py` if it
+looks like the `data/` case specifically -- turns this exact failure mode
+into a loud build-time error instead of a silently-broken `.apworld`
+that only fails once a real player tries to load it. Confirmed apnds
+itself loaded without any import error in this same real-install test --
+the only bug found was this unrelated packaging gap.
+
+**Separately**: the Launcher's "Install APWorld" flow refuses to
+overwrite an already-installed file of the same name (`Exception:
+APWorld is already installed at ...`) -- documented as a new "Common
+Issues" entry in `docs/setup_en.md`, since this could otherwise look like
+a fix didn't take effect when it's really just a stale file never having
+been replaced.

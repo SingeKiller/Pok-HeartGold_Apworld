@@ -103,10 +103,6 @@ if os.path.isdir(_THIS_DIR) and not os.path.isdir(os.path.join(_THIS_DIR, "data"
 
 import settings  # noqa: E402
 from BaseClasses import CollectionState, Item, Region, Tutorial  # noqa: E402
-from data import GAME_VERSION  # noqa: E402
-from data.items import ITEMS  # noqa: E402
-from data.locations import LOCATIONS  # noqa: E402
-from data.rules import BADGES  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 
 # Unused, but required to register HeartGoldClient with BizHawkClient (task
@@ -115,7 +111,12 @@ from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 # Register (worlds/_bizhawk/client.py) only learns about a client the moment
 # its defining module is imported, and nothing else in this file's own
 # import chain ever imports client.py.
+import location_flags  # noqa: E402
 from client import HeartGoldClient  # noqa: E402, F401
+from data import GAME_VERSION  # noqa: E402
+from data.items import ITEMS  # noqa: E402
+from data.locations import LOCATIONS  # noqa: E402
+from data.rules import BADGES  # noqa: E402
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import (  # noqa: E402
     SHELVED_LOCATION_TYPES,
@@ -133,14 +134,17 @@ from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402
 from output_patch import HeartGoldProcedurePatch  # noqa: E402, F401
 from output_patch import generate_output as write_output_patch  # noqa: E402
 from regions import create_regions as build_region_graph  # noqa: E402
-from rom import HEARTGOLD_US_MD5  # noqa: E402
+from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
 from species import (  # noqa: E402
     randomize_base_stats,
     randomize_evolutions,
     randomize_move_stats,
+    randomize_move_types,
+    randomize_species_types,
     randomize_trainer_parties,
     randomize_wild_encounters,
+    scale_trainer_levels,
 )
 
 # HGSS's own starting region (New Bark Town, see data/regions.py / the New
@@ -181,6 +185,26 @@ _LABEL_TO_ITEM_KEY = {data["label"]: key for key, data in ITEMS.items()}
 # "beat them" available from data/regions.py's own exits.
 _ELITE_FOUR_GOAL_REGION = "pokemon_league_hall_of_fame"
 _CHAMPION_RED_GOAL_REGION = "mount_silver_cave_summit"
+
+
+def _constrain_undetectable_locations(player: int, multiworld) -> None:
+    """30 of 128 npc_gift/hm_tm locations have no vanilla savedata flag
+    this client can read (location_flags.unsupported_location_keys() --
+    a synthetic id band, see that module's own docstring). Local delivery
+    still works fine there (ROM substitution); the real risk is a
+    *remote* item stuck at one of these spots, which this client could
+    never report as checked, permanently stalling whichever other player
+    it belonged to. Constrain these locations to this player's own,
+    non-progression items only -- keeps all 30 as real, randomized checks
+    (unlike excluding them from the pool entirely) with no risk to anyone
+    (community feedback round, 2026-08-11, see docs/architecture.md)."""
+    from BaseClasses import ItemClassification
+
+    def rule(item: Item) -> bool:
+        return item.player == player and item.classification != ItemClassification.progression
+
+    for location_key in location_flags.unsupported_location_keys():
+        multiworld.get_location(location_key, player).item_rule = rule
 
 
 def _goal_rule(player: int, goal: int, badge_count: int):
@@ -235,9 +259,9 @@ class HeartGoldSettings(settings.Group):
     embedded in a generated patch file)."""
 
     class RomFile(settings.UserFilePath):
-        description = "Pokemon HeartGold (USA) ROM file"
+        description = "Pokemon HeartGold or SoulSilver (USA) ROM file"
         copy_to = "Pokemon - HeartGold Version (USA).nds"
-        md5s = [HEARTGOLD_US_MD5]
+        md5s = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
 
     rom_file: RomFile = RomFile(RomFile.copy_to)
 
@@ -295,16 +319,26 @@ class HeartGoldWorld(World):
 
     def set_rules(self) -> None:
         apply_exit_rules(self.player, self.multiworld, self.regions)
+        _constrain_undetectable_locations(self.player, self.multiworld)
 
         self.generated_encounters = randomize_wild_encounters(self.random, self.options.randomize_wild_pokemon.value)
         self.generated_trainer_parties = randomize_trainer_parties(
             self.random, bool(self.options.randomize_trainers.value)
         )
+        self.generated_trainer_parties = scale_trainer_levels(
+            self.options.trainer_level_scaling.value, trainers=self.generated_trainer_parties
+        )
         self.generated_species = randomize_evolutions(self.random, self.options.randomize_evolutions.value)
         self.generated_species = randomize_base_stats(
             self.random, self.options.randomize_base_stats.value, species=self.generated_species
         )
+        self.generated_species = randomize_species_types(
+            self.random, bool(self.options.randomize_species_types.value), species=self.generated_species
+        )
         self.generated_moves = randomize_move_stats(self.random, self.options.randomize_moves.value)
+        self.generated_moves = randomize_move_types(
+            self.random, bool(self.options.randomize_move_types.value), moves=self.generated_moves
+        )
 
         self.multiworld.completion_condition[self.player] = _goal_rule(
             self.player, self.options.goal.value, self.options.goal_badge_count.value

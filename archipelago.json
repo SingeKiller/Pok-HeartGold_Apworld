@@ -1,7 +1,7 @@
 {
   "game": "Pokemon HeartGold",
-  "world_version": "0.1.0",
+  "world_version": "0.1.1",
   "authors": ["Olivier"],
   "minimum_ap_version": "0.6.7",
-  "compatible_version": 5
+  "compatible_version": 7
 }

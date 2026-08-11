@@ -132,6 +132,7 @@ def write_party_entry(rom: HeartGoldRom, trainer_id: int, data: bytes) -> None:
 # the second mon's `level` field with a stray species id). *** Always
 # read the trainer's own `trainerType` and derive one stride for the
 # whole party from it, never from individual mon dicts.
+_LEVEL_OFFSET_WITHIN_SLOT = 2
 _SPECIES_OFFSET_WITHIN_SLOT = 4
 _SPECIES_FORM_MASK = 0xFC00  # upper 6 bits of the species u16 (Platinum+)
 _SPECIES_ID_MASK = 0x03FF
@@ -186,5 +187,25 @@ def write_party_species(rom: HeartGoldRom, trainer_id: int, party: Sequence[dict
         offset += slot_size
 
     write_party_entry(rom, trainer_id, bytes(entry))
+
+
+def write_party_levels(rom: HeartGoldRom, trainer_id: int, party: Sequence[dict]) -> None:
+    """Overwrite one trainer's party level fields in place -- same slot-
+    stride/validation rules as `write_party_species` (see that function's
+    own docstring), just a different fixed offset within each slot."""
+    trainer_type = read_stats_entry(rom, trainer_id)[0]
+    slot_size = _slot_size_for_trainer_type(trainer_type)
+
+    entry = bytearray(read_party_entry(rom, trainer_id))
+    if slot_size * len(party) > len(entry):
+        raise ValueError(
+            f"trainer {trainer_id}: {len(party)} mons x {slot_size}-byte slots "
+            f"({slot_size * len(party)} bytes) exceeds the {len(entry)}-byte party entry"
+        )
+
+    offset = 0
+    for mon in party:
+        struct.pack_into("<H", entry, offset + _LEVEL_OFFSET_WITHIN_SLOT, mon["level"])
+        offset += slot_size
 
     write_party_entry(rom, trainer_id, bytes(entry))

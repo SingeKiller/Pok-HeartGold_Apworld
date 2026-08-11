@@ -186,12 +186,21 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
     multiworld player (see `output_patch.build_item_substitutions`'s own
     docstring): writes item id 0 instead of a real item, so picking it up
     still fires this project's flag-read check-detection but never hands
-    the player a real, unearned vanilla item (live-verified 2026-08-11, see
-    `rom/eventscriptdata.write_ground_item_empty`/`rom/npcgiftdata.
-    write_npc_gift_empty`'s own docstrings). hidden_item has no `_empty`
-    counterpart -- it stays fully excluded from substitution regardless of
-    `item_key` (see this module's own section header comment)."""
+    the player a real, unearned vanilla item (live-verified 2026-08-11 for
+    ground_item/npc_gift, see `rom/eventscriptdata.write_ground_item_empty`/
+    `rom/npcgiftdata.write_npc_gift_empty`'s own docstrings; implemented
+    the same way for hidden_item, `rom/hiddenitemdata.write_hidden_item_
+    substitutions`, but not yet live-verified there specifically).
+
+    hidden_item entries are collected and applied in one batched
+    `rom/hiddenitemdata.write_hidden_item_substitutions` call rather than
+    one `write_hidden_item_substitution` call per location -- each
+    individual call decompresses/recompresses the full ARM9 image
+    (~34 minutes for all 225 real locations one at a time; one batched
+    pass is seconds)."""
     from data.locations import LOCATIONS
+
+    hidden_item_substitutions: dict[str, str | None] = {}
 
     for location_key, item_key in substitutions.items():
         location = LOCATIONS.get(location_key)
@@ -209,14 +218,7 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             else:
                 rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
         elif location_type == "hidden_item":
-            if item_key is None:
-                raise ValueError(
-                    f"location {location_key!r} is type 'hidden_item', which has no "
-                    "'_empty' substitution -- hidden_item locations should never appear "
-                    "in a substitutions mapping at all right now (see this module's own "
-                    "section header comment)."
-                )
-            rom_hiddenitemdata.write_hidden_item_substitution(rom, location_key, item_key)
+            hidden_item_substitutions[location_key] = item_key
         elif location_type == "hm_tm":
             is_itemball = location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID
             if item_key is None:
@@ -235,6 +237,9 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
                 "ground_item/npc_gift/hm_tm/hidden_item (badge is out of "
                 "scope, see this module's own section header comment)."
             )
+
+    if hidden_item_substitutions:
+        rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions)
 
 
 # -- Species/move/trainer/encounter randomization (task M4.5) ----------------
@@ -320,13 +325,15 @@ def _encode_evolution_param(method: str, param: object) -> int:
 
 
 def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
-    """Apply `species.py`'s `randomize_trainer_parties` output. Trainers
-    with an empty party (e.g. `data/trainers.py`'s `none` entry, id 0) are
-    skipped -- nothing to write."""
+    """Apply `species.py`'s `randomize_trainer_parties`/
+    `scale_trainer_levels` output (`level`/`species` per party slot).
+    Trainers with an empty party (e.g. `data/trainers.py`'s `none` entry,
+    id 0) are skipped -- nothing to write."""
     for data in trainers.values():
         if not data["party"]:
             continue
         rom_trainerdata.write_party_species(rom, data["id"], data["party"])
+        rom_trainerdata.write_party_levels(rom, data["id"], data["party"])
 
 
 def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
@@ -343,11 +350,11 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
 
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
-    """Apply `species.py`'s `randomize_evolutions`/`randomize_base_stats`
-    output (both live on the same `generated_species` dict, see
-    `__init__.py`'s `set_rules`) -- writes both the evolution table
-    (rom/evodata.py) and the base-stats table (rom/speciesdata.py) for
-    every species."""
+    """Apply `species.py`'s `randomize_evolutions`/`randomize_base_stats`/
+    `randomize_species_types` output (all live on the same
+    `generated_species` dict, see `__init__.py`'s `set_rules`) -- writes
+    the evolution table (rom/evodata.py), base-stats table, and types
+    (rom/speciesdata.py) for every species."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
     for species_key, data in species.items():
@@ -364,11 +371,18 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
         rom_evodata.write_species_evolutions(rom, raw_index, raw_evolutions)
         rom_speciesdata.write_base_stats(rom, species_key, data["base_stats"])
 
+        types = data["types"]
+        type1 = rom_movedata.TYPE_NAME_TO_ID[types[0]]
+        type2 = rom_movedata.TYPE_NAME_TO_ID[types[1]] if len(types) > 1 else type1
+        rom_speciesdata.write_types(rom, species_key, type1, type2)
+
 
 def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
-    """Apply `species.py`'s `randomize_move_stats` output."""
+    """Apply `species.py`'s `randomize_move_stats`/`randomize_move_types`
+    output."""
     for move_key, data in moves.items():
         rom_movedata.write_combat_stats(rom, move_key, power=data["power"], accuracy=data["accuracy"], pp=data["pp"])
+        rom_movedata.write_type(rom, move_key, rom_movedata.TYPE_NAME_TO_ID[data["type"]])
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -21,6 +21,15 @@ world).
   contest prizes, static legendaries).
 - Ground items, **hidden items**, NPC gifts, HMs/TMs, badges.
 - Apricorns & Berries.
+- Trainer level scaling, move type randomization, species type
+  randomization (added 2026-08-11, v0.1.1): off-by-default toggles in
+  `options.py` (`trainer_level_scaling`, `randomize_move_types`,
+  `randomize_species_types`), moved up from the v2 list below once found
+  to be simple, self-contained additions.
+- SoulSilver support (added 2026-08-11, v0.1.1): a single Archipelago
+  world (`game = "Pokemon HeartGold"`) accepts either a US HeartGold or a
+  US SoulSilver ROM via dual-MD5 validation -- see
+  `docs/architecture.md`'s SoulSilver section.
 - Victory condition (Elite Four / Red at Mt. Silver / N badges - exact
   condition TBD at implementation time, kept configurable via `options.py`).
 - Trainersanity / Dexsanity as stretch goals *within* v1 if the budget
@@ -70,18 +79,11 @@ world).
 - Kurt's Apricorn balls.
 - Radio Card / PokéGear features.
 - DeathLink.
-- Level scaling.
-- SoulSilver support (a legally-dumped US SoulSilver ROM is now available
-  locally as of 2026-08-08, so the earlier blocker is gone; still kept in
-  v2 by default - see open question below - with the architecture left open
-  to a second version via a version identifier, no abstraction built ahead
-  of need).
 
 ## Why this split
 
 Everything in v1 has a direct, well-understood equivalent already shipped in
 `platinum_archipelago` (read-only reference) and known decomp data sources.
-Everything in v2 either needs a game system with no existing Archipelago
-Gen4 precedent (Pokéwalker, Pokéathlon), depends on a ROM we don't have yet
-(SoulSilver), or is a pure quality-of-life addition that doesn't block a
-playable v1 (DeathLink, level scaling).
+Everything remaining in v2 needs a game system with no existing Archipelago
+Gen4 precedent (Pokéwalker, Pokéathlon) or is a pure quality-of-life
+addition that doesn't block a playable v1 (DeathLink).

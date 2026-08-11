@@ -3,35 +3,16 @@
 ## Required Software
 
 - [Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases)
-- A US Pokémon HeartGold ROM. The Archipelago community cannot provide
-  this. `SoulSilver`, other regions, and other revisions will be rejected
+- A US Pokémon HeartGold or SoulSilver ROM. The Archipelago community
+  cannot provide this. Other regions and other revisions will be rejected
   when you patch your game -- the client will tell you if your ROM doesn't
   match.
 - [BizHawk](https://tasvideos.org/BizHawk/ReleaseHistory) version 2.10 or
   later
-- The [`ndspy`](https://github.com/RoadrunnerWMC/ndspy) Python library
-  (used to read/patch the ROM). If you installed Archipelago from the
-  official Windows release (the common case -- a frozen/portable build),
-  it has no `pip`-accessible environment to install into, so this world
-  cannot import `ndspy` unless you add it manually:
 
-  1. Download `ndspy`'s source (e.g. `pip download ndspy --no-deps -d .`
-     from any machine with Python/pip, then unzip/extract the wheel, or
-     clone [its repo](https://github.com/RoadrunnerWMC/ndspy)) to get a
-     plain `ndspy/` folder (pure Python, no compiled files needed).
-  2. Copy that `ndspy/` folder into your Archipelago install's `lib/`
-     folder, next to the `worlds/` folder already there (e.g.
-     `C:\ArchipelagoWhatever\lib\ndspy\`).
-  3. Restart the Archipelago Launcher. Pokémon HeartGold should now
-     appear in `Generate Template Options` / `Option Creator`.
-
-  (If you built/installed Archipelago from source into your own venv
-  instead, a plain `pip install ndspy` into that venv is enough --
-  skip the manual copy above.)
-
-  `ndspy` is GPLv3-licensed; this project only depends on it as an
-  external tool you install yourself, it is never bundled inside
-  `pokemon_heartgold.apworld`.
+That's it -- the ROM read/write library this world needs (`apnds`, MIT)
+is bundled directly inside `pokemon_heartgold.apworld`, so there's no
+separate install step, even on the official portable Windows release.
 
 ### Configuring BizHawk
 
@@ -53,6 +34,8 @@ tabbed out of EmuHawk.
    `lib/worlds`.
 2. Create your options file (YAML). You can make one by choosing `Generate Templates`
    from the Archipelago Launcher. From there, you can edit the `.yaml` in any text editor.
+   If you'd rather not generate one yourself, a ready-to-edit default is provided at
+   [`docs/Pokemon HeartGold.yaml`](Pokemon%20HeartGold.yaml) in this repository.
 3. Follow the general Archipelago instructions
    for [generating a game on your local installation](https://archipelago.gg/tutorial/Archipelago/setup/en#on-your-local-installation).
    This will generate an output file for you. Your patch file will have the `.apheartgold` file extension and will be
@@ -91,8 +74,9 @@ perfectly safe to make progress offline; everything will re-sync when you reconn
 
 1. **Problem**: "No handler was found for this game." in the client. **Solution**: Update to at least BizHawk version 2.10.
 2. **Problem**: The client says my ROM doesn't match. **Solution**: Make sure you're patching a US Pokémon HeartGold
-   ROM, not SoulSilver, another region, or another revision.
+   or SoulSilver ROM, not another region or another revision.
 3. **Problem**: Pokémon HeartGold never shows up in `Generate Template Options` / `Option Creator`, even after
-   installing the `.apworld`. **Solution**: this almost always means `ndspy` isn't importable by Archipelago -- see
-   "Required Software" above. Check your `logs/Launcher_*.txt` for a `ModuleNotFoundError: No module named 'ndspy'`
-   to confirm.
+   installing the `.apworld`. **Solution**: check your `logs/Launcher_*.txt` for a traceback naming this world --
+   it'll say exactly what failed to import. If you replaced an existing `pokemon_heartgold.apworld`, make sure
+   the old copy was actually removed from `custom_worlds` first; the Launcher's "Install APWorld" refuses to
+   overwrite an existing file with the same name.

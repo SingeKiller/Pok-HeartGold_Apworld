@@ -19,15 +19,17 @@
 # of the changes (JSON diffs, not ROM bytes) ever goes in the patch file
 # itself.
 #
-# hidden_item substitution is deliberately NOT included in
-# `build_item_substitutions` below yet, even though `rom/hiddenitemdata.py`
-# is implemented and ROM-round-trip tested (see docs/architecture.md's
-# "M4.5 continued" sections): a live playtest of a ROM with ~225
+# hidden_item substitution was excluded from `build_item_substitutions`
+# from 2026-08-10 to 2026-08-11: a live playtest of a ROM with ~225
 # hidden_item locations patched at once produced a white screen on boot
-# that was not reproduced with every *other* substitution type active
-# (ground_item/npc_gift/hm_tm all confirmed fine in the same isolation
-# test) -- root cause not yet found. Re-add "hidden_item" to
-# `_SUBSTITUTABLE_LOCATION_TYPES` once that's resolved.
+# that was not reproduced with every *other* substitution type active. Root-
+# caused and fixed 2026-08-11 (see `rom/__init__.py`'s `write_main_code_
+# regions` docstring and docs/architecture.md's M6 sections): a stale ARM9
+# boot-time decompression end-marker, unrelated to hidden_item's data
+# itself, corrupted by *any* edit that changed the compressed ARM9's size --
+# hidden_item was simply the first thing in this project to ever recompress
+# that image with a real size-changing edit. "hidden_item" is back in
+# `_SUBSTITUTABLE_LOCATION_TYPES` below now that the actual cause is fixed.
 
 from __future__ import annotations
 
@@ -39,18 +41,18 @@ from settings import get_settings
 from worlds.Files import APAutoPatchInterface
 
 import patch_gen
-from rom import HEARTGOLD_US_MD5, HeartGoldRom
+from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom
 
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
 
-# See this module's own docstring for why hidden_item is excluded for now.
-_SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm")
+# See this module's own docstring for hidden_item's history here.
+_SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_item")
 
 
 class HeartGoldProcedurePatch(APAutoPatchInterface):
     game = "Pokemon HeartGold"
-    hashes = [HEARTGOLD_US_MD5]
+    hashes = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
     patch_file_ending = ".apheartgold"
     result_file_ending = ".nds"
 
@@ -104,8 +106,7 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
 def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
     """`{location_key: item_key}` for every one of this player's own
-    ground_item/npc_gift/hm_tm locations (see this module's own docstring
-    for why hidden_item is excluded for now).
+    ground_item/npc_gift/hm_tm/hidden_item locations.
 
     A location whose placed item belongs to this *same* player gets its
     real item key -- ROM-substituted so picking it up in-game hands over

@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 from data.locations import LOCATIONS
-
 from locations import SHELVED_LOCATION_TYPES, create_location_label_to_code_map
 from save_layout import HIDDEN_ITEMS_FLAG_BASE
 
@@ -60,10 +59,6 @@ def flag_id_for_location(location_key: str) -> int | None:
     if location_type in _DIRECT_FLAG_ID_TYPES:
         return None if raw_id >= _SYNTHETIC_ID_BASE else raw_id
     if location_type == "hidden_item":
-        # Currently unreachable (hidden_item is in SHELVED_LOCATION_TYPES,
-        # caught above) -- the transform itself is real, live-verified ROM
-        # knowledge (see docs/architecture.md), kept ready for when
-        # hidden_item is reconnected.
         return HIDDEN_ITEMS_FLAG_BASE + raw_id
     return None
 
@@ -92,12 +87,12 @@ def build_flag_id_to_ap_location_id() -> dict[int, int]:
 
 
 def build_locally_substituted_ap_location_ids() -> set[int]:
-    """AP location ids of every `ground_item`/`npc_gift`/`hm_tm` location
-    (the same set `output_patch.build_item_substitutions` can ROM-
-    substitute) -- used by `client.py` to recognize a *received* item
-    (`ctx.items_received`, from the server) that was already physically
-    delivered by ROM substitution, so it never gets written into the Bag a
-    second time.
+    """AP location ids of every `ground_item`/`npc_gift`/`hm_tm`/
+    `hidden_item` location (the same set `output_patch.
+    build_item_substitutions` can ROM-substitute) -- used by `client.py`
+    to recognize a *received* item (`ctx.items_received`, from the
+    server) that was already physically delivered by ROM substitution, so
+    it never gets written into the Bag a second time.
 
     Real bug this fixes (found via live multiplayer testing, 2026-08-11,
     see docs/architecture.md): Archipelago's server sends every item
@@ -106,16 +101,16 @@ def build_locally_substituted_ap_location_ids() -> set[int]:
     protocol has no concept of "this player's client already delivered
     this item some other way". `client.py`'s remote-item injection used
     to process every entry in `items_received` unconditionally, so a local
-    ground_item/npc_gift/hm_tm item was granted twice: once for real, via
-    the ROM edit (picking it up in-game), and once more via network
-    injection into the Bag the moment the server saw the check.
-    `hidden_item` locations are never in this set -- they're excluded from
-    the AP location pool entirely (`locations.SHELVED_LOCATION_TYPES`),
-    so `items_received` can never contain one."""
+    item was granted twice: once for real, via the ROM edit (picking it up
+    in-game), and once more via network injection into the Bag the moment
+    the server saw the check. `hidden_item` was added here the same day
+    `SHELVED_LOCATION_TYPES` stopped excluding it (see `locations.py`) --
+    forgetting to add a newly-reconnected type here would silently bring
+    this exact double-delivery bug back for every location of that type."""
     ap_ids = create_location_label_to_code_map()
     result: set[int] = set()
     for key, data in LOCATIONS.items():
-        if data["type"] not in ("ground_item", "npc_gift", "hm_tm"):
+        if data["type"] not in ("ground_item", "npc_gift", "hm_tm", "hidden_item"):
             continue
         ap_id = ap_ids.get(key)
         if ap_id is not None:

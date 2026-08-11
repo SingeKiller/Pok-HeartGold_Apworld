@@ -52,6 +52,15 @@ _BASE_STAT_FIELD_OFFSETS: dict[str, int] = {
     "spdef": 5,
 }
 
+# `struct BaseStats`: `type1`/`type2` immediately follow the six base-stat
+# bytes above. A single-type species (`data/species.py`'s `types` is a
+# 1-tuple) has `type1 == type2` in the raw data -- the standard Gen 3+
+# convention. Live-verified against all 505 real species, zero mismatches
+# (cross-referencing `rom.movedata.TYPE_NAME_TO_ID`, the same raw type
+# byte values moves use).
+_TYPE1_OFFSET = 6
+_TYPE2_OFFSET = 7
+
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
     """Return every species stats entry as a raw bytes blob, one per NARC
@@ -113,3 +122,28 @@ def read_base_stats(rom: HeartGoldRom, species_key: str) -> dict[str, int]:
     raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
     entry = read_entry(rom, raw_index)
     return {field: entry[offset] for field, offset in _BASE_STAT_FIELD_OFFSETS.items()}
+
+
+def write_types(rom: HeartGoldRom, species_key: str, type1: int, type2: int) -> None:
+    """Overwrite one species' `type1`/`type2` bytes in place, leaving
+    every other byte of its entry (base stats, catch rate, abilities,
+    TM/HM compatibility, ...) untouched. `type1 == type2` for a
+    single-type species (see this module's own docstring)."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = bytearray(read_entry(rom, raw_index))
+    entry[_TYPE1_OFFSET] = type1
+    entry[_TYPE2_OFFSET] = type2
+    write_entry(rom, raw_index, bytes(entry))
+
+
+def read_types(rom: HeartGoldRom, species_key: str) -> tuple[int, int]:
+    """Read one species' `(type1, type2)` raw bytes directly from the ROM
+    -- mainly for tests/verification, `write_types` is the normal write
+    path."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = read_entry(rom, raw_index)
+    return entry[_TYPE1_OFFSET], entry[_TYPE2_OFFSET]

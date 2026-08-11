@@ -1,0 +1,259 @@
+# Q. What is this file?
+# A. This file contains options which allow you to configure your multiworld experience while allowing
+#    others to play how they want as well.
+#
+# Q. How do I use it?
+# A. The options in this file are weighted. This means the higher number you assign to a value, the
+#    more chances you have for that option to be chosen. For example, an option like this:
+#
+#    map_shuffle:
+#      on: 5
+#      off: 15
+#
+#    Means you have 5 chances for map shuffle to occur, and 15 chances for map shuffle to be turned
+#    off.
+#
+# Q. I've never seen a file like this before. What characters am I allowed to use?
+# A. This is a .yaml file. You are allowed to use most characters.
+#    To test if your yaml is valid or not, you can use this website:
+#        http://www.yamllint.com/
+#    You can also verify that your Archipelago options are valid at this site:
+#        https://archipelago.gg/check
+
+# Your name in-game, limited to 16 characters.
+#     {player} will be replaced with the player's slot number.
+#     {PLAYER} will be replaced with the player's slot number, if that slot number is greater than 1.
+#     {number} will be replaced with the counter value of the name.
+#     {NUMBER} will be replaced with the counter value of the name, if the counter value is greater than 1.
+name: Player{number}
+
+# Used to describe your yaml. Useful if you have multiple files.
+description: Default Pokemon HeartGold Template
+
+game: Pokemon HeartGold
+requires:
+  version: 0.6.7 # Version of Archipelago required for this yaml to work as expected.
+
+Pokemon HeartGold:
+  ################
+  # Game Options #
+  ################
+  progression_balancing:
+    # A system that can move progression earlier, to try and prevent the player from getting stuck and bored early.
+    #
+    # A lower setting means more getting stuck. A higher setting means less getting stuck.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 99
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-99: 0 # random value between 0 and 99
+    disabled: 0 # equivalent to 0
+    normal: 50 # equivalent to 50
+    extreme: 0 # equivalent to 99
+
+  accessibility:
+    # Set rules for reachability of your items/locations.
+    #
+    # **Full:** ensure everything can be reached and acquired.
+    #
+    # **Minimal:** ensure what is needed to reach your goal can be acquired.
+    full: 50
+    minimal: 0
+
+  ########
+  # Goal #
+  ########
+  goal:
+    # The victory condition for this world.
+    #
+    # - elite_four: defeat the Elite Four and Champion, entering the Hall of Fame.
+    # - champion_red: also defeat Red at the top of Mt. Silver.
+    # - n_badges: obtain a configurable number of badges (see the
+    #   `goal_badge_count` option) -- no specific boss fight is required.
+    elite_four: 50
+    champion_red: 0
+    n_badges: 0
+
+  goal_badge_count:
+    # Number of badges required to win when the `goal` option is set to
+    # `n_badges`. Ignored for any other `goal` value.
+    #
+    # HeartGold & SoulSilver have 16 badges in total (8 Johto, 8 Kanto).
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 1
+    # Maximum value is 16
+    16: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-1-16: 0 # random value between 1 and 16
+
+  ###############
+  # Randomizers #
+  ###############
+  randomize_wild_pokemon:
+    # Randomize wild Pokémon encounters (grass / surf / fishing / rock
+    # smash / headbutt, across HGSS's morning/day/night tables).
+    #
+    # - vanilla: no randomization, wild encounters stay as in the base game.
+    # - shuffle: shuffles which species appear across every wild encounter
+    #   slot in the game (a permutation -- the same set of species still
+    #   appears somewhere, just moved around).
+    # - full_random: every wild encounter slot is replaced by an
+    #   independently-chosen random species.
+    vanilla: 50
+    shuffle: 0
+    full_random: 0
+
+  randomize_trainers:
+    # Randomize trainer Pokémon parties (Gym Leaders, Rivals, Elite Four, Red, and regular trainers).
+    'false': 50
+    'true': 0
+
+  randomize_evolutions:
+    # Randomize what each Pokémon evolves into.
+    #
+    # - off: evolutions stay vanilla.
+    # - keep_method: evolution targets are randomized, but each species keeps
+    #   its original evolution method (e.g. a level-up evolution stays a
+    #   level-up evolution, just into a different species) -- logic can keep
+    #   assuming the vanilla method is reachable.
+    # - any_method: evolution targets and methods are both randomized freely;
+    #   logic no longer assumes any particular evolution method for a given
+    #   species.
+    'off': 50
+    keep_method: 0
+    any_method: 0
+
+  randomize_base_stats:
+    # Randomize each Pokémon species' base stats (HP/Attack/Defense/Sp.
+    # Attack/Sp. Defense/Speed). Growth rate (the EXP curve used to level
+    # up) and every other species field (types -- see `randomize_species_
+    # types` -- abilities, catch rate, TM/HM compatibility, learnset, ...)
+    # are never touched by this option -- also unrelated to trainer level
+    # scaling (`trainer_level_scaling`).
+    #
+    # - off: base stats stay vanilla.
+    # - shuffle: shuffles each stat column independently across every
+    #   species (a permutation -- the same multiset of, say, HP values
+    #   still appears somewhere, just reassigned to different species).
+    # - full_random: each of the six stats is independently replaced by a
+    #   fresh random value, drawn from the range actually used by some real
+    #   species' stat in that same column (e.g. HP is randomized within the
+    #   real min-max HP range across all species) -- avoids literal
+    #   1/255 extremes that no vanilla species ever has.
+    'off': 50
+    shuffle: 0
+    full_random: 0
+
+  randomize_moves:
+    # Randomize each move's Power/PP/Accuracy. A move's Type is a
+    # separate option (`randomize_move_types`) -- unaffected by this one --
+    # and nothing else about a move (effect, category, priority, ...) is
+    # touched by either.
+    #
+    # - off: move stats stay vanilla.
+    # - shuffle: shuffles each of Power/PP/Accuracy independently across
+    #   every move (a permutation).
+    # - full_random: each of Power/PP/Accuracy is independently replaced by
+    #   a fresh random value, drawn from the range actually used by some
+    #   real move in that same column.
+    'off': 50
+    shuffle: 0
+    full_random: 0
+
+  randomize_move_types:
+    # Randomize each move's Type. TM/HM compatibility and each species'
+    # own learnset are unaffected by this (they're keyed by move identity,
+    # not type) -- only which type a move deals damage/gets same-type-attack-
+    # bonus as changes. Never assigns the "???" (Mystery) type to any move,
+    # including one whose vanilla type already is "???" (Curse) -- it's
+    # engine-special-cased, not a genuine 18th type to draw from.
+    'false': 50
+    'true': 0
+
+  randomize_species_types:
+    # Randomize each Pokémon species' Type(s). A species keeps its
+    # original single-type/dual-type status -- only *which* type(s) is
+    # randomized. Never assigns the "???" (Mystery) type, same reasoning as
+    # `randomize_move_types`. Unrelated to `randomize_base_stats` (stats)
+    # and TM/HM compatibility/learnsets (unaffected by this option).
+    'false': 50
+    'true': 0
+
+  trainer_level_scaling:
+    # Scale every trainer Pokémon's level by this percentage (100 = vanilla
+    # levels, unchanged). A difficulty knob, not a randomizer -- the same
+    # percentage applies uniformly to every trainer, every generation. Levels
+    # are clamped to HGSS's own 1-100 range after scaling.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 50
+    # Maximum value is 200
+    100: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-50-200: 0 # random value between 50 and 200
+
+  #################
+  # Stretch Goals #
+  #################
+  trainersanity:
+    # Add a check for every trainer battle won.
+    #
+    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
+    # a playable v1.
+    'false': 50
+    'true': 0
+
+  dexsanity:
+    # Add a check for registering each Pokémon species as seen/caught in the Pokédex.
+    #
+    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
+    # a playable v1.
+    'false': 50
+    'true': 0
+
+  ###########################
+  # Item & Location Options #
+  ###########################
+  local_items:
+    # Forces these items to be in their native world.
+    []
+
+  non_local_items:
+    # Forces these items to be outside their native world.
+    []
+
+  start_inventory:
+    # Start with the specified amount of these items. Example: {Bomb: 1, Arrow: 3}
+    {}
+
+  start_hints:
+    # Start with these item's locations prefilled into the ``!hint`` command.
+    []
+
+  start_location_hints:
+    # Start with these locations and their item prefilled into the ``!hint`` command.
+    []
+
+  exclude_locations:
+    # Prevent these locations from having an important item.
+    []
+
+  priority_locations:
+    # Prevent these locations from having an unimportant item.
+    []
+
+  item_links:
+    # Share part of your item pool with other players.
+    []
+
+  plando_items:
+    # Generic items plando.
+    []

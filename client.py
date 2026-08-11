@@ -1,87 +1,39 @@
 # client.py
 #
-# Task C16 -- BizHawk in-game connector for the HeartGold & SoulSilver
-# Archipelago world (docs/architecture.md's "## ROM code injection strategy
-# (revised after C14)", option 3, "Client-only (RAM-only)", chosen for v1):
+# BizHawk in-game connector for the HeartGold & SoulSilver Archipelago
+# world. Two jobs:
 #
-#   - Check detection: read the existing `FLAG_HIDE_ITEMBALL_*`/
-#     `FLAG_GOT_*_FROM_*`/`FLAG_HIDDENITEM_*` savedata bits directly (see
-#     `location_flags.py` and docs/architecture.md's "## C14" section) --
-#     genuinely vanilla behavior, no ROM patch needed. "Local" items
-#     (destined for this same player) are already substituted directly into
-#     the ROM's own data (`rom/eventscriptdata.py`/`rom/npcgiftdata.py`, via
-#     `patch_gen.py`'s `apply_local_item_substitutions`), so the player
-#     already receives the right item just by picking it up in-game; this
-#     client's own job is purely to notice the flag and tell the server.
-#   - Remote items (destined for another player's world): once this
-#     client's own bookkeeping (see `_APPLIED_ITEM_COUNT_KEY_TEMPLATE` below)
-#     says an item from `ctx.items_received` hasn't been granted yet, write it
-#     directly into the running game's `Bag` savedata via RAM (no in-game
-#     "item received" animation for v1 -- the acknowledged, documented cost
-#     of the client-only strategy, see docs/architecture.md).
+#   - Check detection: read the vanilla savedata flag bits directly (see
+#     location_flags.py) -- no ROM patch needed. Local items (this
+#     player's own) are already substituted into the ROM itself
+#     (patch_gen.apply_local_item_substitutions), so picking one up
+#     already hands over the right item; this client's job there is just
+#     noticing the flag and telling the server.
+#   - Remote items (from another player's world): write them into the
+#     running game's `Bag` savedata via RAM once `ctx.items_received`
+#     reports them (no in-game "item received" animation).
 #
-# Uses the local Archipelago checkout's own `worlds._bizhawk` connector
-# module (the generic `bizhawk-apiclient`/`connector_bizhawk_generic.lua`
-# BizHawk-side script is provided by Archipelago itself, not reimplemented
-# here) and its `BizHawkClient`/`AutoBizHawkClientRegister` framework
-# (`worlds/_bizhawk/client.py`), the same pattern
-# `worlds/pokemon_emerald/client.py` and
-# `ressources/platinum_archipelago/client.py` (read-only reference, not
-# copied) both follow.
+# Uses Archipelago's own `worlds._bizhawk` connector (`BizHawkClient`/
+# `AutoBizHawkClientRegister`, `worlds/_bizhawk/client.py`) and its generic
+# `connector_bizhawk_generic.lua` BizHawk-side script -- same pattern
+# `worlds/pokemon_emerald/client.py` and `ressources/platinum_archipelago/
+# client.py` (read-only reference) both follow.
 #
-# *** RESOLVED 2026-08-10, then re-resolved properly the same day ***
+# Every read/write here is relative to the RAM address of the running
+# game's `SaveData` struct (see save_layout.py). That address is **not**
+# fixed -- HGSS double-buffers save data across two physical slots
+# (`include/save.h`'s `SaveSlotSpec saveSlotSpecs[2]`), and either slot's
+# in-RAM copy can be the active one depending on which was written last,
+# so it moves across a save-file reload. This client relocates it fresh
+# every session (and again whenever a reload is detected) by scanning for
+# `SaveData.arrayHeaders[]`'s own signature -- see the "Dynamic SaveData
+# location" section below for the mechanism, and docs/architecture.md's
+# "## C16" section for the full investigation history (an earlier fixed-
+# address approach caused a real save corruption before this was built).
 #
-# Every read/write this client performs is relative to the RAM address of
-# the running game's `SaveData` struct (see `save_layout.py`). This went
-# through three iterations the same session, in increasing order of
-# robustness:
-#
-# 1. A theoretical, struct-size-derived offset model
-#    (`save_layout.CANDIDATE_OFFSETS`) turned out to disagree with the
-#    real, live RAM layout by an amount never fully root-caused (see
-#    docs/architecture.md's "## C16" addenda).
-# 2. Two absolute addresses were found empirically instead (a live
-#    before/after RAM diff around one known pickup each), and hardcoded.
-#    This looked solid at first, but a real T2 integration test the same
-#    day found it broken in two different ways: the flags address gave
-#    false positives/negatives under extended play (a single clean diff
-#    is not enough evidence -- see docs/architecture.md's "T2 live
-#    integration test" section); and, separately, **the whole idea of a
-#    fixed absolute address is wrong** -- a later test found the Bag's
-#    real address had moved to a completely different location after the
-#    player reloaded their save file. `include/save.h`'s `SaveSlotSpec
-#    saveSlotSpecs[2]` explains why: the game double-buffers save data
-#    across two physical slots for write-safety, and either slot's
-#    in-RAM working copy can end up active depending on which was written
-#    last -- there is no reason a fixed address should survive a reload.
-# 3. **What this client actually does now**: locate `Bag`/
-#    `SaveVarsFlags.flags[]` fresh, every session (and again any time a
-#    save reload is detected), by scanning for `SaveData.arrayHeaders[]`
-#    itself -- see the "Dynamic SaveData location" section further down
-#    for the full mechanism and why its signature (five sequential chunk
-#    ids, `0,1,2,3,4`) is reliable regardless of what's actually in the
-#    player's save. This reads the *real* chunk offsets the game itself
-#    computed, rather than assuming any struct-size model for *where* Bag
-#    starts. A real save corruption this same session (see
-#    docs/architecture.md's "Remote item injection: real save corruption
-#    found live" section) turned out to be caused by exactly that -- the
-#    old hardcoded base address was not actually the start of `Bag` --
-#    not by `save_layout.BAG_POCKET_OFFSETS`'s pocket-capacity model
-#    itself (sourced directly from the decomp's own `bag_types_def.h`).
-#    With the base now correct and every pocket independently, live,
-#    read-only verified against the player's real Bag contents (see that
-#    same section's closing entry), remote item reception
-#    (`ctx.items_handling = 0b011`) is restored.
-#
-# `HEARTGOLD_BAG_BASE_ADDRESS`/`HEARTGOLD_FLAGS_ARRAY_ADDRESS` env vars
-# remain available as a manual override (skips the scan entirely, pins a
-# fixed value) for troubleshooting -- unset by default, so the automatic,
-# self-relocating path above is what actually runs for players.
-#
-# `HEARTGOLD_SAVE_DATA_ADDRESS_ENV`/`HEARTGOLD_SAVE_LAYOUT_CASE_ENV` below
-# are UNUSED (kept only so `_missing_configuration_message` still
-# documents how the underlying `SaveChunkOffsets` model works) -- this
-# client no longer refuses to run by default.
+# `HEARTGOLD_BAG_BASE_ADDRESS`/`HEARTGOLD_FLAGS_ARRAY_ADDRESS` env vars are
+# a manual override (skips the scan, pins a fixed value) for
+# troubleshooting -- unset by default.
 
 from __future__ import annotations
 
@@ -90,15 +42,14 @@ import struct
 from typing import TYPE_CHECKING
 
 import worlds._bizhawk as bizhawk
-from data.items import ITEMS
 from worlds._bizhawk.client import BizHawkClient
 
+from data.items import ITEMS
 from items import HEARTGOLD_ITEM_ID_BASE
 from location_flags import build_flag_id_to_ap_location_id, build_locally_substituted_ap_location_ids
-from rom import HEARTGOLD_US_ID_CODE
+from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE
 from save_layout import (
     BAG_POCKET_OFFSETS,
-    CANDIDATE_OFFSETS,
     FLAGS_ARRAY_OFFSET,
     FLAGS_ARRAY_SIZE,
     POCKET_KEY_TO_BAG_FIELD,
@@ -110,24 +61,17 @@ from save_layout import (
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
 
-# -- Required manual configuration (see this module's docstring) ------------
-
-HEARTGOLD_SAVE_DATA_ADDRESS_ENV = "HEARTGOLD_SAVE_DATA_ADDRESS"
-HEARTGOLD_SAVE_LAYOUT_CASE_ENV = "HEARTGOLD_SAVE_LAYOUT_CASE"
-
-# Manual override env vars only -- see this module's docstring above and
-# the "Dynamic SaveData location" section below for the actual, automatic
-# default path. ARM9 System Bus addresses (Main RAM domain + 0x02000000)
-# if set.
+# Manual override env vars -- unset by default, so the automatic scan below
+# is what actually runs for players. ARM9 System Bus addresses (Main RAM
+# domain + 0x02000000).
 HEARTGOLD_BAG_BASE_ADDRESS_ENV = "HEARTGOLD_BAG_BASE_ADDRESS"
 HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV = "HEARTGOLD_FLAGS_ARRAY_ADDRESS"
 
 
-def _resolve_bag_base_address_override() -> int | None:
-    """Manual escape hatch only -- see `_locate_save_addresses` below for
-    the normal, automatic path. Returns `None` (the default) unless the
-    env var is explicitly set."""
-    raw = os.environ.get(HEARTGOLD_BAG_BASE_ADDRESS_ENV)
+def _resolve_address_override(env_var: str) -> int | None:
+    """`None` (the default) unless `env_var` is set to a parseable int
+    (hex or decimal)."""
+    raw = os.environ.get(env_var)
     if not raw:
         return None
     try:
@@ -136,69 +80,36 @@ def _resolve_bag_base_address_override() -> int | None:
         return None
 
 
-def _resolve_flags_array_address_override() -> int | None:
-    """Manual escape hatch only -- see `_locate_save_addresses` below for
-    the normal, automatic path. Returns `None` (the default) unless the
-    env var is explicitly set."""
-    raw = os.environ.get(HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV)
-    if not raw:
-        return None
-    try:
-        return int(raw, 0)
-    except ValueError:
-        return None
-
-
-# -- Dynamic SaveData location, 2026-08-10 -----------------------------------
+# -- Dynamic SaveData location -----------------------------------------------
 #
-# *** WHY THIS EXISTS (read before touching) ***
-# `CONFIRMED_BAG_BASE_ADDRESS`/`CONFIRMED_FLAGS_ARRAY_ADDRESS` above were
-# each independently confirmed live -- but a same-day T2 test found that
-# the game's live `SaveData` struct does **not** stay at a fixed RAM
-# address across a save-file reload (title screen -> Continue, or an
-# in-game reset): a live scan for a known Bag item found it at a
-# *different* absolute address after the player reloaded their save, ~1.3
-# KB away from where it was before. `include/save.h`'s `SaveSlotSpec
-# saveSlotSpecs[2]` (two physical save slots) explains why: this is
-# ordinary double-buffering (write to whichever slot's stale, so a failed
-# write never corrupts the other copy), and either slot's in-RAM working
-# copy can end up loaded depending on which was written last -- there is
-# no reason to expect a fixed RAM address to keep working across reloads.
+# `SaveData` doesn't stay at a fixed RAM address across a save-file reload
+# (HGSS double-buffers save data across two physical slots for write-
+# safety, `include/save.h`'s `SaveSlotSpec saveSlotSpecs[2]` -- either
+# slot's in-RAM copy can be the active one depending on which was written
+# last). So: locate it fresh every session by scanning for `SaveData.
+# arrayHeaders[]` (`include/save.h`) instead of trusting any fixed address.
+# This table's *shape* is a compile-time constant independent of what the
+# player actually owns: `arrayHeaders[0..4]` are five consecutive 16-byte
+# `SaveArrayHeader{int id; u32 size; u32 offset; u16 crc; u16 slot;}`
+# records whose `id` fields are exactly 0,1,2,3,4 in order (chunk ids
+# `SAVE_SYSINFO`.."SAVE_FLAGS", `include/constants/save_arrays.h`). Once
+# found, `arrayHeaders[SAVE_BAG].offset`/`arrayHeaders[SAVE_FLAGS].offset`
+# give the *real*, ground-truth chunk offsets the game itself computed --
+# no struct-size modeling, no pocket-capacity guessing.
 #
-# Fix: locate `SaveData` fresh, every session, by scanning for
-# `SaveData.arrayHeaders[]` (`include/save.h`) itself, rather than trusting
-# any fixed address. This table is a much better scan target than Bag/Flags
-# content because its *shape* is a compile-time constant, independent of
-# what the player actually owns: `arrayHeaders[0..4]` are five consecutive
-# 16-byte `SaveArrayHeader{int id; u32 size; u32 offset; u16 crc; u16
-# slot;}` records whose `id` fields are exactly 0,1,2,3,4 in order (chunk
-# ids `SAVE_SYSINFO`.."SAVE_FLAGS", `include/constants/save_arrays.h`) --
-# essentially impossible to occur by chance, so an exact-match scan is
-# reliable. Once found, `arrayHeaders[SAVE_BAG].offset`/
-# `arrayHeaders[SAVE_FLAGS].offset` give the *real*, ground-truth chunk
-# offsets directly from the game's own bookkeeping -- no struct-size
-# modeling, no pocket-capacity guessing (see `save_layout.py`'s own
-# docstring for why that mattered: an unverified pocket capacity is what
-# caused the real save corruption this same session, see
-# docs/architecture.md's "Remote item injection: real save corruption
-# found live" section).
-#
-# Verified against two independent references the same session: the
-# derived Bag address landed on the *exact* address a separate, blind
-# content scan for a known-owned item had already found (byte-for-byte
-# match, found independently); the derived flags address correctly went
-# from unset to set on a live, real pickup (Route 29's ground item),
-# immediately after deriving it -- see docs/architecture.md.
+# This signature is strong but not unique enough to trust blindly: real
+# RAM has plenty of small integers, so a 64 KB scan can turn up more than
+# one match. `_locate_save_addresses` checks every candidate's derived Bag
+# address against real `ItemSlot` contents (`_bag_looks_plausible`) before
+# accepting it, rather than trusting whichever candidate sorts first.
 
 # `include/save.h`: `struct SaveArrayHeader { int id; u32 size; u32
 # offset; u16 crc; u16 slot; }` -- 4+4+4+2+2 = 16 bytes, no padding
 # ambiguity (every member is 4-byte-or-smaller, standard C ABI packs this
 # tightly under both `save_layout.py` alignment cases).
 _SAVE_ARRAY_HEADER_SIZE = 16
-# How many *leading* chunks (ids 0..4, SysInfo..SaveVarsFlags) we require
-# an exact id match on before trusting a candidate location -- this is
-# the actual signature strength (5 exact sequential int matches back to
-# back is not the kind of thing incidental save data produces by chance).
+# Leading chunks (ids 0..4, SysInfo..SaveVarsFlags) to require an exact id
+# match on before treating an offset as a scan candidate at all.
 _SAVE_ARRAY_HEADER_SIGNATURE_CHUNK_COUNT = 5
 # `include/constants/save_arrays.h`: `SAVE_PAGE_MAX = 35`,
 # `SAVE_SECTOR_SIZE = 0x1000` -- `SaveData.dynamic_region`'s fixed size
@@ -263,19 +174,29 @@ def _looks_like_array_headers(data: bytes, offset: int) -> bool:
     return True
 
 
+def _find_array_headers_candidates(data: bytes) -> list[int]:
+    """Every offset into `data` where `_looks_like_array_headers` matches.
+    The 5-consecutive-sequential-int signature is strong but not
+    cryptographic -- real RAM is full of small integers, so a scan across
+    a 64 KB window can plausibly turn up more than one match. Returning
+    every candidate (instead of just the first) is what lets
+    `_locate_save_addresses` verify each one against real Bag contents
+    rather than trusting whichever happens to sort first."""
+    needed = _SAVE_ARRAY_HEADER_SIZE * _SAVE_ARRAY_HEADER_SIGNATURE_CHUNK_COUNT
+    return [offset for offset in range(0, len(data) - needed, 4) if _looks_like_array_headers(data, offset)]
+
+
 async def _find_array_headers_address(ctx: BizHawkClientContext) -> int | None:
-    """Scan `_ARRAY_HEADERS_SCAN_START`..`+_ARRAY_HEADERS_SCAN_LENGTH` (ARM9
-    System Bus) for `SaveData.arrayHeaders[]`'s live address this session.
-    Returns `None` if not found (caller should treat this as "not located
-    yet, try again next tick" -- never silently falls back to a stale/
-    guessed address, see this section's own docstring)."""
-    data = await _read_chunked(
-        ctx, _ARRAY_HEADERS_SCAN_START, _ARRAY_HEADERS_SCAN_LENGTH, "ARM9 System Bus"
-    )
-    for offset in range(0, len(data) - _SAVE_ARRAY_HEADER_SIZE * _SAVE_ARRAY_HEADER_SIGNATURE_CHUNK_COUNT, 4):
-        if _looks_like_array_headers(data, offset):
-            return _ARRAY_HEADERS_SCAN_START + offset
-    return None
+    """First plausible `SaveData.arrayHeaders[]` candidate address in
+    `_ARRAY_HEADERS_SCAN_START`..`+_ARRAY_HEADERS_SCAN_LENGTH` (ARM9 System
+    Bus), unverified against real Bag contents -- only used by
+    `_array_headers_still_valid`'s signature re-check. `_locate_save_
+    addresses` (the actual session-start/reload path) uses `_find_array_
+    headers_candidates` plus a plausibility check instead; see that
+    function's own docstring for why."""
+    data = await _read_chunked(ctx, _ARRAY_HEADERS_SCAN_START, _ARRAY_HEADERS_SCAN_LENGTH, "ARM9 System Bus")
+    candidates = _find_array_headers_candidates(data)
+    return _ARRAY_HEADERS_SCAN_START + candidates[0] if candidates else None
 
 
 async def _chunk_offset(ctx: BizHawkClientContext, array_headers_address: int, chunk_id: int) -> int:
@@ -290,24 +211,62 @@ async def _chunk_offset(ctx: BizHawkClientContext, array_headers_address: int, c
     return offset
 
 
+# A real Bag "items" pocket slot (u16 id, u16 quantity) is either empty
+# (id 0) or a real item (id 1..MAX_PLAUSIBLE_ITEM_ID, data/items.py's own
+# highest id) in a small stack. Checked against the first few slots before
+# trusting a scan candidate -- see `_bag_looks_plausible`'s own docstring.
+_MAX_PLAUSIBLE_ITEM_ID = 536
+_MAX_PLAUSIBLE_ITEM_QUANTITY = 999
+_PLAUSIBILITY_CHECK_SLOT_COUNT = 8
+
+
+async def _bag_looks_plausible(ctx: BizHawkClientContext, bag_address: int) -> bool:
+    """Read the first `_PLAUSIBILITY_CHECK_SLOT_COUNT` "items"-pocket slots
+    at a candidate `bag_address` and check every one looks like a real
+    `ItemSlot` (empty, or a real item id at a small quantity) -- the
+    verification step the `arrayHeaders` scan signature alone doesn't
+    provide (real RAM has enough small integers that a false-positive
+    signature match across a 64 KB window is plausible; this catches it
+    before any read/write trusts the wrong address)."""
+    slot_bytes = (
+        await bizhawk.read(ctx.bizhawk_ctx, [(bag_address, _PLAUSIBILITY_CHECK_SLOT_COUNT * 4, "ARM9 System Bus")])
+    )[0]
+    for i in range(_PLAUSIBILITY_CHECK_SLOT_COUNT):
+        item_id, quantity = struct.unpack_from("<HH", bytes(slot_bytes), i * 4)
+        if item_id == 0:
+            continue
+        if not (1 <= item_id <= _MAX_PLAUSIBLE_ITEM_ID and quantity <= _MAX_PLAUSIBLE_ITEM_QUANTITY):
+            return False
+    return True
+
+
 async def _locate_save_addresses(ctx: BizHawkClientContext) -> tuple[int, int, int] | None:
     """Locate this session's real `Bag`/`SaveVarsFlags.flags[]` addresses
     fresh, via `SaveData.arrayHeaders[]` (see this section's own
-    docstring). Returns `(bag_address, flags_array_address,
-    array_headers_address)`, or `None` if `arrayHeaders` could not be
-    found this attempt (e.g. mid-transition; caller should just retry
-    next tick, per `HeartGoldClient.game_watcher`)."""
-    array_headers_address = await _find_array_headers_address(ctx)
-    if array_headers_address is None:
-        return None
+    docstring). Tries every scan candidate in order, accepting the first
+    one whose derived Bag address passes `_bag_looks_plausible` -- not just
+    the first signature match, since that signature alone isn't reliable
+    enough on its own (see `_find_array_headers_candidates`'s docstring).
+    Returns `(bag_address, flags_array_address, array_headers_address)`,
+    or `None` if nothing plausible was found this attempt (e.g.
+    mid-transition; caller should just retry next tick, per
+    `HeartGoldClient.game_watcher`)."""
+    data = await _read_chunked(ctx, _ARRAY_HEADERS_SCAN_START, _ARRAY_HEADERS_SCAN_LENGTH, "ARM9 System Bus")
 
-    dynamic_region_base = array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
-    bag_chunk_offset = await _chunk_offset(ctx, array_headers_address, _BAG_CHUNK_ID)
-    flags_chunk_offset = await _chunk_offset(ctx, array_headers_address, _FLAGS_CHUNK_ID)
+    for candidate_offset in _find_array_headers_candidates(data):
+        array_headers_address = _ARRAY_HEADERS_SCAN_START + candidate_offset
+        dynamic_region_base = array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
+        bag_chunk_offset = await _chunk_offset(ctx, array_headers_address, _BAG_CHUNK_ID)
+        bag_address = dynamic_region_base + bag_chunk_offset
 
-    bag_address = dynamic_region_base + bag_chunk_offset
-    flags_array_address = dynamic_region_base + flags_chunk_offset + FLAGS_ARRAY_OFFSET
-    return bag_address, flags_array_address, array_headers_address
+        if not await _bag_looks_plausible(ctx, bag_address):
+            continue
+
+        flags_chunk_offset = await _chunk_offset(ctx, array_headers_address, _FLAGS_CHUNK_ID)
+        flags_array_address = dynamic_region_base + flags_chunk_offset + FLAGS_ARRAY_OFFSET
+        return bag_address, flags_array_address, array_headers_address
+
+    return None
 
 
 async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_address: int) -> bool:
@@ -343,45 +302,6 @@ async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_ad
 # ground-item protocol design (docs/architecture.md's "## C14" section,
 # "Chosen protocol (design)"), out of scope for this client-only v1.
 _APPLIED_ITEM_COUNT_KEY_TEMPLATE = "pokemon_heartgold_applied_item_count_{team}_{slot}"
-
-
-def _resolve_save_data_address() -> int | None:
-    raw = os.environ.get(HEARTGOLD_SAVE_DATA_ADDRESS_ENV)
-    if not raw:
-        return None
-    try:
-        return int(raw, 0)
-    except ValueError:
-        return None
-
-
-def _resolve_save_layout_case_name() -> str | None:
-    raw = os.environ.get(HEARTGOLD_SAVE_LAYOUT_CASE_ENV)
-    if raw and raw in CANDIDATE_OFFSETS:
-        return raw
-    return None
-
-
-def _missing_configuration_message() -> str:
-    case_names = ", ".join(sorted(CANDIDATE_OFFSETS))
-    return (
-        "Pokemon HeartGold client: SaveData RAM address not configured -- "
-        "checks/item-receiving are paused (nothing will be read or written "
-        "until this is set; see docs/architecture.md's '## C16' section for "
-        "the full procedure). Summary: in BizHawk's RAM Search (domain "
-        "'ARM9 System Bus'), search for your character's current in-game "
-        "money as a 4-byte value, narrow it down by spending/earning coins "
-        "and re-searching 'changed value', then set the "
-        f"{HEARTGOLD_SAVE_DATA_ADDRESS_ENV} environment variable to "
-        "(that address - one of the two candidate money offsets below), and "
-        f"{HEARTGOLD_SAVE_LAYOUT_CASE_ENV} to whichever of [{case_names}] "
-        "matches -- pick whichever produces a plausible-looking Bag (item "
-        "ids under ~537) when read at the computed offset. Candidate money "
-        "offsets from SaveData's own base: "
-        + ", ".join(
-            f"{name}={offsets.money_offset_in_savedata:#x}" for name, offsets in sorted(CANDIDATE_OFFSETS.items())
-        )
-    )
 
 
 # -- Item id <-> Bag pocket mapping ------------------------------------------
@@ -453,38 +373,19 @@ class HeartGoldClient(BizHawkClient):
         except bizhawk.RequestFailedError:
             return False
 
-        if bytes(id_code) != HEARTGOLD_US_ID_CODE:
+        if bytes(id_code) not in (HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE):
             return False
 
         ctx.game = self.game
-        # Remote item reception was disabled for part of this same
-        # session (see docs/architecture.md's "Remote item injection:
-        # real save corruption found live" section) after a live
-        # `!getitem` test corrupted the player's save -- root cause was
-        # `CONFIRMED_BAG_BASE_ADDRESS` itself being wrong (not actually
-        # the start of the `Bag` struct), not the pocket-capacity model
-        # (`save_layout.BAG_POCKET_OFFSETS`, sourced directly from the
-        # decomp's own `bag_types_def.h`). Now that the base address is
-        # located dynamically via `SaveData.arrayHeaders[]` (see the
-        # "Dynamic SaveData location" section above) and every pocket has
-        # been independently, live, read-only verified against the
-        # player's real Bag contents (all 8 pockets, correct items at
-        # correct quantities, zero anomalies -- see docs/architecture.md's
-        # "Remote item injection" section, closing entry), 0b011
-        # (locations + remote items) is restored.
-        ctx.items_handling = 0b011
+        ctx.items_handling = 0b011  # locations + remote items
         ctx.want_slot_data = True
         ctx.watcher_timeout = 1.0
 
         self.local_checked_locations = set()
-        # Addresses are (re)located dynamically, per session -- see the
-        # "Dynamic SaveData location" section above for why a fixed
-        # address cannot be trusted across a save-file reload. Manual env
-        # var overrides, if set, are read once here and take priority
-        # over the scan every tick (see `game_watcher` below) for players
-        # who need to force a specific value.
-        self._manual_bag_base_override = _resolve_bag_base_address_override()
-        self._manual_flags_array_override = _resolve_flags_array_address_override()
+        # Manual env var overrides, if set, take priority over the scan
+        # every tick (see game_watcher below).
+        self._manual_bag_base_override = _resolve_address_override(HEARTGOLD_BAG_BASE_ADDRESS_ENV)
+        self._manual_flags_array_override = _resolve_address_override(HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV)
         self.bag_base_address = self._manual_bag_base_override
         self.flags_array_address = self._manual_flags_array_override
         self._array_headers_address = None

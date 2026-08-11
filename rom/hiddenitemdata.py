@@ -158,3 +158,58 @@ def write_hidden_item_substitution(rom: HeartGoldRom, location_key: str, item_ke
 
     position = _find_position_by_index(rom, location["id"])
     write_item_id(rom, position, item["id"])
+
+
+def write_hidden_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str | None]) -> None:
+    """Batched form of `write_hidden_item_substitution`: applies every
+    `{location_key: item_key}` pair in one decompress/recompress pass
+    (`HeartGoldRom.write_main_code_regions`) instead of one pass per
+    location. Matters in practice: `write_hidden_item_substitution`
+    calling `write_item_id` -> `write_main_code_region` once per location
+    took ~34 minutes for all 225 real hidden_item locations (each call
+    decompresses/recompresses the full ~1.1 MB ARM9 image); this function
+    does the same total edit set in one pass.
+
+    A `None` value is the "empty" sentinel -- same convention as
+    `rom/eventscriptdata.write_ground_item_empty`/`rom/npcgiftdata.
+    write_npc_gift_empty` (writes item id 0 instead of a real item, for a
+    location whose placed item belongs to another multiworld player).
+    **Unlike those two, this has not been live-verified for hidden_item
+    specifically** (a different vanilla script/engine path,
+    `GetHiddenItemParams`/`script_manager.c`, not the same script bytecode
+    ground_item/npc_gift use) -- implemented on the assumption that it
+    behaves the same way (a garbled but harmless message, no real Bag
+    grant, flag still set), pending a live BizHawk confirmation.
+
+    Same location/item-key validation as `write_hidden_item_substitution`,
+    just resolved for every entry before any RAM write happens."""
+    from data.items import ITEMS
+    from data.locations import LOCATIONS
+
+    edits: list[tuple[int, bytes]] = []
+    table_base = ARM9_TABLE_RAM_ADDRESS - rom.arm9_ram_address
+    for location_key, item_key in substitutions.items():
+        location = LOCATIONS.get(location_key)
+        if location is None:
+            raise KeyError(f"unknown location key: {location_key!r}")
+        if location["type"] != "hidden_item":
+            raise HiddenItemDataError(
+                f"location {location_key!r} is type {location['type']!r}, not 'hidden_item' -- "
+                "this module only patches the hidden-item table (ground_item/npc_gift/hm_tm/badge "
+                "are out of scope, see rom/eventscriptdata.py/rom/npcgiftdata.py instead)."
+            )
+        if item_key is None:
+            item_id = 0
+        else:
+            item = ITEMS.get(item_key)
+            if item is None:
+                raise KeyError(f"unknown item key: {item_key!r}")
+            item_id = item["id"]
+        if not (0 <= item_id <= 0xFFFF):
+            raise ValueError(f"item id {item_id} does not fit the table's itemId field (an unsigned 16-bit value).")
+
+        position = _find_position_by_index(rom, location["id"])
+        offset = table_base + position * ENTRY_SIZE + _ITEM_ID_OFFSET
+        edits.append((offset, item_id.to_bytes(2, "little")))
+
+    rom.write_main_code_regions(edits)

@@ -89,9 +89,10 @@ class RandomizeEvolutions(Choice):
 class RandomizeBaseStats(Choice):
     """Randomize each Pokémon species' base stats (HP/Attack/Defense/Sp.
     Attack/Sp. Defense/Speed). Growth rate (the EXP curve used to level
-    up) and every other species field (types, abilities, catch rate,
-    TM/HM compatibility, learnset, ...) are never touched -- this option
-    is unrelated to level scaling (docs/scope.md's v2 list).
+    up) and every other species field (types -- see `randomize_species_
+    types` -- abilities, catch rate, TM/HM compatibility, learnset, ...)
+    are never touched by this option -- also unrelated to trainer level
+    scaling (`trainer_level_scaling`).
 
     - off: base stats stay vanilla.
     - shuffle: shuffles each stat column independently across every
@@ -112,9 +113,10 @@ class RandomizeBaseStats(Choice):
 
 
 class RandomizeMoves(Choice):
-    """Randomize each move's Power/PP/Accuracy. A move's Type is never
-    changed (so TM/HM compatibility and STAB stay meaningful), and
-    nothing else about it (effect, category, priority, ...) is touched.
+    """Randomize each move's Power/PP/Accuracy. A move's Type is a
+    separate option (`randomize_move_types`) -- unaffected by this one --
+    and nothing else about a move (effect, category, priority, ...) is
+    touched by either.
 
     - off: move stats stay vanilla.
     - shuffle: shuffles each of Power/PP/Accuracy independently across
@@ -129,6 +131,39 @@ class RandomizeMoves(Choice):
     option_shuffle = 1
     option_full_random = 2
     default = 0
+
+
+class RandomizeMoveTypes(Toggle):
+    """Randomize each move's Type. TM/HM compatibility and each species'
+    own learnset are unaffected by this (they're keyed by move identity,
+    not type) -- only which type a move deals damage/gets same-type-attack-
+    bonus as changes. Never assigns the "???" (Mystery) type to any move,
+    including one whose vanilla type already is "???" (Curse) -- it's
+    engine-special-cased, not a genuine 18th type to draw from."""
+
+    display_name = "Randomize Move Types"
+
+
+class RandomizeSpeciesTypes(Toggle):
+    """Randomize each Pokémon species' Type(s). A species keeps its
+    original single-type/dual-type status -- only *which* type(s) is
+    randomized. Never assigns the "???" (Mystery) type, same reasoning as
+    `randomize_move_types`. Unrelated to `randomize_base_stats` (stats)
+    and TM/HM compatibility/learnsets (unaffected by this option)."""
+
+    display_name = "Randomize Species Types"
+
+
+class TrainerLevelScaling(Range):
+    """Scale every trainer Pokémon's level by this percentage (100 = vanilla
+    levels, unchanged). A difficulty knob, not a randomizer -- the same
+    percentage applies uniformly to every trainer, every generation. Levels
+    are clamped to HGSS's own 1-100 range after scaling."""
+
+    display_name = "Trainer Level Scaling"
+    range_start = 50
+    range_end = 200
+    default = 100
 
 
 class Goal(Choice):
@@ -190,6 +225,9 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_evolutions: RandomizeEvolutions
     randomize_base_stats: RandomizeBaseStats
     randomize_moves: RandomizeMoves
+    randomize_move_types: RandomizeMoveTypes
+    randomize_species_types: RandomizeSpeciesTypes
+    trainer_level_scaling: TrainerLevelScaling
 
     trainersanity: Trainersanity
     dexsanity: Dexsanity
@@ -208,6 +246,9 @@ OPTION_GROUPS = [
             RandomizeEvolutions,
             RandomizeBaseStats,
             RandomizeMoves,
+            RandomizeMoveTypes,
+            RandomizeSpeciesTypes,
+            TrainerLevelScaling,
         ],
     ),
     OptionGroup(

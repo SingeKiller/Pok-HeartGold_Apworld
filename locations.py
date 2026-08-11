@@ -31,9 +31,9 @@
 from __future__ import annotations
 
 from BaseClasses import ItemClassification, Location, Region
+
 from data.locations import LOCATIONS
 from data.rules import BADGES
-
 from items import HeartGoldItem
 
 # See docs/architecture.md, Spike 4 (same convention as items.py's
@@ -42,16 +42,21 @@ HEARTGOLD_LOCATION_ID_BASE = 201_000_000
 
 BADGE_EVENT_ITEM_PREFIX = "Badge Obtained - "
 
-# `hidden_item` is excluded from the AP location pool entirely for v1
-# (2026-08-11, see docs/scope.md's "Shelved" section): check-detection for
-# these 225 locations works (location_flags.py), but the ROM substitution
-# that delivers a *local* item there is still disabled (unresolved
-# white-screen boot issue, docs/architecture.md), and this project's
-# local-item delivery mechanism has no other path -- a local progression
-# item placed here would never actually reach the player. Same treatment
-# as starters: shelved, not exposed, `rom/hiddenitemdata.py` stays tested
-# and ready to reconnect once the underlying ROM bug is fixed.
-SHELVED_LOCATION_TYPES = {"hidden_item"}
+# `hidden_item` was excluded from the AP location pool entirely from
+# 2026-08-10 to 2026-08-11 (see docs/scope.md's former "Shelved" entry,
+# docs/architecture.md's M6 sections for the full story): the ROM
+# substitution that delivers a *local* item there was disabled after a
+# bulk (~225-location) test produced a boot-time white screen, root cause
+# unknown at the time. Root-caused and fixed 2026-08-11 (`rom/__init__.py`'s
+# `write_main_code_regions`, see its own docstring): recompressing the ARM9
+# static region to a size different from vanilla left `SDK_COMPRESSED_
+# STATIC_END` (a fixed-address boot-time decompression end-marker) stale,
+# corrupting the engine's own boot-time self-decompression. hidden_item is
+# reconnected as of this fix -- `SHELVED_LOCATION_TYPES` is empty for now,
+# kept as the established, reusable mechanism (same treatment starters
+# used first) for excluding a location type from the AP pool entirely,
+# should a future type ever need it.
+SHELVED_LOCATION_TYPES: set[str] = set()
 
 # Deterministic id assignment: sorted by location key. Badge-type locations
 # are excluded here -- they are events (address=None), which never get a

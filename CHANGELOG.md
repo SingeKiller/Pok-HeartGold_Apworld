@@ -5,7 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [0.1.1] - 2026-08-11
+
+### Added
+- SoulSilver support: a US SoulSilver ROM is now accepted alongside
+  HeartGold (dual-MD5 validation), same world, same options.
+- Hidden items are randomized again, reconnected after root-causing and
+  fixing the boot issue that previously disabled them (a stale ARM9
+  decompression end-marker left over from any size-changing ROM edit --
+  see `docs/architecture.md`). Live-confirmed on real HeartGold and
+  SoulSilver ROMs via BizHawk (225 hidden_item substitutions each).
+- New optional toggles: trainer level scaling (`trainer_level_scaling`),
+  move type randomization (`randomize_move_types`), species type
+  randomization (`randomize_species_types`).
+- A ready-to-edit default YAML options file, `docs/Pokemon HeartGold.yaml`,
+  for players who'd rather not generate their own via the Launcher.
+
+### Changed
+- Migrated the ROM read/write layer from `ndspy` (GPLv3) to `apnds`
+  (MIT), vendored directly in this repository (`apnds/`). The
+  `.apworld` now needs **no separate install step at all** -- the
+  previous "manually copy ndspy into Archipelago's `lib/` folder"
+  workaround is gone.
+
+### Fixed
+- Local ground_item/npc_gift/hm_tm/hidden_item locations whose item
+  belongs to another player no longer hand over an unearned vanilla item
+  when checked (write item id 0 instead, still fires check-detection).
+- The 30 npc_gift/hm_tm locations with no detectable vanilla savedata
+  flag are now constrained to only ever hold this player's own
+  non-progression items, removing a multiworld-integrity risk.
+- Fixed a duplicate ROM write in trainer party patching
+  (`rom/trainerdata.py`).
+- The BizHawk client no longer blindly trusts the first byte-signature
+  match when locating Bag/save addresses in memory; it now verifies
+  candidates look like real Bag data before trusting them, addressing a
+  flakiness report from community testing.
+- `client.py`'s `patch_suffix` is now set, so Archipelago's Launcher
+  correctly recognizes `.apheartgold` files for "Open Patch".
+- `minimum_ap_version` corrected to `0.6.7` (was accidentally set to the
+  dev checkout's own version).
+- `build.py`'s docstring no longer references unused `make`/`curl`
+  tooling; documents Archipelago's native "Build APWorlds" tool as the
+  recommended path for real releases.
+- `build.py` now fails loudly if a `.apignore`-whitelisted directory
+  (e.g. `data/`) is missing entirely at build time, instead of silently
+  packaging an incomplete `.apworld`.
+
+## [0.1.0] - 2026-08-11
 
 ### Added
 - Archipelago world: items, locations, regions, and logic rules for

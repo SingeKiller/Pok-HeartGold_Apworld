@@ -29,5 +29,7 @@
 !/data/
 !/patches/
 !/rom/
+!/apnds/
+!/apnds_version.txt
 !/docs/setup_en.md
 !/docs/en_Pokemon HeartGold.md

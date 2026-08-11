@@ -11,11 +11,17 @@
   leveling up, into something else.
 - Base stats -- each species keeps its own total stat budget, only
   redistributed across HP/Attack/Defense/Sp. Attack/Sp. Defense/Speed.
-- Move stats -- Power, PP, and Accuracy, with Type always preserved.
-- Ground items, NPC gifts, HMs/TMs, and badge-gated key items.
+- Move stats -- Power, PP, and Accuracy, with Type optionally randomized
+  too (off by default, see `randomize_move_types`).
+- Ground items, hidden items, NPC gifts, HMs/TMs, and badge-gated key
+  items.
 - Apricorns & Berries.
 - Victory condition (Elite Four, Red at Mt. Silver, or a configurable
   number of badges -- your choice, see the YAML options).
+- Optional extras, off by default: trainer level scaling
+  (`trainer_level_scaling`), move type randomization
+  (`randomize_move_types`), species type randomization
+  (`randomize_species_types`).
 
 ## Notable Differences from Base Game
 
@@ -23,9 +29,8 @@
   locate a patchable source for the vanilla starter species in the ROM --
   see the project's `docs/architecture.md` for the full write-up. You'll
   always be offered the vanilla Chikorita/Cyndaquil/Totodile choice.
-- **Hidden items are not randomized.** They stay at their vanilla item and
-  are not part of the check pool this release. Picking them up has no
-  effect on your Archipelago game.
+- **Both HeartGold and SoulSilver are supported.** Either US ROM can be
+  patched; you don't need to pick a version when generating.
 - **Gym badges are not randomized.** HGSS represents badges as a
   save-data flag rather than a bag item, so (unlike some other Pokémon
   worlds) they can't currently be shuffled into the general item pool --
