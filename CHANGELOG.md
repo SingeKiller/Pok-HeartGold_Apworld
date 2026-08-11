@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2026-08-11
 
 ### Fixed
 - Generation no longer fails with `FillError: No more spots to place N
@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `link_replacement` enabled. The 30 undetectable npc_gift/hm_tm
   locations rejected item link group items, which are delivered to every
   group member and were never the stalled-remote case that restriction
-  guards against.
+  guards against. Reported and fixed by community contributor
+  gerbiljames.
 
 ## [0.1.1] - 2026-08-11
 
