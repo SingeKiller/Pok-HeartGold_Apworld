@@ -70,6 +70,13 @@ top text field of the client and click Connect.
 You should now be able to receive and send items. You'll need to do these steps every time you want to reconnect. It is
 perfectly safe to make progress offline; everything will re-sync when you reconnect.
 
+## Tracking
+
+Pokémon HeartGold supports the Universal Tracker (`tracker.apworld`, dropped
+into your `custom_worlds` folder next to this world). Connect it to your slot
+as usual: it works out what you can currently reach on its own, and does not
+need the slot's YAML.
+
 ## Common Issues
 
 1. **Problem**: "No handler was found for this game." in the client. **Solution**: Update to at least BizHawk version 2.10.

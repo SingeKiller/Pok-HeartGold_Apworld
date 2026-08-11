@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Universal Tracker (`tracker.apworld`) support.** UT can now re-generate
+  a HeartGold slot locally and track it, with no YAML needed from whoever
+  is tracking (`ut_can_gen_without_yaml`): `fill_slot_data` publishes every
+  world option under a new nested `options` key, and a UT re-run restores
+  them before building the region graph. Seeds from 0.1.4 and earlier still
+  track correctly -- their flat `goal`/`goal_badge_count` keys are the only
+  slot data that affects logic, and are read as a fallback. A tracker re-run
+  also skips the ROM-only species/move/trainer randomization, which has no
+  bearing on logic.
+
 ## [0.1.4] - 2026-08-11
 
 ### Fixed
