@@ -234,6 +234,12 @@ Pokemon HeartGold:
     # Start with the specified amount of these items. Example: {Bomb: 1, Arrow: 3}
     {}
 
+  start_inventory_from_pool:
+    # Start with the specified amount of these items and don't place them in the world. Example: {Bomb: 1, Arrow: 3}
+    #
+    # The game decides what the replacement items will be.
+    {}
+
   start_hints:
     # Start with these item's locations prefilled into the ``!hint`` command.
     []
