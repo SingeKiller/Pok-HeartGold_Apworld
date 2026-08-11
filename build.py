@@ -77,21 +77,49 @@ def whitelisted_paths() -> list[Path]:
     return paths
 
 
+# The apworld specification says `compatible_version` must be *stamped at
+# build time*, not hand-authored in source -- `archipelago.json` itself
+# deliberately omits it (see `test/general/test_world_manifest.py` in the
+# local Archipelago clone: `assertNotIn("compatible_version", ...)`).
+# Matches `worlds/Files.py`'s `APWorldContainer.get_manifest()`'s own
+# hardcoded value. Missing entirely, this field caused a real regression
+# (2026-08-11): `APContainer.read_contents()` does a raw
+# `manifest["compatible_version"]` dict access (no `.get()`), so a
+# packaged `.apworld` without this field fails to load at all on
+# Archipelago < 0.7.0 (silently falls back to `world_version 0.0.0`, and
+# every later `output_patch.py` call that reads this project's own
+# `archipelago.json` for its *own* `world_version` field still works --
+# that read is unrelated to this one -- but `generate_output` still ends
+# up writing a wrong/misleading version into the patch). Removing the
+# field from source without also stamping it back in here was an
+# incomplete fix.
+_COMPATIBLE_VERSION = 7
+
+
 def build() -> Path:
     """Build the .apworld and return its path."""
     name = module_name()
     out_path = ROOT / f"{name}.apworld"
     included = 0
 
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest["compatible_version"] = _COMPATIBLE_VERSION
+
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in whitelisted_paths():
             if not path.is_file():
                 print(f"warning: skipping missing whitelisted path: {path.relative_to(ROOT)}", file=sys.stderr)
                 continue
+            if path == MANIFEST_PATH:
+                # Written below, with compatible_version stamped in --
+                # skip the raw whitelisted copy so there is only one
+                # archipelago.json entry in the zip.
+                continue
             arcname = f"{name}/{path.relative_to(ROOT).as_posix()}"
             zf.write(path, arcname)
             included += 1
-        zf.writestr(f"{name}/archipelago.json", MANIFEST_PATH.read_text(encoding="utf-8"))
+        zf.writestr(f"{name}/archipelago.json", json.dumps(manifest, indent=2))
+        included += 1
 
     print(f"built {out_path.name} ({included} file(s))")
     return out_path

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
+import pkgutil
 from typing import TYPE_CHECKING, Any
 
 from settings import get_settings
@@ -68,11 +68,32 @@ _SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_ite
 # difference as a hard mismatch is the conservative default -- revisit if
 # this proves too strict once there is real evidence of what is safe to
 # loosen.
-_ARCHIPELAGO_JSON_PATH = Path(__file__).resolve().parent / "archipelago.json"
+#
+# *** CORRECTION (2026-08-11, live-caught via a real generation failure)
+# ***: the paragraph above's original implementation used `pathlib.Path
+# (__file__).resolve().parent / "archipelago.json"` + `.read_text()` --
+# works for a loose dev checkout (this file physically exists on disk),
+# but a real player's `.apworld` is a *zipimport-ed* module: `__file__`
+# resolves to a path string like `<apworld>\pokemon_heartgold\output_
+# patch.py` that plain `pathlib`/`open()` cannot read, since there is no
+# real filesystem entry there (it is inside the zip). Every real install
+# hit `FileNotFoundError` on `generate_output` -- a hard, immediate
+# regression, not a corner case. `pkgutil.get_data(__name__, ...)` is the
+# standard fix: it goes through the module's own loader (whatever that
+# is -- plain file, zipimporter, ...), so it transparently reads a
+# resource file sitting next to this module regardless of how *this
+# module itself* was loaded.
 
 
 def _installed_world_version() -> str:
-    manifest = json.loads(_ARCHIPELAGO_JSON_PATH.read_text(encoding="utf-8"))
+    data = pkgutil.get_data(__name__, "archipelago.json")
+    if data is None:
+        raise RomError(
+            "Could not read this world's own archipelago.json to determine "
+            "its version -- this should not happen for a correctly packaged "
+            ".apworld; please report this."
+        )
+    manifest = json.loads(data.decode("utf-8"))
     return manifest["world_version"]
 
 # `options.GameVersion`'s int value -> the same version-name strings
