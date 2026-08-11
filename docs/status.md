@@ -1,4 +1,4 @@
-# État du projet & reprise — 2026-08-10 (mise à jour finale)
+# État du projet & reprise - 2026-08-10 (mise à jour finale)
 
 **Lire d'abord** : M4 est maintenant validé end-to-end en conditions
 réelles. Un premier test d'intégration (T2) le 2026-08-10 avait trouvé
@@ -34,7 +34,7 @@ par `client.py`.
 Ce document est fait pour être lu **en premier** par quiconque (humain ou
 nouvelle session Claude sans mémoire de la conversation précédente) reprend
 ce projet. `docs/architecture.md` contient l'historique technique détaillé
-(spikes, décisions, investigations) — ce fichier-ci est un résumé
+(spikes, décisions, investigations) - ce fichier-ci est un résumé
 d'orientation + un plan d'action concret.
 
 ## Résumé ultra-rapide
@@ -57,30 +57,30 @@ discovery session results" pour le détail technique complet.
   regions/rules/options/species), validé par zipimport réel d'un
   `.apworld` construit. 221+ tests, `ruff` clean.
 - **M4 en cours** :
-  - `rom/` (C13) — couche d'accès ROM (NitroFS via `ndspy`), validée sans
+  - `rom/` (C13) - couche d'accès ROM (NitroFS via `ndspy`), validée sans
     corruption sur le ROM réel.
   - `armips` compilé et fonctionnel : `ressources/armips/build/armips.exe`
-    (rebuild **statique** nécessaire — voir docs/architecture.md "## C14"
+    (rebuild **statique** nécessaire - voir docs/architecture.md "## C14"
     Blocker 2 pour pourquoi).
   - Substitution locale des items (données ROM, sans ARM) : **308
     locations** couvertes (217 `ground_item` + 91 `npc_gift`/`hm_tm`),
     vérifiées bit-à-bit sur le ROM réel. `rom/eventscriptdata.py`,
     `rom/npcgiftdata.py`, `patch_gen.py`.
-  - `client.py` (C16) — détection de check + injection d'items distants,
+  - `client.py` (C16) - détection de check + injection d'items distants,
     structure de code prête, mais **une adresse RAM réelle manque encore**
     (voir ci-dessous).
 
 ## Le blocage actuel (la seule chose qui empêche M4 d'être fini)
 
 `client.py` a besoin de connaître, en RAM réelle du jeu :
-1. **`Bag`** (pour injecter les items reçus des autres joueurs) — **RÉSOLU
+1. **`Bag`** (pour injecter les items reçus des autres joueurs) - **RÉSOLU
    ET CONFIRMÉ** : `0x27CDA0` en domaine BizHawk "Main RAM" (= `0x0227CDA0`
    côté "ARM9 System Bus"). Confirmé deux façons indépendantes (contenu
    direct : Potion x7 lue exactement à cette adresse ; recoupement avec la
    table `SaveData.arrayHeaders` du jeu lui-même). **Fiable, utilisable
    tel quel.**
 2. **`SaveVarsFlags`** (pour détecter qu'un check vient d'être déclenché,
-   via les flags de sauvegarde `FLAG_HIDE_ITEMBALL_*` etc.) — **NON
+   via les flags de sauvegarde `FLAG_HIDE_ITEMBALL_*` etc.) - **NON
    RÉSOLU**. Une adresse candidate (`0x27D820`) était mathématiquement
    cohérente sur 3 recoupements différents, mais un test réel en jeu
    (ramassage de la Ball Antidote Route 30, flag id 1056, octet attendu à
@@ -90,12 +90,12 @@ discovery session results" pour le détail technique complet.
 
 Plusieurs heures de recherche RAM manuelle (RAM Search de BizHawk, captures
 d'écran, recherches différentielles avant/après) n'ont pas permis de
-trouver la bonne adresse — trop de bruit (minuteurs, RNG, animations) pour
+trouver la bonne adresse - trop de bruit (minuteurs, RNG, animations) pour
 converger à l'œil.
 
 ## Plan de reprise concret (dans l'ordre)
 
-### Étape 1 — Trouver `SaveVarsFlags` proprement, via un script Lua (pas la RAM Search GUI)
+### Étape 1 - Trouver `SaveVarsFlags` proprement, via un script Lua (pas la RAM Search GUI)
 
 La RAM Search manuelle s'est avérée trop peu fiable (des dizaines de
 milliers d'adresses "changées" à cause du bruit ambiant, impossible à
@@ -125,20 +125,20 @@ console.log("Dump written to " .. OUTPUT_PATH)
 Procédure :
 1. Charger ce script (l'écrire d'abord avec `OUTPUT_PATH` = `dump_avant.bin`).
 2. L'exécuter juste **avant** de ramasser un objet connu (ex: une Ball pas
-   encore prise — vérifier dans `data_gen/locations.toml` lesquelles ne
+   encore prise - vérifier dans `data_gen/locations.toml` lesquelles ne
    sont pas encore ramassées dans la partie de test).
 3. Ramasser l'objet.
 4. Modifier `OUTPUT_PATH` en `dump_apres.bin`, ré-exécuter le script.
-5. Donner les deux fichiers (ou leur contenu) à Claude — diff Python
+5. Donner les deux fichiers (ou leur contenu) à Claude - diff Python
    direct, fiable à 100%, pas d'erreur de lecture visuelle possible.
 
 Si **rien** ne change dans cette plage précise (`0x27D540`-`0x27D994`),
-c'est que le chunk entier est à la mauvaise adresse — élargir la plage du
+c'est que le chunk entier est à la mauvaise adresse - élargir la plage du
 script (ex: tout `0x27C000`-`0x28C000`, la zone probable du `SaveData`
 complet) et reproduire le même avant/après pour localiser le vrai chunk
 par diff pur, sans hypothèse de structure du tout.
 
-### Étape 2 — Une fois `SaveVarsFlags` confirmé
+### Étape 2 - Une fois `SaveVarsFlags` confirmé
 
 1. Mettre à jour `save_layout.py`/`location_flags.py`/`client.py` avec
    l'adresse réelle (remplacer ou corriger le calcul qui a échoué).
@@ -146,17 +146,17 @@ par diff pur, sans hypothèse de structure du tout.
    tests, cf. politique établie dans la session précédente).
 3. Committer.
 
-### Étape 3 — `hidden_item` (bloqué séparément, moins urgent)
+### Étape 3 - `hidden_item` (bloqué séparément, moins urgent)
 
 Table statique dans l'ARM9 (pas du bytecode NitroFS comme les autres
 types), adresse ROM inconnue, même famille de blocage que C14. Peut
-attendre après le reste de M4 — v1 peut sortir sans (231 hidden items
+attendre après le reste de M4 - v1 peut sortir sans (231 hidden items
 resteront vanilla, documenté comme limitation connue).
 
-### Étape 4 — Finir M4
+### Étape 4 - Finir M4
 
 1. Brancher la détection de check confirmée dans `client.py::game_watcher`.
-2. **T2 — test d'intégration réel** : générer une seed (`Generate.py` du
+2. **T2 - test d'intégration réel** : générer une seed (`Generate.py` du
    framework Archipelago local), patcher une copie du ROM, lancer BizHawk
    avec `connector_bizhawk_generic.lua` + le client, vérifier qu'un check
    part vers le serveur et qu'un item halted arrive dans le sac.
@@ -168,14 +168,14 @@ resteront vanilla, documenté comme limitation connue).
 - ROM HeartGold US : `E:\Users\Olivier\Desktop\projet\Pokemon - HeartGold Version (USA).nds`
   (var d'env `HEARTGOLD_ROM_PATH`).
 - `armips` : `E:\Users\Olivier\Desktop\projet\HeartGold\ressources\armips\build\armips.exe`
-  (var d'env `ARMIPS_PATH`) — **build statique obligatoire**, sinon
+  (var d'env `ARMIPS_PATH`) - **build statique obligatoire**, sinon
   `STATUS_DLL_NOT_FOUND` selon le contexte d'invocation.
 - Archipelago framework local : `E:\Users\Olivier\Desktop\projet\archipelago`
   (var d'env `ARCHIPELAGO_PATH`).
 - BizHawk : `E:\Users\Olivier\Desktop\Bizhack\EmuHawk.exe` (core NDS =
   melonDS, "NDS": 2 dans `config.ini`).
 - `.venv\Scripts\pip.exe` du dépôt a un shebang cassé (pointe vers un
-  autre projet) — toujours utiliser `.venv\Scripts\python.exe -m pip`/
+  autre projet) - toujours utiliser `.venv\Scripts\python.exe -m pip`/
   `-m pytest`/`-m ruff` explicitement.
 - Self-check standard avant tout commit :
   ```
@@ -186,7 +186,7 @@ resteront vanilla, documenté comme limitation connue).
 
 ## Politique d'agents établie cette session (à respecter)
 
-- **Tester/Reviewer obligatoires sur M4** (patch ROM/client — pas
+- **Tester/Reviewer obligatoires sur M4** (patch ROM/client - pas
   d'économie ici, contrairement au reste du projet où le self-check
   orchestrateur suffit pour les étapes mineures).
 - Découper les grosses étapes en sous-lots plutôt qu'un seul agent géant.
@@ -194,18 +194,18 @@ resteront vanilla, documenté comme limitation connue).
   récurrent.
 - Ne jamais committer sans self-check vert (`pytest` + `ruff`).
 - `ressources/` est en lecture seule, jamais committé, jamais modifié.
-- Ne jamais toucher au ROM original — copies uniquement.
+- Ne jamais toucher au ROM original - copies uniquement.
 
 ## Fichiers clés de cette investigation (déjà committés)
 
-- `docs/architecture.md` — historique technique complet (spikes, C13-C16,
+- `docs/architecture.md` - historique technique complet (spikes, C13-C16,
   section "Manual discovery session results" avec toutes les adresses
   trouvées/confirmées/infirmées).
-- `save_layout.py` — modèle de la structure `SaveData` (contient encore
-  l'ancien calcul théorique, **pas corrigé** cette session — à corriger
+- `save_layout.py` - modèle de la structure `SaveData` (contient encore
+  l'ancien calcul théorique, **pas corrigé** cette session - à corriger
   une fois l'étape 1 ci-dessus faite).
-- `location_flags.py` — mapping location → flag id.
-- `client.py` — le client BizHawk, structure complète, attend juste les
+- `location_flags.py` - mapping location → flag id.
+- `client.py` - le client BizHawk, structure complète, attend juste les
   bonnes adresses via `HEARTGOLD_SAVE_DATA_ADDRESS`/
   `HEARTGOLD_SAVE_LAYOUT_CASE` (ou un patch direct une fois l'adresse
   réelle connue).

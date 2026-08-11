@@ -1,4 +1,4 @@
-# Scope — v1 vs v2
+# Scope - v1 vs v2
 
 Decided after the M1 spikes (see `docs/architecture.md`, "## Spikes" for the
 underlying data: 514 items, 142 encounter maps, 738 trainers in the decomp;
@@ -21,10 +21,10 @@ world).
   contest prizes, static legendaries).
 - Ground items, **hidden items**, NPC gifts, HMs/TMs, badges.
 - Apricorns & Berries.
-- Victory condition (Elite Four / Red at Mt. Silver / N badges — exact
+- Victory condition (Elite Four / Red at Mt. Silver / N badges - exact
   condition TBD at implementation time, kept configurable via `options.py`).
 - Trainersanity / Dexsanity as stretch goals *within* v1 if the budget
-  allows once the core above is stable — not a hard requirement to ship v1.
+  allows once the core above is stable - not a hard requirement to ship v1.
 
 ## Shelved (task M4.5, 2026-08-10)
 
@@ -63,7 +63,7 @@ world).
 - Level scaling.
 - SoulSilver support (a legally-dumped US SoulSilver ROM is now available
   locally as of 2026-08-08, so the earlier blocker is gone; still kept in
-  v2 by default — see open question below — with the architecture left open
+  v2 by default - see open question below - with the architecture left open
   to a second version via a version identifier, no abstraction built ahead
   of need).
 

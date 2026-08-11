@@ -4,7 +4,7 @@
 
 Archipelago loads a world as a Python package under `worlds/<game_name>/` in
 the Archipelago repository (or as a built `.apworld` zip with the same
-internal layout). The package root **is** the world — there is no nested
+internal layout). The package root **is** the world - there is no nested
 `/backend` subfolder in the loaded package. This is a hard technical
 constraint, not a style choice, so the repository root doubles as the
 Archipelago package root.
@@ -29,14 +29,14 @@ Archipelago package root.
   data_gen.py                Entry point: regenerates data/ from data_gen/ +
                               data_gen_templates/
   data_gen_rules.py           Logic-rule generation helpers
-  data/                        Generated at dev time by data_gen.py — NOT
+  data/                        Generated at dev time by data_gen.py - NOT
                                 committed (gitignored), rebuilt from source
 
   patch_gen.py               Builds the distributable ROM patch
   patches/                    Committed base patch (e.g. bsdiff4) applied to
                                a user-supplied vanilla ROM
   rom/                         ROM read/write access layer (NitroFS, ARM hook
-                                injection via armips — see decision below)
+                                injection via armips - see decision below)
 
   docs/                        Player-facing docs (setup guide, game page)
   tests/                       Unit tests
@@ -63,13 +63,13 @@ follows:
 
 Three options were evaluated:
 
-1. **Full decomp rebuild** (as `platinum_archipelago` does) — requires the
+1. **Full decomp rebuild** (as `platinum_archipelago` does) - requires the
    proprietary MWCC 2.0/sp2p2 compiler and Nitro SDK 4.2, not available on
    this machine. **Rejected**.
-2. **ARM hooks via `armips`** — the `pret/pokeheartgold` decomp is used only
+2. **ARM hooks via `armips`** - the `pret/pokeheartgold` decomp is used only
    as a map of symbols/addresses; targeted assembly patches are injected
    without rebuilding the whole ROM. No proprietary toolchain required.
-   **Originally chosen; set aside for v1 after C14** — the `armips`+`patch_gen.py`
+   **Originally chosen; set aside for v1 after C14** - the `armips`+`patch_gen.py`
    pipeline itself works (proven end-to-end against the real ROM, see task
    C14), but the one real hook point identified (`ScrCmd_GiveItem` via
    `gScriptCmdTable`) has no known ROM address, and neither a decomp build
@@ -77,29 +77,29 @@ Three options were evaluated:
    1"; would need a proper disassembler with cross-reference analysis,
    e.g. Ghidra/IDA, not available in this session). Revisit if that
    tooling becomes available.
-3. **Client-only (RAM-only)** — no ROM code changes for the check/receive
+3. **Client-only (RAM-only)** - no ROM code changes for the check/receive
    mechanism itself; the BizHawk client reads/writes game RAM and savedata
    directly. **Chosen for v1.** Concretely, per C14's own investigation:
    - **Check detection**: read the existing `FLAG_HIDE_ITEMBALL_*` (etc.)
-     savedata bits directly — genuinely vanilla behavior
+     savedata bits directly - genuinely vanilla behavior
      (`MapObject_Delete`, see C14), no ROM patch needed at all.
    - **Local items** (an AP location whose generation-decided item belongs
      to this same player/world): still patched directly into the ROM's
-     data via `rom/` (C13) — rewriting an item ball's script bytecode
+     data via `rom/` (C13) - rewriting an item ball's script bytecode
      item-id operand is a plain NitroFS data edit, no ARM code involved,
      same risk profile as `rom/itemdata.py` etc. This is *not* the
      "ARM hooks" strategy being set aside; it was always going to be a
      data-only edit (see C14's protocol design section).
    - **Remote items** (destined for another player): the client injects
      them directly into the player's bag via a savedata/RAM write, once
-     the check-detection flag fires — no in-game "item received" message
+     the check-detection flag fires - no in-game "item received" message
      animation for v1 (the acknowledged cost of this option), but no
      unknown ROM addresses required either.
 
 `armips` (Kingcom/armips, MIT) is built from source at
 `ressources/armips` (git-ignored, read-only external checkout, never
-committed — cloned `--recursive`, built with CMake+Ninja+MinGW g++,
-**statically linked** — `-static -static-libgcc -static-libstdc++` — so
+committed - cloned `--recursive`, built with CMake+Ninja+MinGW g++,
+**statically linked** - `-static -static-libgcc -static-libstdc++` - so
 the binary has no external MinGW/CRT DLL dependency and runs the same from
 Bash, PowerShell, or Python `subprocess`; see task C14's "Blocker 2" for
 why this mattered). The built binary is `ressources/armips/build/armips.exe`
@@ -109,9 +109,9 @@ does this via the `ARMIPS_PATH` env var, following the same convention as
 
 ## Reference projects (read-only, never committed)
 
-- `ressources/Decomposition/pokeheartgold` — `pret/pokeheartgold` decomp.
+- `ressources/Decomposition/pokeheartgold` - `pret/pokeheartgold` decomp.
   Source of ROM memory addresses, symbols and data structures.
-- `ressources/platinum_archipelago` — `ljtpetersen/platinum_archipelago`
+- `ressources/platinum_archipelago` - `ljtpetersen/platinum_archipelago`
   (MIT). Architectural reference for how an Archipelago Gen4 Pokémon world is
   structured; not copied directly.
 
@@ -120,11 +120,11 @@ does this via the `ARMIPS_PATH` env var, following the same convention as
 Three research/PoC spikes run against the real HeartGold (US) ROM and the
 decomp, to de-risk the architecture above before committing to it further.
 
-### Spike 1 — Reading/writing NitroFS
+### Spike 1 - Reading/writing NitroFS
 
 **Library chosen: [`ndspy`](https://pypi.org/project/ndspy/) (pip, MIT).**
 `apnds` was ruled out per the task brief (it's a precompiled binary tool
-built for `platinum_archipelago`'s own ARM hack, not a reusable library —
+built for `platinum_archipelago`'s own ARM hack, not a reusable library -
 confirmed by inspecting `ressources/platinum_archipelago/rom/__init__.py`,
 which imports `..apnds.rom.Rom` from a module that isn't vendored in that
 reference repo at all, i.e. it's an external, project-specific dependency).
@@ -145,7 +145,7 @@ PoC findings (against the real 128 MiB HeartGold (US) ROM, MD5
   **134,217,728-byte** input (the original retail ROM is padded out to a
   power-of-two cartridge size; `ndspy` doesn't reproduce that trailing pad),
   and the two byte streams already diverge inside the header, at offset
-  `0x80` (icon/banner offset field — expected, since layout changed).
+  `0x80` (icon/banner offset field - expected, since layout changed).
   **This is expected `ndspy` behavior, not corruption**: individually
   re-extracting the same file (`pbr/item_data.narc`) from the rebuilt ROM
   and comparing it to the original bytes gives an exact match (see
@@ -158,19 +158,19 @@ PoC findings (against the real 128 MiB HeartGold (US) ROM, MD5
   This needs to be tolerated by BizHawk/flashcart tooling downstream (out of
   scope for this spike; flagged as a follow-up risk).
 
-`ndspy` is now declared in `requirements.txt` (new file — runtime
+`ndspy` is now declared in `requirements.txt` (new file - runtime
 dependency of the world itself, distinct from `requirements-dev.txt`).
 `tests/test_rom_roundtrip.py` covers this: it reads the ROM path from the
 `HEARTGOLD_ROM_PATH` environment variable and skips cleanly if unset/absent,
 so CI (which has no ROM) is unaffected.
 
-### Spike 3 — Fiabilité des données du decomp
+### Spike 3 - Fiabilité des données du decomp
 
 Cross-checked three axes between `ressources/Decomposition/pokeheartgold`
 and public/known facts about HeartGold (US):
 
 1. **Items.** `files/itemtool/itemdata/item_data.csv` has **514 rows**
-   (513 real items + the `ITEM_NONE` placeholder row) — not the ~236
+   (513 real items + the `ITEM_NONE` placeholder row) - not the ~236
    figure floated as an assumption to verify; that assumption was wrong.
    Cross-checked against `include/constants/items.h`: item constants span
    IDs 0 (`ITEM_NONE`) to 536 (`ITEM_ENIGMA_STONE`), i.e. 537 possible ID
@@ -179,12 +179,12 @@ and public/known facts about HeartGold (US):
    items dropped between Emerald and Diamond/Pearl) and thus correctly
    excluded from the CSV. 537 − 22 = 515 real named constants, but the CSV
    only has 514 rows: **`ITEM_EXPLORER_KIT` has a constant (ID present in
-   the header) but no corresponding stats row in `item_data.csv`** — a
+   the header) but no corresponding stats row in `item_data.csv`** - a
    genuine, minor gap in the decomp's data export. Max item ID 536 matches
    what's publicly documented for the Gen IV/HGSS item index range.
 2. **Encounter tables.** `files/fielddata/encountdata/gs_enc_data.json`
    (not `encountdata/*` split into per-zone files, as the task brief
-   assumed — it's a single JSON with a top-level `"encounters"` array) has
+   assumed - it's a single JSON with a top-level `"encounters"` array) has
    **142 map entries**, each with `land`/`surf`/`rock_smash`/`fishing`
    (old/good/super rod) tables plus Hoenn/Sinnoh sound and swarm/fishing
    special-encounter fields. 142 is plausible for HGSS: it counts every
@@ -200,7 +200,7 @@ and public/known facts about HeartGold (US):
    facility-only entries are counted).
 
 **Conclusion: the decomp is reliable enough to be the primary source of
-truth for `data_gen`,** but not blindly 100% trustworthy — axis 1 already
+truth for `data_gen`,** but not blindly 100% trustworthy - axis 1 already
 surfaced one real gap (`ITEM_EXPLORER_KIT` missing its stats row) after
 spending very little time cross-checking. `data_gen.py` extraction code
 should defensively handle constants with no matching data row (skip with a
@@ -213,7 +213,7 @@ alternative in this spike; given the decomp's data matches known public
 figures on 3 independent axes with only one small discrepancy, it is not
 currently worth the extra effort compared to using the decomp directly.
 
-### Spike 4 — Réservation d'ID Archipelago
+### Spike 4 - Réservation d'ID Archipelago
 
 Looked at `pokemon_platinum`, `pokemon_emerald` and `pokemon_rb` in the
 local Archipelago clone (`E:\Users\Olivier\Desktop\projet\archipelago`,
@@ -222,7 +222,7 @@ read-only reference) for how they reserve item/location ID ranges:
 - `pokemon_emerald`: `BASE_OFFSET = 3860000` (`data.py`), added to small
   internal item/flag values for both items and locations.
 - `pokemon_rb`: items use `item_id + 172000000` (`items.py`).
-- `pokemon_platinum`: **no offset at all** — `get_raw_id()` returns raw
+- `pokemon_platinum`: **no offset at all** - `get_raw_id()` returns raw
   in-game values (`item_class << 12 | item_id`, topping out well under
   65536). This looked like an anomaly worth explaining, and the current
   Archipelago `docs/world api.md` (in the same local clone) explains it:
@@ -230,7 +230,7 @@ read-only reference) for how they reserve item/location ID ranges:
   other games' locations."* / *"Items and locations can share IDs, and
   items can share IDs with other games' items."* (lines 226 and 251).
   IDs only need to be unique **within** a single world's own item/location
-  namespace — the historical assumption that every game must reserve a
+  namespace - the historical assumption that every game must reserve a
   disjoint global ID range no longer holds for current Archipelago (items
   and locations are namespaced per-game internally). `pokemon_platinum`
   is written against this current rule; `pokemon_emerald`/`pokemon_rb`
@@ -239,7 +239,7 @@ read-only reference) for how they reserve item/location ID ranges:
 Even though a disjoint range is not strictly required anymore, this project
 follows the defensive convention used by the majority of currently
 maintained worlds (`pokemon_emerald`, `pokemon_rb`, `tunic`, `dark_souls_3`,
-etc.) — it costs nothing, aids debugging/log-reading, and future-proofs
+etc.) - it costs nothing, aids debugging/log-reading, and future-proofs
 against any tooling that still assumes global uniqueness. Scanning every
 `base_id`/`BASE_OFFSET`-style constant across `worlds/` in the local clone,
 the reserved values found range from `1000` up to `2000300204` (`ahit`),
@@ -248,7 +248,7 @@ and `509342400` (`tunic`). Both stay well within the documented "recommended"
 32-bit-safe range (1 to 2³¹−1 = 2147483647).
 
 **Proposed ranges for `pokemon_heartgold`** (in that gap, non-overlapping,
-each with 1,000,000 IDs of headroom — the decomp data above suggests we
+each with 1,000,000 IDs of headroom - the decomp data above suggests we
 need on the order of ~500 items and a few hundred to low thousands of
 locations, so this is generous):
 
@@ -263,12 +263,12 @@ upstream, this range should still be double-checked against the live,
 canonical Archipelago world registry (Discord/GitHub), since only the local
 clone's current snapshot was checked here.
 
-## C14 — Ground item check mechanism (proof of concept)
+## C14 - Ground item check mechanism (proof of concept)
 
 Task C14 set out to prove the hardest remaining piece of the whole project:
 turning a vanilla ground-item pickup ("item ball") into a real Archipelago
 check, without corrupting the save. This section documents what was found,
-what was built, and — importantly — two blockers that stopped the "real"
+what was built, and - importantly - two blockers that stopped the "real"
 in-game hook from being wired up in this session. Per this project's own
 risk policy ("prudence over progress" for ROM-patching work), neither
 blocker was forced past with a guessed/fragile fix.
@@ -281,7 +281,7 @@ blocker was forced past with a guessed/fragile fix.
   e.g. `007_R02.json`'s `obj_R02_monstarball`). `std_itemball_*` constants
   are a contiguous block `_std_item_ball = 7000` .. `7254` (plus a
   `std_itemball_variadic = 7255` catch-all), immediately followed by
-  `_std_hidden_item = 8000` — i.e. **the full "currently running an item
+  `_std_hidden_item = 8000` - i.e. **the full "currently running an item
   ball script" range is `[7000, 8000)`**
   (`include/constants/std_script.h`).
 - `src/script_manager.c`'s `sScriptBankMapping` routes every script id in
@@ -320,7 +320,7 @@ blocker was forced past with a guessed/fragile fix.
 - **Check *detection* turns out to need no ROM patch at all.** Every
   itemball object's `eventFlag` (`FLAG_HIDE_ITEMBALL_*`, ordinary savedata
   flags starting at `0x420`, see `include/constants/flags.h`) is what makes
-  the item ball disappear forever once picked up — and that flag is set by
+  the item ball disappear forever once picked up - and that flag is set by
   generic, already-vanilla engine code, not anything itemball-specific:
   `MapObject_Delete()` in `src/map_object.c`:
   ```c
@@ -332,14 +332,14 @@ blocker was forced past with a guessed/fragile fix.
   }
   ```
   So a client can detect "this ground item was picked up" purely by
-  reading the existing flag bit from savedata — the same technique
+  reading the existing flag bit from savedata - the same technique
   `ressources/platinum_archipelago/client.py` already uses for its own
   location checks (`VarsFlags.get_flag`/`FlagCheck`), just with HeartGold's
   own flag ids. Flags live in `SaveVarsFlags` (`include/save_vars_flags.h`):
   `struct SaveVarsFlags { u16 vars[NUM_VARS]; u8 flags[NUM_FLAGS / 8]; }`
   (`NUM_VARS = 0x170`, `NUM_FLAGS = 2912`), i.e. `flags[flagId / 8] & (1 << (flagId & 7))`.
   This project has not yet located `SaveVarsFlags`'s byte offset inside the
-  *whole* HGSS save block (that's `client.py` work, out of scope for C14) —
+  *whole* HGSS save block (that's `client.py` work, out of scope for C14) -
   only its own internal layout, which is enough to design the protocol
   below.
 
@@ -348,16 +348,16 @@ blocker was forced past with a guessed/fragile fix.
 Given the above, the protocol for a future working client is:
 
 - **Check detection**: read the existing `FLAG_HIDE_ITEMBALL_<location>`
-  bit directly from savedata (no ROM patch required — this is genuinely
+  bit directly from savedata (no ROM patch required - this is genuinely
   vanilla behavior, see `MapObject_Delete` above).
 - **Item substitution for local items**: patch the item ball's own script
   bytecode operand (`SetVar VAR_SPECIAL_x8008, <item id>` inside
   `scr_seq_0141.bin`, one `SetVar` per itemball index) to the item id
   Archipelago generation decided for that location. This is a plain NARC
-  data edit through the existing `rom/` NitroFS layer (C13) — no ARM code
+  data edit through the existing `rom/` NitroFS layer (C13) - no ARM code
   needed, no unknown addresses, same risk profile as `rom/itemdata.py`
   etc. **Not implemented in C14** (out of scope: C14 is the check
-  *mechanism* PoC, not the full data-patching pass — this is recorded here
+  *mechanism* PoC, not the full data-patching pass - this is recorded here
   so the next task doesn't have to re-derive it).
 - **A small RAM protocol struct**, for the day a real ARM hook can be
   wired up (below), so a BizHawk client can read "a ground-item check was
@@ -382,7 +382,7 @@ Given the above, the protocol for a future working client is:
   Total size: `0x14` (20) bytes. Fixed location: `0x023FF800`, chosen by
   the same convention `ressources/platinum_archipelago/client.py` uses for
   its own `AP_STRUCT_PTR_ADDRESS` (near the very top of the DS's 4 MiB
-  EWRAM region, `0x02000000`-`0x023FFFFF`) — **this is a conventional
+  EWRAM region, `0x02000000`-`0x023FFFFF`) - **this is a conventional
   choice, not something this task exhaustively proved unused for HGSS
   specifically**; confirming there's no visible corruption/crash from
   using it is part of the manual in-game (BizHawk) validation the project
@@ -397,59 +397,59 @@ where they live in the actual retail ROM. Two avenues were tried:
 1. **A decomp-provided symbol/address table.** None exists. This decomp
    only ships *source* (`.c`/`.s`/data headers); real addresses are only
    assigned by actually linking a byte-identical build, which needs the
-   proprietary MWCC 2.0/sp2p2 compiler + Nitro SDK 4.2 — both unavailable
+   proprietary MWCC 2.0/sp2p2 compiler + Nitro SDK 4.2 - both unavailable
    on this machine (see "## ROM code injection strategy" above; this is
    the same constraint that already ruled out the "full decomp rebuild"
    option). `asm/*.s` files *do* embed real addresses in their filenames,
-   but only for functions that are still **raw, un-decompiled** assembly —
+   but only for functions that are still **raw, un-decompiled** assembly -
    `ScrCmd_GiveItem` already has matched C source
    (`src/scrcmd_items.c`), so (if genuinely matched) it has no such file
    left to read an address from. `gScriptCmdTable` itself references many
    still-unnamed placeholder entries (`ScrCmd_048`, `ScrCmd_102`, …),
    meaning the *table as a whole* is very unlikely to be a byte-matched,
-   buildable unit yet either — so even a from-scratch attempt at building
+   buildable unit yet either - so even a from-scratch attempt at building
    just this one file would not reliably reproduce the retail table's
    layout.
 2. **An automated signature scan of the real, retail ROM.** Using `ndspy`
    to load the actual `Pokemon - HeartGold Version (USA).nds` (never
    modified, only read) and its ARM9 binary plus all 129 ARM9 overlays, a
-   Python script (see this task's own working notes; not committed —
+   Python script (see this task's own working notes; not committed -
    one-off investigation, not project tooling) searched for a contiguous
    run of `gScriptCmdTable`'s expected size (853 4-byte pointers, all
    resolving into the same code region) anywhere in ARM9 or any overlay.
    `capstone` (a disassembler) was installed **only for this
-   investigation** — it is *not* added to `requirements.txt`/
+   investigation** - it is *not* added to `requirements.txt`/
    `requirements-dev.txt`, since it isn't needed at runtime by anything
    committed. The best candidate found was a run of 301 pointers (in the
    overlay sharing base address `0x021E5900` with the field-system
-   overlay), nowhere near the expected 853 — ruling out a cheap, reliable
+   overlay), nowhere near the expected 853 - ruling out a cheap, reliable
    recovery of the address this way. Reliably finding it would need a
    proper interactive disassembler with cross-reference analysis (e.g.
    Ghidra/IDA with an NDS/ARM9 loader) to trace callers/callees, which is
    out of scope for this session.
 
-A third option — hooking the ARM9 **entry point** instead, which *is*
+A third option - hooking the ARM9 **entry point** instead, which *is*
 always known with certainty (it's a plain ROM header field,
-`arm9EntryAddress`, read directly, no decomp guessing involved) — was
+`arm9EntryAddress`, read directly, no decomp guessing involved) - was
 considered and rejected: the entry point (`0x02000800`) sits well inside
 the Nintendo DS "secure area" (the first `0x4000` bytes of the ARM9
 binary), which the retail cartridge/BIOS validates against a CRC stored in
 the ROM header (`secureAreaChecksum`). `ndspy` reads that checksum but
-**does not recompute it on save** — confirmed by reading its own source
+**does not recompute it on save** - confirmed by reading its own source
 (`ndspy/rom.py`, the field is round-tripped with a literal
 `# TODO: Actually recalculate` comment). Patching bytes inside the secure
 area with this tooling would therefore leave a stale, incorrect checksum
 in the saved ROM: a real risk of the ROM failing to boot on strict
 emulators or real hardware. This was declined rather than forced.
 
-### Blocker 2: `armips` itself does not currently run — RESOLVED
+### Blocker 2: `armips` itself does not currently run - RESOLVED
 
 Separately from the address question: `ressources/armips/build/armips.exe`
 (the local build recorded for M4, see "## ROM code injection strategy")
 was initially found to **fail to start** in this project's own dev
 environment, with Windows error `0xC0000135` / `STATUS_DLL_NOT_FOUND`, in
 a Bash-tool subprocess context specifically (invoking it via a native
-PowerShell session worked fine — the two contexts resolve the MinGW
+PowerShell session worked fine - the two contexts resolve the MinGW
 runtime DLL dependency chain differently). **Fixed** by rebuilding
 statically (`-DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc
 -static-libstdc++"`): the resulting `armips.exe` has no external MinGW/CRT
@@ -460,7 +460,7 @@ A second, independent bug surfaced once `armips` could actually run:
 `patches/ground_item_hook.s` was missing the top-level `.nds` architecture
 directive (armips needs it before anything else in the file to know which
 instruction set/directives to enable), and had `.arm` positioned *before*
-`.create` instead of after — confirmed against `ressources/armips/Tests/
+`.create` instead of after - confirmed against `ressources/armips/Tests/
 ARM/*/*.asm`'s own examples, all of which follow `.nds`/`.gba` →
 `.create` → `.arm`/`.thumb`. Fixed; `tests/test_patch_gen.py` now passes
 for real (7/7, not skipped) with `ARMIPS_PATH` pointed at the rebuilt
@@ -468,10 +468,10 @@ binary.
 
 ### What C14 actually delivers, given both blockers
 
-- `patches/ground_item_hook.s` — a real, self-contained armips source
+- `patches/ground_item_hook.s` - a real, self-contained armips source
   implementing the protocol struct's `HeartGoldAP_Init` and
   `HeartGoldAP_RecordGroundItemCheck` functions (ARM mode). **Not called
-  from anywhere** — there is no known-safe call site to hook yet (Blocker
+  from anywhere** - there is no known-safe call site to hook yet (Blocker
   1). It exists to prove the rest of the pipeline.
 - `rom/__init__.py` gained narrow, **append-only** ARM9 access
   (`HeartGoldRom.arm9`, `.arm9_ram_address`, `.arm9_entry_address`,
@@ -506,7 +506,7 @@ binary.
   `ScriptEnvironment.activeScriptNumber` being in `[7000, 8000)`, per the
   investigation above) before falling through to the original behavior.
 - Confirm the `0x023FF800` EWRAM scratch address is genuinely unused by
-  the real game at runtime (no visual glitches, no crashes) — this needs
+  the real game at runtime (no visual glitches, no crashes) - this needs
   actual BizHawk play-testing, out of reach for this agent.
 - Implement and test the local-item substitution data patch
   (`SetVar VAR_SPECIAL_x8008, <item id>` inside `scr_seq_0141.bin`) as a
