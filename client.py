@@ -94,7 +94,7 @@ from data.items import ITEMS
 from worlds._bizhawk.client import BizHawkClient
 
 from items import HEARTGOLD_ITEM_ID_BASE
-from location_flags import build_flag_id_to_ap_location_id
+from location_flags import build_flag_id_to_ap_location_id, build_locally_substituted_ap_location_ids
 from rom import HEARTGOLD_US_ID_CODE
 from save_layout import (
     BAG_POCKET_OFFSETS,
@@ -408,6 +408,12 @@ _AP_ITEM_ID_TO_BAG_WRITE_INFO = _build_ap_item_id_to_bag_write_info()
 # newly set" is).
 _FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
 
+# AP location ids already covered by ROM substitution (see
+# location_flags.build_locally_substituted_ap_location_ids's own
+# docstring for the double-delivery bug this prevents) -- computed once at
+# import time, same convention as _FLAG_ID_TO_AP_LOCATION_ID above.
+_LOCALLY_SUBSTITUTED_AP_LOCATION_IDS = build_locally_substituted_ap_location_ids()
+
 
 class HeartGoldClient(BizHawkClient):
     game = "Pokemon HeartGold"
@@ -559,13 +565,30 @@ class HeartGoldClient(BizHawkClient):
             return
 
         next_item = ctx.items_received[self._applied_item_count]
-        write_info = _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(next_item.item)
+
+        # Archipelago's server sends every item belonging to this player
+        # through items_received once its location is checked -- including
+        # this player's OWN locations, which this client already delivered
+        # for real via ROM substitution (see output_patch.
+        # build_item_substitutions) the moment the player picked it up
+        # in-game. Writing it into the Bag again here would double it (a
+        # real bug found via live multiplayer testing, 2026-08-11 -- see
+        # location_flags.build_locally_substituted_ap_location_ids's own
+        # docstring). `next_item.player` is the location's owning player
+        # (the "sending" player, per NetUtils.NetworkItem), so this only
+        # ever skips this player's own already-substituted locations, never
+        # a real remote item received from someone else's world.
+        already_delivered_locally = (
+            next_item.player == ctx.slot and next_item.location in _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS
+        )
+        write_info = None if already_delivered_locally else _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(next_item.item)
         if write_info is None:
             # Not one of this world's own bag items (e.g. a badge/event
             # item, which never reaches a client -- see locations.py's own
             # module docstring -- or, in a future item-link/trap scenario,
-            # an item this pocket map doesn't know about). Count it as
-            # "applied" so the queue does not stall on it forever.
+            # an item this pocket map doesn't know about), or already
+            # delivered locally (see above). Count it as "applied" so the
+            # queue does not stall on it forever.
             self._applied_item_count += 1
             await self._store_applied_item_count(ctx, applied_key)
             return

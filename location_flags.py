@@ -91,6 +91,38 @@ def build_flag_id_to_ap_location_id() -> dict[int, int]:
     return result
 
 
+def build_locally_substituted_ap_location_ids() -> set[int]:
+    """AP location ids of every `ground_item`/`npc_gift`/`hm_tm` location
+    (the same set `output_patch.build_item_substitutions` can ROM-
+    substitute) -- used by `client.py` to recognize a *received* item
+    (`ctx.items_received`, from the server) that was already physically
+    delivered by ROM substitution, so it never gets written into the Bag a
+    second time.
+
+    Real bug this fixes (found via live multiplayer testing, 2026-08-11,
+    see docs/architecture.md): Archipelago's server sends every item
+    belonging to a player through `items_received` once its location is
+    checked, *including* locations in that same player's own world -- the
+    protocol has no concept of "this player's client already delivered
+    this item some other way". `client.py`'s remote-item injection used
+    to process every entry in `items_received` unconditionally, so a local
+    ground_item/npc_gift/hm_tm item was granted twice: once for real, via
+    the ROM edit (picking it up in-game), and once more via network
+    injection into the Bag the moment the server saw the check.
+    `hidden_item` locations are never in this set -- they're excluded from
+    the AP location pool entirely (`locations.SHELVED_LOCATION_TYPES`),
+    so `items_received` can never contain one."""
+    ap_ids = create_location_label_to_code_map()
+    result: set[int] = set()
+    for key, data in LOCATIONS.items():
+        if data["type"] not in ("ground_item", "npc_gift", "hm_tm"):
+            continue
+        ap_id = ap_ids.get(key)
+        if ap_id is not None:
+            result.add(ap_id)
+    return result
+
+
 def unsupported_location_keys() -> list[str]:
     """Location keys with a real AP location that this client cannot detect
     via a savedata flag read (currently: only the synthetic-id npc_gift/

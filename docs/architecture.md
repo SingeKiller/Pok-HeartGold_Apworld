@@ -1700,3 +1700,53 @@ issue above).
 Not yet explored: replacing the garbled "???" name with something
 cleaner (e.g. a reserved, renamed item slot showing "Item sent!" instead
 of a blank name) -- a real refinement, not attempted this session.
+
+## Community feedback round: real duplicate-item bug found (2026-08-11)
+
+Published the `.apworld` and asked for outside testers. One tester ran a
+real 2-player game for ~30 minutes and reported (among other things) that
+many ground_item locations were being granted *twice* -- e.g. two Jade
+Orbs from a single key-item location -- and one npc_gift location (an
+Apricorn box randomized to an X Special) delivered both the randomized
+item and the original vanilla item.
+
+Root cause: Archipelago's server sends every item belonging to a player
+through `items_received` once its location is checked -- **including
+locations in that player's own world**, with no protocol-level concept of
+"this player's client already delivered this item some other way."
+`client.py`'s `_apply_next_received_item` processed every entry in
+`items_received` unconditionally and wrote it into the Bag -- so a local
+ground_item/npc_gift/hm_tm item was granted twice: once for real via the
+ROM edit (picking it up in-game), and once more via network injection the
+moment the server saw the check. This project's own "local items are
+ROM-substituted, only remote items need network delivery" convention
+(`output_patch.build_item_substitutions`) was only ever implemented on
+the *output* side -- nothing on the client's *receiving* side ever
+skipped an already-locally-delivered item.
+
+Fixed: `location_flags.build_locally_substituted_ap_location_ids()` (new)
+returns the AP location ids of every ground_item/npc_gift/hm_tm location
+(the same set that can be ROM-substituted). `client.py` computes this
+once at import time (`_LOCALLY_SUBSTITUTED_AP_LOCATION_IDS`, same
+convention as the existing `_FLAG_ID_TO_AP_LOCATION_ID`) and
+`_apply_next_received_item` now skips (marks "applied" without touching
+the Bag) any received item whose `NetworkItem.player == ctx.slot` (this
+player's own location, per `NetUtils.NetworkItem`'s "sending player"
+semantics) **and** `.location` is in that set -- a real remote item
+(different sending player) is completely unaffected and still gets
+written normally. 2 new tests (one confirming the skip, one confirming a
+same-location-id-but-different-player item still gets delivered, to
+guard against the filter matching on location id alone).
+
+Still open from this same feedback round (see task list): some npc_gift
+locations reportedly aren't detected by the client's check-detection at
+all ("many ... not seen by client") -- broader than the already-known
+synthetic-id-band (9000+) gap, not yet root-caused; trainersanity/
+dexsanity toggle on in options/spoiler log but grant no items -- not yet
+confirmed whether real Locations are even created for them; a spoiler
+log that "stops" without a full path to victory shown. Also: `docs
+architecture.md`'s own Spike 1 incorrectly claimed `apnds` (platinum_
+archipelago's vendored NDS library, see the M6 ndspy/GPL section above)
+was an unpublished precompiled binary -- a tester pointed out it's real,
+public, pure-Python (github.com/ljtpetersen/apnds, also on PyPI) --
+worth revisiting as a potential MIT-licensed `ndspy` replacement.
