@@ -90,9 +90,9 @@ import struct
 from typing import TYPE_CHECKING
 
 import worlds._bizhawk as bizhawk
-from data.items import ITEMS
 from worlds._bizhawk.client import BizHawkClient
 
+from data.items import ITEMS
 from items import HEARTGOLD_ITEM_ID_BASE
 from location_flags import build_flag_id_to_ap_location_id
 from rom import HEARTGOLD_US_ID_CODE
@@ -412,14 +412,16 @@ _FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
 class HeartGoldClient(BizHawkClient):
     game = "Pokemon HeartGold"
     system = "NDS"
-    # No distinct patched-ROM file suffix yet -- this project's own patch
-    # pipeline (patch_gen.py) does not yet produce a single distributable
-    # per-seed patch file the way e.g. pokemon_emerald's `.apemerald` does
-    # (see docs/architecture.md and __init__.py's own docstring: local-item
-    # substitution and the ARM-hook scaffolding are separate, not-yet-wired
-    # pieces). Players point BizHawk at their own already-patched ROM copy
-    # directly; nothing to register a launcher file-suffix for yet.
-    patch_suffix = None
+    # Matches output_patch.HeartGoldProcedurePatch.patch_file_ending.
+    # AutoBizHawkClientRegister reads this class attribute at class-
+    # definition time (see worlds/_bizhawk/client.py) to register
+    # ".apheartgold" on the generic "BizHawk Client" launcher component's
+    # SuffixIdentifier -- this is what makes the Launcher's "Open Patch"
+    # file dialog recognize/accept a real .apheartgold file at all. Left
+    # as None for a while during early development, before output_patch.py
+    # existed (see git history) -- must stay in sync with
+    # HeartGoldProcedurePatch.patch_file_ending now that it does.
+    patch_suffix = ".apheartgold"
 
     local_checked_locations: set[int]
     bag_base_address: int | None
