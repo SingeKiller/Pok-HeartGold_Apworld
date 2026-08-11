@@ -34,7 +34,7 @@ ce qui est randomisé en v1 (et ce qui est prévu pour plus tard).
    Détails complets dans [docs/setup_en.md](docs/setup_en.md).
 1. Place `pokemon_heartgold.apworld` dans le dossier `custom_worlds` de
    ton installation Archipelago (pas dans `lib/worlds`).
-2. Génère ton fichier d'options (YAML) via `Generate Templates` dans
+2. Génère ton fichier d'options (YAML) via `Generate Templates` ou via `option creator` dans
    l'Archipelago Launcher, puis place-le dans le dossier `Players`.
 3. Lance la génération normalement depuis le Launcher.
 
