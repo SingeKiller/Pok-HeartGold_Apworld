@@ -1,12 +1,8 @@
 name: Archipelago unit tests
 
-# Runs Archipelago's own test suite against this world, scoped to it with
-# AP_TEST_WORLDS (see Archipelago's docs/tests.md). Complements build.yml,
-# which only verifies the .apworld packages.
-#
-# Archipelago is pinned to an exact commit rather than a branch or tag so a
-# red run always means this world changed, never that upstream moved
-# underneath it. Bump AP_REF deliberately, in its own commit.
+# Runs Archipelago's suite against this world, scoped with AP_TEST_WORLDS.
+# Archipelago is pinned to a commit so a red run always means this world
+# changed, not that upstream moved. Bump AP_REF in its own commit.
 
 on:
   push:
@@ -17,8 +13,7 @@ on:
 env:
   # ArchipelagoMW/Archipelago main as of 2026-08-11.
   AP_REF: fe5b49e1899b32bcb9f65e91cb7f74d6aa6d0ff8
-  # Must match the folder name the .apworld builds under, i.e. build.py's
-  # module_name(): archipelago.json's "game", lowercased, spaces to "_".
+  # Must match build.py's module_name().
   WORLD_MODULE: pokemon_heartgold
 
 jobs:
@@ -27,8 +22,8 @@ jobs:
     name: Archipelago unit tests
 
     steps:
-      # Archipelago first: this world is checked out *into* its worlds/
-      # folder below, and checkout cleans its target directory.
+      # Archipelago first: checkout cleans its target, and this world goes
+      # inside its worlds/ folder.
       - name: Check out Archipelago (pinned)
         uses: actions/checkout@v4
         with:
@@ -41,22 +36,16 @@ jobs:
         with:
           path: Archipelago/worlds/${{ env.WORLD_MODULE }}
 
-      # Archipelago supports 3.11 through 3.13 (ModuleUpdate.py enforces it);
-      # 3.13 is the version its own workflows treat as current.
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      # data/ is generated and git-ignored (see data_gen.py). __init__.py
-      # regenerates it on import if missing, but doing it here keeps a
-      # data_gen failure from surfacing as a confusing world-load error.
+      # data/ is generated and git-ignored (see data_gen.py).
       - name: Generate data/
         working-directory: Archipelago/worlds/${{ env.WORLD_MODULE }}
         run: python data_gen.py
 
-      # Same install Archipelago's own unittests workflow uses. --yes keeps
-      # ModuleUpdate from prompting on stdin, and the WebHostLib append is
-      # what lets test/webhost/* import at all.
+      # Mirrors Archipelago's own unittests.yml.
       - name: Install Archipelago dependencies
         working-directory: Archipelago
         run: |
