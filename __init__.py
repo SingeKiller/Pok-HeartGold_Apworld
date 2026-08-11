@@ -114,6 +114,7 @@ from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 import location_flags  # noqa: E402
 from client import HeartGoldClient  # noqa: E402, F401
 from data import GAME_VERSION  # noqa: E402
+from data.encounters import ENCOUNTERS_HEARTGOLD, ENCOUNTERS_SOULSILVER  # noqa: E402
 from data.items import ITEMS  # noqa: E402
 from data.locations import LOCATIONS  # noqa: E402
 from data.rules import BADGES  # noqa: E402
@@ -124,7 +125,7 @@ from locations import (  # noqa: E402
     create_location_label_to_code_map,
     create_locations,
 )
-from options import OPTION_GROUPS, Goal, HeartGoldOptions  # noqa: E402
+from options import OPTION_GROUPS, GameVersion, Goal, HeartGoldOptions  # noqa: E402
 
 # HeartGoldProcedurePatch itself is never referenced by name below -- the
 # import's side effect (AutoPatchRegister's metaclass registers it by
@@ -328,7 +329,19 @@ class HeartGoldWorld(World):
         apply_exit_rules(self.player, self.multiworld, self.regions)
         _constrain_undetectable_locations(self.player, self.multiworld)
 
-        self.generated_encounters = randomize_wild_encounters(self.random, self.options.randomize_wild_pokemon.value)
+        # Wild encounters genuinely differ between HeartGold and SoulSilver
+        # (e.g. Route 29's morning Sentret/Rattata swap, see data_gen/
+        # encounters.toml's header) -- pick the table matching the declared
+        # `game_version` option before randomizing, so a SoulSilver player
+        # who leaves `randomize_wild_pokemon` at its `vanilla` default gets
+        # genuinely vanilla SoulSilver encounters, not HeartGold's.
+        if self.options.game_version.value == GameVersion.option_soulsilver:
+            version_encounters = ENCOUNTERS_SOULSILVER
+        else:
+            version_encounters = ENCOUNTERS_HEARTGOLD
+        self.generated_encounters = randomize_wild_encounters(
+            self.random, self.options.randomize_wild_pokemon.value, encounters=version_encounters
+        )
         self.generated_trainer_parties = randomize_trainer_parties(
             self.random, bool(self.options.randomize_trainers.value)
         )

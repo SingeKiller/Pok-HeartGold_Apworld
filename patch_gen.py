@@ -337,10 +337,16 @@ def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
 
 
 def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
-    """Apply `species.py`'s `randomize_wild_encounters` output. Zones with
-    no raw NARC entry (see `data/encounter_zone_index.py`'s own docstring:
-    the 3 headbutt-only zones) are skipped -- there is nothing in
-    `g_enc_data.narc` for them to patch."""
+    """Apply `species.py`'s `randomize_wild_encounters` output (already
+    resolved to `rom`'s declared version's own vanilla base data by
+    `__init__.py`'s `set_rules`, see `data/encounters.py`'s
+    `ENCOUNTERS_HEARTGOLD`/`ENCOUNTERS_SOULSILVER`). Zones with no raw NARC
+    entry (see `data/encounter_zone_index.py`'s own docstring: the 3
+    headbutt-only zones) are skipped -- there is nothing to patch for them.
+    `rom_encounterdata.write_zone_encounters` itself picks which of
+    `g_enc_data.narc`/`s_enc_data.narc` to write based on `rom.version`
+    (see that module's own docstring for why: only one of the two is ever
+    read by a given cartridge's own compiled game code)."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
 
     for zone_key, zone in encounters.items():

@@ -30,6 +30,23 @@ world).
   world (`game = "Pokemon HeartGold"`) accepts either a US HeartGold or a
   US SoulSilver ROM via dual-MD5 validation -- see
   `docs/architecture.md`'s SoulSilver section.
+- **Wild-encounter HeartGold/SoulSilver version bug, fixed 2026-08-11
+  (local, not yet released).** SoulSilver support (above) only fixed ROM
+  validation/patching plumbing -- `data_gen/encounters.toml` (and every
+  data-flow downstream of it) still carried HeartGold-only wild-encounter
+  data unconditionally, and `rom/encounterdata.py` always wrote to
+  `g_enc_data.narc`. Found and fixed together (see
+  `docs/architecture.md`'s "Wild-encounter version bug" section): 699
+  fields across the 137 modeled zones (622 from `gs_enc_data.json`, 77
+  from `headbutt.json`) actually diverge between versions (e.g. Route
+  29's morning Sentret/Rattata swap); a SoulSilver ROM's own compiled
+  game code reads `s_enc_data.narc`, never `g_enc_data.narc`, so even
+  correct per-version *data* would have been silently inert without also
+  fixing which NitroFS file gets patched. New `game_version` option
+  (`options.py`) plus a patch-time version-mismatch check
+  (`output_patch.py`) close the loop: generating for the wrong declared
+  version now fails loudly and actionably at patch time instead of
+  silently miswriting the ROM.
 - Victory condition (Elite Four / Red at Mt. Silver / N badges - exact
   condition TBD at implementation time, kept configurable via `options.py`).
 - Trainersanity / Dexsanity as stretch goals *within* v1 if the budget

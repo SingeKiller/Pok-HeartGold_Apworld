@@ -41,6 +41,24 @@ from dataclasses import dataclass
 from Options import Choice, OptionGroup, PerGameCommonOptions, Range, Toggle
 
 
+class GameVersion(Choice):
+    """Which physical ROM this patch is meant for: HeartGold or SoulSilver.
+
+    This matters because wild encounters -- and potentially other data --
+    genuinely differ between the two versions (e.g. Route 29's morning
+    Sentret/Rattata swap). This choice must match the ROM you actually plan
+    to patch: generating with the wrong value produces a patch that writes
+    the other version's data into your ROM (see `output_patch.py`'s
+    version-mismatch check, which refuses to apply a mismatched patch at
+    patch time rather than silently miswriting the ROM).
+    """
+
+    display_name = "Game Version"
+    option_heartgold = 0
+    option_soulsilver = 1
+    default = 0
+
+
 class RandomizeWildPokemon(Choice):
     """Randomize wild Pokémon encounters (grass / surf / fishing / rock
     smash / headbutt, across HGSS's morning/day/night tables).
@@ -217,6 +235,8 @@ class Dexsanity(Toggle):
 
 @dataclass
 class HeartGoldOptions(PerGameCommonOptions):
+    game_version: GameVersion
+
     goal: Goal
     goal_badge_count: GoalBadgeCount
 
@@ -234,6 +254,10 @@ class HeartGoldOptions(PerGameCommonOptions):
 
 
 OPTION_GROUPS = [
+    OptionGroup(
+        "Game Version",
+        [GameVersion],
+    ),
     OptionGroup(
         "Goal",
         [Goal, GoalBadgeCount],

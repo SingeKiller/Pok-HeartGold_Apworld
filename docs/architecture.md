@@ -2049,6 +2049,142 @@ and move stats/types all matched the computed randomization exactly --
 mirroring `tests/test_generate_output.py`'s existing HeartGold
 integration test, just targeted at the other ROM.
 
+## Wild-encounter version bug: found and fixed (2026-08-11, local)
+
+Found immediately after "SoulSilver support" above shipped as v0.1.1: that
+work fixed ROM *validation and patching plumbing* only (dual-MD5 accept,
+version-agnostic NitroFS offsets everywhere they genuinely are
+version-agnostic) -- it never touched wild-encounter *data*, which turned
+out to still be silently HeartGold-only end to end. Not a hypothetical: a
+SoulSilver player generating with the default options (`randomize_wild_
+pokemon: vanilla`, i.e. the common case of a player who wants everything
+*except* wild encounters randomized) got a patched ROM whose wild
+encounters were, for a real subset of slots, silently HeartGold's data
+instead of SoulSilver's own vanilla data.
+
+**Root cause, two independent layers, both needed fixing:**
+
+1. **Data layer.** `data_gen/encounters.toml`'s own header claimed "this
+   project targets HeartGold only... the SoulSilver-only value is always
+   dropped -- this file has no version-conditional data left". True when
+   written (HeartGold-only project), false once SoulSilver shipped as a
+   supported ROM. Re-parsing the decomp source directly
+   (`ressources/Decomposition/pokeheartgold/files/fielddata/encountdata/
+   gs_enc_data.json`, `files/arc/headbutt.json`) found 643 + 79 = 722 raw
+   `{"HEARTGOLD": ..., "SOULSILVER": ...}` (`gs_enc_data.json`) /
+   `{"gold": ..., "silver": ...}` (`headbutt.json`) leaf divergences across
+   both files' full contents; restricted to the 137 zones this project
+   actually models (and to the fields this project's toml schema actually
+   tracks -- `landSwarm`/`hoenn`/`sinnoh` arrays are decomp fields with no
+   equivalent in this project's schema and were left untouched), 622 + 77 =
+   699 fields genuinely diverge. Verified example: Route 29 (`R29`), land
+   slot 7 is `{level: 2, morn: SENTRET}` in HeartGold vs `{level: 4, morn:
+   RATTATA}` in SoulSilver (`day`/`nite` unaffected at that slot).
+   `species.py`'s `randomize_wild_encounters(..., encounters=ENCOUNTERS)`
+   (the `WILD_VANILLA` default just returns `encounters` unchanged) always
+   read this HeartGold-only table regardless of the actual target ROM.
+
+2. **ROM-write layer, found while writing this fix's own integration
+   test -- more severe than the data layer alone.** Even with correct
+   per-version data available, `rom/encounterdata.py` hardcoded
+   `HEARTGOLD_NITROFS_PATH` (`a/0/3/7`, i.e. `g_enc_data.narc`) for every
+   read/write, regardless of which ROM was open. The decomp's own
+   `include/encounter_tables_narc.h` resolves which of `g_enc_data.narc`
+   (`a/0/3/7`) / `s_enc_data.narc` (`a/1/3/6`) the *compiled game code*
+   opens via a plain `#ifdef HEARTGOLD` -- a **compile-time**, not
+   runtime, choice. Live-verified against both real US ROMs: `a/0/3/7`
+   decodes to HeartGold's Route 29 values (morning Sentret) and `a/1/3/6`
+   to SoulSilver's (morning Rattata) *identically in both ROM files* --
+   confirming both NARCs ship in every HGSS ROM regardless of cartridge
+   version (dead weight for whichever table that cartridge's own code
+   doesn't read), each with build-time-baked, version-correct content.
+   Practical consequence: even a hypothetical fix that only addressed
+   layer 1 above would have kept writing correct SoulSilver *data* into
+   the wrong NitroFS file on a SoulSilver ROM -- a file that ROM's own
+   compiled game code never reads at runtime, making the "fix" a no-op in
+   actual play.
+
+**The fix, four parts:**
+
+- `data_gen/encounters.toml`: re-extracted via a one-shot migration
+  script (scratchpad-only, not part of the permanent `data_gen_templates/`
+  pipeline -- this was a one-time data migration, not a recurring
+  generation step). Guard-railed: for every one of the 137 zones, the
+  script's own HEARTGOLD-branch extraction from the raw JSON was asserted
+  byte-for-byte identical to the toml's pre-existing (curated) value
+  before writing anything -- confirmed clean for all 137 zones, 0
+  mismatches, before the file was regenerated. Wherever a field
+  genuinely diverges, its plain scalar became a `{ heartgold = ...,
+  soulsilver = ... }` inline sub-table; non-divergent fields (the large
+  majority) stayed untouched plain scalars, keeping the diff/file
+  readable. 3 zones (`route_16`/`R16`, `pewter`/`T03`, `azalea`/`T23`)
+  have no `gs_enc_data.json` entry at all (headbutt-only, per this
+  file's own header) -- their all-zero land/surf/rock_smash/fishing
+  tables were verified all-zero/empty first, then carried through
+  unchanged; only their headbutt tables went through the same
+  dual-version extraction as every other zone.
+- `data_gen_templates/encounters.py`: `_build_land_slots`/
+  `_build_flat_slots`/`_build_zone` take a `version: Literal["heartgold",
+  "soulsilver"]` parameter and resolve each field via a `_resolve` helper
+  (dict with exactly `{heartgold, soulsilver}` keys -> pick the branch;
+  anything else -> use as-is for both versions). `generate_encounters()`
+  now emits `ENCOUNTERS_HEARTGOLD` and `ENCOUNTERS_SOULSILVER` (each
+  fully resolved, no trace of the dual-value schema left in the output)
+  plus `ENCOUNTERS = ENCOUNTERS_HEARTGOLD` as a compatibility alias for
+  every existing caller (notably `species.py`'s `randomize_wild_
+  encounters` default parameter).
+- `options.py`: new `GameVersion` Choice option (`option_heartgold`
+  default, `option_soulsilver`), its own `OptionGroup`. `__init__.py`'s
+  `set_rules()` picks `ENCOUNTERS_HEARTGOLD`/`ENCOUNTERS_SOULSILVER`
+  based on it before calling `randomize_wild_encounters`.
+- `rom/encounterdata.py`: every function that reads/writes the wild-
+  encounter NARC (`read_all`/`write_all`/`read_entry`/`write_entry`, and
+  therefore `write_zone_encounters`, which delegates to them) now picks
+  its NitroFS path via a new `_nitrofs_path_for(rom)` helper keyed on
+  `rom.version` (`"soulsilver"` -> `s_enc_data.narc`, anything else,
+  including `None` for an already-patched ROM re-opened with `expect_
+  vanilla=False` -> `g_enc_data.narc`, the pre-existing default,
+  preserved for backward compatibility). `output_patch.py`'s `.patch()`
+  writes a small `game_version.json` blob into the `.apheartgold` at
+  generation time (the player's *declared* version) and, after opening
+  the real target ROM, compares it against `rom.version` (the ROM's
+  *actual* version, from its own MD5): a mismatch raises `rom.RomError`
+  (the existing base exception type, no new type introduced) with an
+  actionable message naming both the declared and actual version and
+  telling the player which option to change or which ROM to configure --
+  closing the loop so a wrong `game_version` fails loudly at patch time
+  instead of silently writing the wrong version's data (or, pre-2026-08-
+  11, the wrong NitroFS file entirely) into a real ROM.
+
+**Tests** (`tests/test_encounters.py`, `tests/test_options.py`,
+`tests/test_generate_output.py`): `ENCOUNTERS_HEARTGOLD`/`ENCOUNTERS_
+SOULSILVER` both exist and differ (Route 29 slot 7 exact values), `
+ENCOUNTERS is ENCOUNTERS_HEARTGOLD` alias, dual-field count sanity-checked
+(650-750, actual 699) via a structural diff of the two generated dicts
+independent of the toml's own bookkeeping; `game_version` option
+defaults/values; two real-ROM integration tests --
+`test_game_version_mismatch_raises_actionable_error` (generate for
+`heartgold` default, patch against the real SoulSilver ROM, confirm
+`RomError` is raised, not a silent miswrite or a bare crash) and
+`test_soulsilver_wild_encounters_match_soulsilver_values` (generate for
+`game_version=soulsilver`, patch against the real SoulSilver ROM, read
+back `s_enc_data.narc` directly by path -- `rom.version` comes back
+`None` after the required `expect_vanilla=False` re-open, so the test
+reads the known path directly rather than relying on `_nitrofs_path_for`'s
+version-based default -- and confirm Route 29 slot 7 decodes to Rattata,
+not Sentret). All pass against the real US ROMs on this machine.
+
+**Left alone, confirmed not needed**: no rule in `rules.py`/`data_gen/
+rules.toml` conditions on a specific wild species (zero "encounter"/
+"wild"/"headbutt" references found) -- this was purely a fidelity bug
+(the wrong game's data ends up in a real ROM), never a logic/completion-
+blocking one. `randomize_wild_pokemon` set to anything other than
+`vanilla` was already unaffected in practice for the *content* of what
+gets shuffled/randomized (a full permutation or full-random draw doesn't
+care which vanilla baseline it started from) -- the fidelity gap was
+real regardless, but strictly worse the closer to `vanilla` a player's
+own settings were, worst exactly at the default.
+
 ## ndspy -> apnds migration (2026-08-11)
 
 The last pillar of the v0.1.1 release, sequenced explicitly after the

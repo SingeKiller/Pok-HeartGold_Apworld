@@ -20,14 +20,28 @@
 #
 # `g_enc_data.narc` (`GAME_VERSION_S = ENC_HEARTGOLD` in the decomp's own
 # `files/fielddata/encountdata/gs_enc_data.mk`) is HeartGold's own
-# encounter table -- `HEARTGOLD_NITROFS_PATH` below, the one to patch for
-# this project's wild-encounter randomization. `s_enc_data.narc`
-# (`ENC_SOULSILVER`) is SoulSilver's encounter table; both are present in
-# every HGSS ROM regardless of version (the two games share one codebase,
-# see docs/architecture.md), but a HeartGold cartridge's own gameplay only
-# ever reads `g_enc_data.narc` at runtime for its own wild encounters --
-# `SOULSILVER_NITROFS_PATH` is exposed here for completeness/read access
-# only, not intended as a patch target for this project.
+# encounter table -- `HEARTGOLD_NITROFS_PATH` below. `s_enc_data.narc`
+# (`ENC_SOULSILVER`) is SoulSilver's, `SOULSILVER_NITROFS_PATH` below. Both
+# are present in every HGSS ROM regardless of version (the two games share
+# one codebase, see docs/architecture.md) -- but *which one the compiled
+# game code actually reads at runtime* is a compile-time choice, not a
+# runtime one: `include/encounter_tables_narc.h` picks between the two
+# NARCs with a plain `#ifdef HEARTGOLD`, so a HeartGold cartridge's own
+# wild-encounter code only ever opens `g_enc_data.narc`, and a SoulSilver
+# cartridge's only ever opens `s_enc_data.narc` -- the *other* file is
+# present in that cartridge's own ROM image (dead weight) but never read by
+# it. Live-verified 2026-08-11 against both real US ROMs: `a/0/3/7`
+# decodes to HeartGold's Route 29 values (morning Sentret) and `a/1/3/6` to
+# SoulSilver's (morning Rattata) in *both* ROMs identically -- confirming
+# each ROM ships both tables, version-appropriate content baked in at
+# build time regardless of which cartridge it ends up in. This is why
+# every function below picks its NitroFS path from `rom.version` (see
+# `_nitrofs_path_for` below) rather than hardcoding
+# `HEARTGOLD_NITROFS_PATH`: writing wild-encounter randomization to the
+# wrong path on a SoulSilver ROM would silently produce a patch that a
+# real SoulSilver cartridge's own game code never reads, leaving vanilla
+# (unrandomized, and version-mismatched pre-2026-08-11-fix) encounters in
+# actual play regardless of what was written.
 #
 # `data/encounters.py`'s `ENCOUNTERS` table has 137 zones, fewer than
 # either NARC's 142 sub-files -- some maps present in the raw encounter
@@ -77,17 +91,33 @@ SOULSILVER_NITROFS_PATH = "a/1/3/6"
 EXPECTED_ENTRY_COUNT = 142
 
 
+def _nitrofs_path_for(rom: HeartGoldRom) -> str:
+    """The NitroFS path this `rom`'s own compiled game code actually reads
+    at runtime for wild encounters (see this module's docstring):
+    `SOULSILVER_NITROFS_PATH` for a SoulSilver ROM, `HEARTGOLD_NITROFS_PATH`
+    otherwise -- including `rom.version is None` (an already-patched ROM
+    re-opened with `expect_vanilla=False`, see `rom.HeartGoldRom`'s own
+    docstring), where HeartGold is kept as the long-standing default rather
+    than guessing."""
+    if rom.version == "soulsilver":
+        return SOULSILVER_NITROFS_PATH
+    return HEARTGOLD_NITROFS_PATH
+
+
 def read_all(rom: HeartGoldRom) -> list[bytes]:
-    """Return every HeartGold wild-encounter zone entry as a raw bytes
-    blob, one per NARC sub-file, in on-disk order."""
-    return rom.read_narc(HEARTGOLD_NITROFS_PATH).files
+    """Return every wild-encounter zone entry as a raw bytes blob, one per
+    NARC sub-file, in on-disk order -- from `rom`'s own version-appropriate
+    table (see `_nitrofs_path_for`)."""
+    return rom.read_narc(_nitrofs_path_for(rom)).files
 
 
 def write_all(rom: HeartGoldRom, entries: Sequence[bytes]) -> None:
-    """Replace every HeartGold wild-encounter zone entry. `entries` must
-    have exactly as many elements as the table currently has -- this layer
+    """Replace every wild-encounter zone entry in `rom`'s own version-
+    appropriate table (see `_nitrofs_path_for`). `entries` must have
+    exactly as many elements as the table currently has -- this layer
     never adds or removes NARC sub-files, only replaces their contents."""
-    narc = rom.read_narc(HEARTGOLD_NITROFS_PATH)
+    path = _nitrofs_path_for(rom)
+    narc = rom.read_narc(path)
     if len(entries) != len(narc.files):
         raise ValueError(
             f"encounter data table has {len(narc.files)} entries, got "
@@ -95,21 +125,24 @@ def write_all(rom: HeartGoldRom, entries: Sequence[bytes]) -> None:
             "exactly (this layer never adds/removes NARC sub-files)."
         )
     narc.files = list(entries)
-    rom.write_narc(HEARTGOLD_NITROFS_PATH, narc)
+    rom.write_narc(path, narc)
 
 
 def read_entry(rom: HeartGoldRom, index: int) -> bytes:
     """Read a single wild-encounter zone entry by its raw NARC sub-file
-    index."""
-    return rom.read_narc(HEARTGOLD_NITROFS_PATH).files[index]
+    index, from `rom`'s own version-appropriate table (see
+    `_nitrofs_path_for`)."""
+    return rom.read_narc(_nitrofs_path_for(rom)).files[index]
 
 
 def write_entry(rom: HeartGoldRom, index: int, data: bytes) -> None:
     """Replace a single wild-encounter zone entry by its raw NARC
-    sub-file index."""
-    narc = rom.read_narc(HEARTGOLD_NITROFS_PATH)
+    sub-file index, in `rom`'s own version-appropriate table (see
+    `_nitrofs_path_for`)."""
+    path = _nitrofs_path_for(rom)
+    narc = rom.read_narc(path)
     narc.files[index] = data
-    rom.write_narc(HEARTGOLD_NITROFS_PATH, narc)
+    rom.write_narc(path, narc)
 
 
 # Byte offsets within one 196-byte `EncounterData` entry (Decomposition

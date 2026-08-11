@@ -30,7 +30,11 @@
   see the project's `docs/architecture.md` for the full write-up. You'll
   always be offered the vanilla Chikorita/Cyndaquil/Totodile choice.
 - **Both HeartGold and SoulSilver are supported.** Either US ROM can be
-  patched; you don't need to pick a version when generating.
+  patched, but you must set the `game_version` option to match the ROM
+  you actually plan to patch (wild encounters genuinely differ between
+  the two versions -- generating with the wrong `game_version` produces
+  a patch that refuses to apply to a mismatched ROM rather than silently
+  writing the wrong version's data into it).
 - **Gym badges are not randomized.** HGSS represents badges as a
   save-data flag rather than a bag item, so (unlike some other Pokémon
   worlds) they can't currently be shuffled into the general item pool --

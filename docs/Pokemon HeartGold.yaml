@@ -1,4 +1,4 @@
-# Q. What is this file?
+﻿# Q. What is this file?
 # A. This file contains options which allow you to configure your multiworld experience while allowing
 #    others to play how they want as well.
 #
@@ -33,6 +33,8 @@ description: Default Pokemon HeartGold Template
 game: Pokemon HeartGold
 requires:
   version: 0.6.7 # Version of Archipelago required for this yaml to work as expected.
+  game:
+    Pokemon HeartGold: 0.1.2 # Version of the world required for this yaml to work as expected.
 
 Pokemon HeartGold:
   ################
@@ -40,7 +42,7 @@ Pokemon HeartGold:
   ################
   progression_balancing:
     # A system that can move progression earlier, to try and prevent the player from getting stuck and bored early.
-    #
+    # 
     # A lower setting means more getting stuck. A higher setting means less getting stuck.
     #
     # You can define additional values between the minimum and maximum values.
@@ -56,19 +58,35 @@ Pokemon HeartGold:
 
   accessibility:
     # Set rules for reachability of your items/locations.
-    #
+    # 
     # **Full:** ensure everything can be reached and acquired.
-    #
+    # 
     # **Minimal:** ensure what is needed to reach your goal can be acquired.
     full: 50
     minimal: 0
+
+  ################
+  # Game Version #
+  ################
+  game_version:
+    # Which physical ROM this patch is meant for: HeartGold or SoulSilver.
+    # 
+    # This matters because wild encounters -- and potentially other data --
+    # genuinely differ between the two versions (e.g. Route 29's morning
+    # Sentret/Rattata swap). This choice must match the ROM you actually plan
+    # to patch: generating with the wrong value produces a patch that writes
+    # the other version's data into your ROM (see `output_patch.py`'s
+    # version-mismatch check, which refuses to apply a mismatched patch at
+    # patch time rather than silently miswriting the ROM).
+    heartgold: 50
+    soulsilver: 0
 
   ########
   # Goal #
   ########
   goal:
     # The victory condition for this world.
-    #
+    # 
     # - elite_four: defeat the Elite Four and Champion, entering the Hall of Fame.
     # - champion_red: also defeat Red at the top of Mt. Silver.
     # - n_badges: obtain a configurable number of badges (see the
@@ -80,7 +98,7 @@ Pokemon HeartGold:
   goal_badge_count:
     # Number of badges required to win when the `goal` option is set to
     # `n_badges`. Ignored for any other `goal` value.
-    #
+    # 
     # HeartGold & SoulSilver have 16 badges in total (8 Johto, 8 Kanto).
     #
     # You can define additional values between the minimum and maximum values.
@@ -98,7 +116,7 @@ Pokemon HeartGold:
   randomize_wild_pokemon:
     # Randomize wild Pokémon encounters (grass / surf / fishing / rock
     # smash / headbutt, across HGSS's morning/day/night tables).
-    #
+    # 
     # - vanilla: no randomization, wild encounters stay as in the base game.
     # - shuffle: shuffles which species appear across every wild encounter
     #   slot in the game (a permutation -- the same set of species still
@@ -116,7 +134,7 @@ Pokemon HeartGold:
 
   randomize_evolutions:
     # Randomize what each Pokémon evolves into.
-    #
+    # 
     # - off: evolutions stay vanilla.
     # - keep_method: evolution targets are randomized, but each species keeps
     #   its original evolution method (e.g. a level-up evolution stays a
@@ -136,7 +154,7 @@ Pokemon HeartGold:
     # types` -- abilities, catch rate, TM/HM compatibility, learnset, ...)
     # are never touched by this option -- also unrelated to trainer level
     # scaling (`trainer_level_scaling`).
-    #
+    # 
     # - off: base stats stay vanilla.
     # - shuffle: shuffles each stat column independently across every
     #   species (a permutation -- the same multiset of, say, HP values
@@ -155,7 +173,7 @@ Pokemon HeartGold:
     # separate option (`randomize_move_types`) -- unaffected by this one --
     # and nothing else about a move (effect, category, priority, ...) is
     # touched by either.
-    #
+    # 
     # - off: move stats stay vanilla.
     # - shuffle: shuffles each of Power/PP/Accuracy independently across
     #   every move (a permutation).
@@ -205,7 +223,7 @@ Pokemon HeartGold:
   #################
   trainersanity:
     # Add a check for every trainer battle won.
-    #
+    # 
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.
     'false': 50
@@ -213,7 +231,7 @@ Pokemon HeartGold:
 
   dexsanity:
     # Add a check for registering each Pokémon species as seen/caught in the Pokédex.
-    #
+    # 
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.
     'false': 50

@@ -29,14 +29,18 @@
 #     genuinely dead/unused encounter slots -- same spirit as
 #     data_gen/regions.toml's dead-data exclusions.
 #
-# Version resolution: gs_enc_data.json encodes a handful of
-# HEARTGOLD-vs-SOULSILVER differences (different level or species per
+# Version resolution: gs_enc_data.json encodes 643 real
+# HEARTGOLD-vs-SOULSILVER differences (different level and/or species per
 # version, e.g. Route 29's morning Sentret/Rattata swap) as
 # `{"HEARTGOLD": ..., "SOULSILVER": ...}` dicts; headbutt.json does the same
-# with `{"gold": ..., "silver": ...}` dicts. Since this project targets
-# HeartGold only (see CLAUDE.md), the HEARTGOLD/"gold" value is always kept
-# and the SoulSilver-only value is dropped -- this file has no
-# version-conditional data left.
+# (79 differences) with `{"gold": ..., "silver": ...}` dicts. This project
+# now supports both HeartGold and SoulSilver (see rom/__init__.py's MD5
+# detection and options.py's game_version option), so every field that
+# actually diverges between versions is kept as a
+# `{ heartgold = ..., soulsilver = ... }` inline sub-table below instead of
+# collapsing to a single value; fields that do not diverge stay a plain
+# scalar. data_gen_templates/encounters.py resolves each field for the
+# requested version at generation time.
 #
 # Species are recorded as data_gen/species.toml keys (SPECIES_FOO ->
 # foo, matching every species's `label.lower()`), not raw decomp species
@@ -131,8 +135,8 @@ common = [
 ]
 rare = [
     { level_min = 4, level_max = 5, species = "hoothoot" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
@@ -152,10 +156,10 @@ slots = [
     { level = 3, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
     { level = 3, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
     { level = 2, morn = "sentret", day = "sentret", nite = "rattata" },
-    { level = 2, morn = "sentret", day = "sentret", nite = "rattata" },
-    { level = 4, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = { heartgold = 2, soulsilver = 4 }, morn = { heartgold = "sentret", soulsilver = "rattata" }, day = "sentret", nite = "rattata" },
+    { level = { heartgold = 4, soulsilver = 2 }, morn = { heartgold = "rattata", soulsilver = "sentret" }, day = "rattata", nite = "rattata" },
     { level = 4, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
-    { level = 4, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = { heartgold = 4, soulsilver = 2 }, morn = { heartgold = "rattata", soulsilver = "sentret" }, day = "rattata", nite = "rattata" },
     { level = 4, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
 ]
 
@@ -190,8 +194,8 @@ common = [
 ]
 rare = [
     { level_min = 4, level_max = 5, species = "hoothoot" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
@@ -260,8 +264,8 @@ common = [
 ]
 rare = [
     { level_min = 4, level_max = 5, species = "hoothoot" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
@@ -281,18 +285,18 @@ map_code = "R30"
 [route_30.land]
 rate = 25
 slots = [
-    { level = 2, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "rattata" },
-    { level = 2, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "rattata" },
-    { level = 4, morn = "caterpie", day = "pidgey", nite = "hoothoot" },
-    { level = 4, morn = "caterpie", day = "pidgey", nite = "hoothoot" },
-    { level = 4, morn = "metapod", day = "metapod", nite = "rattata" },
-    { level = 4, morn = "metapod", day = "metapod", nite = "rattata" },
-    { level = 4, morn = "pidgey", day = "caterpie", nite = "hoothoot" },
-    { level = 4, morn = "pidgey", day = "metapod", nite = "hoothoot" },
-    { level = 4, morn = "pidgey", day = "caterpie", nite = "hoothoot" },
-    { level = 4, morn = "pidgey", day = "metapod", nite = "hoothoot" },
+    { level = { heartgold = 2, soulsilver = 3 }, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "rattata" },
+    { level = { heartgold = 2, soulsilver = 3 }, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "rattata" },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = "pidgey", nite = "hoothoot" },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = "pidgey", nite = "hoothoot" },
+    { level = 4, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "rattata" },
+    { level = 4, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "rattata" },
+    { level = 4, morn = "pidgey", day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 4, morn = "pidgey", day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 4, morn = "pidgey", day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 4, morn = "pidgey", day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
 ]
 
 [route_30.surf]
@@ -350,8 +354,8 @@ common = [
 ]
 rare = [
     { level_min = 4, level_max = 5, species = "hoothoot" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
-    { level_min = 4, level_max = 5, species = "spinarak" },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 4, level_max = 5, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
     { level_min = 4, level_max = 5, species = "exeggcute" },
@@ -364,18 +368,18 @@ map_code = "R31"
 [route_31.land]
 rate = 25
 slots = [
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 4, morn = "caterpie", day = "caterpie", nite = "rattata" },
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 4, morn = "caterpie", day = "caterpie", nite = "rattata" },
+    { level = { heartgold = 3, soulsilver = 4 }, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "rattata" },
+    { level = { heartgold = 3, soulsilver = 4 }, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "rattata" },
     { level = 3, morn = "bellsprout", day = "bellsprout", nite = "bellsprout" },
     { level = 3, morn = "bellsprout", day = "bellsprout", nite = "bellsprout" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "rattata" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "rattata" },
-    { level = 5, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 5, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "rattata" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "rattata" },
+    { level = 5, morn = { heartgold = "caterpie", soulsilver = "pidgey" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "pidgey" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "caterpie", soulsilver = "pidgey" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "pidgey" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
 ]
 
 [route_31.surf]
@@ -433,8 +437,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 6, species = "hoothoot" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 6, species = "exeggcute" },
     { level_min = 5, level_max = 6, species = "exeggcute" },
     { level_min = 5, level_max = 6, species = "exeggcute" },
@@ -598,9 +602,9 @@ map_code = "R32"
 rate = 25
 slots = [
     { level = 6, morn = "bellsprout", day = "bellsprout", nite = "wooper" },
-    { level = 4, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 4, morn = { heartgold = "rattata", soulsilver = "ekans" }, day = { heartgold = "rattata", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "bellsprout", day = "bellsprout", nite = "wooper" },
-    { level = 4, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 4, morn = { heartgold = "rattata", soulsilver = "ekans" }, day = { heartgold = "rattata", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "mareep", day = "mareep", nite = "bellsprout" },
     { level = 6, morn = "mareep", day = "mareep", nite = "bellsprout" },
     { level = 6, morn = "hoppip", day = "hoppip", nite = "mareep" },
@@ -908,9 +912,9 @@ map_code = "D25R0101"
 rate = 10
 slots = [
     { level = 6, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 6, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 6, morn = { heartgold = "sandshrew", soulsilver = "rattata" }, day = { heartgold = "sandshrew", soulsilver = "rattata" }, nite = { heartgold = "sandshrew", soulsilver = "rattata" } },
     { level = 6, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 6, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 6, morn = { heartgold = "sandshrew", soulsilver = "rattata" }, day = { heartgold = "sandshrew", soulsilver = "rattata" }, nite = { heartgold = "sandshrew", soulsilver = "rattata" } },
     { level = 5, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 5, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 4, morn = "rattata", day = "rattata", nite = "rattata" },
@@ -972,9 +976,9 @@ map_code = "D25R0102"
 rate = 15
 slots = [
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "rattata" }, day = { heartgold = "sandshrew", soulsilver = "rattata" }, nite = { heartgold = "sandshrew", soulsilver = "rattata" } },
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "rattata" }, day = { heartgold = "sandshrew", soulsilver = "rattata" }, nite = { heartgold = "sandshrew", soulsilver = "rattata" } },
     { level = 7, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 7, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 8, morn = "onix", day = "onix", nite = "onix" },
@@ -1100,9 +1104,9 @@ map_code = "R33"
 rate = 25
 slots = [
     { level = 6, morn = "hoppip", day = "hoppip", nite = "zubat" },
-    { level = 7, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 7, morn = { heartgold = "rattata", soulsilver = "ekans" }, day = { heartgold = "rattata", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "hoppip", day = "hoppip", nite = "zubat" },
-    { level = 7, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 7, morn = { heartgold = "rattata", soulsilver = "ekans" }, day = { heartgold = "rattata", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "spearow", day = "spearow", nite = "rattata" },
     { level = 6, morn = "spearow", day = "spearow", nite = "rattata" },
     { level = 6, morn = "rattata", day = "rattata", nite = "rattata" },
@@ -1286,14 +1290,14 @@ map_code = "D36R0101"
 [ilex_forest.land]
 rate = 5
 slots = [
-    { level = 5, morn = "caterpie", day = "caterpie", nite = "oddish" },
-    { level = 6, morn = "metapod", day = "caterpie", nite = "oddish" },
-    { level = 5, morn = "caterpie", day = "caterpie", nite = "oddish" },
-    { level = 6, morn = "metapod", day = "caterpie", nite = "oddish" },
-    { level = 6, morn = "caterpie", day = "metapod", nite = "zubat" },
-    { level = 6, morn = "caterpie", day = "metapod", nite = "zubat" },
-    { level = 5, morn = "paras", day = "metapod", nite = "paras" },
-    { level = 5, morn = "paras", day = "metapod", nite = "paras" },
+    { level = 5, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "oddish" },
+    { level = 6, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "oddish" },
+    { level = 5, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "oddish" },
+    { level = 6, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "oddish" },
+    { level = 6, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "zubat" },
+    { level = 6, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "zubat" },
+    { level = 5, morn = "paras", day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "paras" },
+    { level = 5, morn = "paras", day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "paras" },
     { level = 5, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 6, morn = "paras", day = "paras", nite = "paras" },
     { level = 5, morn = "zubat", day = "zubat", nite = "zubat" },
@@ -1347,19 +1351,19 @@ slots = [
 [ilex_forest.headbutt]
 common = [
     { level_min = 3, level_max = 5, species = "hoothoot" },
-    { level_min = 3, level_max = 5, species = "caterpie" },
-    { level_min = 3, level_max = 5, species = "caterpie" },
+    { level_min = 3, level_max = 5, species = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level_min = 3, level_max = 5, species = { heartgold = "caterpie", soulsilver = "weedle" } },
     { level_min = 3, level_max = 5, species = "hoothoot" },
-    { level_min = 3, level_max = 5, species = "metapod" },
-    { level_min = 3, level_max = 5, species = "metapod" },
+    { level_min = 3, level_max = 5, species = { heartgold = "metapod", soulsilver = "kakuna" } },
+    { level_min = 3, level_max = 5, species = { heartgold = "metapod", soulsilver = "kakuna" } },
 ]
 rare = [
     { level_min = 6, level_max = 8, species = "hoothoot" },
     { level_min = 6, level_max = 8, species = "pineco" },
     { level_min = 6, level_max = 8, species = "pineco" },
     { level_min = 6, level_max = 8, species = "noctowl" },
-    { level_min = 6, level_max = 8, species = "butterfree" },
-    { level_min = 6, level_max = 8, species = "butterfree" },
+    { level_min = 6, level_max = 8, species = { heartgold = "butterfree", soulsilver = "beedrill" } },
+    { level_min = 6, level_max = 8, species = { heartgold = "butterfree", soulsilver = "beedrill" } },
 ]
 secret = []
 
@@ -1438,8 +1442,8 @@ common = [
 ]
 rare = [
     { level_min = 11, level_max = 12, species = "hoothoot" },
-    { level_min = 11, level_max = 12, species = "spinarak" },
-    { level_min = 11, level_max = 12, species = "spinarak" },
+    { level_min = 11, level_max = 12, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 11, level_max = 12, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 11, level_max = 12, species = "exeggcute" },
     { level_min = 11, level_max = 12, species = "exeggcute" },
     { level_min = 11, level_max = 12, species = "exeggcute" },
@@ -1452,10 +1456,10 @@ map_code = "R35"
 [route_35.land]
 rate = 25
 slots = [
-    { level = 12, morn = "nidoran_m", day = "nidoran_m", nite = "nidoran_m" },
-    { level = 12, morn = "nidoran_f", day = "nidoran_f", nite = "nidoran_f" },
-    { level = 12, morn = "nidoran_m", day = "nidoran_m", nite = "nidoran_m" },
-    { level = 12, morn = "nidoran_f", day = "nidoran_f", nite = "nidoran_f" },
+    { level = 12, morn = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, day = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, nite = { heartgold = "nidoran_m", soulsilver = "nidoran_f" } },
+    { level = 12, morn = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, day = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, nite = { heartgold = "nidoran_f", soulsilver = "nidoran_m" } },
+    { level = 12, morn = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, day = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, nite = { heartgold = "nidoran_m", soulsilver = "nidoran_f" } },
+    { level = 12, morn = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, day = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, nite = { heartgold = "nidoran_f", soulsilver = "nidoran_m" } },
     { level = 14, morn = "drowzee", day = "drowzee", nite = "drowzee" },
     { level = 14, morn = "drowzee", day = "drowzee", nite = "drowzee" },
     { level = 10, morn = "abra", day = "abra", nite = "abra" },
@@ -1521,8 +1525,8 @@ common = [
 ]
 rare = [
     { level_min = 13, level_max = 14, species = "hoothoot" },
-    { level_min = 13, level_max = 14, species = "spinarak" },
-    { level_min = 13, level_max = 14, species = "spinarak" },
+    { level_min = 13, level_max = 14, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 13, level_max = 14, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 13, level_max = 14, species = "exeggcute" },
     { level_min = 13, level_max = 14, species = "exeggcute" },
     { level_min = 13, level_max = 14, species = "exeggcute" },
@@ -1535,12 +1539,12 @@ map_code = "D22R0101"
 [national_park.land]
 rate = 25
 slots = [
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 10, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 10, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 12, morn = "caterpie", day = "sunkern", nite = "hoothoot" },
-    { level = 12, morn = "caterpie", day = "sunkern", nite = "hoothoot" },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 10, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 10, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = "sunkern", nite = "hoothoot" },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = "sunkern", nite = "hoothoot" },
     { level = 12, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
     { level = 12, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
     { level = 10, morn = "pidgey", day = "sunkern", nite = "hoothoot" },
@@ -1580,8 +1584,8 @@ common = [
 ]
 rare = [
     { level_min = 13, level_max = 15, species = "hoothoot" },
-    { level_min = 13, level_max = 15, species = "spinarak" },
-    { level_min = 13, level_max = 15, species = "spinarak" },
+    { level_min = 13, level_max = 15, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 13, level_max = 15, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 13, level_max = 15, species = "exeggcute" },
     { level_min = 13, level_max = 15, species = "exeggcute" },
     { level_min = 13, level_max = 15, species = "exeggcute" },
@@ -1601,18 +1605,18 @@ map_code = "D22R0102"
 [national_park_bug_catching_contest.land]
 rate = 25
 slots = [
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 12, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 12, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 12, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 12, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 14, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 10, morn = "caterpie", day = "caterpie", nite = "caterpie" },
-    { level = 14, morn = "caterpie", day = "caterpie", nite = "caterpie" },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 12, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 14, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 10, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
+    { level = 14, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "caterpie", soulsilver = "weedle" } },
 ]
 
 [national_park_bug_catching_contest.surf]
@@ -1641,18 +1645,18 @@ map_code = "R36"
 [route_36.land]
 rate = 25
 slots = [
-    { level = 12, morn = "nidoran_m", day = "nidoran_m", nite = "nidoran_m" },
-    { level = 12, morn = "nidoran_f", day = "nidoran_f", nite = "nidoran_f" },
-    { level = 12, morn = "nidoran_m", day = "nidoran_m", nite = "nidoran_m" },
-    { level = 12, morn = "nidoran_f", day = "nidoran_f", nite = "nidoran_f" },
-    { level = 13, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
-    { level = 13, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
-    { level = 13, morn = "growlithe", day = "growlithe", nite = "growlithe" },
-    { level = 13, morn = "growlithe", day = "growlithe", nite = "growlithe" },
+    { level = 12, morn = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, day = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, nite = { heartgold = "nidoran_m", soulsilver = "nidoran_f" } },
+    { level = 12, morn = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, day = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, nite = { heartgold = "nidoran_f", soulsilver = "nidoran_m" } },
+    { level = 12, morn = { heartgold = "nidoran_m", soulsilver = "pidgey" }, day = { heartgold = "nidoran_m", soulsilver = "nidoran_f" }, nite = { heartgold = "nidoran_m", soulsilver = "nidoran_f" } },
+    { level = 12, morn = { heartgold = "nidoran_f", soulsilver = "pidgey" }, day = { heartgold = "nidoran_f", soulsilver = "nidoran_m" }, nite = { heartgold = "nidoran_f", soulsilver = "nidoran_m" } },
+    { level = 13, morn = { heartgold = "pidgey", soulsilver = "nidoran_f" }, day = "pidgey", nite = "hoothoot" },
+    { level = 13, morn = { heartgold = "pidgey", soulsilver = "nidoran_m" }, day = "pidgey", nite = "hoothoot" },
+    { level = 13, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
+    { level = 13, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 13, morn = "stantler", day = "stantler", nite = "stantler" },
-    { level = 15, morn = "pidgey", day = "growlithe", nite = "hoothoot" },
+    { level = 15, morn = "pidgey", day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "hoothoot" },
     { level = 13, morn = "stantler", day = "stantler", nite = "stantler" },
-    { level = 15, morn = "pidgey", day = "growlithe", nite = "hoothoot" },
+    { level = 15, morn = "pidgey", day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "hoothoot" },
 ]
 
 [route_36.surf]
@@ -1686,8 +1690,8 @@ common = [
 ]
 rare = [
     { level_min = 6, level_max = 7, species = "hoothoot" },
-    { level_min = 6, level_max = 7, species = "spinarak" },
-    { level_min = 6, level_max = 7, species = "spinarak" },
+    { level_min = 6, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 6, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 6, level_max = 7, species = "exeggcute" },
     { level_min = 6, level_max = 7, species = "exeggcute" },
     { level_min = 6, level_max = 7, species = "exeggcute" },
@@ -1700,18 +1704,18 @@ map_code = "R37"
 [route_37.land]
 rate = 25
 slots = [
-    { level = 13, morn = "pidgey", day = "pidgey", nite = "spinarak" },
+    { level = 13, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
     { level = 15, morn = "stantler", day = "stantler", nite = "stantler" },
-    { level = 13, morn = "pidgey", day = "pidgey", nite = "spinarak" },
+    { level = 13, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
     { level = 15, morn = "stantler", day = "stantler", nite = "stantler" },
     { level = 15, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
     { level = 15, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
-    { level = 14, morn = "growlithe", day = "growlithe", nite = "growlithe" },
-    { level = 14, morn = "growlithe", day = "growlithe", nite = "growlithe" },
-    { level = 15, morn = "pidgey", day = "pidgeotto", nite = "spinarak" },
-    { level = 15, morn = "pidgey", day = "growlithe", nite = "spinarak" },
-    { level = 15, morn = "pidgey", day = "pidgeotto", nite = "spinarak" },
-    { level = 15, morn = "pidgey", day = "growlithe", nite = "spinarak" },
+    { level = 14, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
+    { level = 14, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
+    { level = 15, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgeotto", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 15, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 15, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgeotto", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 15, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
 ]
 
 [route_37.surf]
@@ -1745,8 +1749,8 @@ common = [
 ]
 rare = [
     { level_min = 15, level_max = 17, species = "hoothoot" },
-    { level_min = 15, level_max = 17, species = "spinarak" },
-    { level_min = 15, level_max = 17, species = "spinarak" },
+    { level_min = 15, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 15, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 15, level_max = 17, species = "exeggcute" },
     { level_min = 15, level_max = 17, species = "exeggcute" },
     { level_min = 15, level_max = 17, species = "exeggcute" },
@@ -1815,8 +1819,8 @@ common = [
 ]
 rare = [
     { level_min = 15, level_max = 17, species = "hoothoot" },
-    { level_min = 15, level_max = 17, species = "spinarak" },
-    { level_min = 15, level_max = 17, species = "spinarak" },
+    { level_min = 15, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 15, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 15, level_max = 17, species = "exeggcute" },
     { level_min = 15, level_max = 17, species = "exeggcute" },
     { level_min = 15, level_max = 17, species = "exeggcute" },
@@ -2229,14 +2233,14 @@ map_code = "R38"
 [route_38.land]
 rate = 25
 slots = [
-    { level = 16, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 16, morn = { heartgold = "rattata", soulsilver = "meowth" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 16, morn = "raticate", day = "raticate", nite = "raticate" },
-    { level = 16, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 16, morn = { heartgold = "rattata", soulsilver = "farfetchd" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 16, morn = "raticate", day = "raticate", nite = "raticate" },
     { level = 16, morn = "magnemite", day = "magnemite", nite = "magnemite" },
     { level = 16, morn = "magnemite", day = "magnemite", nite = "magnemite" },
-    { level = 16, morn = "farfetchd", day = "farfetchd", nite = "rattata" },
-    { level = 16, morn = "farfetchd", day = "farfetchd", nite = "rattata" },
+    { level = 16, morn = { heartgold = "farfetchd", soulsilver = "meowth" }, day = "farfetchd", nite = { heartgold = "rattata", soulsilver = "meowth" } },
+    { level = 16, morn = { heartgold = "farfetchd", soulsilver = "meowth" }, day = "farfetchd", nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 13, morn = "miltank", day = "miltank", nite = "miltank" },
     { level = 13, morn = "tauros", day = "tauros", nite = "tauros" },
     { level = 13, morn = "miltank", day = "miltank", nite = "miltank" },
@@ -2274,8 +2278,8 @@ common = [
 ]
 rare = [
     { level_min = 15, level_max = 16, species = "hoothoot" },
-    { level_min = 15, level_max = 16, species = "spinarak" },
-    { level_min = 15, level_max = 16, species = "spinarak" },
+    { level_min = 15, level_max = 16, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 15, level_max = 16, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 15, level_max = 16, species = "exeggcute" },
     { level_min = 15, level_max = 16, species = "exeggcute" },
     { level_min = 15, level_max = 16, species = "exeggcute" },
@@ -2295,14 +2299,14 @@ map_code = "R39"
 [route_39.land]
 rate = 25
 slots = [
-    { level = 16, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 16, morn = { heartgold = "rattata", soulsilver = "meowth" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 17, morn = "raticate", day = "raticate", nite = "raticate" },
-    { level = 16, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 16, morn = { heartgold = "rattata", soulsilver = "farfetchd" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 17, morn = "raticate", day = "raticate", nite = "raticate" },
     { level = 16, morn = "magnemite", day = "magnemite", nite = "magnemite" },
     { level = 16, morn = "magnemite", day = "magnemite", nite = "magnemite" },
-    { level = 16, morn = "farfetchd", day = "farfetchd", nite = "rattata" },
-    { level = 16, morn = "farfetchd", day = "farfetchd", nite = "rattata" },
+    { level = 16, morn = { heartgold = "farfetchd", soulsilver = "meowth" }, day = "farfetchd", nite = { heartgold = "rattata", soulsilver = "meowth" } },
+    { level = 16, morn = { heartgold = "farfetchd", soulsilver = "meowth" }, day = "farfetchd", nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 15, morn = "miltank", day = "miltank", nite = "miltank" },
     { level = 15, morn = "tauros", day = "tauros", nite = "tauros" },
     { level = 15, morn = "miltank", day = "miltank", nite = "miltank" },
@@ -2340,8 +2344,8 @@ common = [
 ]
 rare = [
     { level_min = 16, level_max = 17, species = "hoothoot" },
-    { level_min = 16, level_max = 17, species = "spinarak" },
-    { level_min = 16, level_max = 17, species = "spinarak" },
+    { level_min = 16, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 16, level_max = 17, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 16, level_max = 17, species = "exeggcute" },
     { level_min = 16, level_max = 17, species = "exeggcute" },
     { level_min = 16, level_max = 17, species = "exeggcute" },
@@ -2461,10 +2465,10 @@ slots = []
 rate = 10
 slots = [
     { level_min = 15, level_max = 25, species = "tentacool" },
-    { level_min = 15, level_max = 25, species = "tentacruel" },
-    { level_min = 15, level_max = 25, species = "mantine" },
-    { level_min = 15, level_max = 25, species = "mantine" },
-    { level_min = 15, level_max = 25, species = "mantine" },
+    { level_min = { heartgold = 15, soulsilver = 10 }, level_max = { heartgold = 25, soulsilver = 20 }, species = { heartgold = "tentacruel", soulsilver = "tentacool" } },
+    { level_min = 15, level_max = 25, species = { heartgold = "mantine", soulsilver = "tentacruel" } },
+    { level_min = 15, level_max = 25, species = { heartgold = "mantine", soulsilver = "tentacruel" } },
+    { level_min = 15, level_max = 25, species = { heartgold = "mantine", soulsilver = "tentacruel" } },
 ]
 
 [route_41.rock_smash]
@@ -2769,12 +2773,12 @@ map_code = "R42"
 [route_42.land]
 rate = 25
 slots = [
-    { level = 15, morn = "mankey", day = "mankey", nite = "mankey" },
-    { level = 13, morn = "mareep", day = "mareep", nite = "mareep" },
-    { level = 15, morn = "mankey", day = "mankey", nite = "mankey" },
-    { level = 13, morn = "mareep", day = "mareep", nite = "mareep" },
-    { level = 14, morn = "spearow", day = "spearow", nite = "zubat" },
-    { level = 14, morn = "spearow", day = "spearow", nite = "zubat" },
+    { level = { heartgold = 15, soulsilver = 13 }, morn = { heartgold = "mankey", soulsilver = "mareep" }, day = { heartgold = "mankey", soulsilver = "mareep" }, nite = { heartgold = "mankey", soulsilver = "mareep" } },
+    { level = { heartgold = 13, soulsilver = 14 }, morn = { heartgold = "mareep", soulsilver = "spearow" }, day = { heartgold = "mareep", soulsilver = "spearow" }, nite = { heartgold = "mareep", soulsilver = "zubat" } },
+    { level = { heartgold = 15, soulsilver = 13 }, morn = { heartgold = "mankey", soulsilver = "mareep" }, day = { heartgold = "mankey", soulsilver = "mareep" }, nite = { heartgold = "mankey", soulsilver = "mareep" } },
+    { level = { heartgold = 13, soulsilver = 14 }, morn = { heartgold = "mareep", soulsilver = "spearow" }, day = { heartgold = "mareep", soulsilver = "spearow" }, nite = { heartgold = "mareep", soulsilver = "zubat" } },
+    { level = { heartgold = 14, soulsilver = 15 }, morn = { heartgold = "spearow", soulsilver = "mareep" }, day = { heartgold = "spearow", soulsilver = "mareep" }, nite = { heartgold = "zubat", soulsilver = "mareep" } },
+    { level = { heartgold = 14, soulsilver = 15 }, morn = { heartgold = "spearow", soulsilver = "mareep" }, day = { heartgold = "spearow", soulsilver = "mareep" }, nite = { heartgold = "zubat", soulsilver = "mareep" } },
     { level = 16, morn = "spearow", day = "spearow", nite = "zubat" },
     { level = 16, morn = "spearow", day = "spearow", nite = "zubat" },
     { level = 15, morn = "flaaffy", day = "flaaffy", nite = "flaaffy" },
@@ -3324,8 +3328,8 @@ slots = [
     { level = 22, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 21, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 22, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 22, morn = "zubat", day = "zubat", nite = "zubat" },
-    { level = 22, morn = "zubat", day = "zubat", nite = "zubat" },
+    { level = 22, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
+    { level = 22, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
     { level = 23, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 22, morn = "zubat", day = "jynx", nite = "zubat" },
@@ -3364,8 +3368,8 @@ slots = [
     { level = 22, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 21, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 22, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 22, morn = "zubat", day = "zubat", nite = "zubat" },
-    { level = 22, morn = "zubat", day = "zubat", nite = "zubat" },
+    { level = 22, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
+    { level = 22, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
     { level = 23, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 22, morn = "zubat", day = "jynx", nite = "zubat" },
@@ -3404,8 +3408,8 @@ slots = [
     { level = 23, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 22, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 23, morn = "zubat", day = "zubat", nite = "zubat" },
-    { level = 23, morn = "zubat", day = "zubat", nite = "zubat" },
+    { level = 23, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
+    { level = 23, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
     { level = 24, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 24, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "zubat", day = "jynx", nite = "zubat" },
@@ -3444,8 +3448,8 @@ slots = [
     { level = 23, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 22, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 23, morn = "zubat", day = "zubat", nite = "zubat" },
-    { level = 23, morn = "zubat", day = "zubat", nite = "zubat" },
+    { level = 23, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
+    { level = 23, morn = { heartgold = "zubat", soulsilver = "delibird" }, day = { heartgold = "zubat", soulsilver = "delibird" }, nite = { heartgold = "zubat", soulsilver = "delibird" } },
     { level = 24, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 24, morn = "swinub", day = "swinub", nite = "swinub" },
     { level = 23, morn = "zubat", day = "jynx", nite = "zubat" },
@@ -3586,14 +3590,14 @@ slots = [
     { level = 23, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 23, morn = "geodude", day = "geodude", nite = "geodude" },
     { level = 23, morn = "graveler", day = "graveler", nite = "graveler" },
-    { level = 24, morn = "gligar", day = "gligar", nite = "gligar" },
-    { level = 24, morn = "gligar", day = "gligar", nite = "gligar" },
-    { level = 20, morn = "phanpy", day = "phanpy", nite = "phanpy" },
-    { level = 20, morn = "phanpy", day = "phanpy", nite = "phanpy" },
+    { level = 24, morn = { heartgold = "gligar", soulsilver = "graveler" }, day = { heartgold = "gligar", soulsilver = "graveler" }, nite = { heartgold = "gligar", soulsilver = "graveler" } },
+    { level = 24, morn = { heartgold = "gligar", soulsilver = "graveler" }, day = { heartgold = "gligar", soulsilver = "graveler" }, nite = { heartgold = "gligar", soulsilver = "graveler" } },
+    { level = 20, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
+    { level = 20, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
     { level = 25, morn = "graveler", day = "graveler", nite = "graveler" },
-    { level = 27, morn = "graveler", day = "graveler", nite = "graveler" },
+    { level = 27, morn = { heartgold = "graveler", soulsilver = "skarmory" }, day = { heartgold = "graveler", soulsilver = "skarmory" }, nite = { heartgold = "graveler", soulsilver = "skarmory" } },
     { level = 25, morn = "graveler", day = "graveler", nite = "graveler" },
-    { level = 27, morn = "graveler", day = "graveler", nite = "graveler" },
+    { level = 27, morn = { heartgold = "graveler", soulsilver = "skarmory" }, day = { heartgold = "graveler", soulsilver = "skarmory" }, nite = { heartgold = "graveler", soulsilver = "skarmory" } },
 ]
 
 [route_45.surf]
@@ -3924,16 +3928,16 @@ common = [
 ]
 rare = [
     { level_min = 17, level_max = 18, species = "hoothoot" },
-    { level_min = 17, level_max = 18, species = "spinarak" },
-    { level_min = 17, level_max = 18, species = "spinarak" },
+    { level_min = 17, level_max = 18, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 17, level_max = 18, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 17, level_max = 18, species = "exeggcute" },
     { level_min = 17, level_max = 18, species = "exeggcute" },
     { level_min = 17, level_max = 18, species = "exeggcute" },
 ]
 secret = [
-    { level_min = 25, level_max = 28, species = "metapod" },
-    { level_min = 25, level_max = 28, species = "butterfree" },
-    { level_min = 25, level_max = 28, species = "butterfree" },
+    { level_min = 25, level_max = 28, species = { heartgold = "metapod", soulsilver = "kakuna" } },
+    { level_min = 25, level_max = 28, species = { heartgold = "butterfree", soulsilver = "beedrill" } },
+    { level_min = 25, level_max = 28, species = { heartgold = "butterfree", soulsilver = "beedrill" } },
     { level_min = 25, level_max = 28, species = "heracross" },
     { level_min = 25, level_max = 28, species = "heracross" },
     { level_min = 27, level_max = 30, species = "heracross" },
@@ -4275,8 +4279,8 @@ slots = [
     { level = 48, morn = "steelix", day = "steelix", nite = "steelix" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "quagsire" },
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
-    { level = 48, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 48, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
@@ -4337,10 +4341,10 @@ rate = 10
 slots = [
     { level = 45, morn = "quagsire", day = "quagsire", nite = "quagsire" },
     { level = 48, morn = "sneasel", day = "sneasel", nite = "sneasel" },
-    { level = 46, morn = "phanpy", day = "phanpy", nite = "phanpy" },
+    { level = 46, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
-    { level = 48, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 50, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 48, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 50, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
@@ -4403,8 +4407,8 @@ slots = [
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "quagsire" },
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
@@ -4601,8 +4605,8 @@ slots = [
     { level = 42, morn = "ponyta", day = "ponyta", nite = "ponyta" },
     { level = 41, morn = "tangela", day = "tangela", nite = "tangela" },
     { level = 42, morn = "ponyta", day = "ponyta", nite = "ponyta" },
-    { level = 42, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 42, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 42, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 42, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 44, morn = "rapidash", day = "rapidash", nite = "rapidash" },
     { level = 44, morn = "rapidash", day = "rapidash", nite = "rapidash" },
     { level = 41, morn = "doduo", day = "doduo", nite = "sneasel" },
@@ -4681,10 +4685,10 @@ map_code = "D41R0101"
 rate = 10
 slots = [
     { level = 42, morn = "onix", day = "onix", nite = "onix" },
-    { level = 44, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 44, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 42, morn = "onix", day = "onix", nite = "onix" },
-    { level = 44, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 43, morn = "phanpy", day = "phanpy", nite = "phanpy" },
+    { level = 44, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 43, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
     { level = 43, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 42, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 41, morn = "graveler", day = "graveler", nite = "graveler" },
@@ -4748,10 +4752,10 @@ slots = [
     { level = 48, morn = "onix", day = "onix", nite = "onix" },
     { level = 51, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 48, morn = "onix", day = "onix", nite = "onix" },
-    { level = 48, morn = "phanpy", day = "phanpy", nite = "phanpy" },
+    { level = 48, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 50, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 50, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 50, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 50, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 51, morn = "golduck", day = "golduck", nite = "golduck" },
     { level = 20, morn = "larvitar", day = "larvitar", nite = "larvitar" },
     { level = 51, morn = "golduck", day = "golduck", nite = "golduck" },
@@ -4806,10 +4810,10 @@ slots = [
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
-    { level = 46, morn = "phanpy", day = "phanpy", nite = "phanpy" },
-    { level = 48, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 45, morn = "pupitar", day = "pupitar", nite = "pupitar" },
+    { level = 46, morn = { heartgold = "phanpy", soulsilver = "teddiursa" }, day = { heartgold = "phanpy", soulsilver = "teddiursa" }, nite = { heartgold = "phanpy", soulsilver = "teddiursa" } },
+    { level = 48, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = { heartgold = 45, soulsilver = 30 }, morn = "pupitar", day = "pupitar", nite = "pupitar" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "quagsire" },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 20, morn = "larvitar", day = "larvitar", nite = "larvitar" },
@@ -4847,8 +4851,8 @@ slots = [
     { level = 48, morn = "golduck", day = "golduck", nite = "golduck" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "quagsire" },
     { level = 48, morn = "golduck", day = "golduck", nite = "misdreavus" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 47, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 47, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 30, morn = "larvitar", day = "larvitar", nite = "larvitar" },
     { level = 45, morn = "quagsire", day = "quagsire", nite = "misdreavus" },
     { level = 48, morn = "golbat", day = "golbat", nite = "golbat" },
@@ -4955,8 +4959,8 @@ slots = [
 [route_12.headbutt]
 common = [
     { level_min = 22, level_max = 23, species = "hoothoot" },
-    { level_min = 22, level_max = 23, species = "spinarak" },
-    { level_min = 22, level_max = 23, species = "spinarak" },
+    { level_min = 22, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 22, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 22, level_max = 23, species = "wurmple" },
     { level_min = 22, level_max = 23, species = "wurmple" },
     { level_min = 22, level_max = 23, species = "wurmple" },
@@ -5138,8 +5142,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 6, species = "hoothoot" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 6, species = "wurmple" },
     { level_min = 5, level_max = 6, species = "wurmple" },
     { level_min = 5, level_max = 6, species = "wurmple" },
@@ -5208,8 +5212,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 7, species = "hoothoot" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
@@ -5465,8 +5469,8 @@ slots = [
 [fuchsia.headbutt]
 common = [
     { level_min = 21, level_max = 23, species = "hoothoot" },
-    { level_min = 21, level_max = 23, species = "spinarak" },
-    { level_min = 21, level_max = 23, species = "spinarak" },
+    { level_min = 21, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 21, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 21, level_max = 23, species = "wurmple" },
     { level_min = 21, level_max = 23, species = "wurmple" },
     { level_min = 21, level_max = 23, species = "wurmple" },
@@ -5538,16 +5542,16 @@ map_code = "R48"
 [route_48.land]
 rate = 25
 slots = [
-    { level = 25, morn = "farfetchd", day = "farfetchd", nite = "growlithe" },
+    { level = { heartgold = 25, soulsilver = 24 }, morn = "farfetchd", day = "farfetchd", nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 20, morn = "tauros", day = "tauros", nite = "tauros" },
     { level = 20, morn = "hoppip", day = "hoppip", nite = "hoppip" },
     { level = 21, morn = "fearow", day = "fearow", nite = "fearow" },
     { level = 22, morn = "gloom", day = "gloom", nite = "gloom" },
     { level = 24, morn = "gloom", day = "gloom", nite = "gloom" },
-    { level = 21, morn = "growlithe", day = "growlithe", nite = "growlithe" },
+    { level = 21, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 20, morn = "girafarig", day = "girafarig", nite = "girafarig" },
     { level = 20, morn = "diglett", day = "diglett", nite = "diglett" },
-    { level = 22, morn = "growlithe", day = "growlithe", nite = "growlithe" },
+    { level = 22, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 22, morn = "hoppip", day = "hoppip", nite = "hoppip" },
     { level = 24, morn = "tauros", day = "tauros", nite = "tauros" },
 ]
@@ -5583,8 +5587,8 @@ common = [
 ]
 rare = [
     { level_min = 17, level_max = 18, species = "hoothoot" },
-    { level_min = 17, level_max = 18, species = "spinarak" },
-    { level_min = 17, level_max = 18, species = "spinarak" },
+    { level_min = 17, level_max = 18, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 17, level_max = 18, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 17, level_max = 18, species = "exeggcute" },
     { level_min = 17, level_max = 18, species = "exeggcute" },
     { level_min = 17, level_max = 18, species = "exeggcute" },
@@ -5598,17 +5602,17 @@ map_code = "R26"
 rate = 25
 slots = [
     { level = 28, morn = "doduo", day = "doduo", nite = "raticate" },
-    { level = 28, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 28, morn = { heartgold = "sandslash", soulsilver = "raticate" }, day = { heartgold = "sandslash", soulsilver = "raticate" }, nite = { heartgold = "sandslash", soulsilver = "raticate" } },
     { level = 28, morn = "doduo", day = "doduo", nite = "raticate" },
-    { level = 28, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 28, morn = { heartgold = "sandslash", soulsilver = "raticate" }, day = { heartgold = "sandslash", soulsilver = "raticate" }, nite = { heartgold = "sandslash", soulsilver = "raticate" } },
     { level = 32, morn = "ponyta", day = "ponyta", nite = "ponyta" },
     { level = 32, morn = "ponyta", day = "ponyta", nite = "ponyta" },
-    { level = 30, morn = "doduo", day = "doduo", nite = "raticate" },
-    { level = 30, morn = "doduo", day = "doduo", nite = "raticate" },
+    { level = 30, morn = "doduo", day = "doduo", nite = { heartgold = "raticate", soulsilver = "doduo" } },
+    { level = 30, morn = "doduo", day = "doduo", nite = { heartgold = "raticate", soulsilver = "doduo" } },
     { level = 30, morn = "raticate", day = "raticate", nite = "quagsire" },
-    { level = 30, morn = "dodrio", day = "dodrio", nite = "quagsire" },
+    { level = 30, morn = { heartgold = "dodrio", soulsilver = "arbok" }, day = { heartgold = "dodrio", soulsilver = "arbok" }, nite = { heartgold = "quagsire", soulsilver = "arbok" } },
     { level = 30, morn = "raticate", day = "raticate", nite = "quagsire" },
-    { level = 30, morn = "dodrio", day = "dodrio", nite = "quagsire" },
+    { level = 30, morn = { heartgold = "dodrio", soulsilver = "arbok" }, day = { heartgold = "dodrio", soulsilver = "arbok" }, nite = { heartgold = "quagsire", soulsilver = "arbok" } },
 ]
 
 [route_26.surf]
@@ -5666,8 +5670,8 @@ common = [
 ]
 rare = [
     { level_min = 31, level_max = 32, species = "hoothoot" },
-    { level_min = 31, level_max = 32, species = "spinarak" },
-    { level_min = 31, level_max = 32, species = "spinarak" },
+    { level_min = 31, level_max = 32, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 31, level_max = 32, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 31, level_max = 32, species = "exeggcute" },
     { level_min = 31, level_max = 32, species = "exeggcute" },
     { level_min = 31, level_max = 32, species = "exeggcute" },
@@ -5681,17 +5685,17 @@ map_code = "R27"
 rate = 25
 slots = [
     { level = 28, morn = "doduo", day = "doduo", nite = "quagsire" },
-    { level = 28, morn = "raticate", day = "raticate", nite = "raticate" },
+    { level = 28, morn = { heartgold = "raticate", soulsilver = "arbok" }, day = { heartgold = "raticate", soulsilver = "arbok" }, nite = { heartgold = "raticate", soulsilver = "arbok" } },
     { level = 28, morn = "doduo", day = "doduo", nite = "quagsire" },
-    { level = 28, morn = "raticate", day = "raticate", nite = "raticate" },
-    { level = 30, morn = "doduo", day = "doduo", nite = "quagsire" },
-    { level = 30, morn = "doduo", day = "doduo", nite = "quagsire" },
-    { level = 30, morn = "raticate", day = "raticate", nite = "raticate" },
-    { level = 30, morn = "raticate", day = "raticate", nite = "raticate" },
+    { level = 28, morn = { heartgold = "raticate", soulsilver = "arbok" }, day = { heartgold = "raticate", soulsilver = "arbok" }, nite = { heartgold = "raticate", soulsilver = "arbok" } },
+    { level = 30, morn = { heartgold = "doduo", soulsilver = "raticate" }, day = { heartgold = "doduo", soulsilver = "raticate" }, nite = "quagsire" },
+    { level = 30, morn = { heartgold = "doduo", soulsilver = "raticate" }, day = { heartgold = "doduo", soulsilver = "raticate" }, nite = "quagsire" },
+    { level = 30, morn = { heartgold = "raticate", soulsilver = "doduo" }, day = { heartgold = "raticate", soulsilver = "doduo" }, nite = "raticate" },
+    { level = 30, morn = { heartgold = "raticate", soulsilver = "doduo" }, day = { heartgold = "raticate", soulsilver = "doduo" }, nite = "raticate" },
     { level = 32, morn = "ponyta", day = "ponyta", nite = "ponyta" },
-    { level = 30, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 30, morn = { heartgold = "sandslash", soulsilver = "dodrio" }, day = { heartgold = "sandslash", soulsilver = "dodrio" }, nite = { heartgold = "sandslash", soulsilver = "quagsire" } },
     { level = 32, morn = "ponyta", day = "ponyta", nite = "ponyta" },
-    { level = 30, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 30, morn = { heartgold = "sandslash", soulsilver = "dodrio" }, day = { heartgold = "sandslash", soulsilver = "dodrio" }, nite = { heartgold = "sandslash", soulsilver = "quagsire" } },
 ]
 
 [route_27.surf]
@@ -5749,8 +5753,8 @@ common = [
 ]
 rare = [
     { level_min = 31, level_max = 32, species = "hoothoot" },
-    { level_min = 31, level_max = 32, species = "spinarak" },
-    { level_min = 31, level_max = 32, species = "spinarak" },
+    { level_min = 31, level_max = 32, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 31, level_max = 32, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 31, level_max = 32, species = "exeggcute" },
     { level_min = 31, level_max = 32, species = "exeggcute" },
     { level_min = 31, level_max = 32, species = "exeggcute" },
@@ -5767,8 +5771,8 @@ slots = [
     { level = 40, morn = "ponyta", day = "ponyta", nite = "ponyta" },
     { level = 39, morn = "tangela", day = "tangela", nite = "tangela" },
     { level = 40, morn = "ponyta", day = "ponyta", nite = "ponyta" },
-    { level = 40, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 40, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 40, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 40, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 42, morn = "rapidash", day = "rapidash", nite = "sneasel" },
     { level = 42, morn = "rapidash", day = "rapidash", nite = "sneasel" },
     { level = 41, morn = "doduo", day = "doduo", nite = "rapidash" },
@@ -5850,13 +5854,13 @@ slots = [
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
     { level = 6, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "zubat" }, day = { heartgold = "sandshrew", soulsilver = "zubat" }, nite = { heartgold = "sandshrew", soulsilver = "zubat" } },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "zubat" }, day = { heartgold = "sandshrew", soulsilver = "zubat" }, nite = { heartgold = "sandshrew", soulsilver = "zubat" } },
     { level = 12, morn = "paras", day = "paras", nite = "paras" },
     { level = 12, morn = "paras", day = "paras", nite = "paras" },
-    { level = 10, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 10, morn = { heartgold = "sandslash", soulsilver = "geodude" }, day = { heartgold = "sandslash", soulsilver = "geodude" }, nite = { heartgold = "sandslash", soulsilver = "geodude" } },
     { level = 8, morn = "clefairy", day = "clefairy", nite = "clefairy" },
-    { level = 10, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 10, morn = { heartgold = "sandslash", soulsilver = "geodude" }, day = { heartgold = "sandslash", soulsilver = "geodude" }, nite = { heartgold = "sandslash", soulsilver = "geodude" } },
     { level = 8, morn = "clefairy", day = "clefairy", nite = "clefairy" },
 ]
 
@@ -5890,13 +5894,13 @@ slots = [
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
     { level = 6, morn = "zubat", day = "zubat", nite = "zubat" },
     { level = 8, morn = "geodude", day = "geodude", nite = "geodude" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
-    { level = 8, morn = "sandshrew", day = "sandshrew", nite = "sandshrew" },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "zubat" }, day = { heartgold = "sandshrew", soulsilver = "zubat" }, nite = { heartgold = "sandshrew", soulsilver = "zubat" } },
+    { level = 8, morn = { heartgold = "sandshrew", soulsilver = "zubat" }, day = { heartgold = "sandshrew", soulsilver = "zubat" }, nite = { heartgold = "sandshrew", soulsilver = "zubat" } },
     { level = 12, morn = "paras", day = "paras", nite = "paras" },
     { level = 12, morn = "paras", day = "paras", nite = "paras" },
-    { level = 10, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 10, morn = { heartgold = "sandslash", soulsilver = "geodude" }, day = { heartgold = "sandslash", soulsilver = "geodude" }, nite = { heartgold = "sandslash", soulsilver = "geodude" } },
     { level = 8, morn = "clefairy", day = "clefairy", nite = "clefairy" },
-    { level = 10, morn = "sandslash", day = "sandslash", nite = "sandslash" },
+    { level = 10, morn = { heartgold = "sandslash", soulsilver = "geodude" }, day = { heartgold = "sandslash", soulsilver = "geodude" }, nite = { heartgold = "sandslash", soulsilver = "geodude" } },
     { level = 8, morn = "clefairy", day = "clefairy", nite = "clefairy" },
 ]
 
@@ -6013,8 +6017,8 @@ slots = [
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 32, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 36, morn = "onix", day = "onix", nite = "onix" },
@@ -6094,8 +6098,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 6, species = "hoothoot" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
-    { level_min = 5, level_max = 6, species = "spinarak" },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 6, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 6, species = "wurmple" },
     { level_min = 5, level_max = 6, species = "wurmple" },
     { level_min = 5, level_max = 6, species = "wurmple" },
@@ -6108,18 +6112,18 @@ map_code = "R02"
 [route_2.land]
 rate = 20
 slots = [
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 7, morn = "butterfree", day = "pidgey", nite = "noctowl" },
-    { level = 8, morn = "butterfree", day = "pidgey", nite = "noctowl" },
-    { level = 7, morn = "pidgeotto", day = "pidgeotto", nite = "ariados" },
-    { level = 10, morn = "spinarak", day = "pidgeotto", nite = "noctowl" },
-    { level = 7, morn = "pidgeotto", day = "pidgeotto", nite = "ariados" },
-    { level = 4, morn = "caterpie", day = "caterpie", nite = "spinarak" },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "ledyba" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 3, morn = "pidgey", day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "hoothoot", soulsilver = "kakuna" } },
+    { level = 3, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = { heartgold = "hoothoot", soulsilver = "weedle" } },
+    { level = 7, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = "pidgey", nite = "noctowl" },
+    { level = { heartgold = 8, soulsilver = 7 }, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = "pidgey", nite = "noctowl" },
+    { level = 7, morn = { heartgold = "pidgeotto", soulsilver = "ledian" }, day = "pidgeotto", nite = { heartgold = "ariados", soulsilver = "noctowl" } },
+    { level = 10, morn = { heartgold = "spinarak", soulsilver = "ledian" }, day = { heartgold = "pidgeotto", soulsilver = "ledyba" }, nite = { heartgold = "noctowl", soulsilver = "beedrill" } },
+    { level = 7, morn = { heartgold = "pidgeotto", soulsilver = "ledian" }, day = "pidgeotto", nite = { heartgold = "ariados", soulsilver = "kakuna" } },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "spinarak", soulsilver = "weedle" } },
 ]
 
 [route_2.surf]
@@ -6153,8 +6157,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 7, species = "hoothoot" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
@@ -6171,13 +6175,13 @@ slots = [
     { level = 5, morn = "rattata", day = "rattata", nite = "zubat" },
     { level = 5, morn = "spearow", day = "spearow", nite = "rattata" },
     { level = 5, morn = "rattata", day = "rattata", nite = "zubat" },
-    { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
-    { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
+    { level = 8, morn = { heartgold = "spearow", soulsilver = "ekans" }, day = { heartgold = "spearow", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
+    { level = 8, morn = { heartgold = "spearow", soulsilver = "ekans" }, day = { heartgold = "spearow", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "jigglypuff", day = "jigglypuff", nite = "jigglypuff" },
     { level = 6, morn = "jigglypuff", day = "jigglypuff", nite = "jigglypuff" },
-    { level = 10, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 10, morn = { heartgold = "rattata", soulsilver = "arbok" }, day = { heartgold = "rattata", soulsilver = "arbok" }, nite = { heartgold = "rattata", soulsilver = "arbok" } },
     { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
-    { level = 10, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 10, morn = { heartgold = "rattata", soulsilver = "arbok" }, day = { heartgold = "rattata", soulsilver = "arbok" }, nite = { heartgold = "rattata", soulsilver = "arbok" } },
     { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
 ]
 
@@ -6226,17 +6230,17 @@ map_code = "R04"
 [route_4.land]
 rate = 20
 slots = [
-    { level = 5, morn = "spearow", day = "spearow", nite = "spearow" },
+    { level = 5, morn = "spearow", day = "spearow", nite = { heartgold = "spearow", soulsilver = "rattata" } },
     { level = 5, morn = "rattata", day = "rattata", nite = "zubat" },
-    { level = 5, morn = "spearow", day = "spearow", nite = "spearow" },
+    { level = 5, morn = "spearow", day = "spearow", nite = { heartgold = "spearow", soulsilver = "rattata" } },
     { level = 5, morn = "rattata", day = "rattata", nite = "zubat" },
-    { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
-    { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
+    { level = 8, morn = { heartgold = "spearow", soulsilver = "ekans" }, day = { heartgold = "spearow", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
+    { level = 8, morn = { heartgold = "spearow", soulsilver = "ekans" }, day = { heartgold = "spearow", soulsilver = "ekans" }, nite = { heartgold = "rattata", soulsilver = "ekans" } },
     { level = 6, morn = "jigglypuff", day = "jigglypuff", nite = "jigglypuff" },
     { level = 6, morn = "jigglypuff", day = "jigglypuff", nite = "jigglypuff" },
-    { level = 10, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 10, morn = { heartgold = "rattata", soulsilver = "arbok" }, day = { heartgold = "rattata", soulsilver = "arbok" }, nite = { heartgold = "rattata", soulsilver = "arbok" } },
     { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
-    { level = 10, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 10, morn = { heartgold = "rattata", soulsilver = "arbok" }, day = { heartgold = "rattata", soulsilver = "arbok" }, nite = { heartgold = "rattata", soulsilver = "arbok" } },
     { level = 8, morn = "spearow", day = "spearow", nite = "rattata" },
 ]
 
@@ -6310,11 +6314,11 @@ map_code = "R05"
 rate = 20
 slots = [
     { level = 13, morn = "pidgey", day = "pidgey", nite = "oddish" },
-    { level = 13, morn = "bellsprout", day = "bellsprout", nite = "oddish" },
+    { level = 13, morn = "bellsprout", day = "bellsprout", nite = { heartgold = "oddish", soulsilver = "meowth" } },
     { level = 13, morn = "pidgey", day = "pidgey", nite = "oddish" },
-    { level = 13, morn = "bellsprout", day = "bellsprout", nite = "oddish" },
-    { level = 14, morn = "pidgey", day = "pidgey", nite = "bellsprout" },
-    { level = 14, morn = "pidgey", day = "pidgey", nite = "bellsprout" },
+    { level = 13, morn = "bellsprout", day = "bellsprout", nite = { heartgold = "oddish", soulsilver = "meowth" } },
+    { level = 14, morn = { heartgold = "pidgey", soulsilver = "meowth" }, day = { heartgold = "pidgey", soulsilver = "meowth" }, nite = "bellsprout" },
+    { level = 14, morn = { heartgold = "pidgey", soulsilver = "meowth" }, day = { heartgold = "pidgey", soulsilver = "meowth" }, nite = "bellsprout" },
     { level = 15, morn = "pidgey", day = "pidgey", nite = "gloom" },
     { level = 15, morn = "pidgey", day = "pidgey", nite = "gloom" },
     { level = 12, morn = "abra", day = "abra", nite = "abra" },
@@ -6369,11 +6373,11 @@ map_code = "R06"
 rate = 20
 slots = [
     { level = 13, morn = "pidgey", day = "pidgey", nite = "oddish" },
-    { level = 13, morn = "bellsprout", day = "bellsprout", nite = "oddish" },
+    { level = 13, morn = "bellsprout", day = "bellsprout", nite = { heartgold = "oddish", soulsilver = "meowth" } },
     { level = 13, morn = "pidgey", day = "pidgey", nite = "oddish" },
-    { level = 13, morn = "bellsprout", day = "bellsprout", nite = "oddish" },
-    { level = 14, morn = "pidgey", day = "pidgey", nite = "bellsprout" },
-    { level = 14, morn = "pidgey", day = "pidgey", nite = "bellsprout" },
+    { level = 13, morn = "bellsprout", day = "bellsprout", nite = { heartgold = "oddish", soulsilver = "meowth" } },
+    { level = 14, morn = { heartgold = "pidgey", soulsilver = "meowth" }, day = { heartgold = "pidgey", soulsilver = "meowth" }, nite = "bellsprout" },
+    { level = 14, morn = { heartgold = "pidgey", soulsilver = "meowth" }, day = { heartgold = "pidgey", soulsilver = "meowth" }, nite = "bellsprout" },
     { level = 15, morn = "magnemite", day = "magnemite", nite = "magnemite" },
     { level = 15, morn = "magnemite", day = "magnemite", nite = "magnemite" },
     { level = 12, morn = "abra", day = "abra", nite = "abra" },
@@ -6451,18 +6455,18 @@ map_code = "R07"
 [route_7.land]
 rate = 20
 slots = [
-    { level = 17, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 17, morn = { heartgold = "rattata", soulsilver = "meowth" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 17, morn = "spearow", day = "spearow", nite = "murkrow" },
-    { level = 17, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 17, morn = { heartgold = "rattata", soulsilver = "meowth" }, day = { heartgold = "rattata", soulsilver = "meowth" }, nite = { heartgold = "rattata", soulsilver = "meowth" } },
     { level = 17, morn = "spearow", day = "spearow", nite = "murkrow" },
-    { level = 18, morn = "growlithe", day = "growlithe", nite = "growlithe" },
-    { level = 18, morn = "growlithe", day = "growlithe", nite = "growlithe" },
+    { level = 18, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
+    { level = 18, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 19, morn = "raticate", day = "raticate", nite = "raticate" },
     { level = 19, morn = "raticate", day = "raticate", nite = "raticate" },
-    { level = 19, morn = "rattata", day = "rattata", nite = "murkrow" },
-    { level = 15, morn = "rattata", day = "growlithe", nite = "houndour" },
-    { level = 19, morn = "rattata", day = "rattata", nite = "murkrow" },
-    { level = 15, morn = "rattata", day = "growlithe", nite = "houndour" },
+    { level = 19, morn = { heartgold = "rattata", soulsilver = "persian" }, day = { heartgold = "rattata", soulsilver = "persian" }, nite = { heartgold = "murkrow", soulsilver = "persian" } },
+    { level = 15, morn = "rattata", day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "houndour" },
+    { level = 19, morn = { heartgold = "rattata", soulsilver = "persian" }, day = { heartgold = "rattata", soulsilver = "persian" }, nite = { heartgold = "murkrow", soulsilver = "persian" } },
+    { level = 15, morn = "rattata", day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "houndour" },
 ]
 
 [route_7.surf]
@@ -6510,17 +6514,17 @@ map_code = "R08"
 [route_8.land]
 rate = 20
 slots = [
-    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
+    { level = 17, morn = { heartgold = "pidgeotto", soulsilver = "meowth" }, day = { heartgold = "pidgeotto", soulsilver = "meowth" }, nite = { heartgold = "noctowl", soulsilver = "meowth" } },
     { level = 19, morn = "pidgeotto", day = "pidgeotto", nite = "haunter" },
-    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
+    { level = 17, morn = { heartgold = "pidgeotto", soulsilver = "meowth" }, day = { heartgold = "pidgeotto", soulsilver = "meowth" }, nite = { heartgold = "noctowl", soulsilver = "meowth" } },
     { level = 19, morn = "pidgeotto", day = "pidgeotto", nite = "haunter" },
     { level = 15, morn = "abra", day = "abra", nite = "abra" },
     { level = 15, morn = "abra", day = "abra", nite = "abra" },
-    { level = 18, morn = "growlithe", day = "growlithe", nite = "noctowl" },
-    { level = 18, morn = "growlithe", day = "growlithe", nite = "noctowl" },
-    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = "growlithe" },
+    { level = 18, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "noctowl" },
+    { level = 18, morn = { heartgold = "growlithe", soulsilver = "vulpix" }, day = { heartgold = "growlithe", soulsilver = "vulpix" }, nite = "noctowl" },
+    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 15, morn = "kadabra", day = "kadabra", nite = "kadabra" },
-    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = "growlithe" },
+    { level = 17, morn = "pidgeotto", day = "pidgeotto", nite = { heartgold = "growlithe", soulsilver = "vulpix" } },
     { level = 15, morn = "kadabra", day = "kadabra", nite = "kadabra" },
 ]
 
@@ -6569,18 +6573,18 @@ map_code = "R09"
 [route_9.land]
 rate = 20
 slots = [
-    { level = 13, morn = "mankey", day = "mankey", nite = "mankey" },
-    { level = 15, morn = "rattata", day = "rattata", nite = "rattata" },
-    { level = 13, morn = "mankey", day = "mankey", nite = "mankey" },
-    { level = 15, morn = "rattata", day = "rattata", nite = "rattata" },
+    { level = 13, morn = { heartgold = "mankey", soulsilver = "rattata" }, day = { heartgold = "mankey", soulsilver = "rattata" }, nite = { heartgold = "mankey", soulsilver = "rattata" } },
+    { level = 15, morn = { heartgold = "rattata", soulsilver = "spearow" }, day = { heartgold = "rattata", soulsilver = "spearow" }, nite = "rattata" },
+    { level = 13, morn = { heartgold = "mankey", soulsilver = "rattata" }, day = { heartgold = "mankey", soulsilver = "rattata" }, nite = { heartgold = "mankey", soulsilver = "rattata" } },
+    { level = 15, morn = { heartgold = "rattata", soulsilver = "spearow" }, day = { heartgold = "rattata", soulsilver = "spearow" }, nite = "rattata" },
     { level = 13, morn = "spearow", day = "spearow", nite = "raticate" },
     { level = 13, morn = "spearow", day = "spearow", nite = "raticate" },
     { level = 15, morn = "raticate", day = "raticate", nite = "rattata" },
     { level = 15, morn = "raticate", day = "raticate", nite = "rattata" },
     { level = 15, morn = "fearow", day = "fearow", nite = "raticate" },
-    { level = 15, morn = "primeape", day = "primeape", nite = "primeape" },
+    { level = 15, morn = { heartgold = "primeape", soulsilver = "raticate" }, day = { heartgold = "primeape", soulsilver = "raticate" }, nite = { heartgold = "primeape", soulsilver = "raticate" } },
     { level = 15, morn = "fearow", day = "fearow", nite = "raticate" },
-    { level = 15, morn = "primeape", day = "primeape", nite = "primeape" },
+    { level = 15, morn = { heartgold = "primeape", soulsilver = "raticate" }, day = { heartgold = "primeape", soulsilver = "raticate" }, nite = { heartgold = "primeape", soulsilver = "raticate" } },
 ]
 
 [route_9.surf]
@@ -6756,10 +6760,10 @@ map_code = "R13"
 [route_13.land]
 rate = 20
 slots = [
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 22, morn = "hoppip", day = "hoppip", nite = "quagsire" },
@@ -6817,8 +6821,8 @@ slots = [
 [route_13.headbutt]
 common = [
     { level_min = 22, level_max = 23, species = "hoothoot" },
-    { level_min = 22, level_max = 23, species = "spinarak" },
-    { level_min = 22, level_max = 23, species = "spinarak" },
+    { level_min = 22, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 22, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 22, level_max = 23, species = "wurmple" },
     { level_min = 22, level_max = 23, species = "wurmple" },
     { level_min = 22, level_max = 23, species = "wurmple" },
@@ -6839,10 +6843,10 @@ map_code = "R14"
 [route_14.land]
 rate = 20
 slots = [
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 24, morn = "hoppip", day = "hoppip", nite = "quagsire" },
@@ -6876,8 +6880,8 @@ slots = []
 [route_14.headbutt]
 common = [
     { level_min = 26, level_max = 27, species = "hoothoot" },
-    { level_min = 26, level_max = 27, species = "spinarak" },
-    { level_min = 26, level_max = 27, species = "spinarak" },
+    { level_min = 26, level_max = 27, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 26, level_max = 27, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 26, level_max = 27, species = "wurmple" },
     { level_min = 26, level_max = 27, species = "wurmple" },
     { level_min = 26, level_max = 27, species = "wurmple" },
@@ -6898,10 +6902,10 @@ map_code = "R15"
 [route_15.land]
 rate = 20
 slots = [
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
-    { level = 23, morn = "nidorina", day = "nidorina", nite = "nidorina" },
-    { level = 23, morn = "nidorino", day = "nidorino", nite = "nidorino" },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
+    { level = 23, morn = { heartgold = "nidorina", soulsilver = "nidorino" }, day = { heartgold = "nidorina", soulsilver = "nidorino" }, nite = { heartgold = "nidorina", soulsilver = "nidorino" } },
+    { level = 23, morn = { heartgold = "nidorino", soulsilver = "nidorina" }, day = { heartgold = "nidorino", soulsilver = "nidorina" }, nite = { heartgold = "nidorino", soulsilver = "nidorina" } },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 25, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 22, morn = "hoppip", day = "hoppip", nite = "quagsire" },
@@ -6935,8 +6939,8 @@ slots = []
 [route_15.headbutt]
 common = [
     { level_min = 21, level_max = 23, species = "hoothoot" },
-    { level_min = 21, level_max = 23, species = "spinarak" },
-    { level_min = 21, level_max = 23, species = "spinarak" },
+    { level_min = 21, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 21, level_max = 23, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 21, level_max = 23, species = "wurmple" },
     { level_min = 21, level_max = 23, species = "wurmple" },
     { level_min = 21, level_max = 23, species = "wurmple" },
@@ -7093,8 +7097,8 @@ slots = []
 [route_18.headbutt]
 common = [
     { level_min = 26, level_max = 27, species = "hoothoot" },
-    { level_min = 26, level_max = 27, species = "spinarak" },
-    { level_min = 26, level_max = 27, species = "spinarak" },
+    { level_min = 26, level_max = 27, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 26, level_max = 27, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 26, level_max = 27, species = "wurmple" },
     { level_min = 26, level_max = 27, species = "wurmple" },
     { level_min = 26, level_max = 27, species = "wurmple" },
@@ -7176,8 +7180,8 @@ slots = [
 [route_21.headbutt]
 common = [
     { level_min = 24, level_max = 26, species = "hoothoot" },
-    { level_min = 24, level_max = 26, species = "spinarak" },
-    { level_min = 24, level_max = 26, species = "spinarak" },
+    { level_min = 24, level_max = 26, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 24, level_max = 26, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 24, level_max = 26, species = "wurmple" },
     { level_min = 24, level_max = 26, species = "wurmple" },
     { level_min = 24, level_max = 26, species = "wurmple" },
@@ -7267,8 +7271,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 7, species = "hoothoot" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
@@ -7543,8 +7547,8 @@ slots = [
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 32, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 36, morn = "onix", day = "onix", nite = "onix" },
@@ -7583,8 +7587,8 @@ slots = [
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
     { level = 32, morn = "graveler", day = "graveler", nite = "graveler" },
     { level = 32, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
-    { level = 33, morn = "donphan", day = "donphan", nite = "donphan" },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
+    { level = 33, morn = { heartgold = "donphan", soulsilver = "ursaring" }, day = { heartgold = "donphan", soulsilver = "ursaring" }, nite = { heartgold = "donphan", soulsilver = "ursaring" } },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 34, morn = "onix", day = "onix", nite = "onix" },
     { level = 36, morn = "onix", day = "onix", nite = "onix" },
@@ -7622,18 +7626,18 @@ map_code = "R02R0101"
 [route_2_east.land]
 rate = 20
 slots = [
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "pidgey", day = "pidgey", nite = "spinarak" },
-    { level = 5, morn = "metapod", day = "pidgey", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "pidgey", nite = "hoothoot" },
-    { level = 7, morn = "butterfree", day = "butterfree", nite = "noctowl" },
-    { level = 8, morn = "butterfree", day = "butterfree", nite = "noctowl" },
-    { level = 7, morn = "pidgeotto", day = "pidgeotto", nite = "ariados" },
-    { level = 10, morn = "spinarak", day = "pidgeotto", nite = "noctowl" },
-    { level = 7, morn = "pidgeotto", day = "pidgeotto", nite = "ariados" },
-    { level = 4, morn = "caterpie", day = "caterpie", nite = "spinarak" },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "ledyba" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 3, morn = "pidgey", day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "hoothoot", soulsilver = "kakuna" } },
+    { level = 3, morn = { heartgold = "pidgey", soulsilver = "ledyba" }, day = "pidgey", nite = { heartgold = "spinarak", soulsilver = "hoothoot" } },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "pidgey", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "pidgey", soulsilver = "kakuna" }, nite = { heartgold = "hoothoot", soulsilver = "weedle" } },
+    { level = 7, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = { heartgold = "butterfree", soulsilver = "pidgey" }, nite = "noctowl" },
+    { level = { heartgold = 8, soulsilver = 7 }, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = { heartgold = "butterfree", soulsilver = "pidgey" }, nite = "noctowl" },
+    { level = 7, morn = { heartgold = "pidgeotto", soulsilver = "ledian" }, day = "pidgeotto", nite = { heartgold = "ariados", soulsilver = "noctowl" } },
+    { level = 10, morn = { heartgold = "spinarak", soulsilver = "ledian" }, day = { heartgold = "pidgeotto", soulsilver = "ledyba" }, nite = { heartgold = "noctowl", soulsilver = "beedrill" } },
+    { level = 7, morn = { heartgold = "pidgeotto", soulsilver = "ledian" }, day = "pidgeotto", nite = { heartgold = "ariados", soulsilver = "kakuna" } },
+    { level = 4, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = { heartgold = "spinarak", soulsilver = "weedle" } },
 ]
 
 [route_2_east.surf]
@@ -7667,8 +7671,8 @@ common = [
 ]
 rare = [
     { level_min = 5, level_max = 7, species = "hoothoot" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
-    { level_min = 5, level_max = 7, species = "spinarak" },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
     { level_min = 5, level_max = 7, species = "wurmple" },
@@ -7681,14 +7685,14 @@ map_code = "D46R0101"
 [viridian_forest.land]
 rate = 15
 slots = [
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "caterpie", day = "caterpie", nite = "hoothoot" },
-    { level = 3, morn = "metapod", day = "metapod", nite = "hoothoot" },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 3, morn = { heartgold = "caterpie", soulsilver = "weedle" }, day = { heartgold = "caterpie", soulsilver = "weedle" }, nite = "hoothoot" },
+    { level = 3, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
     { level = 3, morn = "pidgey", day = "pidgey", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 5, morn = "metapod", day = "metapod", nite = "hoothoot" },
-    { level = 7, morn = "butterfree", day = "pidgey", nite = "noctowl" },
-    { level = 7, morn = "butterfree", day = "pidgeotto", nite = "noctowl" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 5, morn = { heartgold = "metapod", soulsilver = "kakuna" }, day = { heartgold = "metapod", soulsilver = "kakuna" }, nite = "hoothoot" },
+    { level = 7, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = "pidgey", nite = "noctowl" },
+    { level = 7, morn = { heartgold = "butterfree", soulsilver = "beedrill" }, day = "pidgeotto", nite = "noctowl" },
     { level = 7, morn = "pidgeotto", day = "pidgeotto", nite = "noctowl" },
     { level = 4, morn = "pikachu", day = "pikachu", nite = "pikachu" },
     { level = 7, morn = "pikachu", day = "pikachu", nite = "noctowl" },
@@ -7718,19 +7722,19 @@ slots = []
 [viridian_forest.headbutt]
 common = [
     { level_min = 3, level_max = 4, species = "hoothoot" },
-    { level_min = 3, level_max = 4, species = "seedot" },
-    { level_min = 3, level_max = 4, species = "seedot" },
-    { level_min = 3, level_max = 4, species = "spinarak" },
+    { level_min = 3, level_max = 4, species = { heartgold = "seedot", soulsilver = "shroomish" } },
+    { level_min = 3, level_max = 4, species = { heartgold = "seedot", soulsilver = "shroomish" } },
+    { level_min = 3, level_max = 4, species = { heartgold = "spinarak", soulsilver = "ledyba" } },
     { level_min = 3, level_max = 4, species = "hoothoot" },
-    { level_min = 3, level_max = 4, species = "shroomish" },
+    { level_min = 3, level_max = 4, species = { heartgold = "shroomish", soulsilver = "seedot" } },
 ]
 rare = [
     { level_min = 5, level_max = 7, species = "hoothoot" },
-    { level_min = 5, level_max = 7, species = "seedot" },
-    { level_min = 5, level_max = 7, species = "seedot" },
-    { level_min = 5, level_max = 7, species = "ariados" },
+    { level_min = 5, level_max = 7, species = { heartgold = "seedot", soulsilver = "shroomish" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "seedot", soulsilver = "shroomish" } },
+    { level_min = 5, level_max = 7, species = { heartgold = "ariados", soulsilver = "ledian" } },
     { level_min = 5, level_max = 7, species = "noctowl" },
-    { level_min = 5, level_max = 7, species = "shroomish" },
+    { level_min = 5, level_max = 7, species = { heartgold = "shroomish", soulsilver = "seedot" } },
 ]
 secret = []
 
@@ -7743,12 +7747,12 @@ slots = [
     { level = 39, morn = "machoke", day = "machoke", nite = "golbat" },
     { level = 38, morn = "parasect", day = "parasect", nite = "golbat" },
     { level = 38, morn = "golbat", day = "golbat", nite = "golbat" },
-    { level = 38, morn = "primeape", day = "primeape", nite = "parasect" },
+    { level = 38, morn = { heartgold = "primeape", soulsilver = "persian" }, day = { heartgold = "primeape", soulsilver = "persian" }, nite = "parasect" },
     { level = 40, morn = "magneton", day = "magneton", nite = "magneton" },
     { level = 39, morn = "ditto", day = "ditto", nite = "ditto" },
     { level = 40, morn = "electrode", day = "electrode", nite = "electrode" },
     { level = 37, morn = "wobbuffet", day = "wobbuffet", nite = "wobbuffet" },
-    { level = 39, morn = "primeape", day = "primeape", nite = "primeape" },
+    { level = 39, morn = { heartgold = "primeape", soulsilver = "persian" }, day = { heartgold = "primeape", soulsilver = "persian" }, nite = { heartgold = "primeape", soulsilver = "persian" } },
     { level = 40, morn = "machoke", day = "machoke", nite = "machoke" },
     { level = 39, morn = "magneton", day = "magneton", nite = "machoke" },
     { level = 40, morn = "ditto", day = "ditto", nite = "machoke" },

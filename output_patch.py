@@ -41,13 +41,24 @@ from settings import get_settings
 from worlds.Files import APAutoPatchInterface
 
 import patch_gen
-from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom
+from options import GameVersion
+from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom, RomError
 
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
 
 # See this module's own docstring for hidden_item's history here.
 _SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_item")
+
+# `options.GameVersion`'s int value -> the same version-name strings
+# `rom.HeartGoldRom.version` uses ("heartgold"/"soulsilver"), so the two can
+# be compared directly at patch time (see `.patch()`'s version-mismatch
+# check below, and the 2026-08-11 wild-encounter version-mismatch fix this
+# option was introduced for -- see data_gen/encounters.toml's header).
+_VERSION_NAME_BY_OPTION_VALUE = {
+    GameVersion.option_heartgold: "heartgold",
+    GameVersion.option_soulsilver: "soulsilver",
+}
 
 
 class HeartGoldProcedurePatch(APAutoPatchInterface):
@@ -85,6 +96,16 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         self.read()
         rom_path = get_settings().pokemon_heartgold_settings.rom_file
         rom = HeartGoldRom.open(rom_path)
+
+        declared_version = json.loads(self.get_file("game_version.json"))
+        if rom.version is not None and declared_version != rom.version:
+            raise RomError(
+                f"This patch was generated for {declared_version}, but the ROM "
+                f"configured in host.yaml is {rom.version} -- the wild-encounter "
+                "data (and potentially other version-specific data) would not "
+                f"match. Regenerate with the game_version option set to "
+                f"{rom.version}, or configure the correct ROM in host.yaml."
+            )
 
         trainers = json.loads(self.get_file("trainers.json"))
         patch_gen.apply_trainer_randomization(rom, trainers)
@@ -145,6 +166,8 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
 
 def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
     patch = HeartGoldProcedurePatch(player=world.player, player_name=world.player_name)
+    declared_version = _VERSION_NAME_BY_OPTION_VALUE[world.options.game_version.value]
+    patch.write_file("game_version.json", json.dumps(declared_version).encode())
     patch.write_file("trainers.json", json.dumps(world.generated_trainer_parties).encode())
     patch.write_file("encounters.json", json.dumps(world.generated_encounters).encode())
     patch.write_file("species.json", json.dumps(world.generated_species).encode())
