@@ -197,11 +197,18 @@ def _constrain_undetectable_locations(player: int, multiworld) -> None:
     it belonged to. Constrain these locations to this player's own,
     non-progression items only -- keeps all 30 as real, randomized checks
     (unlike excluding them from the pool entirely) with no risk to anyone
-    (community feedback round, 2026-08-11, see docs/architecture.md)."""
+    (community feedback round, 2026-08-11, see docs/architecture.md).
+
+    "Own" includes this player's item link groups: a linked item belongs to
+    the synthetic group player, and is still delivered to every group
+    member, so it is not the stalled-remote case above. Excluding those
+    deadlocks the fill under `link_replacement` (test_items.test_item_links)."""
     from BaseClasses import ItemClassification
 
+    local_players = {player} | multiworld.get_player_groups(player)
+
     def rule(item: Item) -> bool:
-        return item.player == player and item.classification != ItemClassification.progression
+        return item.player in local_players and item.classification != ItemClassification.progression
 
     for location_key in location_flags.unsupported_location_keys():
         multiworld.get_location(location_key, player).item_rule = rule
