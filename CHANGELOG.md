@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-08-11
+
+### Fixed
+- **v0.1.3 broke every real install.** `compatible_version` was removed
+  from `archipelago.json` to satisfy a manifest-compliance test, but
+  nothing stamped it back into the packaged `.apworld` at build time --
+  Archipelago's own manifest loader does a raw dict access on that field
+  and fails to load the world at all without it (silently falling back to
+  `world_version 0.0.0`). `build.py` now stamps `compatible_version` into
+  the packaged manifest, matching what Archipelago's native build tool
+  does, while the source `archipelago.json` still omits it correctly.
+- The new patch-version check (also from v0.1.3) read its own
+  `archipelago.json` with a plain filesystem path, which only works for a
+  loose dev checkout -- every real `.apworld` is zip-loaded, so every real
+  install hit `FileNotFoundError` on `generate_output`. Now reads it
+  through the module's own loader instead, verified against an actual
+  zipimport-loaded module this time, not just the dev test harness.
+
 ## [0.1.3] - 2026-08-11
 
 ### Added
