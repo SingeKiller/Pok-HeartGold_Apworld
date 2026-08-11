@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.3] - 2026-08-11
 
 ### Added
 - `start_inventory_from_pool` is now supported: items named there are
@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pool still matches the unfilled-location count. Badges cannot be named
   (they are AP event items, not real bag items) and are rejected at YAML
   validation.
+- New `game_version` option: declares whether the seed is intended for a
+  HeartGold or SoulSilver ROM. Required now that wild-encounter data
+  genuinely differs between the two versions (see below) -- the patcher
+  refuses to apply a patch to a ROM that doesn't match the declared
+  version, with an actionable error instead of silently writing wrong
+  data.
+- Patch files now record the APWorld version that generated them, and
+  applying one with a different installed version raises an actionable
+  error instead of a bare `KeyError` if the patch data format has changed
+  in between -- community-suggested (2026-08-11), citing a real incident
+  on another APWorld.
 
 ### Fixed
 - `start_inventory` items are now actually delivered to the game. The
@@ -21,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   algorithm counted them as owned while the player never received them,
   which could produce unwinnable seeds when starting with a progression
   item (HMs, rods, Bicycle, S.S. Ticket, ...). Now `0b111`.
+- Wild-encounter data was never actually version-aware despite SoulSilver
+  support shipping in v0.1.1: 643 fields in the source encounter data (79
+  more for headbutt trees) genuinely differ between HeartGold and
+  SoulSilver, but only the HeartGold value was ever kept, and
+  `randomize_wild_pokemon: vanilla` (the default) wrote it to the ROM
+  unconditionally -- so a SoulSilver player with default options got
+  their own SoulSilver encounters silently overwritten with HeartGold's
+  data on every generation. A second, compounding bug found while fixing
+  this: the ROM write path itself always targeted HeartGold's NitroFS
+  encounter table regardless of which ROM was being patched, which would
+  have made even correctly-resolved SoulSilver data invisible to a real
+  SoulSilver cartridge's own game code. Both fixed and live-verified
+  against real HeartGold and SoulSilver ROMs.
 
 ## [0.1.2] - 2026-08-11
 

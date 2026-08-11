@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from settings import get_settings
@@ -49,6 +50,30 @@ if TYPE_CHECKING:
 
 # See this module's own docstring for hidden_item's history here.
 _SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_item")
+
+# `archipelago.json` sits next to this module both in the dev checkout and
+# inside the packaged `.apworld` (see `.apignore`) -- read directly rather
+# than relying on `World.world_version`/`AutoWorldRegister` internals,
+# which are populated inconsistently between a loose `custom_worlds/`
+# folder and a zipimport-ed `.apworld` (see `worlds/__init__.py` in the
+# local Archipelago clone). This is what lets `.patch()` below tell a
+# player "you're patching with the wrong APWorld version" instead of a
+# raw `KeyError` on some field a newer/older `generate_output()` did or
+# didn't write -- suggested by community feedback (2026-08-11, citing a
+# real incident on another APWorld: a version that started writing a new
+# per-item `fanfare` field broke every older patch with an opaque
+# `KeyError: 'fanfare'`). Exact-match, not a minimum-version floor: this
+# project has no granular tracking yet of which JSON-shape changes are
+# actually backward-compatible across versions, so treating every version
+# difference as a hard mismatch is the conservative default -- revisit if
+# this proves too strict once there is real evidence of what is safe to
+# loosen.
+_ARCHIPELAGO_JSON_PATH = Path(__file__).resolve().parent / "archipelago.json"
+
+
+def _installed_world_version() -> str:
+    manifest = json.loads(_ARCHIPELAGO_JSON_PATH.read_text(encoding="utf-8"))
+    return manifest["world_version"]
 
 # `options.GameVersion`'s int value -> the same version-name strings
 # `rom.HeartGoldRom.version` uses ("heartgold"/"soulsilver"), so the two can
@@ -82,6 +107,26 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         for name in opened_zipfile.namelist():
             if name != self.manifest_path:
                 self.files[name] = opened_zipfile.read(name)
+
+        # Not present in a patch generated before this check existed
+        # (2026-08-11) -- proceed rather than blocking on metadata that
+        # simply didn't exist yet; every JSON-shape change made *after*
+        # this point will be caught the next time `world_version` is
+        # bumped and this file starts existing on both sides.
+        if "world_version.json" in self.files:
+            generated_version = json.loads(self.files["world_version.json"])
+            installed_version = _installed_world_version()
+            if generated_version != installed_version:
+                raise RomError(
+                    f"This patch was generated with Pokemon HeartGold APWorld "
+                    f"version {generated_version}, but version "
+                    f"{installed_version} is currently installed -- the patch "
+                    "data format may not match what this version expects. "
+                    f"Install APWorld version {generated_version} to apply "
+                    "this exact patch, or regenerate the patch with the "
+                    f"currently-installed version ({installed_version})."
+                )
+
         return manifest
 
     def write_contents(self, opened_zipfile) -> None:  # noqa: ANN001
@@ -166,6 +211,7 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
 
 def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
     patch = HeartGoldProcedurePatch(player=world.player, player_name=world.player_name)
+    patch.write_file("world_version.json", json.dumps(_installed_world_version()).encode())
     declared_version = _VERSION_NAME_BY_OPTION_VALUE[world.options.game_version.value]
     patch.write_file("game_version.json", json.dumps(declared_version).encode())
     patch.write_file("trainers.json", json.dumps(world.generated_trainer_parties).encode())
