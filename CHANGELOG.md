@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `start_inventory_from_pool` is now supported: items named there are
+  removed from this world's item pool and backfilled with filler, so the
+  pool still matches the unfilled-location count. Badges cannot be named
+  (they are AP event items, not real bag items) and are rejected at YAML
+  validation.
+
+### Fixed
+- `start_inventory` items are now actually delivered to the game. The
+  client requested `items_handling = 0b011`, which leaves out the
+  `remote_start_inventory` bit, so the server never sent them: the fill
+  algorithm counted them as owned while the player never received them,
+  which could produce unwinnable seeds when starting with a progression
+  item (HMs, rods, Bicycle, S.S. Ticket, ...). Now `0b111`.
+
 ## [0.1.2] - 2026-08-11
 
 ### Fixed

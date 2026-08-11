@@ -377,7 +377,7 @@ class HeartGoldClient(BizHawkClient):
             return False
 
         ctx.game = self.game
-        ctx.items_handling = 0b011  # locations + remote items
+        ctx.items_handling = 0b111  # locations + remote items + start inventory
         ctx.want_slot_data = True
         ctx.watcher_timeout = 1.0
 

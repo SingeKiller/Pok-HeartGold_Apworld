@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Options import Choice, OptionGroup, PerGameCommonOptions, Range, Toggle
+from Options import Choice, OptionGroup, PerGameCommonOptions, Range, StartInventoryPool, Toggle
 
 
 class RandomizeWildPokemon(Choice):
@@ -231,6 +231,8 @@ class HeartGoldOptions(PerGameCommonOptions):
 
     trainersanity: Trainersanity
     dexsanity: Dexsanity
+
+    start_inventory_from_pool: StartInventoryPool
 
 
 OPTION_GROUPS = [
