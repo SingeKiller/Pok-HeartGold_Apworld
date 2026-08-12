@@ -568,7 +568,7 @@ class HeartGoldRom:
         field_ram_address = self._MODULE_PARAMS_ARM9_RAM_ADDRESS + self._COMPRESSED_STATIC_END_FIELD_OFFSET
         return field_ram_address - self.arm9_ram_address
 
-    def _compress_main_code(self, decompressed: bytes) -> bytes:
+    def _compress_main_code(self, decompressed: bytes) -> tuple[bytes, bool]:
         """Recompress a full decompressed ARM9 main image back to its
         packed form: the first `_ARM9_HEADER_LEN` (0x4000) bytes -- the DS
         secure area -- copied through completely verbatim/uncompressed
@@ -576,19 +576,27 @@ class HeartGoldRom:
         used internally), everything after run through `apnds.lz.
         compress_code`, the "backward code" compression algorithm (same
         one `read_main_code_decompressed`/overlay handling use -- *not*
-        plain LZ10)."""
+        plain LZ10).
+
+        Returns `(packed_bytes, was_compressed)`. `compress_code` can
+        return `None` (rare -- only if it cannot shrink the post-secure-
+        area data at all); rather than hard-failing the whole patch, this
+        falls back to writing the region through *uncompressed*
+        (`was_compressed=False`), matching `crt0.s`'s own boot sequence:
+        `_start` (`lib/asm/crt0.s`) unconditionally calls
+        `MIi_UncompressBackward` with `SDK_COMPRESSED_STATIC_END` as its
+        one argument, and `MIi_UncompressBackward` itself opens with `cmp
+        r0, #0; beq <return>` -- a value of exactly 0 there is a real,
+        clean no-op boot path (verified directly against the decomp
+        source, 2026-08-11, community-suggested), not a guess. The caller
+        (`write_main_code_regions`) is responsible for writing 0 into that
+        field instead of a computed end-address when `was_compressed` is
+        `False`."""
         header = bytes(decompressed[: self._ARM9_HEADER_LEN])
         tail = compress_code(bytes(decompressed[self._ARM9_HEADER_LEN :]))
         if tail is None:
-            raise RomError(
-                "apnds.lz.compress_code returned None while recompressing the "
-                "ARM9 main image (it could not compress the post-secure-area "
-                "data to anything smaller than the input) -- refusing to fall "
-                "back to an uncompressed write here, since the game's own "
-                "boot-time decompression (see this class's ARM9 docstrings) "
-                "unconditionally expects this region to be compressed."
-            )
-        return header + tail
+            return header + bytes(decompressed[self._ARM9_HEADER_LEN :]), False
+        return header + tail, True
 
     def _regenerate_arm9_footer(self, decompressed: bytes, old_footer: bytes) -> bytes:
         """Regenerate the 12-byte nitrocode trailer (see
@@ -670,9 +678,15 @@ class HeartGoldRom:
 
         # Pass 1: compress with whatever SDK_COMPRESSED_STATIC_END value
         # is already present (stale, from the source ROM) -- only used to
-        # learn the new compressed length.
-        provisional = self._compress_main_code(bytes(decompressed))
-        new_compressed_static_end = self.arm9_ram_address + len(provisional)
+        # learn the new compressed length (or, on the rare `compress_code`
+        # failure, that this write falls back to uncompressed -- see
+        # `_compress_main_code`'s own docstring). `compress_code`'s
+        # success/failure is deterministic for identical input bytes, and
+        # the field write below only ever touches the never-compressed
+        # header, so pass 2 is guaranteed to make the same compressed-vs-
+        # uncompressed choice as pass 1.
+        provisional, was_compressed = self._compress_main_code(bytes(decompressed))
+        new_compressed_static_end = self.arm9_ram_address + len(provisional) if was_compressed else 0
 
         field_offset = self._compressed_static_end_file_offset()
         struct.pack_into("<I", decompressed, field_offset, new_compressed_static_end)
@@ -682,7 +696,7 @@ class HeartGoldRom:
         # method's own docstring for why the field's location (inside the
         # verbatim, never-compressed secure-area prefix) makes this safe
         # rather than requiring a fixed-point loop.
-        recompressed = self._compress_main_code(bytes(decompressed))
+        recompressed, _was_compressed = self._compress_main_code(bytes(decompressed))
 
         _old_body, old_footer = self._split_arm9_footer()
         if old_footer:

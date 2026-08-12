@@ -45,6 +45,15 @@
 # whenever a local Archipelago checkout is available) -- a future `__init__.py`
 # only needs to call e.g. `randomize_wild_encounters(world.random,
 # world.options.randomize_wild_pokemon.value)` directly, no translation layer.
+#
+# v2 Phase 1 (2026-08-11) adds two Nuzlocke aids at the bottom of this file
+# (`disable_ohko_moves`/`neutralize_trapping_abilities`, see options.py's
+# `DisableOhkoMoves`/`DisableTrappingAbilities`): unlike every function
+# above, neither takes an `rng` parameter -- they are deterministic toggles
+# (a fixed data-table edit when enabled), not randomizers, so they are not
+# part of this module's `rng`-driven determinism contract in the same sense
+# (though they are of course still pure functions of their input, see their
+# own docstrings).
 
 from __future__ import annotations
 
@@ -682,3 +691,125 @@ def randomize_move_types(rng: Random, enabled: bool, moves: dict = MOVES) -> dic
 
     real_types = tuple(sorted({data["type"] for data in moves.values()} - {"mystery"}))
     return {key: {**data, "type": rng.choice(real_types)} for key, data in moves.items()}
+
+
+# --- 7. Nuzlocke aids ---------------------------------------------------------
+#
+# Two deterministic toggles (options.py: `DisableOhkoMoves`/
+# `DisableTrappingAbilities`), not randomizers -- neither takes an `rng`
+# parameter, unlike every function above. Both are balance *aids* for an
+# honor-system Nuzlocke ruleset (see docs/scope.md's "Nuzlocke mode"
+# section): the game itself never enforces permadeath/catch limits, but an
+# RNG-based instant KO or an inescapable wild battle are bad interactions
+# with a ruleset built around avoiding un-counterable forced deaths, so
+# these two data-table edits remove them when the player opts in.
+
+# `include/constants/move_effects.h`'s `MOVE_EFFECT_HIT` (0) -- "no special
+# effect". Mirrors `rom/movedata.py`'s `write_ohko_neutralization`, the
+# ROM-side counterpart this function's output must stay byte-for-byte
+# consistent with (see that function's own docstring for the full recipe
+# rationale).
+_OHKO_NEUTRALIZED_EFFECT = "hit"
+_OHKO_NEUTRALIZED_POWER = 60
+_OHKO_NEUTRALIZED_ACCURACY = 100
+
+
+def disable_ohko_moves(enabled: bool, moves: dict = MOVES) -> dict:
+    """Neutralize every move whose vanilla `effect` is `"one_hit_ko"`
+    (Guillotine/Horn Drill/Fissure/Sheer Cold) into an ordinary move.
+    `enabled=False` returns `moves` unchanged.
+
+    Fixed recipe (matches `rom/movedata.py`'s `write_ohko_neutralization`
+    exactly): `effect` becomes `"hit"` (clears the instant-KO check),
+    `power`/`accuracy` become 60/100 -- an ordinary, plausible move instead
+    of the dead 1-power/30%-accuracy slot the raw OHKO sentinel values
+    (see `_MOVE_POWER_SENTINEL` above) would otherwise leave behind once
+    the special effect is gone. `category`/`type`/`pp` and every other
+    field are left exactly as-is.
+
+    A pure function of its input, not part of this module's `rng`-driven
+    determinism contract -- no randomness is involved. Walks `moves` in its
+    own dict order."""
+    if not enabled:
+        return moves
+
+    return {
+        key: (
+            {
+                **data,
+                "effect": _OHKO_NEUTRALIZED_EFFECT,
+                "power": _OHKO_NEUTRALIZED_POWER,
+                "accuracy": _OHKO_NEUTRALIZED_ACCURACY,
+            }
+            if data["effect"] == "one_hit_ko"
+            else data
+        )
+        for key, data in moves.items()
+    }
+
+
+# `include/constants/abilities.h` -- the three trapping abilities this
+# project's Nuzlocke aid targets (Arena Trap/Shadow Tag/Magnet Pull, all
+# three -- confirmed with the user 2026-08-11, Magnet Pull included since it
+# traps Steel-types the same inescapable way), and the fallback ability a
+# mono-ability trapper is replaced with.
+TRAPPING_ABILITIES = frozenset({23, 42, 71})  # SHADOW_TAG, MAGNET_PULL, ARENA_TRAP
+_RUN_AWAY_ABILITY = 50  # ABILITY_RUN_AWAY -- see neutralize_trapping_abilities's own docstring for why
+
+
+def neutralize_trapping_abilities(enabled: bool, species: dict = SPECIES) -> dict:
+    """Remove every trapping ability (`TRAPPING_ABILITIES`: Arena Trap,
+    Shadow Tag, Magnet Pull) from `species`. `enabled=False` returns
+    `species` unchanged.
+
+    Per-species resolution (`data["abilities"]` is `(ability1, ability2)`
+    raw ids, `ability2 == 0` meaning "no second ability", see
+    `data/species.py`'s own generation):
+
+    - Not trapping at all: untouched.
+    - One slot traps, the other holds a real, non-trapping ability: the
+      trapping slot is overwritten with a *copy* of the other slot -- both
+      slots end up identical and safe (e.g. Diglett/Dugtrio/Trapinch's
+      Arena Trap is replaced by their own Sand Veil/Hyper Cutter; Nosepass/
+      Magnemite/.../Magnezone's Magnet Pull by their own Sturdy).
+    - Mono-ability species whose only ability traps (`ability2 == 0`,
+      e.g. Wobbuffet/Wynaut's Shadow Tag): replaced with `ABILITY_RUN_AWAY`
+      (id 50) -- chosen as the fallback because it is thematically the
+      direct opposite of a trapping ability (guarantees an *escape*, never
+      forces one) and, structurally, a real, always-safe ability with no
+      combat side effect of its own (unlike e.g. a stat-boosting ability,
+      which could be seen as a stealth buff instead of a neutralization).
+    - Both slots trap (checked for completeness -- no real HGSS species
+      actually hits this case among the 505 in `data/species.py`, verified
+      2026-08-11): both replaced with `ABILITY_RUN_AWAY`, same reasoning
+      as the mono-ability case above.
+
+    A pure function of its input, no randomness involved. Walks `species`
+    in its own dict order."""
+    if not enabled:
+        return species
+
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        ability1, ability2 = data["abilities"]
+        trap1 = ability1 in TRAPPING_ABILITIES
+        trap2 = ability2 in TRAPPING_ABILITIES
+
+        if not trap1 and not trap2:
+            new_species[key] = data
+            continue
+
+        if trap1 and trap2:
+            new_abilities = (_RUN_AWAY_ABILITY, _RUN_AWAY_ABILITY)
+        elif ability2 == 0:
+            # Mono-ability species whose only (trapping) ability is ability1.
+            new_abilities = (_RUN_AWAY_ABILITY, 0)
+        elif trap1:
+            # ability2 is a real, non-trapping ability -- copy it into slot 1.
+            new_abilities = (ability2, ability2)
+        else:
+            # trap2: ability1 is a real, non-trapping ability -- copy it into slot 2.
+            new_abilities = (ability1, ability1)
+
+        new_species[key] = {**data, "abilities": new_abilities}
+    return new_species

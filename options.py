@@ -2,8 +2,23 @@
 #
 # Archipelago option definitions for the HeartGold & SoulSilver world (v1
 # scope, see docs/scope.md): wild-encounter/trainer/evolution
-# randomization toggles, a configurable victory condition, and the two v1
-# stretch goals (Trainersanity, Dexsanity), off by default. Starters is
+# randomization toggles, a configurable victory condition, and a v1
+# stretch goal (Trainersanity), off by default. v2 Phase 1 (2026-08-11, see
+# docs/scope.md's "Nuzlocke mode" section) adds two Nuzlocke aids
+# (`DisableOhkoMoves`/`DisableTrappingAbilities`, deterministic data-table
+# toggles applied by `species.py`/`patch_gen.py`, not real randomizers). A
+# QoL pair (`FastTextSpeed`/`SkipBattleAnimations`, applied to save data by
+# `client.py`) was tried the same day but pulled after live BizHawk testing
+# showed neither option actually took effect in-game -- see `client.py`'s
+# own docstring and docs/scope.md's now-removed "QoL options" section for
+# the post-mortem; the underlying save-data bitfield write itself was never
+# independently verified against a live session before shipping it as an
+# option. Dexsanity was removed 2026-08-11 (see docs/scope.md): it was
+# never wired up, and a real
+# implementation was found to be infeasible at full scope (most species
+# unreachable from any single seed -- a genuine multiworld-integrity risk,
+# not just an inconvenience) without a scope-reducing redesign not yet
+# done. Starters is
 # shelved for a later resume (task M4.5 -- see docs/architecture.md's "M4.5
 # continued" sections: the vanilla species assignment couldn't be located
 # in the ROM after extensive live/static investigation), so no
@@ -223,14 +238,33 @@ class Trainersanity(Toggle):
     display_name = "Trainersanity"
 
 
-class Dexsanity(Toggle):
-    """Add a check for registering each Pokémon species as seen/caught in the Pokédex.
+class DisableOhkoMoves(Toggle):
+    """Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
+    Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
+    move with no special effect, instead of an RNG-based instant KO.
 
-    v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    a playable v1.
-    """
+    A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    randomizer -- this project does not enforce permadeath itself (that
+    stays honor-system, tracked externally), but an instant, uncounterable
+    KO is a bad interaction with a permadeath ruleset, so this option lets
+    a player opt out of it entirely. Off by default (vanilla behavior
+    unchanged)."""
 
-    display_name = "Dexsanity"
+    display_name = "Disable OHKO Moves"
+
+
+class DisableTrappingAbilities(Toggle):
+    """Remove every trapping ability (Arena Trap, Shadow Tag, Magnet Pull)
+    from every Pokémon that has one: a species with a second, non-trapping
+    ability gets that ability copied into both slots instead; a species
+    whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
+    instead.
+
+    A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    randomizer -- an inescapable wild battle is a bad interaction with a
+    permadeath ruleset. Off by default (vanilla behavior unchanged)."""
+
+    display_name = "Disable Trapping Abilities"
 
 
 @dataclass
@@ -249,8 +283,10 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_species_types: RandomizeSpeciesTypes
     trainer_level_scaling: TrainerLevelScaling
 
+    disable_ohko_moves: DisableOhkoMoves
+    disable_trapping_abilities: DisableTrappingAbilities
+
     trainersanity: Trainersanity
-    dexsanity: Dexsanity
 
     start_inventory_from_pool: StartInventoryPool
 
@@ -278,8 +314,12 @@ OPTION_GROUPS = [
         ],
     ),
     OptionGroup(
+        "Nuzlocke Aids",
+        [DisableOhkoMoves, DisableTrappingAbilities],
+    ),
+    OptionGroup(
         "Stretch Goals",
-        [Trainersanity, Dexsanity],
+        [Trainersanity],
         start_collapsed=True,
     ),
 ]

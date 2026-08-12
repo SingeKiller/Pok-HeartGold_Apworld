@@ -19,6 +19,7 @@ def _build_move(key: str, entry: Mapping[str, Any]) -> dict[str, Any]:
         "label": entry["label"],
         "type": entry["type"],
         "category": entry["category"],
+        "effect": entry["effect"],
         "power": entry["power"],
         "accuracy": entry["accuracy"],
         "pp": entry["pp"],

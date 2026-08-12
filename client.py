@@ -13,6 +13,17 @@
 #     running game's `Bag` savedata via RAM once `ctx.items_received`
 #     reports them (no in-game "item received" animation).
 #
+# A QoL pair (`fast_text_speed`/`skip_battle_animations`, applying the
+# `Options` savedata bitfield's `textSpeed`/`battleScene` bits directly)
+# was tried 2026-08-11 and pulled the same day: live BizHawk testing showed
+# neither setting actually changed in-game. The in-word bit order it relied
+# on (standard little-endian ARM bitfield packing, first-declared member in
+# the low bits) was a reasoned assumption, never independently confirmed
+# against a live session -- see `save_layout.py`'s (removed)
+# "Options bitfield" section for the derivation that turned out to be
+# unverified in a load-bearing way. Revisit only with a real live-BizHawk
+# verification step before re-adding either option.
+#
 # Uses Archipelago's own `worlds._bizhawk` connector (`BizHawkClient`/
 # `AutoBizHawkClientRegister`, `worlds/_bizhawk/client.py`) and its generic
 # `connector_bizhawk_generic.lua` BizHawk-side script -- same pattern
@@ -285,6 +296,7 @@ async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_ad
         return False
     return _looks_like_array_headers(bytes(data), 0)
 
+
 # Server data-storage key this client uses to remember, across client
 # restarts, how many of `ctx.items_received` have already been written into
 # the bag (there is no in-ROM/in-save counter this client controls -- see
@@ -535,3 +547,4 @@ class HeartGoldClient(BizHawkClient):
                 }
             ]
         )
+

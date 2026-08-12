@@ -196,6 +196,19 @@ def plan_bag_item_write(
     return None
 
 
+# -- Options bitfield -----------------------------------------------------
+#
+# A `fast_text_speed`/`skip_battle_animations` QoL pair briefly lived here
+# (2026-08-11), read-modify-writing `PLAYERDATA`'s `Options.textSpeed`/
+# `battleScene` bits directly. Pulled the same day: live BizHawk testing
+# showed neither option actually changed anything in-game. The in-word bit
+# order it relied on (standard little-endian ARM bitfield packing,
+# first-declared member in the low bits) was a reasoned assumption from the
+# decomp source, never independently confirmed against a live session --
+# exactly the kind of thing that turned out to matter. Revisit only with a
+# real live-BizHawk verification step (dump the actual `Options` word,
+# toggle the setting in-game, diff) before re-adding either option.
+
 # -- Chunk framing (Decomposition src/save.c) --------------------------------
 
 

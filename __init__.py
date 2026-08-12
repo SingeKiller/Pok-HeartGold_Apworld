@@ -138,6 +138,8 @@ from regions import create_regions as build_region_graph  # noqa: E402
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
 from species import (  # noqa: E402
+    disable_ohko_moves,
+    neutralize_trapping_abilities,
     randomize_base_stats,
     randomize_evolutions,
     randomize_move_stats,
@@ -355,9 +357,15 @@ class HeartGoldWorld(World):
         self.generated_species = randomize_species_types(
             self.random, bool(self.options.randomize_species_types.value), species=self.generated_species
         )
+        self.generated_species = neutralize_trapping_abilities(
+            bool(self.options.disable_trapping_abilities.value), species=self.generated_species
+        )
         self.generated_moves = randomize_move_stats(self.random, self.options.randomize_moves.value)
         self.generated_moves = randomize_move_types(
             self.random, bool(self.options.randomize_move_types.value), moves=self.generated_moves
+        )
+        self.generated_moves = disable_ohko_moves(
+            bool(self.options.disable_ohko_moves.value), moves=self.generated_moves
         )
 
         self.multiworld.completion_condition[self.player] = _goal_rule(

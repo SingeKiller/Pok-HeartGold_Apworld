@@ -61,6 +61,24 @@ _BASE_STAT_FIELD_OFFSETS: dict[str, int] = {
 _TYPE1_OFFSET = 6
 _TYPE2_OFFSET = 7
 
+# `struct BaseStats` (Decomposition `include/pokemon_types_def.h`): `u8
+# abilities[2]` at offset 0x16 -- confirmed two ways: (1) field-by-field
+# struct walk from the decomp source (hp/atk/def/speed/spatk/spdef = 0x00-
+# 0x05, types[2] = 0x06-0x07, catchRate = 0x08, expYield = 0x09, four packed
+# 2-bit EV-yield bitfields = 0x0A-0x0B, item1/item2 = 0x0C-0x0F, genderRatio/
+# eggCycles/friendship/growthRate = 0x10-0x13, eggGroups[2] = 0x14-0x15,
+# abilities[2] = 0x16-0x17); (2) live-read against the real HeartGold ROM
+# (2026-08-11): Diglett/Dugtrio/Trapinch have ABILITY_ARENA_TRAP (71) at
+# offset 0x17, Wobbuffet has ABILITY_SHADOW_TAG (23) at 0x16 with 0x17 == 0
+# (mono-ability), Nosepass/Probopass/Magnezone have ABILITY_MAGNET_PULL (42)
+# -- exactly the species `neutralize_trapping_abilities` (species.py)
+# targets. `ability2 == 0` is the "no second ability" convention (same
+# sentinel `type1 == type2` uses for mono-type species, but here 0 really is
+# `ABILITY_NONE`, include/constants/abilities.h -- not a duplicate of
+# ability1).
+_ABILITY1_OFFSET = 22
+_ABILITY2_OFFSET = 23
+
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
     """Return every species stats entry as a raw bytes blob, one per NARC
@@ -147,3 +165,30 @@ def read_types(rom: HeartGoldRom, species_key: str) -> tuple[int, int]:
     raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
     entry = read_entry(rom, raw_index)
     return entry[_TYPE1_OFFSET], entry[_TYPE2_OFFSET]
+
+
+def write_abilities(rom: HeartGoldRom, species_key: str, ability1: int, ability2: int) -> None:
+    """Overwrite one species' `abilities[2]` bytes in place, leaving every
+    other byte of its entry (base stats, types, catch rate, TM/HM
+    compatibility, ...) untouched. `ability2 == 0` (`ABILITY_NONE`) is the
+    real "no second ability" convention for a mono-ability species (see this
+    module's own docstring) -- callers pass it explicitly, this function
+    never invents a default."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = bytearray(read_entry(rom, raw_index))
+    entry[_ABILITY1_OFFSET] = ability1
+    entry[_ABILITY2_OFFSET] = ability2
+    write_entry(rom, raw_index, bytes(entry))
+
+
+def read_abilities(rom: HeartGoldRom, species_key: str) -> tuple[int, int]:
+    """Read one species' `(ability1, ability2)` raw bytes directly from the
+    ROM -- mainly for tests/verification, `write_abilities` is the normal
+    write path."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = read_entry(rom, raw_index)
+    return entry[_ABILITY1_OFFSET], entry[_ABILITY2_OFFSET]

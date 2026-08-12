@@ -2292,3 +2292,110 @@ APWorld is already installed at ...`) -- documented as a new "Common
 Issues" entry in `docs/setup_en.md`, since this could otherwise look like
 a fix didn't take effect when it's really just a stale file never having
 been replaced.
+
+## v2 Phase 1: Nuzlocke aids (2026-08-11)
+
+Two Nuzlocke aids (`disable_ohko_moves`, `disable_trapping_abilities`) --
+see docs/scope.md's "Nuzlocke mode" entry for the product-level
+description. Both are `Toggle` options, off by default (v0.1.1's own
+behavior is unchanged when neither is set).
+
+A `fast_text_speed`/`skip_battle_animations` QoL pair was implemented
+alongside these the same day, then pulled the same day after live BizHawk
+testing showed neither actually took effect in-game -- see docs/scope.md's
+"QoL options" entry for the post-mortem. The in-word bitfield packing order
+it relied on (assumed standard little-endian ARM, first-declared field in
+the low bits) was never independently confirmed against a live session
+before shipping, and is the leading suspect.
+
+**Nuzlocke aids** follow the exact same shape M4.5's other randomizers use
+(`species.py` pure transform -> `data/*.json` in the `.apheartgold` patch ->
+`patch_gen.py` ROM write), except neither takes an `rng` (they are
+deterministic toggles, not randomizers):
+
+- `disable_ohko_moves`: `rom/movedata.py` gained `_EFFECT_OFFSET = 0`
+  (documented in the module's own struct comment since the start, just
+  never exposed), `read_effect`/`write_ohko_neutralization`.
+  `MOVE_EFFECT_ONE_HIT_KO` (38) live-verified on the real HeartGold ROM for
+  all 4 vanilla OHKO moves (Guillotine id 12, Horn Drill 32, Fissure 90,
+  Sheer Cold 329): `effect=38, power=1, accuracy=30` on every one --
+  `power`/`accuracy` are themselves special-mechanic sentinels for this
+  effect (mirrors `species.py`'s own `_MOVE_POWER_SENTINEL`/`accuracy==0`
+  sentinel handling elsewhere), not real values, so `write_ohko_
+  neutralization`'s recipe (`effect=0, power=60, accuracy=100`) replaces
+  both rather than just clearing `effect` alone (which would leave a dead
+  1-power/30%-accuracy slot). `data/moves.py` gained a new `effect` field
+  (string name, e.g. `"one_hit_ko"`), sourced from `data_gen/moves.toml`
+  (itself extracted from the decomp's own `files/poketool/waza/waza_tbl.
+  narc` -- present directly in the decomp checkout, no ROM needed -- cross-
+  named against `include/constants/move_effects.h`'s `MOVE_EFFECT_*`
+  constants). 6 raw effect ids used by real moves have no symbolic #define
+  in that header (37, 182-185, 199 -- rest/superpower/magic_coat/recycle/
+  revenge+avalanche/teeter_dance): these fall back to a synthetic
+  `"effect_<n>"` string, still uniquely identifying the value.
+  `patch_gen.apply_move_randomization` routes a move through `write_ohko_
+  neutralization` (instead of the normal `write_combat_stats`) exactly when
+  its *vanilla* effect was `"one_hit_ko"` but the generated dict's effect no
+  longer is -- i.e. exactly (and only) the moves `disable_ohko_moves`
+  touched, no hardcoded move-key list needed. `write_combat_stats` still
+  runs unconditionally afterwards for every move so `pp` (deliberately left
+  untouched by `write_ohko_neutralization` itself) still ends up matching
+  whatever `randomize_move_stats` (if also enabled) put there.
+- `disable_trapping_abilities`: `struct BaseStats` (`include/
+  pokemon_types_def.h`) has `u8 abilities[2]` at offset 0x16/0x17 --
+  confirmed two independent ways: a field-by-field walk of the decomp
+  struct (hp/atk/def/speed/spatk/spdef = 0x00-0x05, types[2] = 0x06-0x07,
+  catchRate = 0x08, expYield = 0x09, four packed 2-bit EV-yield bitfields =
+  0x0A-0x0B, item1/item2 = 0x0C-0x0F, genderRatio/eggCycles/friendship/
+  growthRate = 0x10-0x13, eggGroups[2] = 0x14-0x15, abilities[2] =
+  0x16-0x17), and a live read of the real HeartGold ROM (Diglett/Dugtrio/
+  Trapinch have Arena Trap (71) at 0x17, Wobbuffet has Shadow Tag (23) at
+  0x16 with 0x17==0, Nosepass/Magnemite/Magneton/Magnezone/Probopass have
+  Magnet Pull (42)) -- both agree exactly, so `rom/speciesdata.py`'s
+  `_ABILITY1_OFFSET`/`_ABILITY2_OFFSET` (22/23) are high-confidence (an
+  earlier, unverified guess from an earlier session floated the same
+  values; this task independently re-derived and confirmed them rather than
+  trusting that guess blindly, per this task's own brief). `data/species.py`
+  gained an `abilities` field (`(ability1_id, ability2_id)`, raw
+  `ABILITY_*` ints -- not names, since this project has no dedicated
+  `data/abilities.py` naming table), sourced from `data_gen/species.toml`
+  (extracted from the decomp's own `personal.json`, cross-checked against
+  `include/constants/abilities.h`). Verified across all 505 real species:
+  no species has both ability slots trapping (the "double trap" case
+  `neutralize_trapping_abilities` still handles, tested with a synthetic
+  dict since no real example exists); Wobbuffet/Wynaut are the only
+  mono-ability trappers (Shadow Tag, replaced with Run Away, id 50); 8
+  species have a real second, non-trapping ability alongside their
+  trapping one (Diglett/Dugtrio/Trapinch: Arena Trap; Nosepass/Magnemite/
+  Magneton/Magnezone/Probopass: Magnet Pull) -- their trapping slot is
+  replaced with a copy of the safe one. `patch_gen.
+  apply_evolution_and_stat_randomization` now also writes `abilities`
+  unconditionally (a harmless idempotent no-op when the option is off,
+  since `data["abilities"]` always carries *some* value).
+
+**Testing**: `tests/test_rom_access.py` (real ROM: `read_effect`/`write_
+ohko_neutralization` round-trip, `read_abilities`/`write_abilities`
+round-trip, both cross-checked against `personal.json`), `tests/
+test_data_gen.py` (the new `abilities` field), `tests/test_randomization.py`
+(pure-function coverage for `disable_ohko_moves`/`neutralize_trapping_
+abilities`, including the synthetic double-trap case), `tests/
+test_options.py` (the two new option classes + default-off), `tests/
+test_patch_gen.py` (ROM-level application, including combined with
+`randomize_move_stats`), `tests/test_generate_output.py` (full seed ->
+patch -> real ROM, both options on, verified on **both** a real HeartGold
+and a real SoulSilver ROM).
+
+**Pre-existing issues fixed as a side effect of this task** (not part of
+its own scope, but blocking `pytest tests/` from even collecting, so fixed
+to keep "run the full suite, zero regressions" meaningful): `tests/
+test_options.py` still imported `Dexsanity` from `options.py`, which was
+removed 2026-08-11 (see this doc's own "Community feedback round" and
+docs/scope.md) -- the test file itself was never updated at the time.
+Fixed by removing the dangling import/assertions and adding equivalent
+default-off coverage for `Trainersanity` alone. `docs/Pokemon
+HeartGold.yaml` was regenerated via the official `Options.
+generate_yaml_templates` tool (same tool/process as previous releases) --
+picked up the same `dexsanity` removal plus a `requires.version` bump
+(0.6.7 -> 0.6.8) reflecting the locally-checked-out Archipelago clone's own
+current version, neither of which is specific to this task's own two
+features.

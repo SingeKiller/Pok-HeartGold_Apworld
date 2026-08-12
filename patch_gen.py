@@ -357,10 +357,19 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
     """Apply `species.py`'s `randomize_evolutions`/`randomize_base_stats`/
-    `randomize_species_types` output (all live on the same
-    `generated_species` dict, see `__init__.py`'s `set_rules`) -- writes
-    the evolution table (rom/evodata.py), base-stats table, and types
-    (rom/speciesdata.py) for every species."""
+    `randomize_species_types`/`neutralize_trapping_abilities` output (all
+    live on the same `generated_species` dict, see `__init__.py`'s
+    `set_rules`) -- writes the evolution table (rom/evodata.py), base-stats
+    table, types, and abilities (rom/speciesdata.py) for every species.
+
+    Abilities are written unconditionally, not just when
+    `disable_trapping_abilities` is on: `data["abilities"]` always carries
+    *some* value (the vanilla pair, untouched, when the option is off, see
+    `neutralize_trapping_abilities`'s own `enabled=False` no-op contract)
+    -- writing it every time is a harmless, idempotent no-op in that case,
+    and keeps this function's own logic option-agnostic, the same
+    "apply whatever's in the dict" shape every other field here already
+    has."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
     for species_key, data in species.items():
@@ -382,11 +391,30 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
         type2 = rom_movedata.TYPE_NAME_TO_ID[types[1]] if len(types) > 1 else type1
         rom_speciesdata.write_types(rom, species_key, type1, type2)
 
+        ability1, ability2 = data["abilities"]
+        rom_speciesdata.write_abilities(rom, species_key, ability1, ability2)
+
 
 def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
-    """Apply `species.py`'s `randomize_move_stats`/`randomize_move_types`
-    output."""
+    """Apply `species.py`'s `randomize_move_stats`/`randomize_move_types`/
+    `disable_ohko_moves` output.
+
+    A move is routed through `rom_movedata.write_ohko_neutralization`
+    (effect+power+accuracy in one write, see that function's own docstring)
+    instead of the normal `write_combat_stats` precisely when its vanilla
+    `effect` was `"one_hit_ko"` but `moves[move_key]["effect"]` no longer is
+    -- i.e. exactly the moves `disable_ohko_moves` touched (the only
+    function that ever changes a move's `effect` field at all). `write_
+    combat_stats` still runs unconditionally afterwards for every move
+    (neutralized or not) so `pp` -- deliberately left untouched by `write_
+    ohko_neutralization` itself -- still ends up matching `moves[move_key]
+    ["pp"]` exactly, whatever upstream randomization (or lack thereof) put
+    there."""
+    from data.moves import MOVES as VANILLA_MOVES
+
     for move_key, data in moves.items():
+        if VANILLA_MOVES[move_key]["effect"] == "one_hit_ko" and data["effect"] != "one_hit_ko":
+            rom_movedata.write_ohko_neutralization(rom, move_key)
         rom_movedata.write_combat_stats(rom, move_key, power=data["power"], accuracy=data["accuracy"], pp=data["pp"])
         rom_movedata.write_type(rom, move_key, rom_movedata.TYPE_NAME_TO_ID[data["type"]])
 

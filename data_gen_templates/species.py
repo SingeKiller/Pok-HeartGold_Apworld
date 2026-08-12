@@ -88,6 +88,7 @@ def _build_species(
             "speed": entry["speed"],
         },
         "catch_rate": entry["catch_rate"],
+        "abilities": tuple(entry["abilities"]),
         "tm_moves": _resolve_tm_hm(key, "tms", entry["tms"], tm_hm, move_keys),
         "hm_moves": _resolve_tm_hm(key, "hms", entry["hms"], tm_hm, move_keys),
         "level_learnset": tuple(level_learnset),

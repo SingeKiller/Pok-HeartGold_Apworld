@@ -49,10 +49,27 @@ NITROFS_PATH = "a/0/1/1"
 EXPECTED_ENTRY_COUNT = 471
 ENTRY_SIZE = 16
 
+_EFFECT_OFFSET = 0
 _POWER_OFFSET = 3
 _TYPE_OFFSET = 4
 _ACCURACY_OFFSET = 5
 _PP_OFFSET = 6
+
+# `include/constants/move_effects.h`'s `MOVE_EFFECT_ONE_HIT_KO` -- live-
+# verified against the real HeartGold ROM (2026-08-11): Guillotine (id 12),
+# Horn Drill (32), Fissure (90) and Sheer Cold (329) all read `effect == 38,
+# power == 1, accuracy == 30` (`power` is ignored by the battle engine for
+# this effect -- an instant KO check runs instead; `power == 1` is the same
+# "computed elsewhere at battle time" sentinel `species.py`'s own
+# `_MOVE_POWER_SENTINEL` documents for OHKO/Low Kick/Seismic Toss/...).
+MOVE_EFFECT_ONE_HIT_KO = 38
+
+# `disable_ohko_moves`'s (species.py) chosen neutralization recipe: drop the
+# special `effect` entirely and give the move ordinary, plausible power/
+# accuracy instead of leaving it a dead 1-power/30%-accuracy slot. See
+# `write_ohko_neutralization`'s own docstring for the full rationale.
+_OHKO_NEUTRALIZED_POWER = 60
+_OHKO_NEUTRALIZED_ACCURACY = 100
 
 # `include/constants/pokemon.h`'s `TYPE_*` constants -- the raw byte this
 # table's `type` field (offset 4) uses. `data/moves.py`'s own `type` field
@@ -144,6 +161,44 @@ def write_type(rom: HeartGoldRom, move_key: str, move_type: int) -> None:
     if len(entry) != ENTRY_SIZE:
         raise ValueError(f"move {move_key!r} (id {move_id}) entry is {len(entry)} bytes, expected {ENTRY_SIZE}")
     entry[_TYPE_OFFSET] = move_type
+    write_entry(rom, move_id, bytes(entry))
+
+
+def read_effect(rom: HeartGoldRom, move_key: str) -> int:
+    """Read one move's raw `effect` `u16` (offset 0, see this module's own
+    struct docstring) -- mainly for tests/verification and
+    `write_ohko_neutralization`'s own "did this move actually have the OHKO
+    effect" precondition; `write_combat_stats`/`write_type` never touch this
+    field."""
+    from data.moves import MOVES
+
+    move_id = MOVES[move_key]["id"]
+    entry = read_entry(rom, move_id)
+    return int.from_bytes(entry[_EFFECT_OFFSET : _EFFECT_OFFSET + 2], "little")
+
+
+def write_ohko_neutralization(rom: HeartGoldRom, move_key: str) -> None:
+    """Neutralize one OHKO move (`disable_ohko_moves`, species.py) in place:
+    `effect = 0` (no special effect -- drops the instant-KO check),
+    `power = 60`, `accuracy = 100`. `category`/`type`/`pp` and every other
+    byte of the entry are left exactly as vanilla.
+
+    Recipe rationale (decided, not improvised -- see task brief): every
+    vanilla OHKO move's own `power`/`accuracy` bytes (1/30) are themselves
+    special sentinels the battle engine never reads as real values for that
+    effect (see `MOVE_EFFECT_ONE_HIT_KO`'s own comment above) -- clearing
+    `effect` alone would leave a move that deals 1 damage at 30% accuracy,
+    a dead slot, not a neutralized one. 60 power / 100 accuracy makes it an
+    ordinary, unremarkable move instead, with no leftover RNG landmine."""
+    from data.moves import MOVES
+
+    move_id = MOVES[move_key]["id"]
+    entry = bytearray(read_entry(rom, move_id))
+    if len(entry) != ENTRY_SIZE:
+        raise ValueError(f"move {move_key!r} (id {move_id}) entry is {len(entry)} bytes, expected {ENTRY_SIZE}")
+    entry[_EFFECT_OFFSET : _EFFECT_OFFSET + 2] = (0).to_bytes(2, "little")
+    entry[_POWER_OFFSET] = _OHKO_NEUTRALIZED_POWER
+    entry[_ACCURACY_OFFSET] = _OHKO_NEUTRALIZED_ACCURACY
     write_entry(rom, move_id, bytes(entry))
 
 

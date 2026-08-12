@@ -219,18 +219,40 @@ Pokemon HeartGold:
     random-range-50-200: 0 # random value between 50 and 200
 
   #################
+  # Nuzlocke Aids #
+  #################
+  disable_ohko_moves:
+    # Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
+    # Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
+    # move with no special effect, instead of an RNG-based instant KO.
+    #
+    # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    # randomizer -- this project does not enforce permadeath itself (that
+    # stays honor-system, tracked externally), but an instant, uncounterable
+    # KO is a bad interaction with a permadeath ruleset, so this option lets
+    # a player opt out of it entirely. Off by default (vanilla behavior
+    # unchanged).
+    'false': 50
+    'true': 0
+
+  disable_trapping_abilities:
+    # Remove every trapping ability (Arena Trap, Shadow Tag, Magnet Pull)
+    # from every Pokémon that has one: a species with a second, non-trapping
+    # ability gets that ability copied into both slots instead; a species
+    # whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
+    # instead.
+    #
+    # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    # randomizer -- an inescapable wild battle is a bad interaction with a
+    # permadeath ruleset. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  #################
   # Stretch Goals #
   #################
   trainersanity:
     # Add a check for every trainer battle won.
-    # 
-    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    # a playable v1.
-    'false': 50
-    'true': 0
-
-  dexsanity:
-    # Add a check for registering each Pokémon species as seen/caught in the Pokédex.
     # 
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.

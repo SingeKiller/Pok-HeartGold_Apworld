@@ -22,6 +22,26 @@
   (`trainer_level_scaling`), move type randomization
   (`randomize_move_types`), species type randomization
   (`randomize_species_types`).
+- Two Nuzlocke aids, off by default (see "Nuzlocke Aids" below):
+  `disable_ohko_moves`, `disable_trapping_abilities`.
+
+## Nuzlocke Aids
+
+These are optional balance aids for players running an honor-system
+Nuzlocke ruleset -- this world does **not** enforce permadeath or
+catch limits itself; that stays tracked externally (e.g. a tracker app).
+Both default to off.
+
+- **Disable OHKO Moves** (`disable_ohko_moves`): neutralizes Guillotine,
+  Horn Drill, Fissure, and Sheer Cold into ordinary 60 power / 100
+  accuracy moves with no special effect, instead of an RNG-based instant
+  KO -- a bad interaction with permadeath.
+- **Disable Trapping Abilities** (`disable_trapping_abilities`): removes
+  Arena Trap, Shadow Tag, and Magnet Pull from every Pokémon that has one.
+  A species with a second, non-trapping ability gets that ability copied
+  into both slots; a species whose only ability traps (e.g. Wobbuffet's
+  Shadow Tag) gets Run Away instead. An inescapable wild battle is a bad
+  interaction with permadeath.
 
 ## Notable Differences from Base Game
 
@@ -41,6 +61,6 @@
   each badge is still earned from its usual gym, in the usual order, and
   only tracked internally for logic purposes (e.g. gating which HMs you
   can use in the field).
-- Trainersanity (a check for every trainer battle won) and Dexsanity (a
-  check for registering each species as seen/caught) are available as
-  optional, off-by-default toggles.
+- Trainersanity (a check for every trainer battle won) is available as
+  an optional, off-by-default toggle (not yet wired up to real
+  generation/gameplay -- see the project's `docs/scope.md`).
