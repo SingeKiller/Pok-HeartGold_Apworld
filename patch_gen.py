@@ -1,30 +1,16 @@
 #!/usr/bin/env python3
 """patch_gen.py
 
-Task C14 -- ground-item check mechanism proof of concept. Assembles
-`patches/ground_item_hook.s` with `armips` and applies the result to a
-Pokemon HeartGold (US) ROM via `rom/`'s append-only ARM9 access
-(`HeartGoldRom.append_to_arm9`, see that module for the safety rationale).
+Ground-item check mechanism proof of concept: assembles
+patches/ground_item_hook.s with armips and appends the result to a
+Pokemon HeartGold (US) ROM's ARM9 binary. Scaffolding only -- proves the
+armips + patch_gen.py + rom/ pipeline works end-to-end, but does not hook
+any real in-game call site yet (see NOTES.md). Also home to the species/
+move/trainer/encounter/item-substitution ROM-write orchestration used by
+the real Archipelago output path (output_patch.py).
 
-Read docs/architecture.md, "## C14 -- Ground item check mechanism (proof of
-concept)" before relying on this for anything beyond what it actually is:
-this patch is scaffolding that proves the armips + patch_gen.py + rom/
-pipeline works end-to-end (assembles real ARM code, appends it to the ARM9
-binary without touching the DS secure area, leaves the ROM structurally
-valid) -- it does **not** yet hook any real in-game call site (that hook
-point's ROM address could not be safely determined in this task's session;
-see docs/architecture.md for the full investigation and why). The two
-functions this patch adds (`HeartGoldAP_Init`,
-`HeartGoldAP_RecordGroundItemCheck`) are present in the patched ROM's ARM9
-binary but are not called from anywhere yet.
-
-`armips` is not on `PATH` in this project's dev environment (see
-docs/architecture.md, "## ROM code injection strategy"); its path is read
-from the `ARMIPS_PATH` environment variable, following the same convention
-already used for `ARCHIPELAGO_PATH` (tests/conftest.py) and
-`HEARTGOLD_ROM_PATH` (tests/test_rom_roundtrip.py, tests/test_rom_access.py),
-falling back to this repository's own local build,
-`ressources/armips/build/armips.exe`.
+`armips` path read from the ARMIPS_PATH env var, falling back to
+ressources/armips/build/armips.exe.
 
 Usage:
     python patch_gen.py --rom <path to vanilla HeartGold (US) .nds> --out <output .nds>
@@ -56,10 +42,7 @@ ARMIPS_PATH_ENV_VAR = "ARMIPS_PATH"
 _DEFAULT_ARMIPS_PATH = ROOT / "ressources" / "armips" / "build" / "armips.exe"
 
 # Fixed EWRAM scratch address for the AP protocol struct -- see
-# patches/ground_item_hook.s's header comment and docs/architecture.md for
-# the struct layout and why this address was chosen (near-top-of-EWRAM
-# convention, same idea as ljtpetersen/platinum_archipelago's own
-# `AP_STRUCT_PTR_ADDRESS`).
+# patches/ground_item_hook.s's header comment.
 PROTOCOL_ADDRESS = 0x023FF800
 PROTOCOL_STRUCT_SIZE = 0x14
 PROTOCOL_MAGIC = b"HGAP"
@@ -129,13 +112,9 @@ def assemble_ground_item_hook(hook_load_address: int, *, armips_exe: Path | None
 
 def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
                             protocol_address: int = PROTOCOL_ADDRESS) -> int:
-    """Assemble and append the ground-item hook scaffolding (see this
-    module's docstring for exactly what that is and isn't) to `rom`'s ARM9
+    """Assemble and append the ground-item hook scaffolding to rom's ARM9
     binary in place. Returns the RAM address the appended code now lives
-    at.
-
-    Does not wire up any call site -- see docs/architecture.md and
-    patches/ground_item_hook.s for why."""
+    at. Does not wire up any call site."""
     load_address = rom.arm9_ram_address + len(rom.arm9)
     code = assemble_ground_item_hook(
         load_address, armips_exe=armips_exe, protocol_address=protocol_address
@@ -149,55 +128,25 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
     return actual_address
 
 
-# -- Local item substitution (tasks C15/C16) ----------------------------------
+# -- Local item substitution ---------------------------------------------
 #
-# Unlike the ground-item hook scaffolding above (ARM9 code, not wired to any
-# call site yet -- see this module's own docstring and docs/architecture.md),
-# this is the piece of the "revised after C14" ROM strategy that is actually
-# live: plain NitroFS data edits (rom/eventscriptdata.py,
-# rom/npcgiftdata.py) with no unknown ROM addresses involved. See
-# docs/architecture.md, "## ROM code injection strategy (revised after C14)"
-# for why this is a different risk profile from the ARM-hooks path, and
-# each module's own docstring for the binary format it patches.
-#
-# Covers `ground_item`, `npc_gift`, `hm_tm` (routed to whichever of the two
-# modules above actually implements that specific `hm_tm` location's
-# vanilla delivery mechanism -- see rom/eventscriptdata.py's
-# `write_ground_item_substitution` and rom/npcgiftdata.py's
-# `write_npc_gift_substitution` docstrings), and `hidden_item` (task M4.5 --
-# originally out of scope because its vanilla item ids live in a compiled
-# ARM9 static data table rather than a NitroFS script, a fundamentally
-# different patch shape; resolved once that table's real RAM address was
-# found via a live BizHawk memory-write breakpoint + instruction trace, see
-# rom/hiddenitemdata.py's own docstring for the full story). `badge` is
-# still out of scope (not an item at all, see data/items.py).
+# Plain NitroFS data edits (rom/eventscriptdata.py, rom/npcgiftdata.py,
+# rom/hiddenitemdata.py) -- no unknown ROM addresses involved, a different
+# risk profile from the ARM-hooks path above. Covers ground_item, npc_gift,
+# hm_tm, hidden_item. badge is out of scope (not an item at all).
 
 
 def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str | None]) -> None:
-    """Apply a `{location_key: item_key}` mapping (both `data/locations.py`/
-    `data/items.py` keys) to `rom` in place, for `ground_item`/`npc_gift`/
-    `hm_tm`/`hidden_item` locations -- badge is out of scope for this pass
-    (see this module's own section header comment above). Locations not
-    present in `substitutions` are left untouched (keep their vanilla
-    `original_item`).
+    """Apply a {location_key: item_key} mapping to `rom` in place, for
+    ground_item/npc_gift/hm_tm/hidden_item locations. Locations not
+    present in `substitutions` are left untouched.
 
-    A `None` value (JSON `null`) instead of a real item key is the "empty"
-    sentinel for a location whose placed item belongs to *another*
-    multiworld player (see `output_patch.build_item_substitutions`'s own
-    docstring): writes item id 0 instead of a real item, so picking it up
-    still fires this project's flag-read check-detection but never hands
-    the player a real, unearned vanilla item (live-verified 2026-08-11 for
-    ground_item/npc_gift, see `rom/eventscriptdata.write_ground_item_empty`/
-    `rom/npcgiftdata.write_npc_gift_empty`'s own docstrings; implemented
-    the same way for hidden_item, `rom/hiddenitemdata.write_hidden_item_
-    substitutions`, but not yet live-verified there specifically).
+    `None` is the "empty" sentinel for a location whose item belongs to
+    another player: writes item id 0, so picking it up still fires
+    check-detection but never hands the player a real, unearned item.
 
-    hidden_item entries are collected and applied in one batched
-    `rom/hiddenitemdata.write_hidden_item_substitutions` call rather than
-    one `write_hidden_item_substitution` call per location -- each
-    individual call decompresses/recompresses the full ARM9 image
-    (~34 minutes for all 225 real locations one at a time; one batched
-    pass is seconds)."""
+    hidden_item entries are batched into one write call -- see NOTES.md
+    for why (34 minutes vs. seconds for all 225 real locations)."""
     from data.locations import LOCATIONS
 
     hidden_item_substitutions: dict[str, str | None] = {}
@@ -234,37 +183,26 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             raise ValueError(
                 f"location {location_key!r} is type {location_type!r} -- "
                 "apply_local_item_substitutions only supports "
-                "ground_item/npc_gift/hm_tm/hidden_item (badge is out of "
-                "scope, see this module's own section header comment)."
+                "ground_item/npc_gift/hm_tm/hidden_item (badge is out of scope)."
             )
 
     if hidden_item_substitutions:
         rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions)
 
 
-# -- Species/move/trainer/encounter randomization (task M4.5) ----------------
+# -- Species/move/trainer/encounter randomization ----------------------------
 #
-# Applies `species.py`'s randomizer output (`HeartGoldWorld.generated_
-# starters`/`generated_encounters`/`generated_trainer_parties`/
-# `generated_species`/`generated_moves`, see `__init__.py`'s own docstring)
-# to a ROM copy, via the rom/*.py write layers built for this task
-# (rom/trainerdata.py's `write_party_species`, rom/encounterdata.py's
-# `write_zone_encounters`, rom/evodata.py's `write_species_evolutions`,
-# rom/speciesdata.py's `write_base_stats`, rom/movedata.py's
-# `write_combat_stats`). Every one of these was round-trip verified against
-# the real ROM this same task (write, save, reopen, read back) -- see
-# docs/architecture.md's "## M4.5" section for that verification.
+# Applies species.py's randomizer output to a ROM copy via the rom/*.py
+# write layers, every one round-trip verified against the real ROM.
 #
-# `rom/starterdata.py` is deliberately **not** called here -- see that
-# module's own docstring: its target address is a well-evidenced candidate,
-# not a live-verified one, and this project's standing policy (learned the
-# hard way this same session for `client.py`'s RAM addresses) is to never
-# wire an unverified address into the normal patch path.
+# rom/starterdata.py is deliberately NOT called here: its target address
+# is a well-evidenced candidate, not a live-verified one, and this
+# project's standing policy is to never wire an unverified address into
+# the normal patch path.
 
-# Decomposition `include/constants/pokemon.h`'s `EvoMethod` enum -- see
-# docs/architecture.md's "## M4.5" section for how this was cross-checked
-# against a real evolution read live off the ROM (bulbasaur: method 4 ==
-# EVO_LEVEL, matching this table exactly).
+# Decomposition include/constants/pokemon.h's EvoMethod enum -- cross-
+# checked against a real evolution read live off the ROM (bulbasaur:
+# method 4 == EVO_LEVEL, matching this table).
 _EVOLUTION_METHOD_TO_RAW: dict[str, int] = {
     "friendship": 1,
     "friendship_day": 2,
@@ -294,21 +232,16 @@ _EVOLUTION_METHOD_TO_RAW: dict[str, int] = {
     "route217": 26,
 }
 
-# Evolution methods whose `param` is a `data/items.py` key (an item to use/
-# hold), a `data/moves.py` key (a move the Pokémon must know), or a
-# `data/species.py` key (another party member's species) rather than a
-# plain integer -- see docs/architecture.md's "## M4.5" section for the
-# full param-shape survey this was derived from (every method+param pair
-# actually used in `data/species.py`, one example each).
+# Evolution methods whose `param` is an item/move/species key rather than
+# a plain integer.
 _ITEM_PARAM_METHODS = {"stone", "trade_item", "item_day", "item_night", "stone_male", "stone_female"}
 _MOVE_PARAM_METHODS = {"has_move"}
 _SPECIES_PARAM_METHODS = {"other_party_mon"}
 
 
 def _encode_evolution_param(method: str, param: object) -> int:
-    """Convert one evolution's `param` (an int, or an item/move/species key
-    depending on `method`, see this module's own constants above) into the
-    raw `u16` value `rom/evodata.py` writes to the ROM."""
+    """Convert one evolution's param into the raw u16 value
+    rom/evodata.py writes to the ROM."""
     if method in _ITEM_PARAM_METHODS:
         from data.items import ITEMS
 
@@ -337,16 +270,12 @@ def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
 
 
 def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
-    """Apply `species.py`'s `randomize_wild_encounters` output (already
-    resolved to `rom`'s declared version's own vanilla base data by
-    `__init__.py`'s `set_rules`, see `data/encounters.py`'s
-    `ENCOUNTERS_HEARTGOLD`/`ENCOUNTERS_SOULSILVER`). Zones with no raw NARC
-    entry (see `data/encounter_zone_index.py`'s own docstring: the 3
-    headbutt-only zones) are skipped -- there is nothing to patch for them.
-    `rom_encounterdata.write_zone_encounters` itself picks which of
-    `g_enc_data.narc`/`s_enc_data.narc` to write based on `rom.version`
-    (see that module's own docstring for why: only one of the two is ever
-    read by a given cartridge's own compiled game code)."""
+    """Apply species.py's randomize_wild_encounters output (already
+    resolved to rom's declared version's own vanilla base data by
+    __init__.py's set_rules). Zones with no raw NARC entry (the 3
+    headbutt-only zones) are skipped. rom_encounterdata.write_zone_
+    encounters picks g_enc_data.narc vs s_enc_data.narc based on
+    rom.version -- see that module's own notes for why."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
 
     for zone_key, zone in encounters.items():
@@ -356,20 +285,12 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
 
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
-    """Apply `species.py`'s `randomize_evolutions`/`randomize_base_stats`/
-    `randomize_species_types`/`neutralize_trapping_abilities` output (all
-    live on the same `generated_species` dict, see `__init__.py`'s
-    `set_rules`) -- writes the evolution table (rom/evodata.py), base-stats
-    table, types, and abilities (rom/speciesdata.py) for every species.
-
-    Abilities are written unconditionally, not just when
-    `disable_trapping_abilities` is on: `data["abilities"]` always carries
-    *some* value (the vanilla pair, untouched, when the option is off, see
-    `neutralize_trapping_abilities`'s own `enabled=False` no-op contract)
-    -- writing it every time is a harmless, idempotent no-op in that case,
-    and keeps this function's own logic option-agnostic, the same
-    "apply whatever's in the dict" shape every other field here already
-    has."""
+    """Apply species.py's randomize_evolutions/randomize_base_stats/
+    randomize_species_types/neutralize_trapping_abilities output -- writes
+    the evolution table, base-stats table, types, and abilities for every
+    species. Abilities are written unconditionally (data["abilities"]
+    always carries some value, the vanilla pair when the option is off) --
+    a harmless idempotent no-op, keeps this function option-agnostic."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
     for species_key, data in species.items():
@@ -396,20 +317,13 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
 
 
 def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
-    """Apply `species.py`'s `randomize_move_stats`/`randomize_move_types`/
-    `disable_ohko_moves` output.
-
-    A move is routed through `rom_movedata.write_ohko_neutralization`
-    (effect+power+accuracy in one write, see that function's own docstring)
-    instead of the normal `write_combat_stats` precisely when its vanilla
-    `effect` was `"one_hit_ko"` but `moves[move_key]["effect"]` no longer is
-    -- i.e. exactly the moves `disable_ohko_moves` touched (the only
-    function that ever changes a move's `effect` field at all). `write_
-    combat_stats` still runs unconditionally afterwards for every move
-    (neutralized or not) so `pp` -- deliberately left untouched by `write_
-    ohko_neutralization` itself -- still ends up matching `moves[move_key]
-    ["pp"]` exactly, whatever upstream randomization (or lack thereof) put
-    there."""
+    """Apply species.py's randomize_move_stats/randomize_move_types/
+    disable_ohko_moves output. A move is routed through
+    rom_movedata.write_ohko_neutralization instead of write_combat_stats
+    precisely when its vanilla effect was "one_hit_ko" but no longer is --
+    i.e. exactly the moves disable_ohko_moves touched. write_combat_stats
+    still runs unconditionally afterwards so `pp` ends up matching
+    whatever upstream randomization put there."""
     from data.moves import MOVES as VANILLA_MOVES
 
     for move_key, data in moves.items():

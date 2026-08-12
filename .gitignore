@@ -29,3 +29,8 @@ dist/
 /requirements-dev.txt
 /pyproject.toml
 /CONTRIBUTING.md
+
+# Investigation/design history relocated out of source comments (end-of-
+# project cleanup, 2026-08-12) -- for Claude/agents working on this repo
+# later, not for GitHub.
+/NOTES.md

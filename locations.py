@@ -1,32 +1,15 @@
 # locations.py
 #
-# Archipelago location definitions for the HeartGold & SoulSilver world: an
-# id map plus `create_locations`, which attaches `Location` objects to the
-# `Region` graph built by `regions.create_regions` for every entry of the
-# generated `data/locations.py` (586 locations). Follows the same overall
-# shape as `ressources/platinum_archipelago/locations.py` (read-only
-# reference, not copied).
+# Archipelago location id map + create_locations, attaching Location
+# objects to the Region graph from regions.create_regions, for every entry
+# of the generated data/locations.py.
 #
-# `data/locations.py`'s own `id` field is NOT globally unique across all 586
-# locations (it recycles small per-table indices -- hidden-item table
-# indices, item-ball flag offsets, badge indices -- across different
-# in-game tables, so the same small integer legitimately appears more than
-# once, e.g. both `bellchime_tower_tinymushroom_2` and `ilex_forest_hm01`
-# have `id == 128`). This module assigns its own stable id instead (sorted
-# by location key, for a deterministic, reviewable ordering), offset by
-# `HEARTGOLD_LOCATION_ID_BASE`.
-#
-# Badge-type locations have no `original_item` in `data/locations.py` at all
-# (see `tests/test_locations.py::test_all_eight_johto_badges_present` et
-# al.) -- HGSS badges are save-data flags, not bag items, so there is
-# nothing to place/randomize there. They are instead built as locked AP
-# "event" locations (address=None) carrying a progression event item (see
-# `items.py`'s module docstring), matching the standard Archipelago pattern
-# for a non-item in-game milestone. `rules.py` reads the event item names
-# via `badge_event_item_name` to gate HM field-use on badge ownership.
-#
-# No randomization logic lives here (see task brief) -- just the id map and
-# the Location/Region wiring.
+# data/locations.py's own `id` field is NOT globally unique (it recycles
+# small per-table indices across different in-game tables), so this module
+# assigns its own stable id (sorted by location key), offset by
+# HEARTGOLD_LOCATION_ID_BASE. Badge locations have no real item to place
+# (HGSS badges are save-data flags, not bag items) -- they're locked AP
+# event locations instead (address=None), gated via badge_event_item_name.
 
 from __future__ import annotations
 
@@ -36,41 +19,20 @@ from data.locations import LOCATIONS
 from data.rules import BADGES
 from items import HeartGoldItem
 
-# See docs/architecture.md, Spike 4 (same convention as items.py's
-# HEARTGOLD_ITEM_ID_BASE, offset into a separate, non-overlapping range).
 HEARTGOLD_LOCATION_ID_BASE = 201_000_000
 
 BADGE_EVENT_ITEM_PREFIX = "Badge Obtained - "
 
-# `hidden_item` was excluded from the AP location pool entirely from
-# 2026-08-10 to 2026-08-11 (see docs/scope.md's former "Shelved" entry,
-# docs/architecture.md's M6 sections for the full story): the ROM
-# substitution that delivers a *local* item there was disabled after a
-# bulk (~225-location) test produced a boot-time white screen, root cause
-# unknown at the time. Root-caused and fixed 2026-08-11 (`rom/__init__.py`'s
-# `write_main_code_regions`, see its own docstring): recompressing the ARM9
-# static region to a size different from vanilla left `SDK_COMPRESSED_
-# STATIC_END` (a fixed-address boot-time decompression end-marker) stale,
-# corrupting the engine's own boot-time self-decompression. hidden_item is
-# reconnected as of this fix -- `SHELVED_LOCATION_TYPES` is empty for now,
-# kept as the established, reusable mechanism (same treatment starters
-# used first) for excluding a location type from the AP pool entirely,
-# should a future type ever need it.
+# Reusable mechanism for excluding a location type from the AP pool
+# entirely (a type whose ROM delivery is broken/unimplemented). Currently
+# empty.
 SHELVED_LOCATION_TYPES: set[str] = set()
 
-# Deterministic id assignment: sorted by location key. Badge-type locations
-# are excluded here -- they are events (address=None), which never get a
-# real Archipelago location id (see module docstring). Shelved types (see
-# SHELVED_LOCATION_TYPES above) are excluded the same way -- no AP location
-# at all for now.
 _ID_ASSIGNABLE_KEYS = sorted(
     key for key, data in LOCATIONS.items() if data["type"] != "badge" and data["type"] not in SHELVED_LOCATION_TYPES
 )
 _LOCATION_INDEX: dict[str, int] = {key: index for index, key in enumerate(_ID_ASSIGNABLE_KEYS)}
 
-# data/locations.py badge entries' own `id` field is the badge's index into
-# data/rules.py's BADGES table (see tests/test_locations.py witnesses,
-# e.g. violet_gym_badge id == 0 == BADGES["zephyr"]), not a location id.
 _BADGE_INDEX_TO_NAME: dict[int, str] = {index: name for name, index in BADGES.items()}
 
 

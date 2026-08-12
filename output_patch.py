@@ -1,35 +1,15 @@
 # output_patch.py
 #
-# Archipelago's real output entry point (task M5): `HeartGoldWorld.
-# generate_output()` (in `__init__.py`) builds a `HeartGoldProcedurePatch`
-# storing this player's own `generated_*` randomizer output (already
-# computed in `set_rules()`, see `__init__.py`'s own docstring) plus local
-# item substitutions as small JSON blobs inside a `.apheartgold` zip.
-# Archipelago's own `Patch.create_rom_file` later calls `.patch(target)`
-# -- on whichever machine actually has the ROM, not necessarily the one
-# that ran generation -- which is what actually opens the player's own
-# ROM and applies everything via `patch_gen.py`'s already-tested
-# `apply_*` functions.
+# HeartGoldWorld.generate_output() builds a HeartGoldProcedurePatch storing
+# this player's generated_* randomizer output plus local item substitutions
+# as JSON blobs inside a .apheartgold zip. Archipelago's own
+# Patch.create_rom_file later calls .patch(target) on whichever machine
+# actually has the ROM (not necessarily the one that ran generation),
+# applying everything via patch_gen.py's apply_* functions.
 #
-# Deliberately never embeds/transmits the vanilla ROM's own bytes:
-# `patch()` reads it fresh from this machine's local `settings.rom_file`
-# (see `HeartGoldSettings` in `__init__.py`) every time, the same
-# convention every other ROM-patching Archipelago world (pokemon_emerald,
-# `ressources/platinum_archipelago`, ...) follows -- only a *description*
-# of the changes (JSON diffs, not ROM bytes) ever goes in the patch file
-# itself.
-#
-# hidden_item substitution was excluded from `build_item_substitutions`
-# from 2026-08-10 to 2026-08-11: a live playtest of a ROM with ~225
-# hidden_item locations patched at once produced a white screen on boot
-# that was not reproduced with every *other* substitution type active. Root-
-# caused and fixed 2026-08-11 (see `rom/__init__.py`'s `write_main_code_
-# regions` docstring and docs/architecture.md's M6 sections): a stale ARM9
-# boot-time decompression end-marker, unrelated to hidden_item's data
-# itself, corrupted by *any* edit that changed the compressed ARM9's size --
-# hidden_item was simply the first thing in this project to ever recompress
-# that image with a real size-changing edit. "hidden_item" is back in
-# `_SUBSTITUTABLE_LOCATION_TYPES` below now that the actual cause is fixed.
+# Never embeds/transmits the vanilla ROM's own bytes -- patch() reads it
+# fresh from settings.rom_file every time, same convention every other
+# ROM-patching Archipelago world follows.
 
 from __future__ import annotations
 
@@ -48,41 +28,16 @@ from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom, RomError
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
 
-# See this module's own docstring for hidden_item's history here.
+# hidden_item history: see NOTES.md.
 _SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_item")
 
-# `archipelago.json` sits next to this module both in the dev checkout and
-# inside the packaged `.apworld` (see `.apignore`) -- read directly rather
-# than relying on `World.world_version`/`AutoWorldRegister` internals,
-# which are populated inconsistently between a loose `custom_worlds/`
-# folder and a zipimport-ed `.apworld` (see `worlds/__init__.py` in the
-# local Archipelago clone). This is what lets `.patch()` below tell a
-# player "you're patching with the wrong APWorld version" instead of a
-# raw `KeyError` on some field a newer/older `generate_output()` did or
-# didn't write -- suggested by community feedback (2026-08-11, citing a
-# real incident on another APWorld: a version that started writing a new
-# per-item `fanfare` field broke every older patch with an opaque
-# `KeyError: 'fanfare'`). Exact-match, not a minimum-version floor: this
-# project has no granular tracking yet of which JSON-shape changes are
-# actually backward-compatible across versions, so treating every version
-# difference as a hard mismatch is the conservative default -- revisit if
-# this proves too strict once there is real evidence of what is safe to
-# loosen.
-#
-# *** CORRECTION (2026-08-11, live-caught via a real generation failure)
-# ***: the paragraph above's original implementation used `pathlib.Path
-# (__file__).resolve().parent / "archipelago.json"` + `.read_text()` --
-# works for a loose dev checkout (this file physically exists on disk),
-# but a real player's `.apworld` is a *zipimport-ed* module: `__file__`
-# resolves to a path string like `<apworld>\pokemon_heartgold\output_
-# patch.py` that plain `pathlib`/`open()` cannot read, since there is no
-# real filesystem entry there (it is inside the zip). Every real install
-# hit `FileNotFoundError` on `generate_output` -- a hard, immediate
-# regression, not a corner case. `pkgutil.get_data(__name__, ...)` is the
-# standard fix: it goes through the module's own loader (whatever that
-# is -- plain file, zipimporter, ...), so it transparently reads a
-# resource file sitting next to this module regardless of how *this
-# module itself* was loaded.
+# Read via pkgutil.get_data (loader-agnostic: works for both a loose dev
+# checkout and a zipimport-ed .apworld) rather than a plain filesystem
+# path, and rather than relying on World.world_version/AutoWorldRegister
+# internals (populated inconsistently between custom_worlds/ and a real
+# .apworld). Lets .patch() tell a player "wrong APWorld version" instead
+# of a raw KeyError on a field a newer/older generate_output() did or
+# didn't write. Exact-match, not a minimum-version floor -- see NOTES.md.
 
 
 def _installed_world_version() -> str:
@@ -96,11 +51,9 @@ def _installed_world_version() -> str:
     manifest = json.loads(data.decode("utf-8"))
     return manifest["world_version"]
 
-# `options.GameVersion`'s int value -> the same version-name strings
-# `rom.HeartGoldRom.version` uses ("heartgold"/"soulsilver"), so the two can
-# be compared directly at patch time (see `.patch()`'s version-mismatch
-# check below, and the 2026-08-11 wild-encounter version-mismatch fix this
-# option was introduced for -- see data_gen/encounters.toml's header).
+# options.GameVersion's int value -> the same version-name strings
+# rom.HeartGoldRom.version uses, so the two can be compared directly at
+# patch time (see .patch()'s version-mismatch check below).
 _VERSION_NAME_BY_OPTION_VALUE = {
     GameVersion.option_heartgold: "heartgold",
     GameVersion.option_soulsilver: "soulsilver",
@@ -129,11 +82,8 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
             if name != self.manifest_path:
                 self.files[name] = opened_zipfile.read(name)
 
-        # Not present in a patch generated before this check existed
-        # (2026-08-11) -- proceed rather than blocking on metadata that
-        # simply didn't exist yet; every JSON-shape change made *after*
-        # this point will be caught the next time `world_version` is
-        # bumped and this file starts existing on both sides.
+        # Absent = a patch predating this check -- proceed rather than
+        # blocking on metadata that didn't exist yet.
         if "world_version.json" in self.files:
             generated_version = json.loads(self.files["world_version.json"])
             installed_version = _installed_world_version()
@@ -156,9 +106,8 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
             opened_zipfile.writestr(name, data)
 
     def patch(self, target: str) -> None:
-        """Called by Archipelago's own `Patch.create_rom_file` (not by
-        this project's own code directly -- see this module's own
-        docstring) on whichever machine has the player's real ROM."""
+        """Called by Archipelago's own Patch.create_rom_file on whichever
+        machine has the player's real ROM."""
         self.read()
         rom_path = get_settings().pokemon_heartgold_settings.rom_file
         rom = HeartGoldRom.open(rom_path)
@@ -192,23 +141,17 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
 
 def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
-    """`{location_key: item_key}` for every one of this player's own
+    """{location_key: item_key} for every one of this player's own
     ground_item/npc_gift/hm_tm/hidden_item locations.
 
-    A location whose placed item belongs to this *same* player gets its
-    real item key -- ROM-substituted so picking it up in-game hands over
-    exactly that item. A location whose item belongs to *another*
-    multiworld player gets `None` (JSON `null`) instead of being skipped:
-    this project has no way to deliver a real item to this player for a
-    check that isn't theirs (unlike a remote item *received* from another
-    player, which `client.py`'s runtime injection handles regardless of
-    where it was found), and leaving the vanilla item in the ROM would
-    silently hand the player a real, unearned item every time (found via a
-    real playtest, 2026-08-11 -- see docs/architecture.md). `None` tells
-    `patch_gen.apply_local_item_substitutions` to write the "empty"
-    substitution instead (see that function's own docstring): the location
-    still fires this project's flag-read check-detection correctly, but
-    physically grants nothing."""
+    A location whose item belongs to this same player gets its real item
+    key -- ROM-substituted so picking it up hands over exactly that item.
+    A location whose item belongs to another player gets None: leaving
+    the vanilla item in the ROM would silently hand the player a real,
+    unearned item (found via a real playtest, see NOTES.md).
+    `patch_gen.apply_local_item_substitutions` writes the "empty"
+    substitution for None -- the location still fires check-detection,
+    grants nothing physically."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
 

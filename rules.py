@@ -1,23 +1,8 @@
 # rules.py
 #
-# Applies the 67 directed HM/badge/item gating rules from the generated
-# `data/rules.py` (`EXIT_RULES`) onto the `Entrance` objects built by
-# `regions.create_regions`, using the badge event items placed by
-# `locations.create_locations`. Follows the same overall shape as
-# `ressources/platinum_archipelago/rules.py` (read-only reference, not
-# copied), simplified: this project has no HM-compatibility/species logic
-# yet (out of this task's scope).
-#
-# `set_rule` below is a deliberately local, one-line re-implementation of
-# `worlds.generic.Rules.set_rule` (`spot.access_rule = rule`), not an import
-# of it: importing the `worlds` package triggers Archipelago's full
-# world-plugin autoloading (see `worlds/__init__.py` in the local
-# Archipelago clone), which is far too heavy a dependency for this
-# standalone module to pull in before this project has its own registered
-# `__init__.py`/World class.
-#
-# No randomization logic lives here (see task brief) -- just wiring the
-# already-generated rules onto the already-built graph.
+# Applies data/rules.py's EXIT_RULES onto the Entrance objects built by
+# regions.create_regions. set_rule is a local re-implementation of
+# worlds.generic.Rules.set_rule to avoid importing the worlds package here.
 
 from __future__ import annotations
 
@@ -49,15 +34,7 @@ def _make_access_rule(
 
 
 def set_rules(player: int, multiworld: MultiWorld, regions: dict[str, Region]) -> None:
-    """Apply every `data/rules.py` `EXIT_RULES` entry to its matching
-    `Entrance` (named `f"{src} -> {dest}"` by `regions.create_regions`).
-    Both `src` and `dest` are guaranteed to exist in `regions` for every
-    `EXIT_RULES` entry (see `tests/test_rules.py::
-    test_exit_rule_regions_are_real_exits` at the `data/` generation layer)
-    -- `regions` is still checked defensively here so a future, smaller
-    region subset (e.g. an options-gated variant) degrades gracefully
-    instead of raising.
-    """
+    """Apply every EXIT_RULES entry to its matching Entrance."""
     for (src, dest), requirement in EXIT_RULES.items():
         if src not in regions or dest not in regions:
             continue

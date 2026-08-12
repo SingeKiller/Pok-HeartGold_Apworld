@@ -1,53 +1,16 @@
 # options.py
 #
-# Archipelago option definitions for the HeartGold & SoulSilver world (v1
-# scope, see docs/scope.md): wild-encounter/trainer/evolution
-# randomization toggles, a configurable victory condition, and a v1
-# stretch goal (Trainersanity), off by default. v2 Phase 1 (2026-08-11, see
-# docs/scope.md's "Nuzlocke mode" section) adds two Nuzlocke aids
-# (`DisableOhkoMoves`/`DisableTrappingAbilities`, deterministic data-table
-# toggles applied by `species.py`/`patch_gen.py`, not real randomizers). A
-# QoL pair (`FastTextSpeed`/`SkipBattleAnimations`, applied to save data by
-# `client.py`) was tried the same day but pulled after live BizHawk testing
-# showed neither option actually took effect in-game -- see `client.py`'s
-# own docstring and docs/scope.md's now-removed "QoL options" section for
-# the post-mortem; the underlying save-data bitfield write itself was never
-# independently verified against a live session before shipping it as an
-# option. Dexsanity was removed 2026-08-11 (see docs/scope.md): it was
-# never wired up, and a real
-# implementation was found to be infeasible at full scope (most species
-# unreachable from any single seed -- a genuine multiworld-integrity risk,
-# not just an inconvenience) without a scope-reducing redesign not yet
-# done. Starters is
-# shelved for a later resume (task M4.5 -- see docs/architecture.md's "M4.5
-# continued" sections: the vanilla species assignment couldn't be located
-# in the ROM after extensive live/static investigation), so no
-# `RandomizeStarters` option is exposed here; `species.py`'s own
-# `randomize_starters` computation stays in place, tested, ready to be
-# reconnected once/if a patch target is found. Follows the
-# `Options.py` API of the local Archipelago clone (`Toggle`/`Choice`/
-# `Range`/`PerGameCommonOptions`/`OptionGroup`) the same way
-# `ressources/platinum_archipelago/options.py` does (read-only reference,
-# not copied) -- simplified to only the options this project's v1 scope
-# actually needs; richer per-category whitelist/blacklist/logic-method
-# options (as in the reference) are left for later tasks once the
-# corresponding randomization logic itself is implemented (out of this
-# task's scope, see task brief).
+# Archipelago option definitions for the HeartGold & SoulSilver world.
+# Every class docstring below is player-facing (shown in the generated
+# YAML template and the WebHost options page) -- do not trim those.
 #
-# Deliberately imports only from `Options` (the local Archipelago clone's
-# option framework module), never from `worlds.*`: importing the `worlds`
-# package triggers Archipelago's full world-plugin autoloading (see
-# `worlds/__init__.py` in the local Archipelago clone), which is far too
-# heavy a dependency to pull in before this project has its own registered
-# `__init__.py`/World class -- the same reasoning `rules.py` documents for
-# avoiding `worlds.generic.Rules`. `Options.py` itself only imports
-# `Utils`/`schema`/`typing_extensions` at module scope (its `worlds.AutoWorld`
-# import is `TYPE_CHECKING`-only), so importing it does not trigger the
-# world-plugin autoload either.
+# No RandomizeStarters option: starters is shelved (species.py's own
+# randomize_starters computation stays in place, tested, unconnected).
+# No dexsanity: removed, infeasible at full scope (see docs/scope.md).
 #
-# No randomization logic lives here -- just the option definitions
-# themselves; which randomizer/`data_gen` code actually reads them is a
-# separate, later concern.
+# Imports only from Options, never worlds.*, to avoid triggering
+# Archipelago's full world-plugin autoload before this project's own
+# World class is registered.
 
 from __future__ import annotations
 

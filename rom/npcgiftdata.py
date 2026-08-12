@@ -1,93 +1,16 @@
 # rom/npcgiftdata.py
 #
-# Read/write access to `npc_gift` (and the NPC-delivered half of `hm_tm`)
-# item grants: unlike `ground_item`'s single shared script bank
-# (rom/eventscriptdata.py's `scr_seq_0141.bin`), each of these is a literal
-# operand embedded directly in that NPC's *own* per-map script file --
-# there is no single shared block layout to derive an offset formula from,
-# so this module hardcodes one small `(narc sub-file index, byte offset)`
-# table instead (`TABLE` below), derived once and cross-checked against the
-# real ROM (see this module's own docstring section below for exactly how),
-# the same "derive once from the decomp + real ROM, hardcode the result"
-# convention rom/eventscriptdata.py's `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID`
-# already uses.
+# Read/write access to npc_gift (and the NPC-delivered half of hm_tm)
+# item grants: unlike ground_item's single shared script bank, each of
+# these is a literal operand embedded directly in that NPC's own per-map
+# script file -- no shared block layout to derive an offset formula from,
+# so this module hardcodes one small (narc sub-file index, byte offset)
+# table instead (TABLE below), derived once and cross-checked against the
+# real ROM -- see NOTES.md for the full derivation methodology and the
+# GiveItemNoCheck/SetVar byte shape this relies on.
 #
-# NitroFS path: same NARC as rom/eventscriptdata.py, `scr_seq.narc` ->
-# `a/0/1/2` (see that module's docstring for the filesystem.mk mapping this
-# was already verified against). `TABLE`'s indices are sub-file indices into
-# that same NARC.
-#
-# -- How a vanilla npc_gift grant actually works (decomp investigation) --
-#
-# `asm/macros/script.inc`'s `GiveItemNoCheck item, quantity` macro (used by
-# most npc_gift scripts, e.g.
-# `files/fielddata/script/scr_seq/scr_seq_0228_R30R0101.s`'s
-# `GiveItemNoCheck ITEM_APRICORN_BOX, 1`) expands, via the shared `ItemVars`
-# macro, to two `SetVar` script commands (opcode 41, 6 bytes each: `.short
-# 41`, `.short <var id>`, `.short <value>` -- same shape
-# rom/eventscriptdata.py's docstring already documents for itemball blocks)
-# followed by `CallStd std_give_item_verbose`:
-#
-#   SetVar VAR_SPECIAL_x8004, <item id>   -- the literal this module patches
-#   SetVar VAR_SPECIAL_x8005, <quantity>
-#   CallStd std_give_item_verbose         -- 4 bytes: .short 20, .short 2033
-#
-# (`ItemVars` only emits a literal `SetVar` when the operand is a compile-
-# time constant, i.e. `\item < 0x4000` -- true for every real item id, which
-# tops out at 536, so this holds for every location this module covers.)
-# `GoToIfNoItemSpace`/`GoToIfNoItemSpace2` (used ahead of some grants, as an
-# inventory-space precheck) expand through the very same `ItemVars` macro,
-# so the same literal-`SetVar`-pair shape also shows up at a script's
-# precheck site whenever one is used right before a bare `CallStd
-# std_give_item_verbose` reuses those same vars instead of resetting them
-# (confirmed against several locations, e.g.
-# `scr_seq_0928_T27R0501.s`'s two `GoToIfNoItemSpace ITEM_HM03, 1, ...` /
-# `CallStd std_give_item_verbose` pairs) -- this module's own derivation
-# (below) does not need to tell the two shapes apart: both are a real,
-# executable item-id operand feeding the same grant, so both get patched.
-#
-# The item-id operand this module patches is therefore the 2-byte
-# unsigned-16-bit value at `SetVar`'s `+4` byte (2 bytes past the opcode+var
-# id) -- `ITEM_ID_OPERAND_OFFSET` below, same offset convention as
-# rom/eventscriptdata.py's own `ITEM_ID_OPERAND_OFFSET` (not reused
-# directly to keep this module import-independent of that one).
-#
-# -- `TABLE` derivation methodology --
-#
-# For every `npc_gift` location, plus every `hm_tm` location whose flag id
-# is *not* in rom/eventscriptdata.py's `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID`
-# (i.e. every `hm_tm` location that is *not* a plain item ball and so isn't
-# already covered by `write_ground_item_substitution` -- see that module's
-# own docstring; 36 of the 73 `hm_tm` locations fall in this NPC-delivered
-# half):
-#
-#   1. Resolve the location's `data_gen/regions.toml` region to that
-#      region's `map_code` (e.g. `route_30_apricorn_house` -> `R30R0101`).
-#   2. Glob the decomp's `files/fielddata/script/scr_seq/` directory for
-#      `scr_seq_<index>_<map_code>*.s` -- the per-map script source(s) for
-#      that map (same "the numeric prefix is the compiled NARC sub-file
-#      index" convention rom/eventscriptdata.py's docstring already
-#      verified for `scr_seq_0141.bin`).
-#   3. For each candidate sub-file index, read its *compiled* bytes from
-#      the real ROM's `scr_seq.narc` and scan for the literal byte pattern
-#      `SetVar VAR_SPECIAL_x8004, <original_item's numeric id>` (6 bytes)
-#      immediately followed by another `SetVar VAR_SPECIAL_x8005, <...>`
-#      (6 more bytes) -- i.e. the real, compiled operand shape above, not
-#      just something that looks right in the decomp source.
-#   4. Every such match is kept (not just the first): a handful of
-#      locations have two independent, both-reachable script entry points
-#      that each separately grant the same item under the same flag (two
-#      NPC dialogue variants -- confirmed by reading the surrounding decomp
-#      source for every one of these, see the 5 multi-entry `TABLE` values
-#      below), so patching only one would leave the other vanilla.
-#
-# This resolved all 91 locations in scope unambiguously (every candidate
-# match's immediately-following `SetVar VAR_SPECIAL_x8005` check held, and
-# for locations with more than one match, reading the decomp source around
-# each confirmed a real, independent grant site rather than a coincidental
-# byte collision) -- no location in this task's scope was left unresolved,
-# so `TABLE` has no "known gap" the way
-# `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID` has its block 58.
+# NitroFS path: same NARC as rom/eventscriptdata.py, scr_seq.narc ->
+# a/0/1/2. TABLE's indices are sub-file indices into that same NARC.
 
 from __future__ import annotations
 
@@ -202,18 +125,16 @@ class NpcGiftDataError(Exception):
 
 
 def read_npc_gift_item_id(rom: HeartGoldRom, narc_index: int, offset: int) -> int:
-    """Read the native item id currently sitting at a given `(scr_seq.narc
-    sub-file index, byte offset)` pair -- see `TABLE`."""
+    """Read the native item id currently sitting at a given
+    (scr_seq.narc sub-file index, byte offset) pair -- see TABLE."""
     narc = rom.read_narc(NITROFS_PATH)
     blob = narc.files[narc_index]
     return struct.unpack_from("<H", blob, offset)[0]
 
 
 def write_npc_gift_item_id(rom: HeartGoldRom, narc_index: int, offset: int, item_id: int) -> None:
-    """Overwrite a single `SetVar VAR_SPECIAL_x8004, <item id>` operand in
-    place (see `TABLE`/this module's docstring), leaving every other byte
-    -- including that same sub-file's own quantity operand, and every other
-    sub-file -- byte-identical."""
+    """Overwrite a single SetVar VAR_SPECIAL_x8004 operand in place,
+    leaving every other byte byte-identical."""
     if not (0 <= item_id <= 0xFFFF):
         raise ValueError(
             f"item id {item_id} does not fit this script's SetVar operand "
@@ -227,11 +148,9 @@ def write_npc_gift_item_id(rom: HeartGoldRom, narc_index: int, offset: int, item
 
 
 def _resolve_npc_gift_sites(location_key: str) -> list[tuple[int, int]]:
-    """Shared validation for `write_npc_gift_substitution`/
-    `write_npc_gift_empty`: resolve `location_key` (a `data/locations.py`
-    key) to its `TABLE` script sites, or raise. Lazily imports
-    `data.locations` (same reason as rom/eventscriptdata.py's own
-    `_resolve_ground_item_block_index`)."""
+    """Shared validation for write_npc_gift_substitution/
+    write_npc_gift_empty: resolve location_key to its TABLE script sites,
+    or raise."""
     from data.locations import LOCATIONS
 
     location = LOCATIONS.get(location_key)
@@ -240,28 +159,19 @@ def _resolve_npc_gift_sites(location_key: str) -> list[tuple[int, int]]:
     if location["type"] not in ("npc_gift", "hm_tm"):
         raise NpcGiftDataError(
             f"location {location_key!r} is type {location['type']!r}, not "
-            "'npc_gift'/'hm_tm' -- this module only patches NPC-delivered "
-            "item grants (ground_item/hidden_item/badge are out of scope, "
-            "see this task's own brief; itemball-shaped hm_tm locations "
-            "belong to rom/eventscriptdata.py's write_ground_item_substitution)."
+            "'npc_gift'/'hm_tm' -- itemball-shaped hm_tm locations belong "
+            "to rom/eventscriptdata.py's write_ground_item_substitution."
         )
     sites = TABLE.get(location_key)
     if sites is None:
-        raise NpcGiftDataError(
-            f"location {location_key!r} has no known npc_gift script site "
-            "-- see this module's docstring for how TABLE was derived (it "
-            "covers every npc_gift/NPC-delivered hm_tm location as of this "
-            "task, so this should not happen for a real location key)."
-        )
+        raise NpcGiftDataError(f"location {location_key!r} has no known npc_gift script site.")
     return sites
 
 
 def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
-    """Patch every script site that grants a `npc_gift` location (or the
-    NPC-delivered half of a `hm_tm` location -- see this module's
-    docstring) so it grants a different item instead of its vanilla
-    `original_item`. Lazily imports `data.items` (same reason as
-    rom/eventscriptdata.py's own `write_ground_item_substitution`)."""
+    """Patch every script site that grants a npc_gift location (or the
+    NPC-delivered half of an hm_tm location) so it grants a different
+    item instead of its vanilla original_item."""
     from data.items import ITEMS
 
     sites = _resolve_npc_gift_sites(location_key)
@@ -274,14 +184,11 @@ def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: 
 
 
 def write_npc_gift_empty(rom: HeartGoldRom, location_key: str) -> None:
-    """Patch every script site that grants `location_key` so it grants item
-    id 0 instead of its vanilla `original_item` -- used for locations whose
-    placed item belongs to *another* multiworld player (see
-    `output_patch.build_item_substitutions`'s own docstring): live-verified
-    (2026-08-11, see docs/architecture.md) that an item-id-0 npc_gift shows
-    a garbled "Obtained ???!" message but adds nothing real to the Bag
-    (confirmed empty afterwards), same outcome as the itemball case in
-    `rom/eventscriptdata.write_ground_item_empty`."""
+    """Patch every script site that grants location_key so it grants item
+    id 0 instead of its vanilla original_item -- for locations whose
+    placed item belongs to another multiworld player. Live-verified: an
+    item-id-0 npc_gift shows a garbled "Obtained ???!" message but adds
+    nothing real to the Bag, same outcome as the itemball case."""
     sites = _resolve_npc_gift_sites(location_key)
     for narc_index, offset in sites:
         write_npc_gift_item_id(rom, narc_index, offset, 0)

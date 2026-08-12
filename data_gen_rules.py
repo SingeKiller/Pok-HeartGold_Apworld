@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
 """data_gen_rules.py
 
-Root-level (not `data_gen_templates/`) helpers for composing/validating HGSS
-region-exit access rules (task C6, see `data_gen/rules.toml`). Kept
-separate from `data_gen_templates/rules.py` for the same reason
-`ressources/platinum_archipelago` keeps its own `data_gen_rules.py` at the
-package root (read-only reference, not copied): rule-composition/validation
-logic is reusable beyond the one-shot `data_gen.py` -> `data/` generation
-pass -- `tests/test_rules.py` needs the exact same normalization/validation
-to check the generated graph without reimplementing it, and a future
-`rules.py` (world logic, once this project reaches that stage) will need
-the same `Requirement` shape again. `data_gen_templates/*.py` modules, by
-contrast, are purely "toml -> data/*.py string" renderers with no reuse
-value outside `data_gen.py` itself, so they stay separate from this file.
-
-This module is deliberately generic: it takes `hm_badges`/`hm_items` as
-plain dict arguments rather than hardcoding HGSS-specific move/badge names,
-so all the actual game data stays in `data_gen/rules.toml` (this project's
-convention throughout `data_gen/` -- see e.g. `data_gen/moves.toml`'s
-`[tm_hm]` table), not duplicated into Python.
+Helpers for composing/validating HGSS region-exit access rules from
+data_gen/rules.toml. Kept separate from data_gen_templates/rules.py since
+this logic is reused by tests/test_rules.py, not just the one-shot
+data_gen.py generation pass. Takes hm_badges/hm_items as plain dict
+arguments rather than hardcoding HGSS-specific names -- all game data
+stays in data_gen/rules.toml.
 """
 
 from __future__ import annotations

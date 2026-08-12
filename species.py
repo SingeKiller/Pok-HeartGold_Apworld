@@ -1,59 +1,22 @@
 # species.py
 #
-# Randomization logic for HeartGold & SoulSilver (task C11, extended by
-# task M4.5): starters, wild encounters (data/encounters.py), trainer
-# parties (data/trainers.py), evolution targets, base stats
-# (data/species.py) and move power/accuracy/PP (data/moves.py). This
-# module only *transforms* the
-# generated `data/` tables into new, equally-shaped ones -- it never mutates
-# `data/*.py` itself (generated, gitignored, read-only from here) and it
-# never builds any Archipelago `Region`/`Location`/`Item` object (see
-# `regions.py`/`locations.py`/`items.py` for that): a later task wires these
-# functions' output into the actual world (event items on encounter/trainer
-# locations, etc.), same division of labour `rules.py`'s own docstring
-# documents for itself.
+# Randomization logic: starters, wild encounters, trainer parties,
+# evolution targets, base stats, and move power/accuracy/PP/type. Pure
+# transforms of the generated data/*.py tables into new, equally-shaped
+# ones -- never mutates data/*.py itself, never builds any Archipelago
+# Region/Location/Item object (see regions.py/locations.py/items.py).
 #
 # Determinism: every function that makes a random choice takes an explicit
-# `rng: random.Random` parameter and only ever draws from it (`rng.choice`/
-# `rng.sample`/`rng.shuffle`) -- never from the `random` module's own
-# top-level functions. Once this project registers its `World` subclass (no
-# `__init__.py` exists yet, see docs/architecture.md), the caller is expected
-# to pass `world.random` (the `random.Random` instance Archipelago seeds
-# per-multiworld from the player's seed) here. Two calls with two
-# `random.Random` instances seeded identically, fed the same input data, are
-# guaranteed to produce byte-for-byte identical output, because every
-# randomized structure is walked in a fixed, deterministic order (plain
-# dict/tuple iteration order, itself fixed by `data/*.py`'s own generation
-# order -- see tests/test_randomization.py::test_wild_encounters_are_
-# deterministic and friends).
+# rng: random.Random parameter, never draws from the `random` module's own
+# top-level functions -- the caller passes world.random. mode/enabled
+# parameters use plain ints/bools matching options.py's own option values
+# (checked by tests/test_randomization.py::
+# test_mode_constants_match_options_values) rather than importing options.py
+# directly, so this module stays testable without a local Archipelago
+# checkout.
 #
-# `options.py` (created in parallel by another agent, see task brief) now
-# exists and defines `RandomizeWildPokemon`/`RandomizeTrainers`/
-# `RandomizeEvolutions`/`RandomizeBaseStats`/`RandomizeMoves` (no
-# `RandomizeStarters` -- starters is shelved, see `options.py`'s own
-# docstring; `randomize_starters` below stays as tested, unconnected
-# computation). This module deliberately does NOT import it: `options.py` itself imports `Options` from the local
-# Archipelago clone (see its own docstring), and this module has no other
-# reason to need that dependency (unlike `rules.py`, which genuinely needs
-# `BaseClasses.Entrance`/`CollectionState` types) -- keeping it out lets
-# tests/test_randomization.py exercise the actual, most important property
-# here (determinism) without needing a local Archipelago checkout at all.
-# Instead, the `mode`/`enabled` parameters below use plain ints/bools whose
-# values are chosen to exactly match `options.py`'s own option values
-# (`RandomizeWildPokemon.option_vanilla == WILD_VANILLA == 0`, etc., checked
-# by tests/test_randomization.py::test_mode_constants_match_options_values
-# whenever a local Archipelago checkout is available) -- a future `__init__.py`
-# only needs to call e.g. `randomize_wild_encounters(world.random,
-# world.options.randomize_wild_pokemon.value)` directly, no translation layer.
-#
-# v2 Phase 1 (2026-08-11) adds two Nuzlocke aids at the bottom of this file
-# (`disable_ohko_moves`/`neutralize_trapping_abilities`, see options.py's
-# `DisableOhkoMoves`/`DisableTrappingAbilities`): unlike every function
-# above, neither takes an `rng` parameter -- they are deterministic toggles
-# (a fixed data-table edit when enabled), not randomizers, so they are not
-# part of this module's `rng`-driven determinism contract in the same sense
-# (though they are of course still pure functions of their input, see their
-# own docstrings).
+# Nuzlocke aids (disable_ohko_moves/neutralize_trapping_abilities) are
+# deterministic toggles, not randomizers -- neither takes an rng parameter.
 
 from __future__ import annotations
 
@@ -89,13 +52,6 @@ MOVES_OFF = 0
 MOVES_SHUFFLE = 1
 MOVES_FULL_RANDOM = 2
 
-# This order is only the sequence `randomize_base_stats` below consumes
-# `rng` in (part of this module's own determinism contract) -- it is
-# deliberately independent of `rom/speciesdata.py`'s
-# `_BASE_STAT_FIELD_OFFSETS`, whose order is dictated by the real ROM
-# struct layout instead. Both are correct for their own purpose; do not
-# "align" one to the other, that would just perturb existing seeds' RNG
-# draw order for no behavior change.
 _BASE_STAT_FIELDS = ("hp", "atk", "def", "spatk", "spdef", "speed")
 _MOVE_COMBAT_FIELDS = ("power", "accuracy", "pp")
 
@@ -108,13 +64,9 @@ _HEADBUTT_TIERS = ("common", "rare", "secret")
 
 
 def real_species_pool(species: dict = SPECIES) -> tuple[str, ...]:
-    """The 493 `data/species.py` entries with a real national Pokedex number
-    -- excludes the 12 HGSS alternate forms (Deoxys x3, Wormadam x2, Giratina
-    Origin, Shaymin Sky, Rotom x5, see tests/test_species.py), which are not
-    sensible standalone starters/wild-encounter/trainer-party/evolution-
-    target picks on their own. Sorted for a deterministic, RNG-independent
-    base ordering (`rng.sample`/`rng.shuffle` below only ever consume this
-    fixed sequence)."""
+    """The species with a real national Pokedex number -- excludes HGSS
+    alternate forms (Deoxys/Wormadam/Giratina Origin/Shaymin Sky/Rotom).
+    Sorted for a deterministic base ordering."""
     return tuple(sorted(key for key, data in species.items() if data["national_dex"] is not None))
 
 
@@ -122,11 +74,8 @@ def real_species_pool(species: dict = SPECIES) -> tuple[str, ...]:
 
 
 def randomize_starters(rng: Random, enabled: bool, species: dict = SPECIES) -> tuple[str, str, str]:
-    """Pick the 3 starter species (also used for the rival's own starter,
-    see data/trainers.py's `rival_silver_2`/`rival_silver_3`). `enabled=False`
-    returns `VANILLA_STARTERS` unchanged; otherwise 3 distinct species are
-    drawn from `real_species_pool(species)` via `rng.sample` (deterministic
-    given `rng`'s seed, see this module's docstring)."""
+    """Pick the 3 starter species (also used for the rival's own starter).
+    `enabled=False` returns `VANILLA_STARTERS` unchanged."""
     if not enabled:
         return VANILLA_STARTERS
     pool = real_species_pool(species)
@@ -137,16 +86,10 @@ def randomize_starters(rng: Random, enabled: bool, species: dict = SPECIES) -> t
 
 
 def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str]]]:
-    """Deep-copy one `data/encounters.py` `ENCOUNTERS[...]` zone into plain
-    mutable dicts/lists, and return it together with a flat list of
-    `(container, key)` pairs -- one per species leaf -- in a fixed traversal
-    order: `land`'s time-of-day slots (morn/day/nite each counted
-    separately, since each is independently visible), then `surf`, then
-    `rock_smash`, then each `fishing` rod, then `headbutt`'s tiers if
-    present. `container[key]` still holds the *original* species at this
-    point; callers overwrite it in place, in this same order, then convert
-    the returned zone's inner lists back to tuples (`_finalize_zone`) to
-    match `data/encounters.py`'s own shape."""
+    """Deep-copy one ENCOUNTERS zone into plain mutable dicts/lists, and
+    return it together with a flat list of (container, key) pairs -- one
+    per species leaf -- in a fixed traversal order. Callers overwrite in
+    place, then `_finalize_zone` converts back to tuples."""
     new_zone: dict = {"map_code": zone["map_code"]}
     refs: list[tuple[dict, str]] = []
 
@@ -188,8 +131,8 @@ def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str]]]:
 
 
 def _finalize_zone(zone: dict) -> dict:
-    """Convert a `_zone_species_refs`-built zone's inner lists back into
-    tuples, matching `data/encounters.py`'s own shape."""
+    """Convert a _zone_species_refs-built zone's inner lists back into
+    tuples."""
     finalized: dict = {
         "map_code": zone["map_code"],
         "land": {"rate": zone["land"]["rate"], "slots": tuple(zone["land"]["slots"])},
@@ -252,18 +195,9 @@ def randomize_wild_encounters(
 
 
 def randomize_trainer_parties(rng: Random, enabled: bool, trainers: dict = TRAINERS, species: dict = SPECIES) -> dict:
-    """Randomize every trainer party's species (data/trainers.py). Levels,
-    movesets, held items, ability overrides and everything else about each
-    party slot are left exactly as-is for v1 -- only `species` is replaced
-    (see the task brief: "niveaux/movesets peuvent rester vanilla pour v1
-    si le temps manque"; kept vanilla here as a deliberate, documented v1
-    choice, not a time-shortage accident). `enabled=False` returns
-    `trainers` unchanged.
-
-    Each party slot independently gets a fresh `rng.choice` from
-    `real_species_pool(species)`, walking `trainers` in its own dict order
-    and each party in its own tuple order, so the result is fully determined
-    by `rng`'s seed."""
+    """Randomize every trainer party's species. Levels, movesets, held
+    items, and abilities are left vanilla for v1 -- only `species` is
+    replaced. `enabled=False` returns `trainers` unchanged."""
     if not enabled:
         return trainers
 
@@ -280,10 +214,9 @@ _MAX_LEVEL = 100  # HGSS's own level cap
 
 
 def scale_trainer_levels(scale_percent: int, trainers: dict = TRAINERS) -> dict:
-    """Scale every trainer party mon's `level` by `scale_percent` (100 =
-    vanilla, a difficulty knob the player picks once in their YAML --
-    not randomized). Clamped to HGSS's own 1-100 level range after
-    scaling. `scale_percent=100` returns `trainers` unchanged."""
+    """Scale every trainer party mon's level by scale_percent (100 =
+    vanilla). Clamped to HGSS's 1-100 range. `scale_percent=100` returns
+    `trainers` unchanged."""
     if scale_percent == 100:
         return trainers
 
@@ -301,12 +234,9 @@ def scale_trainer_levels(scale_percent: int, trainers: dict = TRAINERS) -> dict:
 
 
 def _all_method_param_pairs(species: dict) -> tuple[tuple[str, object], ...]:
-    """Every distinct `(method, param)` pair actually used by some vanilla
-    evolution in `species` (e.g. `("level", 16)`, `("stone", "fire_stone")`,
-    `("trade_item", "kings_rock")`, `("friendship_day", 0)`...). Used by
-    `randomize_evolutions`'s `EVOLUTIONS_ANY_METHOD` mode to pick a
-    method+param combination that is always structurally valid (a real
-    param for that method), rather than inventing an untested pairing."""
+    """Every distinct (method, param) pair actually used by some vanilla
+    evolution -- used by EVOLUTIONS_ANY_METHOD to pick a combination that's
+    always structurally valid."""
     pairs = {(evo["method"], evo["param"]) for data in species.values() for evo in data["evolutions"]}
     return tuple(sorted(pairs, key=lambda pair: (pair[0], str(pair[1]))))
 
@@ -315,22 +245,14 @@ def randomize_evolutions(rng: Random, mode: int, species: dict = SPECIES) -> dic
     """Randomize evolution targets (data/species.py `evolutions`).
 
     - `EVOLUTIONS_OFF`: returns `species` unchanged.
-    - `EVOLUTIONS_KEEP_METHOD`: each evolution edge keeps its original
-      `method`/`param` (a level-up evolution stays a level-up evolution at
-      the same level, a stone evolution still needs the same stone, ...) but
-      gets a freshly-chosen `target`.
-    - `EVOLUTIONS_ANY_METHOD`: both `target` and `method`/`param` are
-      randomized -- the `(method, param)` pair is drawn from
-      `_all_method_param_pairs(species)` so it is always a real, structurally
-      valid combination (see that helper's docstring), just reassigned to a
-      different evolution edge.
+    - `EVOLUTIONS_KEEP_METHOD`: each edge keeps its original method/param,
+      gets a freshly-chosen target.
+    - `EVOLUTIONS_ANY_METHOD`: both target and method/param are randomized,
+      drawn from `_all_method_param_pairs`.
 
-    A species never evolves into itself, and (best-effort, not guaranteed
-    globally -- see module docstring) a species' own sibling evolution
-    branches (e.g. Eevee's 7) don't get duplicated into the same target
-    twice. Walks `species` in its own dict order and each species'
-    `evolutions` tuple in its own order, so the result is fully determined
-    by `rng`'s seed."""
+    A species never evolves into itself; best-effort (not globally
+    guaranteed) avoidance of duplicate targets within one species' own
+    evolution branches."""
     if mode == EVOLUTIONS_OFF:
         return species
 
@@ -362,27 +284,18 @@ def randomize_evolutions(rng: Random, mode: int, species: dict = SPECIES) -> dic
 # --- 5. Base stats -----------------------------------------------------------
 
 
-# `BASE_STATS_FULL_RANDOM`'s redistribution (added after live playtest
-# feedback, see this function's own docstring): each stat must land in a
-# real, ROM-representable range. `rom/speciesdata.py`'s `_BASE_STAT_FIELD_
-# OFFSETS` writes each stat as a single unsigned byte (0-255) -- 255 is
-# therefore the hard ceiling here regardless of how high a species' own
-# BST happens to be (Arceus's 720 spread evenly would only need ~120 per
-# stat, so this only ever binds for a deliberately lopsided draw). 1 is the
-# floor: a real 0 in any stat (especially HP) is degenerate/unplayable,
-# not just "low".
+# 255 is the ROM's hard ceiling (each stat is a single unsigned byte,
+# rom/speciesdata.py); 1 is the floor (a real 0 in any stat is degenerate).
 _BASE_STAT_MIN = 1
 _BASE_STAT_MAX = 255
 
 
 def _redistribute_preserving_total(rng: Random, total: int, count: int) -> list[int]:
-    """`count` positive integers, each in `[_BASE_STAT_MIN, _BASE_STAT_MAX]`,
-    summing to exactly `total` -- a uniformly random composition (the
-    "stars and bars" construction: reserve the minimum for every part
-    up front, then cut the remaining budget at `count - 1` random points).
-    Order is not meaningful (caller shuffles); retries (rejection
-    sampling) if an unlucky cut pushes any single part over the max --
-    astronomically rare for real base-stat totals (even a legendary's
+    """`count` positive integers in [_BASE_STAT_MIN, _BASE_STAT_MAX] summing
+    to exactly `total` -- a uniformly random composition ("stars and bars").
+    Order is not meaningful (caller shuffles); retries (rejection sampling)
+    if an unlucky cut pushes any part over the max -- astronomically rare
+    for real base-stat totals (even a legendary's
     ~680-720 BST across 6 stats averages ~120), but not impossible, so
     this is a real loop, not a formality."""
     reserve = _BASE_STAT_MIN * count
@@ -402,35 +315,18 @@ def _redistribute_preserving_total(rng: Random, total: int, count: int) -> list[
         if all(p <= _BASE_STAT_MAX for p in parts):
             return parts
 
-    # Reachable only for a pathologically lopsided total across very few
-    # stats (not the case for this project's 6-stat calls) -- clamp and
-    # accept a slightly-off total rather than loop forever.
     return [min(p, _BASE_STAT_MAX) for p in parts]
 
 
 def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dict:
-    """Randomize each species' `base_stats` dict (`hp`/`atk`/`def`/`spatk`/
-    `spdef`/`speed`). Growth rate and every other species field are never
-    touched by this function -- it only ever replaces `base_stats`.
+    """Randomize each species' base_stats dict. Growth rate and every
+    other species field are untouched.
 
     - `BASE_STATS_OFF`: returns `species` unchanged.
-    - `BASE_STATS_SHUFFLE`: each stat column is shuffled independently
-      across every species (`rng.shuffle`) -- the same multiset of values
-      in that column still appears somewhere, just reassigned.
-    - `BASE_STATS_FULL_RANDOM`: each species' own base stat *total* (the
-      sum of all 6 stats, i.e. its BST) is preserved exactly -- only how
-      that total is split across the 6 stats is randomized (`rng`-driven
-      composition, see `_redistribute_preserving_total`). Chosen after
-      live playtest feedback: independently randint-ing each stat (the
-      original behavior) could and did produce results disconnected from
-      a species' own power level (e.g. a lopsidedly weak or absurdly
-      strong-for-its-BST result) -- redistributing a real, preserved
-      total keeps every species roughly as strong overall as it started,
-      while still fully scrambling *which* stat that strength shows up
-      in.
-
-    Walks `species` in its own dict order, so the result is fully
-    determined by `rng`'s seed."""
+    - `BASE_STATS_SHUFFLE`: each stat column shuffled independently.
+    - `BASE_STATS_FULL_RANDOM`: each species' own BST (stat total) is
+      preserved, only its split across the 6 stats is randomized (see
+      NOTES.md for why)."""
     if mode == BASE_STATS_OFF:
         return species
 
@@ -457,19 +353,10 @@ def randomize_base_stats(rng: Random, mode: int, species: dict = SPECIES) -> dic
 
 
 def randomize_species_types(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
-    """Randomize each species' `types` tuple. `enabled=False` returns
-    `species` unchanged.
-
-    A species keeps its original *typing complexity* -- a single-type
-    species (`types` is a 1-tuple) gets one fresh random type; a dual-type
-    species (a 2-tuple) gets two fresh, *distinct* random types -- only
-    *which* type(s) is randomized, same "preserve structure, randomize
-    content" approach `randomize_base_stats`'s `BASE_STATS_FULL_RANDOM`
-    mode uses. Never draws "mystery" ("???", engine-special-cased, not a
-    genuine 18th type) -- same reasoning as `randomize_move_types`.
-
-    Each species independently gets a fresh draw, walking `species` in its
-    own dict order, so the result is fully determined by `rng`'s seed."""
+    """Randomize each species' `types` tuple, preserving typing complexity
+    (single-type stays single, dual-type stays dual with 2 distinct
+    types). Never draws "mystery" (engine-special-cased, not a real 18th
+    type). `enabled=False` returns `species` unchanged."""
     if not enabled:
         return species
 
@@ -486,43 +373,9 @@ def randomize_species_types(rng: Random, enabled: bool, species: dict = SPECIES)
 
 # --- 6. Move stats -----------------------------------------------------------
 #
-# `MOVES_FULL_RANDOM`'s power/accuracy/PP ranges below (added after live
-# playtest feedback -- the original independent-randint-per-field design
-# produced disconnected, un-fun results: e.g. a live-tested seed's Tackle
-# landing on power=9/accuracy=89/PP=1) are a deliberate design, not a
-# derived-from-the-ROM constant like this module's other tables:
-#
-# - PP: a multiple of 5 in [5, 40] -- every *vanilla* PP value already is
-#   a multiple of 5 (HGSS's own convention bar Struggle, which this
-#   randomizer never touches at all, see data/moves.py), so this keeps
-#   randomized PP looking like a real value a player would recognize.
-# - Power (physical/special moves only -- status moves keep their
-#   vanilla power, almost always 0, untouched: power is meaningless for
-#   a move that deals no direct damage): [40, 250] for an ordinary
-#   single-hit move. Multi-hit moves (`_MULTI_HIT_MOVES` below) get their
-#   power divided down by their average hit count instead of the raw
-#   [40, 250] roll, so a move that hits 2-5 times doesn't also hit
-#   2-5x as hard per hit as a single-hit move -- both land on
-#   comparable *total expected damage*.
-# - Accuracy (physical/special moves with a real, non-zero vanilla
-#   accuracy -- see the `accuracy == 0` sentinel note below): linear in
-#   the move's own (pre-multi-hit-division) power, from 100% at the
-#   lowest possible power (40) down to 40% at the highest (250), plus a
-#   little random jitter, then rounded to the nearest multiple of 5 (still
-#   clamped to [40, 100]) -- every *vanilla* HGSS accuracy value is
-#   already a multiple of 5, same reasoning as PP above. Status moves'
-#   own accuracy (when not the `0` sentinel) keeps the *previous* simple
-#   independent-randint-within-vanilla-range behavior (also rounded to a
-#   multiple of 5), since status moves have no power to derive it from.
+# MOVES_FULL_RANDOM's power/accuracy/PP ranges are a deliberate balance
+# design, not derived from the ROM -- see NOTES.md for the full rationale.
 
-# Average hit count for each of HGSS's known multi-hit moves (used only to
-# scale `MOVES_FULL_RANDOM`'s power draw down, see this section's own
-# docstring) -- fixed-count moves (Double Kick, Twineedle) use their exact
-# count; the rest use HGSS's own classic 2/3/4/5-hit probability weights
-# (37.5%/37.5%/12.5%/12.5%), whose expected value is exactly 3. Not derived
-# from a decomp data source (`data/moves.py` itself has no hit-count field,
-# see this section's own docstring) -- a hardcoded list of Gen IV's own
-# well-known multi-hit moves.
 _MULTI_HIT_MOVES: dict[str, float] = {
     "double_kick": 2.0,
     "twineedle": 2.0,
@@ -541,15 +394,9 @@ _MULTI_HIT_MOVES: dict[str, float] = {
     "arm_thrust": 3.0,
 }
 
-# A second sentinel, discovered while writing this section's own tests:
-# `power == 1` marks a move whose real damage is computed by special-case
-# battle-engine code, not a literal base-power multiplication (every OHKO
-# move; weight/HP/happiness/item-dependent moves like Low Kick/Flail/
-# Return/Fling; fixed/variable-formula moves like Seismic Toss/Counter/
-# Hidden Power/Psywave; ...). Exactly analogous to the `accuracy == 0`
-# "never misses" sentinel already documented above -- neither field is a
-# real value to randomize for these moves, so both are left exactly as
-# vanilla.
+# `power == 1` marks a move whose real damage is special-cased by the
+# battle engine (OHKO moves, Low Kick/Flail/Return/Fling, Seismic
+# Toss/Counter/Hidden Power/Psywave, ...) -- see NOTES.md.
 _MOVE_POWER_SENTINEL = 1
 
 _SINGLE_HIT_POWER_RANGE = (40, 250)
@@ -561,18 +408,16 @@ _PP_CHOICES = (5, 10, 15, 20, 25, 30, 35, 40)
 
 
 def _round_to_multiple(value: float, multiple: int, low: int, high: int) -> int:
-    """`value` rounded to the nearest multiple of `multiple`, then clamped
-    to `[low, high]` (both already exact multiples for every caller here,
-    so the clamp never itself breaks the multiple-of invariant)."""
+    """`value` rounded to the nearest multiple of `multiple`, clamped to
+    [low, high]."""
     rounded = round(value / multiple) * multiple
     return max(low, min(high, rounded))
 
 
 def _random_power_and_accuracy(rng: Random, move_key: str, category: str, vanilla_power: int) -> tuple[int, int]:
-    """One `(power, accuracy)` draw for `MOVES_FULL_RANDOM`, per this
-    section's own docstring. `accuracy` here is the damaging-move formula
-    only -- callers handle the `accuracy == 0` sentinel and status moves'
-    own fallback separately, this function is never called for either."""
+    """One (power, accuracy) draw for MOVES_FULL_RANDOM -- damaging moves
+    only, callers handle the accuracy==0 sentinel and status moves
+    separately."""
     low, high = _SINGLE_HIT_POWER_RANGE
     rolled_power = rng.randint(low, high)
 
@@ -589,32 +434,16 @@ def _random_power_and_accuracy(rng: Random, move_key: str, category: str, vanill
 
 
 def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
-    """Randomize each move's `power`/`accuracy`/`pp`. `type` (and every
-    other move field: effect, category, ...) is never touched by this
-    function -- "conservation du Type" is a hard invariant here, not just
-    a default.
+    """Randomize each move's power/accuracy/pp. `type` and every other
+    field are never touched.
 
     - `MOVES_OFF`: returns `moves` unchanged.
-    - `MOVES_SHUFFLE`: each of power/accuracy/pp is shuffled independently
-      across every move (`rng.shuffle`) -- the same multiset of real
-      vanilla values still appears somewhere, just reassigned, so this
-      mode is unaffected by the `MOVES_FULL_RANDOM`-only balance rules
-      this section's own docstring describes.
-    - `MOVES_FULL_RANDOM`: PP is an independent multiple-of-5 draw; power
-      and accuracy are drawn jointly per move (accuracy derived from that
-      same move's own power) for physical/special moves, or independently
-      within the vanilla range for status moves' accuracy (power stays
-      untouched) -- see this section's own docstring for the full design
-      and why.
+    - `MOVES_SHUFFLE`: power/accuracy/pp each shuffled independently.
+    - `MOVES_FULL_RANDOM`: see this file's module comment / NOTES.md for
+      the balance design.
 
-    `accuracy == 0` is a sentinel, not a real percentage -- HGSS's own
-    convention for "never misses" (Swift, Aerial Ace, ...; the OHKO moves
-    Fissure/Horn Drill/Guillotine/Sheer Cold use a different, non-zero
-    encoding for their level-based accuracy check and are unaffected by
-    this). Moves with `accuracy == 0` keep it exactly as-is in every mode.
-
-    Walks `moves` in its own dict order, so the result is fully determined
-    by `rng`'s seed."""
+    `accuracy == 0` is HGSS's own "never misses" sentinel (Swift, Aerial
+    Ace, ...) and is kept exactly as-is in every mode."""
     if mode == MOVES_OFF:
         return moves
 
@@ -635,25 +464,12 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
         eligible_accuracy_keys = tuple(key for key in keys if moves[key]["accuracy"] != 0)
         fallback_accuracy_values = [moves[key]["accuracy"] for key in eligible_accuracy_keys]
         acc_low, acc_high = _MOVE_ACCURACY_RANGE
-        # Clamped into the same [40, 100] floor/ceiling the power-derived
-        # formula uses below -- the raw vanilla pool includes OHKO moves'
-        # real 30% (a power-sentinel, excluded from *this* draw entirely,
-        # see the loop below), which would otherwise let a status move's
-        # fallback accuracy land under the intended floor too.
         fallback_low = max(acc_low, min(fallback_accuracy_values))
         fallback_high = min(acc_high, max(fallback_accuracy_values))
 
         for key in keys:
             data = moves[key]
             if data["accuracy"] == 0 or data["power"] == _MOVE_POWER_SENTINEL:
-                # `accuracy == 0` ("never misses") and `power == 1`
-                # ("variable/special-mechanic power, computed elsewhere at
-                # battle time" -- OHKO moves, Low Kick, Seismic Toss,
-                # Counter, Flail, Hidden Power, ... see this section's own
-                # docstring) are both sentinels, not real values to
-                # randomize -- a move with either keeps *both* fields
-                # exactly as vanilla (deriving a fake accuracy from a fake
-                # power would be meaningless for these).
                 new_combat_stats[key]["accuracy"] = data["accuracy"]
                 new_combat_stats[key]["power"] = data["power"]
                 continue
@@ -674,18 +490,10 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
 
 
 def randomize_move_types(rng: Random, enabled: bool, moves: dict = MOVES) -> dict:
-    """Randomize each move's `type`. `enabled=False` returns `moves`
-    unchanged.
-
-    Never *draws* "mystery" ("???", HGSS's real vanilla type for Curse) as
-    a new type -- it's engine-special-cased (immunity/effectiveness
-    behavior differs from every real type) rather than a genuine
-    18th element of the pool. A move whose *vanilla* type already is
-    "mystery" can still be reassigned away from it like any other move.
-
-    Each move independently gets a fresh `rng.choice`, walking `moves` in
-    its own dict order, so the result is fully determined by `rng`'s
-    seed."""
+    """Randomize each move's `type`. Never draws "mystery" (HGSS's real
+    vanilla type for Curse, engine-special-cased, not a real 18th type) --
+    a move whose vanilla type already is "mystery" can still be reassigned
+    away from it. `enabled=False` returns `moves` unchanged."""
     if not enabled:
         return moves
 
@@ -694,42 +502,20 @@ def randomize_move_types(rng: Random, enabled: bool, moves: dict = MOVES) -> dic
 
 
 # --- 7. Nuzlocke aids ---------------------------------------------------------
-#
-# Two deterministic toggles (options.py: `DisableOhkoMoves`/
-# `DisableTrappingAbilities`), not randomizers -- neither takes an `rng`
-# parameter, unlike every function above. Both are balance *aids* for an
-# honor-system Nuzlocke ruleset (see docs/scope.md's "Nuzlocke mode"
-# section): the game itself never enforces permadeath/catch limits, but an
-# RNG-based instant KO or an inescapable wild battle are bad interactions
-# with a ruleset built around avoiding un-counterable forced deaths, so
-# these two data-table edits remove them when the player opts in.
+# Deterministic toggles, not randomizers -- see docs/scope.md's
+# "Nuzlocke mode" section.
 
-# `include/constants/move_effects.h`'s `MOVE_EFFECT_HIT` (0) -- "no special
-# effect". Mirrors `rom/movedata.py`'s `write_ohko_neutralization`, the
-# ROM-side counterpart this function's output must stay byte-for-byte
-# consistent with (see that function's own docstring for the full recipe
-# rationale).
+# Must stay byte-for-byte consistent with rom/movedata.py's
+# write_ohko_neutralization.
 _OHKO_NEUTRALIZED_EFFECT = "hit"
 _OHKO_NEUTRALIZED_POWER = 60
 _OHKO_NEUTRALIZED_ACCURACY = 100
 
 
 def disable_ohko_moves(enabled: bool, moves: dict = MOVES) -> dict:
-    """Neutralize every move whose vanilla `effect` is `"one_hit_ko"`
-    (Guillotine/Horn Drill/Fissure/Sheer Cold) into an ordinary move.
-    `enabled=False` returns `moves` unchanged.
-
-    Fixed recipe (matches `rom/movedata.py`'s `write_ohko_neutralization`
-    exactly): `effect` becomes `"hit"` (clears the instant-KO check),
-    `power`/`accuracy` become 60/100 -- an ordinary, plausible move instead
-    of the dead 1-power/30%-accuracy slot the raw OHKO sentinel values
-    (see `_MOVE_POWER_SENTINEL` above) would otherwise leave behind once
-    the special effect is gone. `category`/`type`/`pp` and every other
-    field are left exactly as-is.
-
-    A pure function of its input, not part of this module's `rng`-driven
-    determinism contract -- no randomness is involved. Walks `moves` in its
-    own dict order."""
+    """Neutralize every move whose vanilla effect is "one_hit_ko"
+    (Guillotine/Horn Drill/Fissure/Sheer Cold) into an ordinary 60
+    power/100 accuracy move. `enabled=False` returns `moves` unchanged."""
     if not enabled:
         return moves
 
@@ -748,44 +534,15 @@ def disable_ohko_moves(enabled: bool, moves: dict = MOVES) -> dict:
     }
 
 
-# `include/constants/abilities.h` -- the three trapping abilities this
-# project's Nuzlocke aid targets (Arena Trap/Shadow Tag/Magnet Pull, all
-# three -- confirmed with the user 2026-08-11, Magnet Pull included since it
-# traps Steel-types the same inescapable way), and the fallback ability a
-# mono-ability trapper is replaced with.
 TRAPPING_ABILITIES = frozenset({23, 42, 71})  # SHADOW_TAG, MAGNET_PULL, ARENA_TRAP
-_RUN_AWAY_ABILITY = 50  # ABILITY_RUN_AWAY -- see neutralize_trapping_abilities's own docstring for why
+_RUN_AWAY_ABILITY = 50  # ABILITY_RUN_AWAY -- fallback for mono-ability trappers, see NOTES.md
 
 
 def neutralize_trapping_abilities(enabled: bool, species: dict = SPECIES) -> dict:
-    """Remove every trapping ability (`TRAPPING_ABILITIES`: Arena Trap,
-    Shadow Tag, Magnet Pull) from `species`. `enabled=False` returns
-    `species` unchanged.
-
-    Per-species resolution (`data["abilities"]` is `(ability1, ability2)`
-    raw ids, `ability2 == 0` meaning "no second ability", see
-    `data/species.py`'s own generation):
-
-    - Not trapping at all: untouched.
-    - One slot traps, the other holds a real, non-trapping ability: the
-      trapping slot is overwritten with a *copy* of the other slot -- both
-      slots end up identical and safe (e.g. Diglett/Dugtrio/Trapinch's
-      Arena Trap is replaced by their own Sand Veil/Hyper Cutter; Nosepass/
-      Magnemite/.../Magnezone's Magnet Pull by their own Sturdy).
-    - Mono-ability species whose only ability traps (`ability2 == 0`,
-      e.g. Wobbuffet/Wynaut's Shadow Tag): replaced with `ABILITY_RUN_AWAY`
-      (id 50) -- chosen as the fallback because it is thematically the
-      direct opposite of a trapping ability (guarantees an *escape*, never
-      forces one) and, structurally, a real, always-safe ability with no
-      combat side effect of its own (unlike e.g. a stat-boosting ability,
-      which could be seen as a stealth buff instead of a neutralization).
-    - Both slots trap (checked for completeness -- no real HGSS species
-      actually hits this case among the 505 in `data/species.py`, verified
-      2026-08-11): both replaced with `ABILITY_RUN_AWAY`, same reasoning
-      as the mono-ability case above.
-
-    A pure function of its input, no randomness involved. Walks `species`
-    in its own dict order."""
+    """Remove every trapping ability (TRAPPING_ABILITIES) from `species`.
+    A species with a real second ability gets that ability copied into
+    both slots; a mono-ability trapper (e.g. Wobbuffet's Shadow Tag) gets
+    Run Away instead. `enabled=False` returns `species` unchanged."""
     if not enabled:
         return species
 

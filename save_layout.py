@@ -1,30 +1,19 @@
 # save_layout.py
 #
-# Task C16 -- static (source-derived) model of Pokemon HeartGold/SoulSilver's
-# runtime `SaveData` struct layout: where `SaveVarsFlags` (check-detection
-# flags, see docs/architecture.md's "## C14" section) and `Bag` (item
-# injection) live *inside* the save data a running game keeps in RAM.
-# Consumed by `client.py`.
+# Static (source-derived) model of HGSS's runtime SaveData struct layout:
+# where SaveVarsFlags (check-detection flags) and Bag (item injection)
+# live inside the save data a running game keeps in RAM. Consumed by
+# client.py. Pure Python, no BizHawk/Archipelago imports -- every
+# constant is derived directly from the decomp's C headers, following the
+# game's own chunk-framing algorithm (SaveData_InitSubstructs/
+# GetSaveChunkSizePlusCRC, src/save.c).
 #
-# Pure Python, no BizHawk/Archipelago imports -- every constant here is
-# derived directly from `ressources/Decomposition/pokeheartgold` C headers
-# (cited inline), following the exact chunk-framing algorithm the game
-# itself uses (`SaveData_InitSubstructs`/`GetSaveChunkSizePlusCRC`,
-# `src/save.c`). See docs/architecture.md's "## C16" section for the full,
-# field-by-field derivation this module implements, and -- importantly --
-# for the one genuinely open question it could NOT resolve from source
-# alone: how the actual retail MWCC 2.0/sp2p2 ARM9 compiler aligns 8-byte
-# (`s64`/`u64`) struct members. That ambiguity only affects `SysInfo`
-# (chunk id 0, the very first chunk) among the structs this module cares
-# about, so it is modeled explicitly as exactly two named candidate cases
-# (`CANDIDATE_CASES` / `CANDIDATE_OFFSETS`) rather than guessed away -- see
-# `client.py`'s own docstring for how the case is selected (a required,
-# explicitly user-confirmed setting, never silently defaulted).
-#
-# Independent of that ambiguity: the `Bag`/`SaveVarsFlags` structs' own
-# *internal* layouts (pocket order/sizes, vars/flags array sizes) have no
-# such ambiguity (no 8-byte members, no bitfields spanning byte
-# boundaries) and are used directly.
+# One genuinely open question the source alone can't resolve: how the
+# retail MWCC 2.0/sp2p2 ARM9 compiler aligns 8-byte (s64/u64) struct
+# members. Only affects SysInfo (chunk id 0), modeled as two named
+# candidate cases (CANDIDATE_CASES/CANDIDATE_OFFSETS) rather than guessed
+# away -- the case is a required, explicitly user-confirmed setting, never
+# silently defaulted.
 
 from __future__ import annotations
 
@@ -54,41 +43,30 @@ FLAGS_ARRAY_OFFSET = VARS_ARRAY_SIZE  # flags[] immediately follows vars[]
 FLAGS_ARRAY_SIZE = NUM_FLAGS // 8  # 364 bytes
 SAVE_VARS_FLAGS_SIZE = VARS_ARRAY_SIZE + FLAGS_ARRAY_SIZE  # 1100 (0x44C)
 
-# Hidden-item locations (`data/locations.py` type "hidden_item") store the
-# small `HIDDENITEM_*` index (0-based) as their `id`, not a flag id directly
-# -- the real savedata flag is `HIDDEN_ITEMS_FLAG_BASE + id`
-# (Decomposition include/constants/flags.h: `HIDDEN_ITEMS_FLAG_BASE = 800`,
-# `FLAG_HIDDENITEM_* = 800 + HIDDENITEM_*`). `ground_item`/`npc_gift`/`hm_tm`
-# locations, by contrast, already store the real flag id directly (verified
-# against `rom/eventscriptdata.py`'s own `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID`
-# keys, e.g. 1081/1056/... -- real `FLAG_HIDE_ITEMBALL_*` values, not small
-# indices). See `location_flags.py`.
+# Hidden-item locations store the small HIDDENITEM_* index as their id,
+# not a flag id directly -- the real savedata flag is
+# HIDDEN_ITEMS_FLAG_BASE + id. See location_flags.py.
 HIDDEN_ITEMS_FLAG_BASE = 800
 
 
 def flag_byte_and_bit(flag_id: int) -> tuple[int, int]:
-    """(byte index into `SaveVarsFlags.flags[]`, bit index within that byte)
-    for `flag_id` -- mirrors `Save_VarsFlags_CheckFlagInArray`
-    (`flags[flagId / 8] & (1 << (flagId & 7))`, see docs/architecture.md's
-    "## C14" section, which already used this exact formula)."""
+    """(byte index into SaveVarsFlags.flags[], bit index within that byte)
+    -- mirrors Save_VarsFlags_CheckFlagInArray's own formula."""
     return flag_id // 8, flag_id % 8
 
 
 def is_flag_set(flags_bytes: bytes, flag_id: int) -> bool:
-    """`flags_bytes` is exactly `SaveVarsFlags.flags[]` (`FLAGS_ARRAY_SIZE`
-    bytes, e.g. read directly from RAM at
-    `vars_flags_offset_in_savedata + FLAGS_ARRAY_OFFSET`). Returns False
-    (rather than raising) for an out-of-range `flag_id`, matching
-    `Save_VarsFlags_CheckFlagInArray`'s own defensive bounds behavior."""
+    """flags_bytes is exactly SaveVarsFlags.flags[]. Returns False (not
+    raise) for an out-of-range flag_id, matching the game's own
+    defensive bounds behavior."""
     byte_index, bit_index = flag_byte_and_bit(flag_id)
     if byte_index < 0 or byte_index >= len(flags_bytes):
         return False
     return (flags_bytes[byte_index] & (1 << bit_index)) != 0
 
 
-# -- Bag (Decomposition include/bag_types_def.h, include/constants/items.h) --
-# typedef struct ItemSlot { u16 id; u16 quantity; } ItemSlot; -- 4 bytes,
-# no padding ambiguity (include/item.h).
+# -- Bag (Decomposition include/bag_types_def.h) -----------------------------
+# struct ItemSlot { u16 id; u16 quantity; } -- 4 bytes, no padding ambiguity.
 ITEM_SLOT_SIZE = 4
 
 NUM_BAG_ITEMS = 165
@@ -101,8 +79,7 @@ NUM_BAG_BALLS = 24
 NUM_BAG_BATTLE_ITEMS = 30
 
 # Field name and pocket size, in the exact order struct Bag declares them
-# (bag_types_def.h) -- order matters, it directly determines each pocket's
-# byte offset within Bag.
+# -- order matters, it determines each pocket's byte offset within Bag.
 BAG_POCKETS: tuple[tuple[str, int], ...] = (
     ("items", NUM_BAG_ITEMS),
     ("keyItems", NUM_BAG_KEY_ITEMS),
@@ -115,8 +92,7 @@ BAG_POCKETS: tuple[tuple[str, int], ...] = (
 )
 REGISTERED_ITEMS_SIZE = 2 * 2  # u16 registeredItems[2], trailing field of Bag
 
-# `data/items.py` "pocket" string (data_gen/items.toml's own convention,
-# lowercased items.h POCKET_* constant) -> the matching Bag field name above.
+# data/items.py "pocket" string -> the matching Bag field name above.
 POCKET_KEY_TO_BAG_FIELD: dict[str, str] = {
     "items": "items",
     "key_items": "keyItems",
@@ -129,11 +105,8 @@ POCKET_KEY_TO_BAG_FIELD: dict[str, str] = {
 }
 
 # Vanilla per-slot stack cap. Key items, TMs/HMs and Mail are never
-# stackable in-game (always exactly 1 per slot); every other pocket caps at
-# 99 (Bag_HasSpaceForItem/Bag_AddItem, src/bag.c -- not itself decompiled in
-# this project's read of the decomp, so this is the well-established,
-# publicly documented Gen IV convention, not a decomp citation -- flagged
-# here rather than silently assumed).
+# stackable (always exactly 1 per slot); every other pocket caps at 99 --
+# the well-established Gen IV convention, not itself decompiled here.
 _UNSTACKABLE_BAG_FIELDS = {"keyItems", "TMsHMs", "mail"}
 DEFAULT_STACK_CAP = 99
 UNSTACKABLE_STACK_CAP = 1
@@ -161,21 +134,13 @@ def stack_cap_for_pocket(bag_field: str) -> int:
 def plan_bag_item_write(
     pocket_bytes: bytes, native_item_id: int, quantity: int, stack_cap: int
 ) -> tuple[int, bytes] | None:
-    """Decide what to write into one Bag pocket's raw bytes (a flat array of
-    `ItemSlot { u16 id; u16 quantity; }`, `ITEM_SLOT_SIZE`-aligned) to add
-    `quantity` of `native_item_id`.
-
-    Prefers stacking onto an existing slot already holding the same item (if
-    it has room under `stack_cap`); otherwise uses the first free (`id ==
-    0`) slot. Returns `(byte_offset_within_pocket, new_4_byte_item_slot)`,
-    or `None` if the pocket is genuinely full (no matching slot with room,
-    no free slot) -- callers must not write anything in that case.
-
-    Deliberately simple (does not replicate `Bag_AddItem`'s TM/HM/Berry
-    pocket re-sort, see docs/architecture.md's "## C16" section) -- an
-    accepted v1 simplification: the added item still lands in a valid,
-    correctly-typed slot, just not necessarily where vanilla sorting would
-    have put it."""
+    """Decide what to write into one Bag pocket's raw bytes to add
+    `quantity` of `native_item_id`. Prefers stacking onto an existing slot
+    with room; otherwise the first free slot. Returns None if the pocket
+    is genuinely full. Deliberately simple: doesn't replicate
+    Bag_AddItem's TM/HM/Berry pocket re-sort -- the item still lands in a
+    valid, correctly-typed slot, just not necessarily where vanilla
+    sorting would put it."""
     if len(pocket_bytes) % ITEM_SLOT_SIZE != 0:
         raise ValueError(f"pocket_bytes length {len(pocket_bytes)} is not a multiple of {ITEM_SLOT_SIZE}")
 
@@ -220,28 +185,22 @@ def chunk_size_with_footer(struct_size: int) -> int:
     return ((struct_size + 3) & ~3) + 4
 
 
-# `SaveData` (Decomposition include/save.h): 3 `BOOL` (`flashChipDetected`,
-# `saveFileExists`, `isNewGame`, each a plain 4-byte `int` typedef) + `u32
-# statusFlags`, all 4-byte fields with no bitfields/64-bit members -- no
-# alignment ambiguity, unlike SysInfo below.
+# SaveData: 3 BOOL + u32 statusFlags, all 4-byte fields, no alignment
+# ambiguity (unlike SysInfo below).
 SAVEDATA_DYNAMIC_REGION_OFFSET = 16
 
 
 @dataclass(frozen=True)
 class LongLongAlignmentCase:
     """One candidate assumption for how the retail MWCC 2.0/sp2p2 ARM9
-    compiler aligns 8-byte (`s64`/`u64`) struct members -- see this module's
-    own docstring. Only `SysInfo` (chunk id 0) is affected among the chunks
-    this module models; `PlayerData`/`Party`/`Bag` have none."""
+    compiler aligns 8-byte struct members. Only SysInfo (chunk id 0) is
+    affected; PlayerData/Party/Bag have none."""
 
     name: str
     sys_info_size: int
 
 
-# `SysInfo` (Decomposition include/sav_system_info.h) field-by-field
-# derivation (see docs/architecture.md's "## C16" section for the full
-# byte-by-byte walkthrough this summarizes):
-#
+# SysInfo field-by-field derivation:
 #   struct SysInfo_RTC { BOOL initialized; RTCDate date; RTCTime time;
 #       s32 days_since_nitro_epoch; s64 seconds_since_nitro_epoch;
 #       s64 seconds_at_game_clear; u32 penaltyInMinutes; }
@@ -249,51 +208,39 @@ class LongLongAlignmentCase:
 #       u8 birth_day; SysInfo_RTC rtc_info; u8 mysteryGiftActive;
 #       s32 dwcProfileId; u8 padding_50[0xC]; }
 #
-# "4-byte" case (older ARM APCS convention: 64-bit members align like any
-# other 4-byte-or-smaller member, no extra padding): SysInfo_RTC = 36 bytes,
-# SysInfo = 72 bytes.
-# "8-byte" case (AAPCS/EABI convention: 64-bit members force 8-byte
-# alignment, including of the *enclosing* struct's own size): SysInfo_RTC =
-# 40 bytes, SysInfo = 80 bytes.
+# "4-byte" case (older ARM APCS: 64-bit members align like any 4-byte-or-
+# smaller member): SysInfo_RTC = 36 bytes, SysInfo = 72 bytes.
+# "8-byte" case (AAPCS/EABI: 64-bit members force 8-byte alignment,
+# including the enclosing struct's own size): SysInfo_RTC = 40 bytes,
+# SysInfo = 80 bytes.
 CASE_APCS_4BYTE_LONGLONG = LongLongAlignmentCase(name="apcs_4byte_longlong", sys_info_size=72)
 CASE_EABI_8BYTE_LONGLONG = LongLongAlignmentCase(name="eabi_8byte_longlong", sys_info_size=80)
 
 CANDIDATE_CASES: tuple[LongLongAlignmentCase, ...] = (CASE_APCS_4BYTE_LONGLONG, CASE_EABI_8BYTE_LONGLONG)
 
-# `PLAYERDATA` (Decomposition include/player_data.h) and `Party`
-# (Decomposition include/pokemon_types_def.h) have no 8-byte members
-# anywhere in their own field-by-field derivation (see docs/architecture.md's
-# "## C16" section), so -- unlike SysInfo above -- their sizes are the same
-# under both alignment cases.
-#
+# PLAYERDATA and Party have no 8-byte members, so unlike SysInfo their
+# sizes are the same under both alignment cases.
 #   struct PLAYERDATA { Options options; PlayerProfile profile; u16 coins;
-#       IGT igt; }  ->  2 (Options) + 2 (padding, to 4-align PlayerProfile)
-#       + 32 (PlayerProfile) + 2 (coins) + 4 (IGT) = 42, padded to the
-#       struct's own 4-byte alignment -> 44.
+#       IGT igt; } -> 2+2(pad)+32+2+4 = 42, padded to 4-byte align -> 44.
 PLAYER_DATA_SIZE = 44  # sizeof(PLAYERDATA), 0x2C
 
 #   struct Party { PartyCore core; PartyExtra extra; }
-#   PartyCore = 2 ints (8) + 6 * sizeof(Pokemon) (6 * 0xEC = 1416) = 1424
-#   PartyExtra = 6 * sizeof(PartyExtraSub) (6 * 5 = 30)
-#   1424 + 30 = 1454, padded to Party's own 4-byte alignment -> 1456.
-#   sizeof(Pokemon) == 0xEC is stated directly in the decomp itself
-#   (pokemon_types_def.h: "} Pokemon; // size: 0xEC"), not independently
-#   re-derived here.
+#   PartyCore = 2 ints (8) + 6*sizeof(Pokemon) (6*0xEC=1416) = 1424
+#   PartyExtra = 6*sizeof(PartyExtraSub) (6*5=30)
+#   1424+30 = 1454, padded to 4-byte align -> 1456. sizeof(Pokemon)==0xEC
+#   is stated directly in the decomp itself.
 PARTY_SIZE = 1456  # sizeof(Party), 0x5B0
 
-# Offset of `PlayerProfile.money` *within* `PLAYERDATA`: Options(2) +
-# padding(2) => profile starts at PLAYERDATA+4; profile.name (16 bytes,
-# u16[PLAYER_NAME_LENGTH+1]) + profile.id (u32, 4 bytes) => money at
-# profile+20. 4 + 16 + 4 = 24.
+# Offset of PlayerProfile.money within PLAYERDATA: Options(2)+pad(2) =>
+# profile starts at +4; profile.name(16)+profile.id(4) => money at +20.
+# 4+16+4 = 24.
 PLAYERDATA_MONEY_OFFSET = 24
 
 
 @dataclass(frozen=True)
 class SaveChunkOffsets:
-    """Byte offsets *within `dynamic_region`* (add
-    `SAVEDATA_DYNAMIC_REGION_OFFSET` to get an offset from the start of the
-    whole `SaveData` struct -- the `*_in_savedata` properties below already
-    do that) for one `LongLongAlignmentCase`."""
+    """Byte offsets within dynamic_region (the *_in_savedata properties
+    add SAVEDATA_DYNAMIC_REGION_OFFSET) for one LongLongAlignmentCase."""
 
     case: LongLongAlignmentCase
     sys_info_offset: int
@@ -304,16 +251,9 @@ class SaveChunkOffsets:
 
     @property
     def money_offset_in_savedata(self) -> int:
-        """Offset of `PlayerProfile.money`, from the start of the RAM
-        `SaveData` struct itself. A convenient, independently-checkable
-        anchor for manually locating `SaveData` in a live BizHawk session
-        (see docs/architecture.md's "## C16" section): search BizHawk's RAM
-        Search for the player's current in-game money value (a plain,
-        unencrypted `u32`), then check whether
-        `candidate_money_address - money_offset_in_savedata` looks like a
-        plausible `SaveData` base for this case (e.g. by then reading
-        `bag_offset_in_savedata` bytes further and checking for
-        sane-looking `ItemSlot` data matching the player's actual bag)."""
+        """Offset of PlayerProfile.money from the start of the RAM
+        SaveData struct -- a convenient, independently-checkable anchor
+        for manually locating SaveData in a live BizHawk session."""
         return SAVEDATA_DYNAMIC_REGION_OFFSET + self.player_data_offset + PLAYERDATA_MONEY_OFFSET
 
     @property
@@ -326,13 +266,10 @@ class SaveChunkOffsets:
 
 
 def compute_chunk_offsets(case: LongLongAlignmentCase) -> SaveChunkOffsets:
-    """Re-implements `SaveData_InitSubstructs`'s cumulative-offset loop
-    (Decomposition src/save.c) for chunk ids 0..4 (SysInfo..SaveVarsFlags).
-    All five share save "block" 0 (`gSaveChunkHeaders`, src/save_arrays.c --
-    only chunk id 40, `SAVE_PCSTORAGE`, starts a new block), so no
-    footer/page-boundary padding is crossed before id 4 and this
-    straight-line accumulation (chunk size, in order, with no gaps) is
-    exact given each chunk's size."""
+    """Re-implements SaveData_InitSubstructs's cumulative-offset loop for
+    chunk ids 0..4 (SysInfo..SaveVarsFlags). All five share save "block"
+    0, so no footer/page-boundary padding is crossed before id 4 and this
+    straight-line accumulation is exact."""
     sys_info_offset = 0
     sys_info_chunk = chunk_size_with_footer(case.sys_info_size)
 
@@ -357,6 +294,6 @@ def compute_chunk_offsets(case: LongLongAlignmentCase) -> SaveChunkOffsets:
     )
 
 
-# name -> offsets, for every candidate case -- see `client.py` for how one
-# of these is selected (a required, explicitly user-confirmed setting).
+# name -> offsets, for every candidate case (see this module's own
+# docstring for how the case is selected).
 CANDIDATE_OFFSETS: dict[str, SaveChunkOffsets] = {case.name: compute_chunk_offsets(case) for case in CANDIDATE_CASES}

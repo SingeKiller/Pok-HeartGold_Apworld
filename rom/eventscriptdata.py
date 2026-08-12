@@ -1,92 +1,26 @@
 # rom/eventscriptdata.py
 #
-# Read/write access to the shared item-ball script bank (task C15): the one
-# NARC sub-file, `scr_seq_0141.bin`, that every "std_itemball_*" object in
-# the game (a ground item ball, `include/constants/std_script.h`'s
-# `_std_item_ball = 7000` .. `7254` range) runs when the player picks it up.
-# See docs/architecture.md, "## C14 -- Ground item check mechanism (proof of
-# concept)" -> "Chosen protocol (design)" for the high-level design this
-# implements (local-item substitution is a plain NitroFS data edit, no ARM
-# hook needed), and this module's own docstring below for the binary format
-# investigation that backs it.
+# Read/write access to the shared item-ball script bank: the one NARC
+# sub-file, scr_seq_0141.bin, that every "std_itemball_*" object in the
+# game runs when the player picks it up. Local-item substitution is a
+# plain NitroFS data edit, no ARM hook needed.
 #
-# NitroFS path: `ressources/Decomposition/pokeheartgold/filesystem.mk` maps
-# `files/fielddata/script/scr_seq.narc` -> `files/a/0/1/2` (`arc_strip_name`,
-# same renaming convention rom/itemdata.py and rom/eventdata.py already
-# documented for their own tables) -- verified readable against the real
-# ROM: parses as a NARC with 965 sub-files, one per `scr_seq_NNNN.s` source
-# file in `files/fielddata/script/scr_seq/`, in filename-sorted (== index)
-# order (`files/fielddata/script/scr_seq.mk` compiles each `.s` to its own
-# `.bin` before packing; NARC sub-file order matches that sort order, which
-# was verified directly: `scr_seq_0141.s` is the 142nd file when the 965
-# `.s` files are sorted, i.e. sub-file index 141 -- `SCR_SEQ_0141_INDEX`
-# below).
+# NitroFS path a/0/1/2 (arc_strip_name) verified readable against the
+# real ROM: parses as a NARC with 965 sub-files, one per scr_seq_NNNN.s
+# source file, in filename-sorted (== index) order.
 #
-# `scr_seq_0141.bin` binary format (derived from
-# `ressources/Decomposition/pokeheartgold/files/fielddata/script/scr_seq/
-# scr_seq_0141.s` plus `asm/macros/script.inc`'s `ScrDef`/`SetVar`/`GoTo`/
-# `End` macro bodies, then cross-checked byte-for-byte against the real
-# ROM -- see this module's own tests, `tests/test_local_item_substitution.py`):
+# scr_seq_0141.bin binary format (derived from the decomp source plus
+# asm/macros/script.inc's macro bodies, cross-checked byte-for-byte
+# against the real ROM -- see NOTES.md for the full byte layout).
 #
-#   - Header: 256 `ScrDef` entries (one per `scr_seq_0141_000`..`_255`,
-#     `_255` being the shared tail all 255 per-itemball blocks jump to), each
-#     a 4-byte little-endian relative offset (`ScrDef offset` expands to
-#     `.word offset - . - 4`) -- i.e. 256 * 4 = 1024 bytes -- followed by a
-#     2-byte `ScrDefEnd` marker (`.short SCRDEF_END`, `SCRDEF_END = 0xFD13`
-#     in `include/constants/scrcmd.h`). Total header size: 1026 bytes
-#     (`HEADER_SIZE`). Confirmed against the real ROM: the 2 bytes at file
-#     offset 1024 are exactly `0xFD13`.
-#   - Immediately after the header, 255 fixed-size 20-byte blocks
-#     (`scr_seq_0141_000` .. `_254`, `BLOCK_SIZE`/`BLOCK_COUNT` below), each:
-#       SetVar VAR_SPECIAL_x8008, <item id>   -- 6 bytes: .short 41 (opcode),
-#                                                 .short 0x8008 (var id),
-#                                                 .short <item id>
-#       SetVar VAR_SPECIAL_x8009, <quantity>  -- 6 bytes, same shape
-#       GoTo scr_seq_0141_255                 -- 6 bytes: .short 22 (opcode),
-#                                                 .word <relative offset>
-#       End                                   -- 2 bytes: .short 2 (opcode)
-#     i.e. the item-id operand this module patches sits at byte offset +4
-#     within each block (`ITEM_ID_OPERAND_OFFSET`): 2 bytes past the first
-#     `SetVar`'s opcode+var-id, a plain unsigned 16-bit little-endian value.
-#     Confirmed against the real ROM for every one of the 217 `ground_item`
-#     locations in `data_gen/locations.toml`: reading each location's block
-#     (via `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID` below) and unpacking this
-#     offset reproduces `data/items.py[original_item]['id']` exactly, with
-#     zero mismatches.
+# Which of the 255 blocks belongs to which Archipelago location is not
+# recoverable from data_gen/locations.toml alone -- see NOTES.md for how
+# BLOCK_INDEX_BY_ITEMBALL_FLAG_ID below was derived and its one known gap
+# (block 58, an NPC-delivered item mislabeled as an itemball scriptId).
 #
-# Which of the 255 blocks belongs to which Archipelago location is *not*
-# recoverable from `data_gen/locations.toml` alone (its `id` field for a
-# `ground_item` location is the location's `FLAG_HIDE_ITEMBALL_*` savedata
-# flag value -- a stable decomp identifier, but not a script-bank index; see
-# that file's own header comment). The two are only linked transitively,
-# through each item ball's *scriptId* (`include/constants/std_script.h`'s
-# `std_itemball_<map>_<item> = 7000 + <block index>` constants): the same
-# zone_event object that carries a location's `eventFlag`
-# (`FLAG_HIDE_ITEMBALL_*`, `data_gen/locations.toml`'s `id`) also carries its
-# `scriptId` (`ressources/Decomposition/pokeheartgold/files/fielddata/
-# eventdata/zone_event/*.json`). `BLOCK_INDEX_BY_ITEMBALL_FLAG_ID` below is
-# that flag-id -> block-index table, built once by cross-referencing all
-# three decomp sources (`std_script.h`, `flags.h`, every `zone_event/*.json`)
-# and hardcoded here as static ROM structure -- the same "derive once from
-# the decomp, hardcode the result" convention rom/itemdata.py's
-# `NITROFS_PATH`/rom/eventdata.py's `NITROFS_PATH` already use, just a
-# bigger table. It covers 254 of the 255 blocks: block index 58
-# (`std_itemball_d37r0102_coin_case`) has no matching `zone_event` object
-# anywhere in the decomp at all -- that item (the Celadon Game Corner Coin
-# Case) is actually handed over by an NPC script
-# (`GiveItemNoCheck`/`GiveItem`, not a placed item-ball object), matching
-# `data_gen/locations.toml`'s own classification of it as `npc_gift`
-# (`celadon_game_corner_coin_case`), not `ground_item` -- so this gap is
-# expected and never hit by `write_ground_item_substitution` below, which
-# only ever looks up `ground_item` locations (and the itemball-shaped half
-# of `hm_tm` locations -- task C16, see that function's own docstring).
-#
-# This module has no dependency on `data/` at import time (matching
-# rom/itemdata.py's "usable before data_gen.py has ever been run"
-# convention) -- `write_ground_item_substitution`, the one function that
-# accepts `data/locations.py`/`data/items.py` keys directly (per this
-# task's own required interface), imports both lazily, inside the function
-# body, for exactly that reason.
+# No dependency on data/ at import time -- write_ground_item_substitution,
+# the one function that accepts data/locations.py/data/items.py keys,
+# imports both lazily inside the function body.
 
 from __future__ import annotations
 
@@ -94,8 +28,6 @@ import struct
 
 from rom import HeartGoldRom
 
-# See this module's docstring for how this numbered path and sub-file index
-# were derived and verified against the real ROM.
 NITROFS_PATH = "a/0/1/2"
 SCR_SEQ_0141_INDEX = 141
 
@@ -113,9 +45,9 @@ BLOCK_SIZE = 20
 ITEM_ID_OPERAND_OFFSET = 4
 QUANTITY_OPERAND_OFFSET = 10
 
-# flag id (`data/locations.py[location]['id']` for a `ground_item` location)
-# -> scr_seq_0141.bin block index. See this module's docstring for how this
-# was derived and its one known gap (block 58).
+# flag id (data/locations.py[location]['id'] for a ground_item location)
+# -> scr_seq_0141.bin block index. See NOTES.md for the derivation and
+# its one known gap (block 58).
 BLOCK_INDEX_BY_ITEMBALL_FLAG_ID: dict[int, int] = {
     1081: 0,  # FLAG_HIDE_ITEMBALL_R29_POTION
     1056: 1,  # FLAG_HIDE_ITEMBALL_R30_ANTIDOTE
@@ -395,10 +327,9 @@ def read_itemball_script_blob(rom: HeartGoldRom) -> bytes:
 
 
 def write_itemball_script_blob(rom: HeartGoldRom, blob: bytes) -> None:
-    """Replace `scr_seq_0141.bin`'s raw bytes wholesale. Prefer
-    `write_itemball_item_id`/`write_ground_item_substitution` for the
-    common case of patching a single item-id operand -- this exists for
-    completeness/testing."""
+    """Replace scr_seq_0141.bin's raw bytes wholesale. Prefer
+    write_itemball_item_id/write_ground_item_substitution for the common
+    case of patching a single item-id operand."""
     narc = rom.read_narc(NITROFS_PATH)
     narc.files[SCR_SEQ_0141_INDEX] = blob
     rom.write_narc(NITROFS_PATH, narc)
@@ -413,11 +344,8 @@ def read_itemball_item_id(rom: HeartGoldRom, block_index: int) -> int:
 
 
 def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) -> None:
-    """Overwrite a single itemball script block's item-id operand (the
-    `SetVar VAR_SPECIAL_x8008, <item id>` at `scr_seq_0141_<block_index:03d>`)
-    in place, leaving the rest of `scr_seq_0141.bin` -- including that same
-    block's quantity operand, its `GoTo`/`End`, the header, and every other
-    block -- byte-identical."""
+    """Overwrite a single itemball script block's item-id operand in
+    place, leaving the rest of scr_seq_0141.bin byte-identical."""
     if not (0 <= item_id <= 0xFFFF):
         raise ValueError(
             f"item id {item_id} does not fit scr_seq_0141.bin's SetVar "
@@ -430,22 +358,17 @@ def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) ->
 
 
 def _resolve_ground_item_block_index(location_key: str) -> int:
-    """Shared validation for `write_ground_item_substitution`/
-    `write_ground_item_empty`: resolve `location_key` (a `data/locations.py`
-    key) to its `scr_seq_0141.bin` block index, or raise. Lazily imports
-    `data.locations` (see this module's own docstring for why)."""
+    """Shared validation for write_ground_item_substitution/
+    write_ground_item_empty: resolve location_key to its scr_seq_0141.bin
+    block index, or raise."""
     from data.locations import LOCATIONS
 
     location = LOCATIONS.get(location_key)
     if location is None:
         raise KeyError(f"unknown location key: {location_key!r}")
-    # `hm_tm` locations are accepted too, but only the itemball-shaped half
-    # of them (the ones whose flag id is a real scr_seq_0141.bin block --
-    # see BLOCK_INDEX_BY_ITEMBALL_FLAG_ID below): a `hm_tm` location is just
-    # a `ground_item`/`npc_gift` location re-tagged by delivery method, not
-    # a distinct ROM mechanism of its own (see data_gen/locations.toml's own
-    # header comment). The other half (NPC-delivered hm_tm) belongs to
-    # rom/npcgiftdata.py's write_npc_gift_substitution instead.
+    # hm_tm locations are accepted too, but only the itemball-shaped half
+    # (whose flag id is a real block, see BLOCK_INDEX_BY_ITEMBALL_FLAG_ID)
+    # -- the NPC-delivered half belongs to rom/npcgiftdata.py instead.
     if location["type"] not in ("ground_item", "hm_tm"):
         raise ScriptDataError(
             f"location {location_key!r} is type {location['type']!r}, not "
@@ -471,11 +394,9 @@ def _resolve_ground_item_block_index(location_key: str) -> int:
 
 
 def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
-    """Patch the itemball script block for a `ground_item` location -- or an
-    itemball-shaped `hm_tm` location (task C16, see this function's own
-    type check) -- (a key of `data/locations.py`'s `LOCATIONS`) so it grants
-    a different item (a key of `data/items.py`'s `ITEMS`) instead of its
-    vanilla `original_item`."""
+    """Patch the itemball script block for a ground_item location (or an
+    itemball-shaped hm_tm location) so it grants a different item instead
+    of its vanilla original_item."""
     from data.items import ITEMS
 
     block_index = _resolve_ground_item_block_index(location_key)
@@ -487,15 +408,11 @@ def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_ke
 
 
 def write_ground_item_empty(rom: HeartGoldRom, location_key: str) -> None:
-    """Patch the itemball script block for `location_key` so it grants item
-    id 0 instead of its vanilla `original_item` -- used for locations whose
-    placed item belongs to *another* multiworld player (see
-    `output_patch.build_item_substitutions`'s own docstring): live-verified
-    (2026-08-11, see docs/architecture.md) that picking up an item id 0
-    itemball shows a garbled "Found ???!" message but adds nothing real to
-    the Bag, while still setting the location's real vanilla savedata flag
-    -- so this project's existing flag-read check-detection
-    (`location_flags.py`) keeps working unchanged, and the player never
-    receives a real, unearned vanilla item."""
+    """Patch the itemball script block for location_key so it grants item
+    id 0 instead of its vanilla original_item -- for locations whose
+    placed item belongs to another multiworld player. Live-verified:
+    picking up an item id 0 itemball shows a garbled "Found ???!" message
+    but adds nothing real to the Bag, while still setting the location's
+    real vanilla savedata flag, so check-detection keeps working."""
     block_index = _resolve_ground_item_block_index(location_key)
     write_itemball_item_id(rom, block_index, 0)

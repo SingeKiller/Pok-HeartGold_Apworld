@@ -1,34 +1,21 @@
 # rom/evodata.py
 #
-# Read/write access to the evolution table (task M4.5): the
-# evolution-target randomizer writes here -- `species.py`'s
-# `randomize_evolutions` output needs encoding into this table to actually
-# take effect in-game (`data/species.py`'s own `evolutions` field is only
-# ever the *logical* model, never patched into the ROM by itself).
+# Read/write access to the evolution table: species.py's
+# randomize_evolutions output needs encoding here to take effect in-game.
 #
-# NitroFS path: `ressources/Decomposition/pokeheartgold/filesystem.mk`'s
-# `arc_strip_name` maps `files/poketool/personal/evo.narc` ->
-# `files/a/0/3/4`, verified directly against the real US HeartGold ROM:
-# readable, parses as a NARC with exactly 508 sub-files, 44 bytes each --
-# same entry count as `rom/speciesdata.py`'s personal.narc (a/0/0/2), and
-# index-aligned with it (both ultimately index by the same raw species
-# id -- see `data/species_index.py`/`rom/speciesdata.py`'s own docstrings
-# for how that mapping was derived).
+# NitroFS path a/0/3/4 (evo.narc), verified directly against the real US
+# HeartGold ROM: readable, parses as a NARC with exactly 508 sub-files,
+# 44 bytes each -- same entry count as rom/speciesdata.py's personal.narc
+# (a/0/0/2), index-aligned with it.
 #
-# Struct (Decomposition `include/pokemon_types_def.h`, `struct Evolution`):
+# Struct (include/pokemon_types_def.h, struct Evolution):
 #   struct Evolution { u16 method; u16 param; u16 target; }  -- 6 bytes
 #   MAX_EVOS_PER_POKE = 7
-# i.e. each 44-byte entry is 7 back-to-back 6-byte `Evolution` records (42
-# bytes) plus 2 trailing bytes whose purpose was not investigated here (not
-# needed -- never read or written by this module, left untouched by every
-# write path below since they only ever replace the first 42 bytes).
-# `method`/`param`/`target` are `data/species.py`'s own `evolutions` field
-# values, already resolved by `data_gen`; `target` is a **raw species
-# index** here (see `SPECIES_KEY_TO_RAW_INDEX`), not a `data/species.py`
-# key. An unused evolution slot (fewer than 7 real evolutions) is encoded
-# as `method=0, param=0, target=0` -- the vanilla convention for "no more
-# evolutions in this list" (index 0 is the engine's own "no species"
-# placeholder, never a real evolution target).
+# Each 44-byte entry is 7 back-to-back 6-byte Evolution records (42
+# bytes) plus 2 trailing bytes, purpose not investigated (never read or
+# written by this module). target is a raw species index, not a
+# data/species.py key. An unused slot is method=0, param=0, target=0 --
+# the vanilla "no more evolutions" convention.
 
 from __future__ import annotations
 
