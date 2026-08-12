@@ -147,6 +147,11 @@ from species import (  # noqa: E402
     randomize_wild_encounters,
     scale_trainer_levels,
 )
+from universal_tracker import (  # noqa: E402
+    SLOT_DATA_OPTIONS_KEY,
+    build_ut_slot_data,
+    load_ut_slot_data,
+)
 
 # HGSS's own starting region (New Bark Town, see data/regions.py / the New
 # Bark Town-rooted BFS tests/test_rules.py::test_graph_connected_with_full_
@@ -310,6 +315,33 @@ class HeartGoldWorld(World):
 
     regions: dict[str, Region]
 
+    # Universal Tracker -- see universal_tracker.py. Every logic-relevant
+    # option round-trips through slot data, so UT needs no YAML.
+    ut_can_gen_without_yaml = True
+    is_universal_tracker: bool
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Set by UT on the MultiWorld it re-generates with; absent otherwise.
+        self.is_universal_tracker = getattr(self.multiworld, "generation_is_fake", False)
+
+    @property
+    def ut_slot_data(self) -> dict[str, Any]:
+        """This slot's `fill_slot_data()` output as handed back by UT for a
+        re-generation; empty during a real generation."""
+        passthrough = getattr(self.multiworld, "re_gen_passthrough", {})
+        return passthrough.get(self.game, {})
+
+    @staticmethod
+    def interpret_slot_data(slot_data: dict[str, Any]) -> dict[str, Any]:
+        """UT entry point: the return value becomes `multiworld.re_gen_
+        passthrough[game]`, and returning anything at all is what tells UT
+        this world can be re-generated from slot data."""
+        return slot_data
+
+    def generate_early(self) -> None:
+        load_ut_slot_data(self)
+
     def create_regions(self) -> None:
         self.regions = build_region_graph(self.player, self.multiworld)
         create_locations(self.player, self.regions)
@@ -328,6 +360,16 @@ class HeartGoldWorld(World):
     def set_rules(self) -> None:
         apply_exit_rules(self.player, self.multiworld, self.regions)
         _constrain_undetectable_locations(self.player, self.multiworld)
+
+        self.multiworld.completion_condition[self.player] = _goal_rule(
+            self.player, self.options.goal.value, self.options.goal_badge_count.value
+        )
+
+        # Everything below is ROM-only randomization for `generate_output()`
+        # -- no v1 Location is gated on it (docs/scope.md), and a Universal
+        # Tracker re-run never writes a ROM, so skip it there.
+        if self.is_universal_tracker:
+            return
 
         # Wild encounters genuinely differ between HeartGold and SoulSilver
         # (e.g. Route 29's morning Sentret/Rattata swap, see data_gen/
@@ -360,18 +402,19 @@ class HeartGoldWorld(World):
             self.random, bool(self.options.randomize_move_types.value), moves=self.generated_moves
         )
 
-        self.multiworld.completion_condition[self.player] = _goal_rule(
-            self.player, self.options.goal.value, self.options.goal_badge_count.value
-        )
-
     def get_filler_item_name(self) -> str:
         return self.random.choice(_FILLER_ITEM_LABELS)
 
     def fill_slot_data(self) -> dict[str, Any]:
+        # "game_version" here is data/'s GAME_VERSION constant, not the
+        # option of the same name (that one is in the nested snapshot --
+        # see universal_tracker.py). goal/goal_badge_count stay duplicated
+        # at top level for consumers that already read them there.
         return {
             "game_version": GAME_VERSION["name"],
             "goal": self.options.goal.value,
             "goal_badge_count": self.options.goal_badge_count.value,
+            SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
 
     def generate_output(self, output_directory: str) -> None:
