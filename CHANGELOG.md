@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-12
 
 ### Added
 - **Universal Tracker (`tracker.apworld`) support.** UT can now re-generate
@@ -17,6 +17,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slot data that affects logic, and are read as a fallback. A tracker re-run
   also skips the ROM-only species/move/trainer randomization, which has no
   bearing on logic.
+- **v2 Phase 1: Nuzlocke aids.** `disable_ohko_moves` neutralizes
+  Guillotine/Horn Drill/Fissure/Sheer Cold into ordinary 60 power / 100
+  accuracy moves. `disable_trapping_abilities` removes Arena Trap, Shadow
+  Tag, and Magnet Pull from every Pokémon that has one, replaced with a
+  copy of the species' own other ability (or Run Away for mono-ability
+  trappers like Wobbuffet). Both off by default, live-verified on real
+  HeartGold and SoulSilver ROMs.
+
+### Changed
+- The ARM9 recompression step no longer hard-fails a patch if
+  `apnds.lz.compress_code` can't shrink the post-secure-area data (rare):
+  it now falls back to writing that region uncompressed and zeroing
+  `SDK_COMPRESSED_STATIC_END`, matching the game's own boot-time no-op
+  path for a zero value there (verified directly against the decomp's
+  `crt0.s`, community-suggested).
+
+### Removed
+- **QoL options (`fast_text_speed`, `skip_battle_animations`), shipped
+  and reverted the same day.** Live BizHawk testing showed neither option
+  actually changed anything in-game. The in-word `Options` bitfield
+  packing order the write relied on was never independently confirmed
+  against a live session before shipping -- see `docs/scope.md` for the
+  post-mortem. May return once someone can verify the real bit layout
+  live.
 
 ## [0.1.4] - 2026-08-11
 

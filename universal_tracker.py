@@ -32,7 +32,6 @@ TRACKED_OPTION_NAMES = (
     "randomize_species_types",
     "trainer_level_scaling",
     "trainersanity",
-    "dexsanity",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is
