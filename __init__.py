@@ -264,6 +264,7 @@ class HeartGoldWorld(World):
             trainersanity=bool(self.options.trainersanity.value),
             dexsanity=bool(self.options.dexsanity.value),
             dexsanity_species_methods=self.dexsanity_species_methods,
+            legendarysanity=bool(self.options.legendarysanity.value),
         )
 
     def create_items(self) -> None:
@@ -277,6 +278,7 @@ class HeartGoldWorld(World):
         # location count exactly.
         trainersanity = bool(self.options.trainersanity.value)
         dexsanity = bool(self.options.dexsanity.value)
+        legendarysanity = bool(self.options.legendarysanity.value)
         pool = []
         for key in _ID_ASSIGNABLE_LOCATION_KEYS:
             data = LOCATIONS[key]
@@ -292,7 +294,9 @@ class HeartGoldWorld(World):
                 pool.append(create_item(item_key, self.player))
             elif data["type"] == "static_pokemon":
                 # No vanilla item to displace (the "reward" is the
-                # encounter itself) -- always created, no toggle option.
+                # encounter itself).
+                if not legendarysanity:
+                    continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
             else:

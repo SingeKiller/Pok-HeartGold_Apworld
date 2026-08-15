@@ -34,7 +34,7 @@ game: Pokemon HGSS
 requires:
   version: 0.6.7 # Version of Archipelago required for this yaml to work as expected.
   game:
-    Pokemon HGSS: 0.3.0 # Version of the world required for this yaml to work as expected.
+    Pokemon HGSS: 0.3.1 # Version of the world required for this yaml to work as expected.
 
 Pokemon HGSS:
   ################
@@ -123,9 +123,39 @@ Pokemon HGSS:
     #   appears somewhere, just moved around).
     # - full_random: every wild encounter slot is replaced by an
     #   independently-chosen random species.
+    # - zone_method_mapping: every route's own encounter method (its grass
+    #   table, its surf table, its Old Rod table, etc.) gets one replacement
+    #   species, applied consistently to every slot in that table -- so
+    #   every grass encounter on a given route is the same species, but that
+    #   route's surf table can be a different one. Unlike full_random, this
+    #   tries to use as many distinct species as possible across the whole
+    #   game (no repeats until every eligible species has been used once).
     vanilla: 50
     shuffle: 0
     full_random: 0
+    zone_method_mapping: 0
+
+  randomize_starters:
+    # Randomize the 3 starter Pokémon (Chikorita/Cyndaquil/Totodile) --
+    # also changes the rival's own starter, which is always your starter's
+    # type-advantaged counter, same as vanilla. Only species with at least
+    # one evolution are picked, matching vanilla (each starter has two).
+    # Live-verified: the Pokémon you actually receive is genuinely
+    # randomized, and the on-screen name shown during the selection scene
+    # matches it too.
+    'false': 50
+    'true': 0
+
+  exclude_legendaries:
+    # Never place a legendary or mythical Pokémon (Articuno through
+    # Arceus) in the wild encounter pool when `randomize_wild_pokemon` is
+    # set to `full_random` or `zone_method_mapping`, or as a starter when
+    # `randomize_starters` is on. Has no effect on `vanilla`/`shuffle` --
+    # vanilla wild tables don't place legendaries in grass/surf/fishing/
+    # rock-smash slots to begin with, so there's nothing to exclude from a
+    # shuffle of the existing multiset.
+    'false': 50
+    'true': 0
 
   randomize_trainers:
     # Randomize trainer Pokémon parties (Gym Leaders, Rivals, Elite Four, Red, and regular trainers).
@@ -225,7 +255,7 @@ Pokemon HGSS:
     # Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
     # Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
     # move with no special effect, instead of an RNG-based instant KO.
-    #
+    # 
     # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
     # randomizer -- this project does not enforce permadeath itself (that
     # stays honor-system, tracked externally), but an instant, uncounterable
@@ -241,10 +271,74 @@ Pokemon HGSS:
     # ability gets that ability copied into both slots instead; a species
     # whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
     # instead.
-    #
+    # 
     # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
     # randomizer -- an inescapable wild battle is a bad interaction with a
     # permadeath ruleset. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  ###################
+  # Quality of Life #
+  ###################
+  fast_text_speed:
+    # Set Text Speed to Fast, the fastest tier the game itself defines,
+    # as soon as this client connects, instead of the vanilla default
+    # (Mid). Applied once per connection, directly to savedata -- can still
+    # be changed freely afterward from the in-game Options menu like any
+    # other setting. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  skip_battle_animations:
+    # Set Battle Scene to Off as soon as this client connects, skipping
+    # move/entry animations in battle. Applied once per connection,
+    # directly to savedata -- can still be changed freely afterward from
+    # the in-game Options menu like any other setting. Off by default
+    # (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  reusable_tms:
+    # Make TMs reusable: whenever a TM is consumed while teaching a
+    # move, this client puts it right back the next time it polls the Bag
+    # (HMs are already never consumed in vanilla). Off by default (vanilla
+    # behavior unchanged).
+    'false': 50
+    'true': 0
+
+  convert_trade_evolutions:
+    # Convert every trade and friendship evolution (Kadabra, Machoke,
+    # Graveler, Haunter, Onix/Steelix's trade-item variant, Eevee's
+    # friendship evolutions, Golbat, etc.) into a plain level-up evolution
+    # instead, at the level set by `trade_evolution_level` below --
+    # trading and grinding friendship are both genuine single-player
+    # accessibility problems. Applied after `randomize_evolutions`, so it
+    # fixes whichever method an edge actually ends up with, randomized or
+    # vanilla. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  trade_evolution_level:
+    # The level trade/friendship evolutions are converted to when
+    # `convert_trade_evolutions` is on. Ignored otherwise.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 1
+    # Maximum value is 100
+    30: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-1-100: 0 # random value between 1 and 100
+
+  #############
+  # DeathLink #
+  #############
+  death_link:
+    # When you die, everyone who enabled death link dies. Of course, the reverse is true too.
+    # 
+    # In Pokemon HeartGold/SoulSilver, having one of your own Pokemon faint sends a death, and receiving a death faints your entire party (zeroes each party Pokemon's current HP, same as a vanilla blackout).
     'false': 50
     'true': 0
 
@@ -256,6 +350,36 @@ Pokemon HGSS:
     # 
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.
+    'false': 50
+    'true': 0
+
+  dexsanity:
+    # Add a check for catching each species for the first time.
+    # 
+    # Seed-aware (task M3.4): only species that genuinely appear somewhere in
+    # this seed's own randomize_wild_pokemon tables get a check -- static/gift
+    # Pokemon (starters, legendaries, in-game gifts) stay vanilla/fixed and
+    # are never a Dexsanity check. Every Dexsanity check only ever holds a
+    # filler item, never a progression one: the access rule only requires
+    # owning the right catching tool (Surf, a fishing rod, Rock Smash) for
+    # some occurrence of that species, not the exact region it spawns in, so
+    # it is deliberately looser than the game's real logic and unsafe to gate
+    # anything mandatory behind.
+    # 
+    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
+    # a playable v1.
+    'false': 50
+    'true': 0
+
+  legendarysanity:
+    # Add a check for catching Ho-Oh (Bell Tower) and Lugia (Whirl
+    # Islands), both only reachable after defeating the Elite Four/Champion,
+    # matching vanilla.
+    # 
+    # Off by default: with this off, both stay exactly as in vanilla (same
+    # place, same post-Elite Four requirement) -- they're just not tracked
+    # as an Archipelago check, matching how other Pokemon Archipelago worlds
+    # treat static legendary encounters.
     'false': 50
     'true': 0
 
@@ -276,7 +400,7 @@ Pokemon HGSS:
 
   start_inventory_from_pool:
     # Start with the specified amount of these items and don't place them in the world. Example: {Bomb: 1, Arrow: 3}
-    #
+    # 
     # The game decides what the replacement items will be.
     {}
 

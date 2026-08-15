@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-16
+
+### Added
+- **Legendarysanity** option: turns catching Ho-Oh (Bell Tower) and Lugia
+  (Whirl Islands) into real checks, alongside `trainersanity`/`dexsanity`.
+  Off by default -- both stay exactly vanilla (same place, same
+  post-Elite Four requirement) when off, matching how other Pokemon
+  Archipelago worlds treat static legendary encounters.
+
 ## [0.3.0] - 2026-08-16
 
 ### Added

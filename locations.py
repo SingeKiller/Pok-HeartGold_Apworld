@@ -135,6 +135,7 @@ def create_locations(
     trainersanity: bool = False,
     dexsanity: bool = False,
     dexsanity_species_methods: dict[str, frozenset[str]] | None = None,
+    legendarysanity: bool = False,
 ) -> None:
     """Create a `HeartGoldLocation` for every `data/locations.py` entry and
     attach it to its parent `Region` (as built by
@@ -150,12 +151,18 @@ def create_locations(
     `species` key is present in `dexsanity_species_methods` (i.e. this
     seed's own randomized wild-encounter tables actually place that species
     somewhere) -- caller passes species.species_encounter_methods(world.
-    generated_encounters) here."""
+    generated_encounters) here. `type = 'static_pokemon'` locations
+    (Ho-Oh/Lugia) work the same way, gated on `legendarysanity` -- off by
+    default, matching every other Pokemon Archipelago world, which leaves
+    static legendary encounters entirely vanilla rather than tracking
+    them as a check."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
             continue
         if data["type"] == "trainer" and not trainersanity:
+            continue
+        if data["type"] == "static_pokemon" and not legendarysanity:
             continue
         methods: frozenset[str] | None = None
         if data["type"] == "dexsanity":

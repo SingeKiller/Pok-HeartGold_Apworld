@@ -430,9 +430,9 @@ close the existing flag-reading mechanism already gets.
   `type = 'static_pokemon'` locations, `catch_ho_oh` (region
   `bell_tower_roof`, map D17R0110) and `catch_lugia` (region
   `whirl_islands_b3f_lugia_cave`, map T10R0701) -- real, fillable
-  locations like `trainer`/`badge`, always created (no toggle option,
-  no vanilla item to displace so each contributes a random filler item
-  the same way a trainer battle does). Check detection reuses
+  locations like `trainer`/`badge`, no vanilla item to displace so each
+  contributes a random filler item the same way a trainer battle does.
+  Check detection reuses
   `include/constants/flags.h`'s own dedicated `FLAG_CAUGHT_HO_OH`
   (0x116) / `FLAG_CAUGHT_LUGIA` (0x117) constants -- the exact same
   `SaveVarsFlags.flags[]` savedata array every other flag-based location
@@ -449,6 +449,29 @@ close the existing flag-reading mechanism already gets.
   `data_gen/rules.toml` exit_rule gate (the same event already used for
   the Kanto gate) rather than a location-specific rule, since neither
   region holds any other location.
+  **Follow-up (2026-08-16, user request): gated behind a new
+  `legendarysanity` option, off by default.** Investigated live-game
+  knowledge first: the user recalled catching their version's own "box"
+  legendary before the Elite Four, but a full decomp search (every
+  `ClearFlag`/`SetFlag` reference to both Hide flags across the whole
+  project) found no earlier catchable path for either species -- the
+  Hall of Fame script above is the only real unlock, both versions,
+  unconditionally. What the user likely remembered is a non-catchable
+  scripted flyby during the Team Rocket/Radio Tower arc (pre-E4), which
+  never touches either Hide/Caught flag. Cross-checked
+  `platinum_archipelago`: it doesn't track any static legendary capture
+  as an AP location at all (Dialga/Palkia/Giratina, the lake trio, Regis,
+  Heatran, Cresselia, etc. all stay fully vanilla; only a species-level
+  blacklist option exists, to exclude legendaries from the wild-encounter
+  randomization pool). `legendarysanity` follows that precedent: off by
+  default, both stay exactly vanilla (same place, same post-Elite Four
+  requirement) and simply aren't tracked as a check; on, both become real
+  checks the same way `trainersanity`/`dexsanity` do. Independent of
+  `exclude_legendaries`: Ho-Oh/Lugia can already appear as an ordinary
+  wild-encounter species (and therefore get their own Dexsanity check)
+  when `randomize_wild_pokemon` is `full_random`/`zone_method_mapping` and
+  `exclude_legendaries` is off -- `legendarysanity` only concerns their
+  separate, guaranteed static encounter.
 
 ## v3 (deferred -- each blocked on something outside a normal implementation
 pass: an external prerequisite, or a real ARM code hook this project has no

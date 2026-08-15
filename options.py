@@ -250,6 +250,20 @@ class Dexsanity(Toggle):
     display_name = "Dexsanity"
 
 
+class Legendarysanity(Toggle):
+    """Add a check for catching Ho-Oh (Bell Tower) and Lugia (Whirl
+    Islands), both only reachable after defeating the Elite Four/Champion,
+    matching vanilla.
+
+    Off by default: with this off, both stay exactly as in vanilla (same
+    place, same post-Elite Four requirement) -- they're just not tracked
+    as an Archipelago check, matching how other Pokemon Archipelago worlds
+    treat static legendary encounters.
+    """
+
+    display_name = "Legendarysanity"
+
+
 class DisableOhkoMoves(Toggle):
     """Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
     Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
@@ -372,6 +386,7 @@ class HeartGoldOptions(PerGameCommonOptions):
 
     trainersanity: Trainersanity
     dexsanity: Dexsanity
+    legendarysanity: Legendarysanity
 
     start_inventory_from_pool: StartInventoryPool
 
@@ -414,7 +429,7 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Stretch Goals",
-        [Trainersanity, Dexsanity],
+        [Trainersanity, Dexsanity, Legendarysanity],
         start_collapsed=True,
     ),
 ]
