@@ -32,11 +32,20 @@
 # Badges: HGSS (a Gen II remake) tracks the 16 Johto/Kanto gym badges as
 # save-data flags (include/constants/badge.h, BADGE_ZEPHYR..BADGE_EARTH),
 # NOT as ITEM_* bag items -- there is no ITEM_*_BADGE constant anywhere in
-# items.h. This is confirmed by cross-referencing ressources/platinum_archipelago
-# (a Gen IV game, where badges ARE items with their own ITEM_* constants and
-# clas = "badge"): the badge-as-item pattern does not apply to this game.
-# There is therefore nothing to add here for badges; they belong to a future
-# task modeling HGSS's flag-based badge state, not to items.toml.
+# items.h, unlike ressources/platinum_archipelago (a Gen IV game, where
+# badges ARE items with their own ITEM_* constants). **Implemented anyway
+# as real AP items (task "Badges comme vrais items AP", 2026-08-15):** the
+# 16 badge_* entries below are synthetic -- id 9000+badge index (per
+# data_gen/rules.toml's own [badges] table, badge.h's own BADGE_ZEPHYR=0..
+# BADGE_EARTH=15 order), well clear of the real 0-536 ITEM_* range, and
+# pocket = "badge" (a synthetic pocket, deliberately absent from
+# save_layout.POCKET_KEY_TO_BAG_FIELD so client.py's normal Bag-write
+# dispatch skips these automatically -- receiving one instead sets the
+# matching bit directly in PlayerProfile.johtoBadges/kantoBadges, see
+# client.py's own badge-delivery code and rom/badgedata.py for how the
+# vanilla gym scripts' own GiveBadge call is neutralized so it can't also
+# grant the (possibly wrong, vanilla) badge locally and double up with
+# whatever this synthetic item actually places there).
 #
 # pocket: lowercased items.h POCKET_* constant (items/medicine/balls/
 # tm_hm/berries/mail/battle_items/key_items), i.e. the game's own bag
@@ -3659,3 +3668,118 @@ label = "ENIGMA_STONE"
 price = 0
 pocket = "key_items"
 classification = "useful"
+
+# Badge items (task "Badges comme vrais items AP", 2026-08-15) -- see this
+# file's header for the synthetic id/pocket rationale. Order/index matches
+# data_gen/rules.toml's own [badges] table (badge.h's own numeric order).
+[badge_zephyr]
+id = 9000
+label = "ZEPHYR BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_hive]
+id = 9001
+label = "HIVE BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_plain]
+id = 9002
+label = "PLAIN BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_fog]
+id = 9003
+label = "FOG BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_storm]
+id = 9004
+label = "STORM BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_mineral]
+id = 9005
+label = "MINERAL BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_glacier]
+id = 9006
+label = "GLACIER BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_rising]
+id = 9007
+label = "RISING BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_boulder]
+id = 9008
+label = "BOULDER BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_cascade]
+id = 9009
+label = "CASCADE BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_thunder]
+id = 9010
+label = "THUNDER BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_rainbow]
+id = 9011
+label = "RAINBOW BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_soul]
+id = 9012
+label = "SOUL BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_marsh]
+id = 9013
+label = "MARSH BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_volcano]
+id = 9014
+label = "VOLCANO BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"
+
+[badge_earth]
+id = 9015
+label = "EARTH BADGE"
+price = 0
+pocket = "badge"
+classification = "progression"

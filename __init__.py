@@ -1,6 +1,6 @@
 # __init__.py
 #
-# Registers the "Pokemon HeartGold" Archipelago World: wires together
+# Registers the "Pokemon HGSS" Archipelago World: wires together
 # items.py/locations.py/regions.py/rules.py/options.py/species.py into
 # the World subclass Archipelago's worlds.AutoWorld plugin loader
 # instantiates.
@@ -20,7 +20,7 @@ from typing import Any, ClassVar
 # Every sibling module uses plain, absolute imports so they stay
 # importable as flat top-level modules for their own standalone unit
 # tests. Once this file is loaded by Archipelago as
-# worlds.pokemon_heartgold, those absolute imports would otherwise raise
+# worlds.pokemon_hgss, those absolute imports would otherwise raise
 # ImportError -- bootstrapping this directory onto sys.path first fixes
 # that. Regenerating data/ here (if missing, dev checkout only) avoids a
 # pytest collection race; see NOTES.md for the two fix attempts that
@@ -48,7 +48,7 @@ from data.rules import BADGES  # noqa: E402
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import (  # noqa: E402
     SHELVED_LOCATION_TYPES,
-    badge_event_item_name,
+    badge_item_label,
     create_location_label_to_code_map,
     create_locations,
 )
@@ -60,6 +60,7 @@ from regions import create_regions as build_region_graph  # noqa: E402
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
 from species import (  # noqa: E402
+    convert_trade_and_friendship_evolutions,
     disable_ohko_moves,
     neutralize_trapping_abilities,
     randomize_base_stats,
@@ -67,9 +68,11 @@ from species import (  # noqa: E402
     randomize_move_stats,
     randomize_move_types,
     randomize_species_types,
+    randomize_starters,
     randomize_trainer_parties,
     randomize_wild_encounters,
     scale_trainer_levels,
+    species_encounter_methods,
 )
 from universal_tracker import (  # noqa: E402
     SLOT_DATA_OPTIONS_KEY,
@@ -79,14 +82,20 @@ from universal_tracker import (  # noqa: E402
 
 ORIGIN_REGION_NAME = "new_bark"  # HGSS's own starting region, New Bark Town
 
-# Each real-AP-location entry carries an original_item -- create_items()
-# places exactly that item's HeartGoldItem into the pool per location, so
-# the pool and the unfilled-location count always match 1:1.
-_NON_BADGE_LOCATION_KEYS = tuple(
+# Every real-AP-location entry contributes exactly one HeartGoldItem to
+# the pool (create_items() below) so the pool and the unfilled-location
+# count always match 1:1 -- an original_item's own HeartGoldItem for most
+# types (type = 'badge' included: each has a real, synthetic badge_*
+# original_item, see locations.py's own docstring), a random filler item
+# for type = 'trainer', 'dexsanity', or 'static_pokemon' (none of the
+# three has a vanilla item to displace). Only type = 'event' locations
+# carry no original_item at all and never enter the real item pool (locked
+# progression events, see locations.py's create_locations).
+_ID_ASSIGNABLE_LOCATION_KEYS = tuple(
     sorted(
         key
         for key, data in LOCATIONS.items()
-        if data["type"] != "badge" and data["type"] not in SHELVED_LOCATION_TYPES
+        if data["type"] != "event" and data["type"] not in SHELVED_LOCATION_TYPES
     )
 )
 
@@ -119,10 +128,14 @@ def _goal_rule(player: int, goal: int, badge_count: int):
     """Build the multiworld.completion_condition[player] callable for the
     goal option's chosen value."""
     if goal == Goal.option_n_badges:
-        badge_events = tuple(badge_event_item_name(name) for name in BADGES)
+        # Badges are real, tradeable items (task "Badges comme vrais items
+        # AP", 2026-08-15) -- state.has counts however many of the 16
+        # badge_* items this player has actually received, from anywhere in
+        # the multiworld, not a locked per-region event.
+        badge_labels = tuple(badge_item_label(name) for name in BADGES)
 
         def rule(state: CollectionState) -> bool:
-            return sum(state.has(event, player) for event in badge_events) >= badge_count
+            return sum(state.has(label, player) for label in badge_labels) >= badge_count
 
         return rule
 
@@ -167,13 +180,16 @@ class HeartGoldSettings(settings.Group):
 # effect before test fixtures get a chance to; AutoWorldRegister.__new__
 # refuses a second registration of the same game name. Drop any prior
 # registration first -- a no-op for a real Archipelago load. See NOTES.md.
-AutoWorldRegister.world_types.pop("Pokemon HeartGold", None)
+AutoWorldRegister.world_types.pop("Pokemon HGSS", None)
 
 
 class HeartGoldWorld(World):
-    """Pokemon HeartGold & SoulSilver."""
+    """Pokemon HeartGold & SoulSilver -- registered game name "Pokemon
+    HGSS" (renamed 2026-08-15 from "Pokemon HeartGold" now that both
+    versions are equally first-class; see docs/architecture.md's
+    "SoulSilver support" entry)."""
 
-    game = "Pokemon HeartGold"
+    game = "Pokemon HGSS"
     web = HeartGoldWebWorld()
     topology_present = True
 
@@ -217,12 +233,70 @@ class HeartGoldWorld(World):
     def generate_early(self) -> None:
         load_ut_slot_data(self)
 
+        # Wild encounters must be known before create_regions()/create_items()
+        # run (Dexsanity, task M3.4, scopes its locations to species that
+        # genuinely appear somewhere in this seed's own table -- see
+        # locations.py's create_locations) -- unlike the rest of set_rules()'s
+        # ROM-only randomization, this one also has to run for a Universal
+        # Tracker re-generation, since UT rebuilds the same location set
+        # locally rather than reading it from the real seed. UT reproduces
+        # this deterministically by re-seeding self.random identically and
+        # round-tripping every option that feeds into it (game_version,
+        # randomize_wild_pokemon, exclude_legendaries -- see
+        # universal_tracker.TRACKED_OPTION_NAMES).
+        if self.options.game_version.value == GameVersion.option_soulsilver:
+            version_encounters = ENCOUNTERS_SOULSILVER
+        else:
+            version_encounters = ENCOUNTERS_HEARTGOLD
+        self.generated_encounters = randomize_wild_encounters(
+            self.random,
+            self.options.randomize_wild_pokemon.value,
+            encounters=version_encounters,
+            exclude_legendaries=bool(self.options.exclude_legendaries.value),
+        )
+        self.dexsanity_species_methods = species_encounter_methods(self.generated_encounters)
+
     def create_regions(self) -> None:
         self.regions = build_region_graph(self.player, self.multiworld)
-        create_locations(self.player, self.regions)
+        create_locations(
+            self.player,
+            self.regions,
+            trainersanity=bool(self.options.trainersanity.value),
+            dexsanity=bool(self.options.dexsanity.value),
+            dexsanity_species_methods=self.dexsanity_species_methods,
+        )
 
     def create_items(self) -> None:
-        pool = [create_item(LOCATIONS[key]["original_item"], self.player) for key in _NON_BADGE_LOCATION_KEYS]
+        # type = 'trainer' (task M3.3) and type = 'dexsanity' (task M3.4)
+        # locations have no original_item -- neither a trainer battle nor a
+        # Dexsanity catch drops a vanilla item -- so they each contribute a
+        # random filler item to the pool instead, and only for the entries
+        # create_regions() above actually created (trainersanity/dexsanity
+        # off, or -- dexsanity only -- that species absent from this seed's
+        # own wild tables), so the pool size matches the created, unfilled
+        # location count exactly.
+        trainersanity = bool(self.options.trainersanity.value)
+        dexsanity = bool(self.options.dexsanity.value)
+        pool = []
+        for key in _ID_ASSIGNABLE_LOCATION_KEYS:
+            data = LOCATIONS[key]
+            if data["type"] == "trainer":
+                if not trainersanity:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            elif data["type"] == "dexsanity":
+                if not dexsanity or data["species"] not in self.dexsanity_species_methods:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            elif data["type"] == "static_pokemon":
+                # No vanilla item to displace (the "reward" is the
+                # encounter itself) -- always created, no toggle option.
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            else:
+                pool.append(create_item(data["original_item"], self.player))
         self.multiworld.itempool += pool
 
     def create_item(self, name: str) -> Item:
@@ -239,20 +313,17 @@ class HeartGoldWorld(World):
         )
 
         # Everything below is ROM-only randomization for `generate_output()`
-        # -- no v1 Location is gated on it (docs/scope.md), and a Universal
+        # -- no v1 Location is gated on it (docs/scope.md; generated_encounters
+        # is the one exception, and is already computed in generate_early()
+        # since Dexsanity's location set depends on it), and a Universal
         # Tracker re-run never writes a ROM, so skip it there.
         if self.is_universal_tracker:
             return
 
-        # Wild encounters genuinely differ between HeartGold and
-        # SoulSilver -- pick the table matching game_version before
-        # randomizing (see data_gen/encounters.toml's header for why).
-        if self.options.game_version.value == GameVersion.option_soulsilver:
-            version_encounters = ENCOUNTERS_SOULSILVER
-        else:
-            version_encounters = ENCOUNTERS_HEARTGOLD
-        self.generated_encounters = randomize_wild_encounters(
-            self.random, self.options.randomize_wild_pokemon.value, encounters=version_encounters
+        self.generated_starters = randomize_starters(
+            self.random,
+            bool(self.options.randomize_starters.value),
+            exclude_legendaries=bool(self.options.exclude_legendaries.value),
         )
         self.generated_trainer_parties = randomize_trainer_parties(
             self.random, bool(self.options.randomize_trainers.value)
@@ -261,6 +332,11 @@ class HeartGoldWorld(World):
             self.options.trainer_level_scaling.value, trainers=self.generated_trainer_parties
         )
         self.generated_species = randomize_evolutions(self.random, self.options.randomize_evolutions.value)
+        self.generated_species = convert_trade_and_friendship_evolutions(
+            self.generated_species,
+            bool(self.options.convert_trade_evolutions.value),
+            self.options.trade_evolution_level.value,
+        )
         self.generated_species = randomize_base_stats(
             self.random, self.options.randomize_base_stats.value, species=self.generated_species
         )
@@ -289,6 +365,10 @@ class HeartGoldWorld(World):
             "game_version": GAME_VERSION["name"],
             "goal": self.options.goal.value,
             "goal_badge_count": self.options.goal_badge_count.value,
+            "fast_text_speed": bool(self.options.fast_text_speed.value),
+            "skip_battle_animations": bool(self.options.skip_battle_animations.value),
+            "reusable_tms": bool(self.options.reusable_tms.value),
+            "death_link": bool(self.options.death_link.value),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
 

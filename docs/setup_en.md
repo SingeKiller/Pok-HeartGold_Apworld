@@ -1,4 +1,4 @@
-# Pokémon HeartGold Setup Guide
+# Pokémon HGSS Setup Guide
 
 ## Required Software
 
@@ -11,7 +11,7 @@
   later
 
 That's it -- the ROM read/write library this world needs (`apnds`, MIT)
-is bundled directly inside `pokemon_heartgold.apworld`, so there's no
+is bundled directly inside `pokemon_hgss.apworld`, so there's no
 separate install step, even on the official portable Windows release.
 
 ### Configuring BizHawk
@@ -30,12 +30,12 @@ tabbed out of EmuHawk.
 
 ## Generating and Patching a Game
 
-1. Add `pokemon_heartgold.apworld` to your `custom_worlds` folder in your Archipelago install. It should not be in
+1. Add `pokemon_hgss.apworld` to your `custom_worlds` folder in your Archipelago install. It should not be in
    `lib/worlds`.
 2. Create your options file (YAML). You can make one by choosing `Generate Templates`
    from the Archipelago Launcher. From there, you can edit the `.yaml` in any text editor.
    If you'd rather not generate one yourself, a ready-to-edit default is provided at
-   [`docs/Pokemon HeartGold.yaml`](Pokemon%20HeartGold.yaml) in this repository.
+   [`docs/Pokemon HGSS.yaml`](Pokemon%20HGSS.yaml) in this repository.
 3. Follow the general Archipelago instructions
    for [generating a game on your local installation](https://archipelago.gg/tutorial/Archipelago/setup/en#on-your-local-installation).
    This will generate an output file for you. Your patch file will have the `.apheartgold` file extension and will be
@@ -82,8 +82,8 @@ need the slot's YAML.
 1. **Problem**: "No handler was found for this game." in the client. **Solution**: Update to at least BizHawk version 2.10.
 2. **Problem**: The client says my ROM doesn't match. **Solution**: Make sure you're patching a US Pokémon HeartGold
    or SoulSilver ROM, not another region or another revision.
-3. **Problem**: Pokémon HeartGold never shows up in `Generate Template Options` / `Option Creator`, even after
+3. **Problem**: Pokémon HGSS never shows up in `Generate Template Options` / `Option Creator`, even after
    installing the `.apworld`. **Solution**: check your `logs/Launcher_*.txt` for a traceback naming this world --
-   it'll say exactly what failed to import. If you replaced an existing `pokemon_heartgold.apworld`, make sure
+   it'll say exactly what failed to import. If you replaced an existing `pokemon_hgss.apworld`, make sure
    the old copy was actually removed from `custom_worlds` first; the Launcher's "Install APWorld" refuses to
    overwrite an existing file with the same name.

@@ -1998,10 +1998,21 @@ recommends the native tool for real releases.
 Requested directly by the user, who supplied a legally-dumped US
 SoulSilver ROM locally. Chosen architecture (`AskUserQuestion`, "Un seul
 monde, deux ROMs acceptées"): **one** Archipelago world (`game =
-"Pokemon HeartGold"` stays unchanged -- renaming it would be a breaking
-change to every existing YAML/spoiler log referencing it) that accepts
-*either* ROM via dual-MD5 validation, rather than a second, parallel
-world.
+"Pokemon HeartGold"` stayed unchanged at the time -- renaming it would
+have been a breaking change to every existing YAML/spoiler log
+referencing it) that accepts *either* ROM via dual-MD5 validation,
+rather than a second, parallel world.
+
+**Superseded 2026-08-15**: the game was renamed to `"Pokemon HGSS"`
+anyway, as a deliberate user-approved breaking change (task "Renommer
+pokemon_heartgold.apworld"), once "Pokemon HeartGold" alone had become
+misleading enough (SoulSilver fully first-class, badges/starters/wild
+encounters all version-aware) to outweigh the compatibility cost noted
+above. Every programmatic `game = "Pokemon HeartGold"` identifier
+(`__init__.py`, `output_patch.py`, `client.py`, `locations.py`,
+`items.py`, `archipelago.json`) and the default player YAML (renamed
+`docs/Pokemon HGSS.yaml`) were updated together; `world_version` bumped
+to `0.3.0` to signal the break.
 
 **Why this was tractable without a parallel implementation**:
 reconnaissance found HeartGold and SoulSilver share near-identical

@@ -28,11 +28,12 @@ from data.species import SPECIES
 from data.trainers import TRAINERS
 
 # Mirrors options.RandomizeWildPokemon's option_vanilla/option_shuffle/
-# option_full_random values (see this module's docstring for why they are
-# duplicated here instead of imported).
+# option_full_random/option_zone_method_mapping values (see this module's
+# docstring for why they are duplicated here instead of imported).
 WILD_VANILLA = 0
 WILD_SHUFFLE = 1
 WILD_FULL_RANDOM = 2
+WILD_ZONE_METHOD_MAPPING = 3
 
 # Mirrors options.RandomizeEvolutions's option_off/option_keep_method/
 # option_any_method values.
@@ -62,49 +63,110 @@ VANILLA_STARTERS = ("chikorita", "cyndaquil", "totodile")
 _FISHING_RODS = ("old_rod", "good_rod", "super_rod")
 _HEADBUTT_TIERS = ("common", "rare", "secret")
 
+# Gen 1-4 legendaries and mythicals present in HGSS's National Dex (up to
+# Arceus, #493) -- not derived from a decomp data source (this project's
+# species data has no "legendary" flag of its own), a hardcoded list per
+# the well-established convention. Sub-legendaries (Regi trio, lake trio,
+# Latias/Latios) and mythicals (Mew, Celebi, Jirachi, Deoxys, Phione,
+# Manaphy, Darkrai, Shaymin, Arceus) are included alongside the "box art"
+# legendaries -- excluded together by exclude_legendaries, no finer split.
+LEGENDARY_SPECIES = frozenset(
+    {
+        "articuno",
+        "zapdos",
+        "moltres",
+        "mewtwo",
+        "mew",
+        "raikou",
+        "entei",
+        "suicune",
+        "lugia",
+        "ho_oh",
+        "celebi",
+        "regirock",
+        "regice",
+        "registeel",
+        "latias",
+        "latios",
+        "kyogre",
+        "groudon",
+        "rayquaza",
+        "jirachi",
+        "deoxys",
+        "uxie",
+        "mesprit",
+        "azelf",
+        "dialga",
+        "palkia",
+        "heatran",
+        "regigigas",
+        "giratina",
+        "cresselia",
+        "phione",
+        "manaphy",
+        "darkrai",
+        "shaymin",
+        "arceus",
+    }
+)
 
-def real_species_pool(species: dict = SPECIES) -> tuple[str, ...]:
+
+def real_species_pool(species: dict = SPECIES, *, exclude_legendaries: bool = False) -> tuple[str, ...]:
     """The species with a real national Pokedex number -- excludes HGSS
     alternate forms (Deoxys/Wormadam/Giratina Origin/Shaymin Sky/Rotom).
-    Sorted for a deterministic base ordering."""
-    return tuple(sorted(key for key, data in species.items() if data["national_dex"] is not None))
+    `exclude_legendaries=True` also drops LEGENDARY_SPECIES. Sorted for a
+    deterministic base ordering."""
+    pool = (key for key, data in species.items() if data["national_dex"] is not None)
+    if exclude_legendaries:
+        pool = (key for key in pool if key not in LEGENDARY_SPECIES)
+    return tuple(sorted(pool))
 
 
 # --- 1. Starters -----------------------------------------------------------
 
 
-def randomize_starters(rng: Random, enabled: bool, species: dict = SPECIES) -> tuple[str, str, str]:
-    """Pick the 3 starter species (also used for the rival's own starter).
-    `enabled=False` returns `VANILLA_STARTERS` unchanged."""
+def randomize_starters(
+    rng: Random, enabled: bool, species: dict = SPECIES, *, exclude_legendaries: bool = False
+) -> tuple[str, str, str]:
+    """Pick the 3 starter species (also used for the rival's own starter),
+    restricted to species with at least one evolution -- matching vanilla,
+    where each starter has two. `enabled=False` returns `VANILLA_STARTERS`
+    unchanged."""
     if not enabled:
         return VANILLA_STARTERS
-    pool = real_species_pool(species)
+    pool = tuple(
+        key for key in real_species_pool(species, exclude_legendaries=exclude_legendaries) if species[key]["evolutions"]
+    )
     return tuple(rng.sample(pool, k=3))  # type: ignore[return-value]
 
 
 # --- 2. Wild encounters ------------------------------------------------------
 
 
-def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str]]]:
+def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str, str]]]:
     """Deep-copy one ENCOUNTERS zone into plain mutable dicts/lists, and
-    return it together with a flat list of (container, key) pairs -- one
-    per species leaf -- in a fixed traversal order. Callers overwrite in
-    place, then `_finalize_zone` converts back to tuples."""
+    return it together with a flat list of (container, key, method) triples
+    -- one per species leaf -- in a fixed traversal order. `method` is one
+    of 'land'/'surf'/'rock_smash'/'old_rod'/'good_rod'/'super_rod'/
+    'headbutt' (task M3.4's species_encounter_methods uses the same set) --
+    used by WILD_ZONE_METHOD_MAPPING below to group refs; the two older
+    modes just ignore it. Callers overwrite container[key] in place, then
+    `_finalize_zone` converts back to tuples."""
     new_zone: dict = {"map_code": zone["map_code"]}
-    refs: list[tuple[dict, str]] = []
+    refs: list[tuple[dict, str, str]] = []
 
     land = zone["land"]
     new_land_slots = [dict(slot) for slot in land["slots"]]
     for slot in new_land_slots:
         for time_of_day in ("morn", "day", "nite"):
-            refs.append((slot, time_of_day))
+            refs.append((slot, time_of_day, "land"))
     new_zone["land"] = {"rate": land["rate"], "slots": new_land_slots}
 
     for table_name in ("surf", "rock_smash"):
         table = zone[table_name]
         new_slots = [dict(slot) for slot in table["slots"]]
         for slot in new_slots:
-            refs.append((slot, "species"))
+            refs.append((slot, "species", table_name))
         new_zone[table_name] = {"rate": table["rate"], "slots": new_slots}
 
     fishing = zone["fishing"]
@@ -113,7 +175,7 @@ def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str]]]:
         rod_table = fishing[rod]
         new_slots = [dict(slot) for slot in rod_table["slots"]]
         for slot in new_slots:
-            refs.append((slot, "species"))
+            refs.append((slot, "species", rod))
         new_fishing[rod] = {"rate": rod_table["rate"], "slots": new_slots}
     new_zone["fishing"] = new_fishing
 
@@ -123,7 +185,7 @@ def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str]]]:
         for tier in _HEADBUTT_TIERS:
             new_slots = [dict(slot) for slot in headbutt[tier]]
             for slot in new_slots:
-                refs.append((slot, "species"))
+                refs.append((slot, "species", "headbutt"))
             new_headbutt[tier] = new_slots
         new_zone["headbutt"] = new_headbutt
 
@@ -148,8 +210,30 @@ def _finalize_zone(zone: dict) -> dict:
     return finalized
 
 
+def _fill_maximizing_distinctness(rng: Random, pool: tuple[str, ...], count: int) -> list[str]:
+    """`count` values drawn from `pool`, using every pool member at most
+    once before any repeat -- i.e. `rng.sample` when `count <= len(pool)`,
+    otherwise every pool member once (in random order) followed by
+    `rng.choices` (with replacement) for the remainder. Used by
+    WILD_ZONE_METHOD_MAPPING, whose group count (species.py's own
+    zone+method groups) can exceed a legendaries-excluded pool -- 458 real
+    species without legendaries vs. up to ~460 HeartGold groups, see this
+    task's own scoping notes -- so a plain `rng.sample` would raise."""
+    if count <= len(pool):
+        return rng.sample(pool, k=count)
+    result = list(pool)
+    rng.shuffle(result)
+    result.extend(rng.choices(pool, k=count - len(pool)))
+    return result
+
+
 def randomize_wild_encounters(
-    rng: Random, mode: int, encounters: dict = ENCOUNTERS, species: dict = SPECIES
+    rng: Random,
+    mode: int,
+    encounters: dict = ENCOUNTERS,
+    species: dict = SPECIES,
+    *,
+    exclude_legendaries: bool = False,
 ) -> dict:
     """Randomize every wild-encounter species reference in `encounters`
     (grass/surf/fishing/rock-smash/headbutt, see data/encounters.py).
@@ -158,37 +242,99 @@ def randomize_wild_encounters(
     - `WILD_SHUFFLE`: a single global permutation of the actual multiset of
       species appearing across every slot in the game -- the same set of
       species (with the same multiplicity) still appears somewhere, just
-      moved to different slots.
+      moved to different slots. `exclude_legendaries` has no effect here:
+      vanilla wild tables don't place legendaries in grass/surf/fishing/
+      rock-smash slots to begin with, so there is nothing to exclude from
+      a permutation of the existing multiset.
     - `WILD_FULL_RANDOM`: every slot independently gets a fresh
-      `rng.choice` from `real_species_pool(species)`.
+      `rng.choice` from `real_species_pool(species, exclude_legendaries=
+      exclude_legendaries)`.
+    - `WILD_ZONE_METHOD_MAPPING` (task M3.4 follow-up): every (zone, method)
+      group -- e.g. "route_29's land table", "route_29's surf table" are two
+      separate groups -- gets one replacement species, applied to every slot
+      in that group (so every land encounter on a given route is the same
+      species, but that route's surf table can be a different species).
+      Drawn via `_fill_maximizing_distinctness` so as many distinct species
+      as possible appear across the whole game (unlike WILD_FULL_RANDOM,
+      which does not try to avoid repeats at all).
 
-    Both randomized modes walk every zone (in `encounters`' own dict order)
-    and every slot within a zone (in `_zone_species_refs`'s fixed order),
-    so the sequence of `rng` draws -- and therefore the result -- is fully
-    determined by `rng`'s seed."""
+    Every randomized mode walks every zone (in `encounters`' own dict
+    order) and every slot within a zone (in `_zone_species_refs`'s fixed
+    order), so the sequence of `rng` draws -- and therefore the result --
+    is fully determined by `rng`'s seed."""
     if mode == WILD_VANILLA:
         return encounters
 
-    pool = real_species_pool(species)
+    pool = real_species_pool(species, exclude_legendaries=exclude_legendaries)
     new_zones: dict[str, dict] = {}
-    all_refs: list[tuple[dict, str]] = []
+    all_refs: list[tuple[str, dict, str, str]] = []
     for key, zone in encounters.items():
         new_zone, refs = _zone_species_refs(zone)
         new_zones[key] = new_zone
-        all_refs.extend(refs)
+        all_refs.extend((key, container, ref_key, method) for container, ref_key, method in refs)
 
     if mode == WILD_SHUFFLE:
-        shuffled_values = [container[ref_key] for container, ref_key in all_refs]
+        shuffled_values = [container[ref_key] for _zone_key, container, ref_key, _method in all_refs]
         rng.shuffle(shuffled_values)
-        for (container, ref_key), value in zip(all_refs, shuffled_values):
+        for (_zone_key, container, ref_key, _method), value in zip(all_refs, shuffled_values):
             container[ref_key] = value
     elif mode == WILD_FULL_RANDOM:
-        for container, ref_key in all_refs:
+        for _zone_key, container, ref_key, _method in all_refs:
             container[ref_key] = rng.choice(pool)
+    elif mode == WILD_ZONE_METHOD_MAPPING:
+        groups: dict[tuple[str, str], list[tuple[dict, str]]] = {}
+        for zone_key, container, ref_key, method in all_refs:
+            groups.setdefault((zone_key, method), []).append((container, ref_key))
+        group_keys = sorted(groups)  # deterministic order for the rng draw
+        replacements = _fill_maximizing_distinctness(rng, pool, len(group_keys))
+        for group_key, replacement in zip(group_keys, replacements):
+            for container, ref_key in groups[group_key]:
+                container[ref_key] = replacement
     else:
         raise ValueError(f"unknown wild-encounter randomization mode: {mode!r}")
 
     return {key: _finalize_zone(zone) for key, zone in new_zones.items()}
+
+
+# Encounter method names as used by species_encounter_methods below. "land"
+# and "headbutt" carry no vanilla HM/badge gate (see data_gen/rules.toml's
+# header -- headbutt is a Gen4 tutor move, not an HM); the other five each
+# need a specific item (an HM+badge pair for surf/rock_smash, a bag key item
+# for the three fishing rods) before the player can actually trigger that
+# encounter table.
+_UNGATED_ENCOUNTER_METHODS = frozenset({"land", "headbutt"})
+
+
+def species_encounter_methods(encounters: dict) -> dict[str, frozenset[str]]:
+    """Map every species appearing anywhere in `encounters` (normally
+    world.generated_encounters, i.e. already through
+    randomize_wild_encounters for this seed) to the set of encounter
+    methods it's obtainable through -- 'land', 'surf', 'rock_smash',
+    'old_rod', 'good_rod', 'super_rod', 'headbutt'. Used by Dexsanity
+    (task M3.4) to scope its locations to species genuinely catchable in
+    this seed, and to size each one's access rule to the cheapest method
+    that actually works."""
+    result: dict[str, set[str]] = {}
+
+    def add(species: str, method: str) -> None:
+        result.setdefault(species, set()).add(method)
+
+    for zone in encounters.values():
+        for slot in zone["land"]["slots"]:
+            for time_of_day in ("morn", "day", "nite"):
+                add(slot[time_of_day], "land")
+        for slot in zone["surf"]["slots"]:
+            add(slot["species"], "surf")
+        for slot in zone["rock_smash"]["slots"]:
+            add(slot["species"], "rock_smash")
+        for rod, table in zone["fishing"].items():
+            for slot in table["slots"]:
+                add(slot["species"], rod)
+        for tier_slots in zone.get("headbutt", {}).values():
+            for slot in tier_slots:
+                add(slot["species"], "headbutt")
+
+    return {species: frozenset(methods) for species, methods in result.items()}
 
 
 # --- 3. Trainer parties ------------------------------------------------------
@@ -277,6 +423,40 @@ def randomize_evolutions(rng: Random, mode: int, species: dict = SPECIES) -> dic
                 new_evolutions.append({"method": method, "target": target, "param": param})
             else:
                 raise ValueError(f"unknown evolution randomization mode: {mode!r}")
+        new_species[key] = {**data, "evolutions": tuple(new_evolutions)}
+    return new_species
+
+
+# Trade ("trade", "trade_item") and friendship ("friendship",
+# "friendship_day", "friendship_night") evolution methods all genuinely
+# require a second player/console to trigger in vanilla -- a real
+# single-player accessibility problem, independent of whether
+# randomize_evolutions above is on (a randomized evolution can just as
+# easily land on one of these methods as a vanilla one already had).
+_TRADE_AND_FRIENDSHIP_EVOLUTION_METHODS = frozenset(
+    {"trade", "trade_item", "friendship", "friendship_day", "friendship_night"}
+)
+
+
+def convert_trade_and_friendship_evolutions(species: dict, enabled: bool, level: int) -> dict:
+    """Rewrite every evolution edge whose *current* method (vanilla, or
+    already-randomized by `randomize_evolutions` above) is trade- or
+    friendship-based into a plain `level` evolution at `level` instead --
+    a QoL/accessibility option, not a randomizer. Runs after
+    `randomize_evolutions` so it always sees (and fixes) whichever method
+    a given edge actually ended up with. `enabled=False` returns `species`
+    unchanged."""
+    if not enabled:
+        return species
+
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        new_evolutions = []
+        for evo in data["evolutions"]:
+            if evo["method"] in _TRADE_AND_FRIENDSHIP_EVOLUTION_METHODS:
+                new_evolutions.append({"method": "level", "target": evo["target"], "param": level})
+            else:
+                new_evolutions.append(evo)
         new_species[key] = {**data, "evolutions": tuple(new_evolutions)}
     return new_species
 

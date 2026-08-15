@@ -19,11 +19,22 @@ if TYPE_CHECKING:
 
 # Every `HeartGoldOptions` field except AP-common ones (e.g.
 # `start_inventory_from_pool`), which UT takes from the multidata itself.
+#
+# exclude_legendaries and dexsanity (task M3.4) are both load-bearing here,
+# not just round-tripped for completeness: Dexsanity's location set is
+# computed from species.species_encounter_methods(world.generated_
+# encounters), which a UT re-run recomputes locally by re-seeding
+# randomize_wild_encounters -- if either option's value silently diverged
+# from the real generation, the re-run would produce a different encounter
+# table (exclude_legendaries) or a different location set (dexsanity) than
+# the actual seed, desyncing the tracker.
 TRACKED_OPTION_NAMES = (
     "goal",
     "goal_badge_count",
     "game_version",
     "randomize_wild_pokemon",
+    "randomize_starters",
+    "exclude_legendaries",
     "randomize_trainers",
     "randomize_evolutions",
     "randomize_base_stats",
@@ -32,6 +43,7 @@ TRACKED_OPTION_NAMES = (
     "randomize_species_types",
     "trainer_level_scaling",
     "trainersanity",
+    "dexsanity",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is

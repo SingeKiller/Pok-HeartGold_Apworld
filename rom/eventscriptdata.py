@@ -357,6 +357,23 @@ def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) ->
     write_itemball_script_blob(rom, bytes(blob))
 
 
+def write_itemball_item_quantity(rom: HeartGoldRom, block_index: int, quantity: int) -> None:
+    """Overwrite a single itemball script block's quantity operand in
+    place, leaving the rest of scr_seq_0141.bin byte-identical. Must be
+    paired with write_itemball_item_id whenever the item id changes --
+    the vanilla quantity left in place otherwise still gets granted
+    alongside the new item id (task M1.3)."""
+    if not (0 <= quantity <= 0xFFFF):
+        raise ValueError(
+            f"quantity {quantity} does not fit scr_seq_0141.bin's SetVar "
+            "operand (an unsigned 16-bit value, 0-65535)."
+        )
+    blob = bytearray(read_itemball_script_blob(rom))
+    offset = _block_offset(block_index) + QUANTITY_OPERAND_OFFSET
+    struct.pack_into("<H", blob, offset, quantity)
+    write_itemball_script_blob(rom, bytes(blob))
+
+
 def _resolve_ground_item_block_index(location_key: str) -> int:
     """Shared validation for write_ground_item_substitution/
     write_ground_item_empty: resolve location_key to its scr_seq_0141.bin
@@ -396,7 +413,11 @@ def _resolve_ground_item_block_index(location_key: str) -> int:
 def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
     """Patch the itemball script block for a ground_item location (or an
     itemball-shaped hm_tm location) so it grants a different item instead
-    of its vanilla original_item."""
+    of its vanilla original_item. Also pins the quantity operand to 1 --
+    an AP location grants exactly one of its placed item regardless of
+    what quantity vanilla happened to give at that same spot (task M1.3;
+    leaving the vanilla quantity in place would hand over e.g. 5 Master
+    Balls if the original itemball there was a 5-Potion stack)."""
     from data.items import ITEMS
 
     block_index = _resolve_ground_item_block_index(location_key)
@@ -405,6 +426,7 @@ def write_ground_item_substitution(rom: HeartGoldRom, location_key: str, item_ke
         raise KeyError(f"unknown item key: {item_key!r}")
 
     write_itemball_item_id(rom, block_index, item["id"])
+    write_itemball_item_quantity(rom, block_index, 1)
 
 
 def write_ground_item_empty(rom: HeartGoldRom, location_key: str) -> None:
@@ -413,6 +435,12 @@ def write_ground_item_empty(rom: HeartGoldRom, location_key: str) -> None:
     placed item belongs to another multiworld player. Live-verified:
     picking up an item id 0 itemball shows a garbled "Found ???!" message
     but adds nothing real to the Bag, while still setting the location's
-    real vanilla savedata flag, so check-detection keeps working."""
+    real vanilla savedata flag, so check-detection keeps working. Also
+    zeroes the quantity operand (task M1.3): leaving the vanilla quantity
+    in place produces a real, visible {id: 0, quantity: N} Bag slot once
+    picked up (src/bag.c's Pocket_GetItemSlotForAdd matches the first
+    id-0 slot and does `slot->quantity += N` unconditionally), a blank-
+    named stack the player can see and move around."""
     block_index = _resolve_ground_item_block_index(location_key)
     write_itemball_item_id(rom, block_index, 0)
+    write_itemball_item_quantity(rom, block_index, 0)

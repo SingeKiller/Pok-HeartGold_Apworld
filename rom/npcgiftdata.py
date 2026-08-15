@@ -21,6 +21,13 @@ from rom.eventscriptdata import NITROFS_PATH
 
 ITEM_ID_OPERAND_OFFSET = 4
 
+# `GiveItemNoCheck item, quantity` compiles to two back-to-back 6-byte
+# SetVar instructions (VAR_SPECIAL_x8004 = item id, then
+# VAR_SPECIAL_x8005 = quantity, see NOTES.md's derivation) -- the
+# quantity operand's value always sits exactly one 6-byte SetVar
+# instruction after the item-id operand's own value.
+QUANTITY_OPERAND_OFFSET_FROM_ITEM_ID = 6
+
 # location key (`data/locations.py`'s `LOCATIONS`, `npc_gift` or the
 # NPC-delivered half of `hm_tm`) -> list of `(scr_seq.narc sub-file index,
 # item-id byte offset)` pairs to patch. Almost every location has exactly
@@ -51,7 +58,16 @@ TABLE: dict[str, list[tuple[int, int]]] = {
     'goldenrod_radio_tower_3f_tm11': [(31, 274)],
     'goldenrod_radio_tower_4f_brightpowder': [(32, 258)],
     'goldenrod_radio_tower_5f_basement_key': [(33, 513)],
-    'goldenrod_radio_tower_observation_deck_rainbow_wing': [(34, 307)],
+    # 2 real sites (found live 2026-08-15, same class of bug as
+    # route_30_apricorn_house_apricorn_box above): scr_seq_0750_T03.s
+    # (Pewter City) has a second, alternate NPC trigger for the same
+    # Rainbow Wing, guarded by (and granting) the exact same FLAG_UNK_093
+    # -- data_gen/locations.toml's own header already documented this as
+    # "the same check" (correct, since only one of the two can ever fire,
+    # the other's own GoToIfSet guard skips it), but the original C4/C5
+    # extraction only ever recorded the Goldenrod Radio Tower site in
+    # TABLE, leaving this one unsubstituted.
+    'goldenrod_radio_tower_observation_deck_rainbow_wing': [(34, 307), (750, 234)],
     'goldenrod_radio_tower_observation_deck_silver_wing': [(34, 338)],
     'goldenrod_tunnel_1f_fashion_case': [(93, 291), (93, 693)],
     'goldenrod_tunnel_warehouse_card_key': [(97, 79)],
@@ -80,7 +96,16 @@ TABLE: dict[str, list[tuple[int, int]]] = {
     'route_29_twistedspoon': [(225, 219)],
     'route_2_house_nugget': [(171, 32)],
     'route_2_southeast_gatehouse_sacred_ash': [(172, 40)],
-    'route_30_apricorn_house_apricorn_box': [(228, 32)],
+    # 2 real sites, not 1 (real bug found live 2026-08-15, see NOTES.md):
+    # scr_seq_0227_R30.s (the outdoor route, obj_R30_gsmiddleman1's own
+    # cutscene) ALSO does `GiveItemNoCheck ITEM_APRICORN_BOX, 1` then
+    # `SetFlag FLAG_GOT_APRICORN_BOX` -- the exact same flag as the indoor
+    # site below, confirmed by decomp source cross-reference and a real
+    # ROM byte scan (narc 227, value-offset 347, full SetVar-pair pattern
+    # verified). The original C4/C5 extraction only ever found the indoor
+    # site; the outdoor one is a real, live-reachable second grant path
+    # for the same location that was never substituted before this fix.
+    'route_30_apricorn_house_apricorn_box': [(227, 347), (228, 32)],
     'route_30_mr_pokemon_house_exp_share': [(229, 330)],
     'route_30_mr_pokemon_house_mystery_egg': [(229, 143)],
     'route_31_violet_gatehouse_vs_recorder': [(231, 325)],
@@ -147,6 +172,25 @@ def write_npc_gift_item_id(rom: HeartGoldRom, narc_index: int, offset: int, item
     rom.write_narc(NITROFS_PATH, narc)
 
 
+def write_npc_gift_item_quantity(rom: HeartGoldRom, narc_index: int, item_id_offset: int, quantity: int) -> None:
+    """Overwrite the SetVar VAR_SPECIAL_x8005 operand paired with the
+    item-id operand at `item_id_offset` (see
+    QUANTITY_OPERAND_OFFSET_FROM_ITEM_ID). Must be paired with
+    write_npc_gift_item_id whenever the item id changes -- the vanilla
+    quantity left in place otherwise still gets granted alongside the new
+    item id (task M1.3)."""
+    if not (0 <= quantity <= 0xFFFF):
+        raise ValueError(
+            f"quantity {quantity} does not fit this script's SetVar operand "
+            "(an unsigned 16-bit value, 0-65535)."
+        )
+    narc = rom.read_narc(NITROFS_PATH)
+    blob = bytearray(narc.files[narc_index])
+    struct.pack_into("<H", blob, item_id_offset + QUANTITY_OPERAND_OFFSET_FROM_ITEM_ID, quantity)
+    narc.files[narc_index] = bytes(blob)
+    rom.write_narc(NITROFS_PATH, narc)
+
+
 def _resolve_npc_gift_sites(location_key: str) -> list[tuple[int, int]]:
     """Shared validation for write_npc_gift_substitution/
     write_npc_gift_empty: resolve location_key to its TABLE script sites,
@@ -171,7 +215,12 @@ def _resolve_npc_gift_sites(location_key: str) -> list[tuple[int, int]]:
 def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: str) -> None:
     """Patch every script site that grants a npc_gift location (or the
     NPC-delivered half of an hm_tm location) so it grants a different
-    item instead of its vanilla original_item."""
+    item instead of its vanilla original_item. Also pins each site's
+    quantity operand to 1 -- an AP location grants exactly one of its
+    placed item regardless of what quantity vanilla happened to give at
+    that same spot (task M1.3; leaving the vanilla quantity in place
+    would hand over e.g. 5 Master Balls if the original gift there was a
+    5-Potion stack)."""
     from data.items import ITEMS
 
     sites = _resolve_npc_gift_sites(location_key)
@@ -181,6 +230,7 @@ def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: 
 
     for narc_index, offset in sites:
         write_npc_gift_item_id(rom, narc_index, offset, item["id"])
+        write_npc_gift_item_quantity(rom, narc_index, offset, 1)
 
 
 def write_npc_gift_empty(rom: HeartGoldRom, location_key: str) -> None:
@@ -188,7 +238,15 @@ def write_npc_gift_empty(rom: HeartGoldRom, location_key: str) -> None:
     id 0 instead of its vanilla original_item -- for locations whose
     placed item belongs to another multiworld player. Live-verified: an
     item-id-0 npc_gift shows a garbled "Obtained ???!" message but adds
-    nothing real to the Bag, same outcome as the itemball case."""
+    nothing real to the Bag, same outcome as the itemball case. Also
+    zeroes each site's quantity operand (task M1.3): leaving the vanilla
+    quantity in place produces a real, visible {id: 0, quantity: N} Bag
+    slot once granted (src/bag.c's Pocket_GetItemSlotForAdd matches the
+    first id-0 slot and does `slot->quantity += N` unconditionally), a
+    blank-named stack the player can see and move around -- this is the
+    confirmed root cause of the "blank name x5" tester report (route_29's
+    Poke Ball site, see NOTES.md)."""
     sites = _resolve_npc_gift_sites(location_key)
     for narc_index, offset in sites:
         write_npc_gift_item_id(rom, narc_index, offset, 0)
+        write_npc_gift_item_quantity(rom, narc_index, offset, 0)

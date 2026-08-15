@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-16
+
+### Added
+- **Real badge randomization.** Badges are now tradeable/shufflable AP
+  items instead of a fixed logic milestone: each gym's vanilla `GiveBadge`
+  call is neutralized so it can no longer double-grant a badge locally,
+  and defeating a Leader is detected the same way any other trainer
+  battle is.
+- **Trainersanity, made real.** 390 real, fillable trainer-battle
+  locations (one per person-event trainer across the game), off by
+  default via the `trainersanity` option.
+- **A 4th wild-encounter randomization mode**, `zone_method_mapping`:
+  assigns one consistent replacement species per (zone, encounter
+  method) group instead of randomizing every slot independently, so a
+  route's grass encounters read as a single species again.
+- **Ho-Oh and Lugia as real, checkable locations.** Both are only
+  reachable after defeating the Elite Four/Champion, matching vanilla,
+  and losing/fleeing the encounter never blocks anything -- the Pokemon
+  simply reappears.
+- **Quality-of-life options**: `fast_text_speed` and
+  `skip_battle_animations`, applied once per connection and live-
+  verified against a real BizHawk session. Both off by default.
+- **Reusable TMs** option: a consumed TM reappears in the Bag on the
+  client's next poll, no ROM patch needed.
+- **DeathLink support.** One of your own Pokemon fainting sends a death;
+  receiving one faints your whole party (zeroes current HP), matching a
+  vanilla blackout.
+- **Convert trade/friendship evolutions** option: rewrites any trade- or
+  friendship-based evolution into a plain level-up evolution at a
+  configurable level, a single-player accessibility fix.
+- The garbled "???" placeholder name shown when picking up another
+  player's item is now a real, readable message.
+
+### Changed
+- **Renamed the world from "Pokemon HeartGold" to "Pokemon HGSS"**
+  (built file is now `pokemon_hgss.apworld`), reflecting that it has
+  supported both HeartGold and SoulSilver ROMs since 0.1.1. The patch
+  file extension (`.apheartgold`) and local settings key are
+  deliberately unchanged for backward compatibility.
+- The starter-choice screen now shows the actually-randomized species'
+  name instead of always showing Chikorita/Cyndaquil/Totodile -- the
+  species you received was always correct, only the on-screen text
+  lagged behind.
+- Randomized starters are now restricted to species with at least one
+  evolution, matching vanilla (each of the three starters has two) --
+  previously a randomized starter could land on an already fully-evolved
+  species.
+
+### Fixed
+- **Region graph logic bugs** found via real tester spoiler-log feedback:
+  two missing vanilla HM/item gates (a Surf gate, a Squirtbottle-gated
+  Sudowoodo), and a one-way ledge (Route 46 into Route 45) that wrongly
+  let players climb back up, both of which let some seeds reach their
+  goal at sphere 0/1 with effectively no items owned.
+
+### Planned for a future release
+Not implemented yet -- see `docs/scope.md`'s "v3" section for the full
+investigation notes on each:
+- Trainer level matching (scale your Pokemon's level to a trainer's
+  strongest, with a configurable offset) -- blocked on live battle-state
+  detection, needs a real ARM code hook this project has no toolchain for.
+- Randomized start location and starter kit -- blocked on live player-
+  position manipulation, same class of blocker as above.
+- Human-readable location display names in the client/spoiler log --
+  deprioritized, and a real risk to item-substitution delivery was found
+  that needs a dedicated audit pass first.
+- An optional extra-difficulty mode that adds artificial route/passage
+  blockers beyond the existing HM/badge/item gates -- not yet
+  investigated, no blocker identified so far.
+
 ## [0.2.0] - 2026-08-12
 
 ### Added

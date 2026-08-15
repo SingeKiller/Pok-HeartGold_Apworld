@@ -22,7 +22,11 @@ from . import GENERATED_FILE_HEADER, load_toml
 
 
 def _requirement_to_dict(requirement: Requirement) -> dict[str, Any]:
-    return {"items": list(requirement.items), "badges": list(requirement.badges)}
+    return {
+        "items": list(requirement.items),
+        "badges": list(requirement.badges),
+        "events": list(requirement.events),
+    }
 
 
 def generate_rules() -> str:
@@ -30,6 +34,7 @@ def generate_rules() -> str:
     rules_toml = load_toml("rules")
     regions_toml = load_toml("regions")
     items_toml = load_toml("items")
+    locations_toml = load_toml("locations")
 
     hm_badges: Mapping[str, str] = rules_toml.get("hm_badges", {})
     hm_items: Mapping[str, str] = rules_toml.get("hm_items", {})
@@ -38,9 +43,17 @@ def generate_rules() -> str:
 
     exit_rules = build_exit_rules(exit_rule_entries, hm_badges, hm_items)
 
+    # `events` are granted by `type = "event"` data_gen/locations.toml
+    # locations (their own `event` field names the flag), not by a fixed
+    # table in this file the way badges are -- see this file's own header
+    # and locations.py's event_item_name.
+    known_events = {
+        entry["event"] for entry in locations_toml.values() if entry.get("type") == "event" and "event" in entry
+    }
+
     # Defensive: `data_gen/rules.toml` is hand-authored (not machine-extracted
     # like most other data_gen/ sources -- see its header), so guard against
-    # a typo introducing a dangling region/item/badge reference. Same
+    # a typo introducing a dangling region/item/badge/event reference. Same
     # defensive spirit as data_gen_templates/regions.py and
     # data_gen_templates/locations.py: warn, never crash or silently drop.
     known_items = set(items_toml)
@@ -53,7 +66,7 @@ def generate_rules() -> str:
                     f"references unknown region {region_key!r}; keeping as-is.",
                     file=sys.stderr,
                 )
-        for message in validate_requirement(requirement, known_items, known_badges):
+        for message in validate_requirement(requirement, known_items, known_badges, known_events):
             print(
                 f"warning: data_gen/rules.toml: exit_rule {src!r} -> {dst!r}: {message}; "
                 "keeping as-is.",

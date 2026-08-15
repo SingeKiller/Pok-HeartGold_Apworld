@@ -18,7 +18,29 @@
 #     target them independent of the ground_item/npc_gift split), taking
 #     priority over ground_item/npc_gift for any location whose
 #     original_item is hm01-hm08/tm01-tm92.
-#   - badge: one of the 8 Johto gym badges (GiveBadge script command).
+#   - badge: one of the 16 Johto/Kanto gym badges (GiveBadge script
+#     command). **Real, fillable locations as of task "Badges comme vrais
+#     items AP" (2026-08-15)** -- originally a locked/no-address event type
+#     (a placeholder logic milestone, see this project's own git history);
+#     now has an `original_item` (the matching data_gen/items.toml
+#     `badge_*` synthetic item, id 9000+badge index) like ground_item/
+#     npc_gift, and a `trainer` field (the gym Leader's own data_gen/
+#     trainers.toml key -- check detection reuses TRAINER_FLAG_BASE +
+#     trainer id, the exact same mechanism `type = 'trainer'` locations
+#     already use, since defeating the Leader is itself a std_trainer-class
+#     battle even though it's invoked via a raw TrainerBattle scrcmd inside
+#     a scripted sequence rather than a simple person-event scriptId, so it
+#     was never one of the 390 Trainersanity locations). See rom/
+#     badgedata.py for how the vanilla GiveBadge call at each gym is
+#     neutralized (2 Nop instructions) so it can't also grant the
+#     (possibly wrong, vanilla) badge locally and double up with whatever
+#     item this location's own original_item actually resolves to.
+#     Special case: the Rising Badge (Clair) is granted at a different
+#     script site (Dragon's Den Shrine's own puzzle-completion sequence,
+#     scr_seq_0112_D44R0103.s) than her real battle (Blackthorn Gym,
+#     scr_seq_0943_T30GYM0101.s, TRAINER_LEADER_CLAIR_CLAIR) -- both are
+#     decomp-confirmed and handled (patch site vs. detection site tracked
+#     independently in rom/badgedata.py/this entry's own `trainer` field).
 #
 # Excluded from this pass (out of v1 scope or ambiguous, see docs/scope.md
 # and this task's C4/C5 handoff notes): Pokemon/egg rewards (Eevee from
@@ -3169,48 +3191,64 @@ label = 'Ecruteak Dance Theater - Tidal Bell'
 region = 'violet_gym'
 type = 'badge'
 id = 0
+original_item = 'badge_zephyr'
+trainer = 'leader_falkner_falkner'
 label = 'Violet Gym - Falkner'
 
 [azalea_gym_badge]
 region = 'azalea_gym'
 type = 'badge'
 id = 1
+original_item = 'badge_hive'
+trainer = 'leader_bugsy_bugsy'
 label = 'Azalea Gym - Bugsy'
 
 [goldenrod_gym_badge]
 region = 'goldenrod_gym'
 type = 'badge'
 id = 2
+original_item = 'badge_plain'
+trainer = 'leader_whitney'
 label = 'Goldenrod Gym - Whitney'
 
 [ecruteak_gym_badge]
 region = 'ecruteak_gym'
 type = 'badge'
 id = 3
+original_item = 'badge_fog'
+trainer = 'leader_morty_morty'
 label = 'Ecruteak Gym - Morty'
 
 [cianwood_gym_badge]
 region = 'cianwood_gym'
 type = 'badge'
 id = 4
+original_item = 'badge_storm'
+trainer = 'leader_chuck_chuck'
 label = 'Cianwood Gym - Chuck'
 
 [olivine_gym_badge]
 region = 'olivine_gym'
 type = 'badge'
 id = 5
+original_item = 'badge_mineral'
+trainer = 'leader_jasmine_jasmine'
 label = 'Olivine Gym - Jasmine'
 
 [mahogany_gym_leader_room_badge]
 region = 'mahogany_gym_leader_room'
 type = 'badge'
 id = 6
+original_item = 'badge_glacier'
+trainer = 'leader_pryce_pryce'
 label = 'Mahogany Gym - Pryce'
 
 [dragons_den_shrine_badge]
 region = 'dragons_den_shrine'
 type = 'badge'
 id = 7
+original_item = 'badge_rising'
+trainer = 'leader_clair_clair'
 label = "Dragon's Den Shrine - Clair (Rising Badge trial)"
 
 [celadon_tm67]
@@ -4393,48 +4431,64 @@ z = 58
 region = 'pewter_gym'
 type = 'badge'
 id = 8
+original_item = 'badge_boulder'
+trainer = 'leader_brock_brock'
 label = 'Pewter Gym - Boulder Badge'
 
 [cerulean_gym_badge]
 region = 'cerulean_gym'
 type = 'badge'
 id = 9
+original_item = 'badge_cascade'
+trainer = 'leader_misty_misty'
 label = 'Cerulean Gym - Cascade Badge'
 
 [vermilion_gym_badge]
 region = 'vermilion_gym'
 type = 'badge'
 id = 10
+original_item = 'badge_thunder'
+trainer = 'leader_lt_surge_lt__surge'
 label = 'Vermilion Gym - Thunder Badge'
 
 [celadon_gym_badge]
 region = 'celadon_gym'
 type = 'badge'
 id = 11
+original_item = 'badge_rainbow'
+trainer = 'leader_erika_erika'
 label = 'Celadon Gym - Rainbow Badge'
 
 [fuchsia_gym_badge]
 region = 'fuchsia_gym'
 type = 'badge'
 id = 12
+original_item = 'badge_soul'
+trainer = 'leader_janine_janine'
 label = 'Fuchsia Gym - Soul Badge'
 
 [saffron_gym_badge]
 region = 'saffron_gym'
 type = 'badge'
 id = 13
+original_item = 'badge_marsh'
+trainer = 'leader_sabrina_sabrina'
 label = 'Saffron Gym - Marsh Badge'
 
 [seafoam_islands_cinnabar_gym_badge]
 region = 'seafoam_islands_cinnabar_gym'
 type = 'badge'
 id = 14
+original_item = 'badge_volcano'
+trainer = 'leader_blaine_blaine'
 label = 'Seafoam Islands (Cinnabar Gym) - Volcano Badge'
 
 [viridian_gym_badge]
 region = 'viridian_gym'
 type = 'badge'
 id = 15
+original_item = 'badge_earth'
+trainer = 'leader_blue_blue'
 label = 'Viridian Gym - Earth Badge'
 
 [pewter_gym_tm80]
@@ -4653,3 +4707,6265 @@ type = 'npc_gift'
 original_item = 'metal_coat'
 id = 9031
 label = 'S.S. Aqua - Metal Coat'
+
+# type = 'event': a locked AP progression event, no bag item or badge
+# behind it (see data_gen/rules.toml's `events` requirement field, task
+# M0.3). Like a badge location, this has no `original_item` and no real
+# ROM address -- reaching its region grants the named `event` flag instead.
+# elite_four_defeated: the Johto Elite Four + Champion Lance physically
+# block the path through pokemon_league_entrance's room chain until beaten
+# (see data_gen/rules.toml's header note on this), so pokemon_league_hall_
+# of_fame is only ever reached after they're all defeated -- confirmed by
+# scr_seq_0740_T01R0301.s, which sets FLAG_UNLOCKED_MT_SILVER in this exact
+# room at the same time Silver hands over HM08.
+[elite_four_defeated_event]
+region = 'pokemon_league_hall_of_fame'
+type = 'event'
+event = 'elite_four_defeated'
+id = 0
+label = 'Hall of Fame - Elite Four defeated'
+
+# type = 'trainer' (task M3.3, Trainersanity): one real, fillable AP location
+# per std_trainer(...) trainer-battle person-event object found in every
+# zone_event/*.json in scope (390 total, cross-checked against the plan's own
+# figure). Unlike badge/event locations, these ARE real fillable locations (no
+# vanilla item to displace, so create_items() contributes a filler item per
+# location instead of an original_item -- see __init__.py). No original_item
+# field. The new "trainer" field is this trainer's data_gen/trainers.toml key,
+# used by location_flags.py to compute its real vanilla savedata flag
+# (TRAINER_FLAG_BASE + trainers.toml[trainer].id, include/constants/flags.h,
+# already the same flags array client.py polls every tick -- confirmed live by
+# script_manager.c's SetTrainerFlag/CheckTrainerFlag). Only created at all when
+# the trainersanity option is on (see locations.py's create_locations).
+#
+# Known nuance, not a bug (see this task's handoff notes): 52 of these 390
+# trainers also have their flag set automatically the moment their gym's Leader
+# is defeated (each gym script has its own explicit SetTrainerFlag calls for a
+# handful of its own regular trainers, decomp-confirmed) -- a real vanilla
+# convenience (skips re-fighting trainers you dodged on the way to the Leader),
+# not something this project introduces or can suppress.
+
+[azalea_gym_bug_catcher_al]
+region = 'azalea_gym'
+type = 'trainer'
+id = 0
+trainer = 'bug_catcher_al'
+label = 'Al'
+
+[azalea_gym_bug_catcher_benny]
+region = 'azalea_gym'
+type = 'trainer'
+id = 1
+trainer = 'bug_catcher_benny'
+label = 'Benny'
+
+[azalea_gym_bug_catcher_josh]
+region = 'azalea_gym'
+type = 'trainer'
+id = 2
+trainer = 'bug_catcher_josh'
+label = 'Josh'
+
+[azalea_gym_twins_amy_and_mimi]
+region = 'azalea_gym'
+type = 'trainer'
+id = 3
+trainer = 'twins_amy_and_mimi'
+label = 'Amy & Mimi'
+
+[blackthorn_gym_ace_trainer_f_fran]
+region = 'blackthorn_gym'
+type = 'trainer'
+id = 4
+trainer = 'ace_trainer_f_fran'
+label = 'Fran'
+
+[blackthorn_gym_ace_trainer_f_lola]
+region = 'blackthorn_gym'
+type = 'trainer'
+id = 5
+trainer = 'ace_trainer_f_lola'
+label = 'Lola'
+
+[blackthorn_gym_ace_trainer_m_cody]
+region = 'blackthorn_gym'
+type = 'trainer'
+id = 6
+trainer = 'ace_trainer_m_cody'
+label = 'Cody'
+
+[blackthorn_gym_ace_trainer_m_mike]
+region = 'blackthorn_gym'
+type = 'trainer'
+id = 7
+trainer = 'ace_trainer_m_mike'
+label = 'Mike'
+
+[blackthorn_gym_ace_trainer_m_paulo]
+region = 'blackthorn_gym'
+type = 'trainer'
+id = 8
+trainer = 'ace_trainer_m_paulo'
+label = 'Paulo'
+
+[burned_tower_1f_firebreather_ned]
+region = 'burned_tower_1f'
+type = 'trainer'
+id = 9
+trainer = 'firebreather_ned'
+label = 'Ned'
+
+[burned_tower_1f_firebreather_richard]
+region = 'burned_tower_1f'
+type = 'trainer'
+id = 10
+trainer = 'firebreather_richard'
+label = 'Richard'
+
+[celadon_gym_beauty_julia]
+region = 'celadon_gym'
+type = 'trainer'
+id = 11
+trainer = 'beauty_julia'
+label = 'Julia'
+
+[celadon_gym_lass_michelle]
+region = 'celadon_gym'
+type = 'trainer'
+id = 12
+trainer = 'lass_michelle'
+label = 'Michelle'
+
+[celadon_gym_picnicker_tanya]
+region = 'celadon_gym'
+type = 'trainer'
+id = 13
+trainer = 'picnicker_tanya'
+label = 'Tanya'
+
+[celadon_gym_twins_jo_and_zoe]
+region = 'celadon_gym'
+type = 'trainer'
+id = 14
+trainer = 'twins_jo_and_zoe'
+label = 'Jo & Zoe'
+
+[cerulean_gym_sailor_eddie]
+region = 'cerulean_gym'
+type = 'trainer'
+id = 15
+trainer = 'sailor_eddie'
+label = 'Eddie'
+
+[cerulean_gym_sailor_parker]
+region = 'cerulean_gym'
+type = 'trainer'
+id = 16
+trainer = 'sailor_parker'
+label = 'Parker'
+
+[cerulean_gym_swimmer_f_briana]
+region = 'cerulean_gym'
+type = 'trainer'
+id = 17
+trainer = 'swimmer_f_briana'
+label = 'Briana'
+
+[cerulean_gym_swimmer_f_diana]
+region = 'cerulean_gym'
+type = 'trainer'
+id = 18
+trainer = 'swimmer_f_diana'
+label = 'Diana'
+
+[cerulean_gym_swimmer_f_joy]
+region = 'cerulean_gym'
+type = 'trainer'
+id = 19
+trainer = 'swimmer_f_joy'
+label = 'Joy'
+
+[cianwood_gym_black_belt_lao]
+region = 'cianwood_gym'
+type = 'trainer'
+id = 20
+trainer = 'black_belt_lao'
+label = 'Lao'
+
+[cianwood_gym_black_belt_lung]
+region = 'cianwood_gym'
+type = 'trainer'
+id = 21
+trainer = 'black_belt_lung'
+label = 'Lung'
+
+[cianwood_gym_black_belt_nob]
+region = 'cianwood_gym'
+type = 'trainer'
+id = 22
+trainer = 'black_belt_nob'
+label = 'Nob'
+
+[cianwood_gym_black_belt_yoshi]
+region = 'cianwood_gym'
+type = 'trainer'
+id = 23
+trainer = 'black_belt_yoshi'
+label = 'Yoshi'
+
+[dragons_den_ace_trainer_f_piper]
+region = 'dragons_den'
+type = 'trainer'
+id = 24
+trainer = 'ace_trainer_f_piper'
+label = 'Piper'
+
+[dragons_den_ace_trainer_m_kobe]
+region = 'dragons_den'
+type = 'trainer'
+id = 25
+trainer = 'ace_trainer_m_kobe'
+label = 'Kobe'
+
+[dragons_den_twins_clea_and_gil]
+region = 'dragons_den'
+type = 'trainer'
+id = 26
+trainer = 'twins_clea_and_gil'
+label = 'Clea & Gil'
+
+[ecruteak_gym_medium_edith]
+region = 'ecruteak_gym'
+type = 'trainer'
+id = 27
+trainer = 'medium_edith'
+label = 'Edith'
+
+[ecruteak_gym_medium_georgina]
+region = 'ecruteak_gym'
+type = 'trainer'
+id = 28
+trainer = 'medium_georgina'
+label = 'Georgina'
+
+[ecruteak_gym_medium_grace]
+region = 'ecruteak_gym'
+type = 'trainer'
+id = 29
+trainer = 'medium_grace'
+label = 'Grace'
+
+[ecruteak_gym_medium_martha]
+region = 'ecruteak_gym'
+type = 'trainer'
+id = 30
+trainer = 'medium_martha'
+label = 'Martha'
+
+[goldenrod_gym_beauty_samantha]
+region = 'goldenrod_gym'
+type = 'trainer'
+id = 31
+trainer = 'beauty_samantha'
+label = 'Samantha'
+
+[goldenrod_gym_beauty_victoria]
+region = 'goldenrod_gym'
+type = 'trainer'
+id = 32
+trainer = 'beauty_victoria'
+label = 'Victoria'
+
+[goldenrod_gym_lass_carrie]
+region = 'goldenrod_gym'
+type = 'trainer'
+id = 33
+trainer = 'lass_carrie'
+label = 'Carrie'
+
+[goldenrod_gym_lass_cathy]
+region = 'goldenrod_gym'
+type = 'trainer'
+id = 34
+trainer = 'lass_cathy'
+label = 'Cathy'
+
+[goldenrod_radio_tower_2f_team_rocket_f_grunt_2]
+region = 'goldenrod_radio_tower_2f'
+type = 'trainer'
+id = 35
+trainer = 'team_rocket_f_grunt_2'
+label = 'Grunt'
+
+[goldenrod_radio_tower_2f_team_rocket_grunt_4]
+region = 'goldenrod_radio_tower_2f'
+type = 'trainer'
+id = 36
+trainer = 'team_rocket_grunt_4'
+label = 'Grunt'
+
+[goldenrod_radio_tower_2f_team_rocket_grunt_5]
+region = 'goldenrod_radio_tower_2f'
+type = 'trainer'
+id = 37
+trainer = 'team_rocket_grunt_5'
+label = 'Grunt'
+
+[goldenrod_radio_tower_2f_team_rocket_grunt_6]
+region = 'goldenrod_radio_tower_2f'
+type = 'trainer'
+id = 38
+trainer = 'team_rocket_grunt_6'
+label = 'Grunt'
+
+[goldenrod_radio_tower_3f_scientist_gs_garett]
+region = 'goldenrod_radio_tower_3f'
+type = 'trainer'
+id = 39
+trainer = 'scientist_gs_garett'
+label = 'Garett'
+
+[goldenrod_radio_tower_3f_team_rocket_grunt_7]
+region = 'goldenrod_radio_tower_3f'
+type = 'trainer'
+id = 40
+trainer = 'team_rocket_grunt_7'
+label = 'Grunt'
+
+[goldenrod_radio_tower_3f_team_rocket_grunt_8]
+region = 'goldenrod_radio_tower_3f'
+type = 'trainer'
+id = 41
+trainer = 'team_rocket_grunt_8'
+label = 'Grunt'
+
+[goldenrod_radio_tower_3f_team_rocket_grunt_9]
+region = 'goldenrod_radio_tower_3f'
+type = 'trainer'
+id = 42
+trainer = 'team_rocket_grunt_9'
+label = 'Grunt'
+
+[goldenrod_radio_tower_4f_executive_proton_proton_2]
+region = 'goldenrod_radio_tower_4f'
+type = 'trainer'
+id = 43
+trainer = 'executive_proton_proton_2'
+label = 'Proton'
+
+[goldenrod_radio_tower_4f_scientist_gs_trenton]
+region = 'goldenrod_radio_tower_4f'
+type = 'trainer'
+id = 44
+trainer = 'scientist_gs_trenton'
+label = 'Trenton'
+
+[goldenrod_radio_tower_4f_team_rocket_grunt_10]
+region = 'goldenrod_radio_tower_4f'
+type = 'trainer'
+id = 45
+trainer = 'team_rocket_grunt_10'
+label = 'Grunt'
+
+[goldenrod_radio_tower_5f_executive_ariana_ariana]
+region = 'goldenrod_radio_tower_5f'
+type = 'trainer'
+id = 46
+trainer = 'executive_ariana_ariana'
+label = 'Ariana'
+
+[goldenrod_tunnel_b1f_poke_maniac_donald]
+region = 'goldenrod_tunnel_b1f'
+type = 'trainer'
+id = 47
+trainer = 'poke_maniac_donald'
+label = 'Donald'
+
+[goldenrod_tunnel_b1f_poke_maniac_issac]
+region = 'goldenrod_tunnel_b1f'
+type = 'trainer'
+id = 48
+trainer = 'poke_maniac_issac'
+label = 'Issac'
+
+[goldenrod_tunnel_b1f_super_nerd_eric]
+region = 'goldenrod_tunnel_b1f'
+type = 'trainer'
+id = 49
+trainer = 'super_nerd_eric'
+label = 'Eric'
+
+[goldenrod_tunnel_b1f_super_nerd_teru]
+region = 'goldenrod_tunnel_b1f'
+type = 'trainer'
+id = 50
+trainer = 'super_nerd_teru'
+label = 'Teru'
+
+[goldenrod_tunnel_b2f_burglar_duncan]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 51
+trainer = 'burglar_duncan'
+label = 'Duncan'
+
+[goldenrod_tunnel_b2f_burglar_orson]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 52
+trainer = 'burglar_orson'
+label = 'Orson'
+
+[goldenrod_tunnel_b2f_team_rocket_f_grunt_3]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 53
+trainer = 'team_rocket_f_grunt_3'
+label = 'Grunt'
+
+[goldenrod_tunnel_b2f_team_rocket_grunt_11]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 54
+trainer = 'team_rocket_grunt_11'
+label = 'Grunt'
+
+[goldenrod_tunnel_b2f_team_rocket_grunt_12]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 55
+trainer = 'team_rocket_grunt_12'
+label = 'Grunt'
+
+[goldenrod_tunnel_b2f_team_rocket_grunt_23]
+region = 'goldenrod_tunnel_b2f'
+type = 'trainer'
+id = 56
+trainer = 'team_rocket_grunt_23'
+label = 'Grunt'
+
+[goldenrod_tunnel_warehouse_team_rocket_grunt_13]
+region = 'goldenrod_tunnel_warehouse'
+type = 'trainer'
+id = 57
+trainer = 'team_rocket_grunt_13'
+label = 'Grunt'
+
+[goldenrod_tunnel_warehouse_team_rocket_grunt_14]
+region = 'goldenrod_tunnel_warehouse'
+type = 'trainer'
+id = 58
+trainer = 'team_rocket_grunt_14'
+label = 'Grunt'
+
+[goldenrod_tunnel_warehouse_team_rocket_grunt_22]
+region = 'goldenrod_tunnel_warehouse'
+type = 'trainer'
+id = 59
+trainer = 'team_rocket_grunt_22'
+label = 'Grunt'
+
+[lake_of_rage_ace_trainer_f_lois]
+region = 'lake_of_rage'
+type = 'trainer'
+id = 60
+trainer = 'ace_trainer_f_lois'
+label = 'Lois'
+
+[lake_of_rage_ace_trainer_m_alton]
+region = 'lake_of_rage'
+type = 'trainer'
+id = 61
+trainer = 'ace_trainer_m_alton'
+label = 'Alton'
+
+[lake_of_rage_fisherman_andre]
+region = 'lake_of_rage'
+type = 'trainer'
+id = 62
+trainer = 'fisherman_andre'
+label = 'Andre'
+
+[lake_of_rage_fisherman_raymond]
+region = 'lake_of_rage'
+type = 'trainer'
+id = 63
+trainer = 'fisherman_raymond'
+label = 'Raymond'
+
+[mahogany_gym_leader_room_boarder_deandre]
+region = 'mahogany_gym_leader_room'
+type = 'trainer'
+id = 64
+trainer = 'boarder_deandre'
+label = 'Deandre'
+
+[mahogany_gym_leader_room_boarder_gerardo]
+region = 'mahogany_gym_leader_room'
+type = 'trainer'
+id = 65
+trainer = 'boarder_gerardo'
+label = 'Gerardo'
+
+[mahogany_gym_leader_room_skier_jill]
+region = 'mahogany_gym_leader_room'
+type = 'trainer'
+id = 66
+trainer = 'skier_jill'
+label = 'Jill'
+
+[mahogany_gym_room_2_boarder_patton]
+region = 'mahogany_gym_room_2'
+type = 'trainer'
+id = 67
+trainer = 'boarder_patton'
+label = 'Patton'
+
+[mahogany_gym_room_2_skier_diana]
+region = 'mahogany_gym_room_2'
+type = 'trainer'
+id = 68
+trainer = 'skier_diana'
+label = 'Diana'
+
+[mount_mortar_1f_back_poke_maniac_harrison]
+region = 'mount_mortar_1f_back'
+type = 'trainer'
+id = 69
+trainer = 'poke_maniac_harrison'
+label = 'Harrison'
+
+[mount_mortar_1f_back_super_nerd_markus]
+region = 'mount_mortar_1f_back'
+type = 'trainer'
+id = 70
+trainer = 'super_nerd_markus'
+label = 'Markus'
+
+[mount_mortar_2f_super_nerd_hugh]
+region = 'mount_mortar_2f'
+type = 'trainer'
+id = 71
+trainer = 'super_nerd_hugh'
+label = 'Hugh'
+
+[national_park_lass_krise]
+region = 'national_park'
+type = 'trainer'
+id = 72
+trainer = 'lass_krise'
+label = 'Krise'
+
+[national_park_pokefan_beverly]
+region = 'national_park'
+type = 'trainer'
+id = 73
+trainer = 'pokefan_beverly'
+label = 'Beverly'
+
+[national_park_pokefan_m_william]
+region = 'national_park'
+type = 'trainer'
+id = 74
+trainer = 'pokefan_m_william'
+label = 'William'
+
+[national_park_school_kid_m_jack]
+region = 'national_park'
+type = 'trainer'
+id = 75
+trainer = 'school_kid_m_jack'
+label = 'Jack'
+
+[olivine_lighthouse_2f_gentleman_alfred]
+region = 'olivine_lighthouse_2f'
+type = 'trainer'
+id = 76
+trainer = 'gentleman_alfred'
+label = 'Alfred'
+
+[olivine_lighthouse_2f_sailor_huey]
+region = 'olivine_lighthouse_2f'
+type = 'trainer'
+id = 77
+trainer = 'sailor_huey'
+label = 'Huey'
+
+[olivine_lighthouse_3f_bird_keeper_gs_denis]
+region = 'olivine_lighthouse_3f'
+type = 'trainer'
+id = 78
+trainer = 'bird_keeper_gs_denis'
+label = 'Denis'
+
+[olivine_lighthouse_3f_bird_keeper_gs_theo]
+region = 'olivine_lighthouse_3f'
+type = 'trainer'
+id = 79
+trainer = 'bird_keeper_gs_theo'
+label = 'Theo'
+
+[olivine_lighthouse_3f_sailor_kent]
+region = 'olivine_lighthouse_3f'
+type = 'trainer'
+id = 80
+trainer = 'sailor_kent'
+label = 'Kent'
+
+[olivine_lighthouse_4f_gentleman_preston]
+region = 'olivine_lighthouse_4f'
+type = 'trainer'
+id = 81
+trainer = 'gentleman_preston'
+label = 'Preston'
+
+[olivine_lighthouse_4f_lass_connie]
+region = 'olivine_lighthouse_4f'
+type = 'trainer'
+id = 82
+trainer = 'lass_connie'
+label = 'Connie'
+
+[olivine_lighthouse_5f_sailor_roberto]
+region = 'olivine_lighthouse_5f'
+type = 'trainer'
+id = 83
+trainer = 'sailor_roberto'
+label = 'Roberto'
+
+[olivine_lighthouse_5f_sailor_terrell]
+region = 'olivine_lighthouse_5f'
+type = 'trainer'
+id = 84
+trainer = 'sailor_terrell'
+label = 'Terrell'
+
+[pewter_gym_camper_jerry]
+region = 'pewter_gym'
+type = 'trainer'
+id = 85
+trainer = 'camper_jerry'
+label = 'Jerry'
+
+[pewter_gym_hiker_edwin]
+region = 'pewter_gym'
+type = 'trainer'
+id = 86
+trainer = 'hiker_edwin'
+label = 'Edwin'
+
+[route_1_ace_trainer_f_quinn]
+region = 'route_1'
+type = 'trainer'
+id = 87
+trainer = 'ace_trainer_f_quinn'
+label = 'Quinn'
+
+[route_1_ace_trainer_m_french]
+region = 'route_1'
+type = 'trainer'
+id = 88
+trainer = 'ace_trainer_m_french'
+label = 'French'
+
+[route_1_school_kid_m_danny]
+region = 'route_1'
+type = 'trainer'
+id = 89
+trainer = 'school_kid_m_danny'
+label = 'Danny'
+
+[route_1_school_kid_m_sherman]
+region = 'route_1'
+type = 'trainer'
+id = 90
+trainer = 'school_kid_m_sherman'
+label = 'Sherman'
+
+[route_10_south_hiker_jim]
+region = 'route_10_south'
+type = 'trainer'
+id = 91
+trainer = 'hiker_jim'
+label = 'Jim'
+
+[route_10_south_pokefan_m_robert]
+region = 'route_10_south'
+type = 'trainer'
+id = 92
+trainer = 'pokefan_m_robert'
+label = 'Robert'
+
+[route_11_psychic_m_fidel]
+region = 'route_11'
+type = 'trainer'
+id = 93
+trainer = 'psychic_m_fidel'
+label = 'Fidel'
+
+[route_11_psychic_m_herman]
+region = 'route_11'
+type = 'trainer'
+id = 94
+trainer = 'psychic_m_herman'
+label = 'Herman'
+
+[route_11_youngster_jason]
+region = 'route_11'
+type = 'trainer'
+id = 95
+trainer = 'youngster_jason'
+label = 'Jason'
+
+[route_11_youngster_owen]
+region = 'route_11'
+type = 'trainer'
+id = 96
+trainer = 'youngster_owen'
+label = 'Owen'
+
+[route_12_bird_keeper_gs_gail]
+region = 'route_12'
+type = 'trainer'
+id = 97
+trainer = 'bird_keeper_gs_gail'
+label = 'Gail'
+
+[route_12_bird_keeper_gs_justin]
+region = 'route_12'
+type = 'trainer'
+id = 98
+trainer = 'bird_keeper_gs_justin'
+label = 'Justin'
+
+[route_12_fisherman_barney]
+region = 'route_12'
+type = 'trainer'
+id = 99
+trainer = 'fisherman_barney'
+label = 'Barney'
+
+[route_12_fisherman_kyle]
+region = 'route_12'
+type = 'trainer'
+id = 100
+trainer = 'fisherman_kyle'
+label = 'Kyle'
+
+[route_12_fisherman_kyler]
+region = 'route_12'
+type = 'trainer'
+id = 101
+trainer = 'fisherman_kyler'
+label = 'Kyler'
+
+[route_12_fisherman_martin]
+region = 'route_12'
+type = 'trainer'
+id = 102
+trainer = 'fisherman_martin'
+label = 'Martin'
+
+[route_12_fisherman_stephen]
+region = 'route_12'
+type = 'trainer'
+id = 103
+trainer = 'fisherman_stephen'
+label = 'Stephen'
+
+[route_12_young_couple_vic_and_tara]
+region = 'route_12'
+type = 'trainer'
+id = 104
+trainer = 'young_couple_vic_and_tara'
+label = 'Vic & Tara'
+
+[route_13_bird_keeper_gs_bret]
+region = 'route_13'
+type = 'trainer'
+id = 105
+trainer = 'bird_keeper_gs_bret'
+label = 'Bret'
+
+[route_13_bird_keeper_gs_perry]
+region = 'route_13'
+type = 'trainer'
+id = 106
+trainer = 'bird_keeper_gs_perry'
+label = 'Perry'
+
+[route_13_camper_clark]
+region = 'route_13'
+type = 'trainer'
+id = 107
+trainer = 'camper_clark'
+label = 'Clark'
+
+[route_13_camper_tanner]
+region = 'route_13'
+type = 'trainer'
+id = 108
+trainer = 'camper_tanner'
+label = 'Tanner'
+
+[route_13_hiker_kenny]
+region = 'route_13'
+type = 'trainer'
+id = 109
+trainer = 'hiker_kenny'
+label = 'Kenny'
+
+[route_13_picnicker_ginger]
+region = 'route_13'
+type = 'trainer'
+id = 110
+trainer = 'picnicker_ginger'
+label = 'Ginger'
+
+[route_13_picnicker_piper]
+region = 'route_13'
+type = 'trainer'
+id = 111
+trainer = 'picnicker_piper'
+label = 'Piper'
+
+[route_13_pokefan_m_alex]
+region = 'route_13'
+type = 'trainer'
+id = 112
+trainer = 'pokefan_m_alex'
+label = 'Alex'
+
+[route_13_pokefan_m_joshua]
+region = 'route_13'
+type = 'trainer'
+id = 113
+trainer = 'pokefan_m_joshua'
+label = 'Joshua'
+
+[route_13_young_couple_tim_and_sue]
+region = 'route_13'
+type = 'trainer'
+id = 114
+trainer = 'young_couple_tim_and_sue'
+label = 'Tim & Sue'
+
+[route_14_bird_keeper_gs_josh]
+region = 'route_14'
+type = 'trainer'
+id = 115
+trainer = 'bird_keeper_gs_josh'
+label = 'Josh'
+
+[route_14_bird_keeper_gs_roy]
+region = 'route_14'
+type = 'trainer'
+id = 116
+trainer = 'bird_keeper_gs_roy'
+label = 'Roy'
+
+[route_14_pokefan_m_carter]
+region = 'route_14'
+type = 'trainer'
+id = 117
+trainer = 'pokefan_m_carter'
+label = 'Carter'
+
+[route_14_pokefan_m_trevor]
+region = 'route_14'
+type = 'trainer'
+id = 118
+trainer = 'pokefan_m_trevor'
+label = 'Trevor'
+
+[route_14_school_kid_m_connor]
+region = 'route_14'
+type = 'trainer'
+id = 119
+trainer = 'school_kid_m_connor'
+label = 'Connor'
+
+[route_14_school_kid_m_torin]
+region = 'route_14'
+type = 'trainer'
+id = 120
+trainer = 'school_kid_m_torin'
+label = 'Torin'
+
+[route_14_school_kid_m_travis]
+region = 'route_14'
+type = 'trainer'
+id = 121
+trainer = 'school_kid_m_travis'
+label = 'Travis'
+
+[route_14_teacher_clarice]
+region = 'route_14'
+type = 'trainer'
+id = 122
+trainer = 'teacher_clarice'
+label = 'Clarice'
+
+[route_15_pokefan_eleanor]
+region = 'route_15'
+type = 'trainer'
+id = 123
+trainer = 'pokefan_eleanor'
+label = 'Eleanor'
+
+[route_15_pokefan_m_boone]
+region = 'route_15'
+type = 'trainer'
+id = 124
+trainer = 'pokefan_m_boone'
+label = 'Boone'
+
+[route_15_school_kid_m_billy]
+region = 'route_15'
+type = 'trainer'
+id = 125
+trainer = 'school_kid_m_billy'
+label = 'Billy'
+
+[route_15_school_kid_m_johnny]
+region = 'route_15'
+type = 'trainer'
+id = 126
+trainer = 'school_kid_m_johnny'
+label = 'Johnny'
+
+[route_15_school_kid_m_kipp]
+region = 'route_15'
+type = 'trainer'
+id = 127
+trainer = 'school_kid_m_kipp'
+label = 'Kipp'
+
+[route_15_school_kid_m_tommy]
+region = 'route_15'
+type = 'trainer'
+id = 128
+trainer = 'school_kid_m_tommy'
+label = 'Tommy'
+
+[route_15_teacher_colette]
+region = 'route_15'
+type = 'trainer'
+id = 129
+trainer = 'teacher_colette'
+label = 'Colette'
+
+[route_15_teacher_hillary]
+region = 'route_15'
+type = 'trainer'
+id = 130
+trainer = 'teacher_hillary'
+label = 'Hillary'
+
+[route_15_twins_kay_and_tia]
+region = 'route_15'
+type = 'trainer'
+id = 131
+trainer = 'twins_kay_and_tia'
+label = 'Kay & Tia'
+
+[route_17_biker_aiden]
+region = 'route_17'
+type = 'trainer'
+id = 132
+trainer = 'biker_aiden'
+label = 'Aiden'
+
+[route_17_biker_dale]
+region = 'route_17'
+type = 'trainer'
+id = 133
+trainer = 'biker_dale'
+label = 'Dale'
+
+[route_17_biker_dan]
+region = 'route_17'
+type = 'trainer'
+id = 134
+trainer = 'biker_dan'
+label = 'Dan'
+
+[route_17_biker_ernest]
+region = 'route_17'
+type = 'trainer'
+id = 135
+trainer = 'biker_ernest'
+label = 'Ernest'
+
+[route_17_biker_glenn]
+region = 'route_17'
+type = 'trainer'
+id = 136
+trainer = 'biker_glenn'
+label = 'Glenn'
+
+[route_17_biker_jacob]
+region = 'route_17'
+type = 'trainer'
+id = 137
+trainer = 'biker_jacob'
+label = 'Jacob'
+
+[route_17_biker_joel]
+region = 'route_17'
+type = 'trainer'
+id = 138
+trainer = 'biker_joel'
+label = 'Joel'
+
+[route_17_biker_markey]
+region = 'route_17'
+type = 'trainer'
+id = 139
+trainer = 'biker_markey'
+label = 'Markey'
+
+[route_17_biker_reese]
+region = 'route_17'
+type = 'trainer'
+id = 140
+trainer = 'biker_reese'
+label = 'Reese'
+
+[route_17_biker_teddy]
+region = 'route_17'
+type = 'trainer'
+id = 141
+trainer = 'biker_teddy'
+label = 'Teddy'
+
+[route_17_biker_theron]
+region = 'route_17'
+type = 'trainer'
+id = 142
+trainer = 'biker_theron'
+label = 'Theron'
+
+[route_18_biker_charles]
+region = 'route_18'
+type = 'trainer'
+id = 143
+trainer = 'biker_charles'
+label = 'Charles'
+
+[route_18_bird_keeper_gs_bob]
+region = 'route_18'
+type = 'trainer'
+id = 144
+trainer = 'bird_keeper_gs_bob'
+label = 'Bob'
+
+[route_18_bird_keeper_gs_boris]
+region = 'route_18'
+type = 'trainer'
+id = 145
+trainer = 'bird_keeper_gs_boris'
+label = 'Boris'
+
+[route_19_swimmer_f_debbie]
+region = 'route_19'
+type = 'trainer'
+id = 146
+trainer = 'swimmer_f_debbie'
+label = 'Debbie'
+
+[route_19_swimmer_m_harold]
+region = 'route_19'
+type = 'trainer'
+id = 147
+trainer = 'swimmer_m_harold'
+label = 'Harold'
+
+[route_19_swimmer_m_jerome]
+region = 'route_19'
+type = 'trainer'
+id = 148
+trainer = 'swimmer_m_jerome'
+label = 'Jerome'
+
+[route_19_swimmer_m_tucker]
+region = 'route_19'
+type = 'trainer'
+id = 149
+trainer = 'swimmer_m_tucker'
+label = 'Tucker'
+
+[route_2_bug_catcher_doug]
+region = 'route_2'
+type = 'trainer'
+id = 150
+trainer = 'bug_catcher_doug'
+label = 'Doug'
+
+[route_2_bug_catcher_rob]
+region = 'route_2'
+type = 'trainer'
+id = 151
+trainer = 'bug_catcher_rob'
+label = 'Rob'
+
+[route_20_bird_keeper_gs_bert]
+region = 'route_20'
+type = 'trainer'
+id = 152
+trainer = 'bird_keeper_gs_bert'
+label = 'Bert'
+
+[route_20_bird_keeper_gs_ernie]
+region = 'route_20'
+type = 'trainer'
+id = 153
+trainer = 'bird_keeper_gs_ernie'
+label = 'Ernie'
+
+[route_20_camper_pedro]
+region = 'route_20'
+type = 'trainer'
+id = 154
+trainer = 'camper_pedro'
+label = 'Pedro'
+
+[route_20_picnicker_adrian]
+region = 'route_20'
+type = 'trainer'
+id = 155
+trainer = 'picnicker_adrian'
+label = 'Adrian'
+
+[route_20_picnicker_cheyenne]
+region = 'route_20'
+type = 'trainer'
+id = 156
+trainer = 'picnicker_cheyenne'
+label = 'Cheyenne'
+
+[route_20_swimmer_f_leona]
+region = 'route_20'
+type = 'trainer'
+id = 157
+trainer = 'swimmer_f_leona'
+label = 'Leona'
+
+[route_20_swimmer_f_lori]
+region = 'route_20'
+type = 'trainer'
+id = 158
+trainer = 'swimmer_f_lori'
+label = 'Lori'
+
+[route_20_swimmer_f_mina]
+region = 'route_20'
+type = 'trainer'
+id = 159
+trainer = 'swimmer_f_mina'
+label = 'Mina'
+
+[route_20_swimmer_f_nicole]
+region = 'route_20'
+type = 'trainer'
+id = 160
+trainer = 'swimmer_f_nicole'
+label = 'Nicole'
+
+[route_20_swimmer_m_elmo]
+region = 'route_20'
+type = 'trainer'
+id = 161
+trainer = 'swimmer_m_elmo'
+label = 'Elmo'
+
+[route_20_swimmer_m_frankie]
+region = 'route_20'
+type = 'trainer'
+id = 162
+trainer = 'swimmer_m_frankie'
+label = 'Frankie'
+
+[route_20_swimmer_m_luis]
+region = 'route_20'
+type = 'trainer'
+id = 163
+trainer = 'swimmer_m_luis'
+label = 'Luis'
+
+[route_21_bird_keeper_gs_easton]
+region = 'route_21'
+type = 'trainer'
+id = 164
+trainer = 'bird_keeper_gs_easton'
+label = 'Easton'
+
+[route_21_bird_keeper_gs_kinsley]
+region = 'route_21'
+type = 'trainer'
+id = 165
+trainer = 'bird_keeper_gs_kinsley'
+label = 'Kinsley'
+
+[route_21_fisherman_arnold]
+region = 'route_21'
+type = 'trainer'
+id = 166
+trainer = 'fisherman_arnold'
+label = 'Arnold'
+
+[route_21_fisherman_gideon]
+region = 'route_21'
+type = 'trainer'
+id = 167
+trainer = 'fisherman_gideon'
+label = 'Gideon'
+
+[route_21_fisherman_liam]
+region = 'route_21'
+type = 'trainer'
+id = 168
+trainer = 'fisherman_liam'
+label = 'Liam'
+
+[route_21_fisherman_murphy]
+region = 'route_21'
+type = 'trainer'
+id = 169
+trainer = 'fisherman_murphy'
+label = 'Murphy'
+
+[route_21_swimmer_f_chelan]
+region = 'route_21'
+type = 'trainer'
+id = 170
+trainer = 'swimmer_f_chelan'
+label = 'Chelan'
+
+[route_21_swimmer_f_kendra]
+region = 'route_21'
+type = 'trainer'
+id = 171
+trainer = 'swimmer_f_kendra'
+label = 'Kendra'
+
+[route_21_swimmer_f_nikki]
+region = 'route_21'
+type = 'trainer'
+id = 172
+trainer = 'swimmer_f_nikki'
+label = 'Nikki'
+
+[route_21_swimmer_m_duane]
+region = 'route_21'
+type = 'trainer'
+id = 173
+trainer = 'swimmer_m_duane'
+label = 'Duane'
+
+[route_21_swimmer_m_esteban]
+region = 'route_21'
+type = 'trainer'
+id = 174
+trainer = 'swimmer_m_esteban'
+label = 'Esteban'
+
+[route_21_swimmer_m_tyson]
+region = 'route_21'
+type = 'trainer'
+id = 175
+trainer = 'swimmer_m_tyson'
+label = 'Tyson'
+
+[route_25_camper_lloyd]
+region = 'route_25'
+type = 'trainer'
+id = 176
+trainer = 'camper_lloyd'
+label = 'Lloyd'
+
+[route_25_lass_ellen]
+region = 'route_25'
+type = 'trainer'
+id = 177
+trainer = 'lass_ellen'
+label = 'Ellen'
+
+[route_25_lass_laura]
+region = 'route_25'
+type = 'trainer'
+id = 178
+trainer = 'lass_laura'
+label = 'Laura'
+
+[route_25_lass_shannon]
+region = 'route_25'
+type = 'trainer'
+id = 179
+trainer = 'lass_shannon'
+label = 'Shannon'
+
+[route_25_school_kid_m_dudley]
+region = 'route_25'
+type = 'trainer'
+id = 180
+trainer = 'school_kid_m_dudley'
+label = 'Dudley'
+
+[route_25_school_kid_m_joe]
+region = 'route_25'
+type = 'trainer'
+id = 181
+trainer = 'school_kid_m_joe'
+label = 'Joe'
+
+[route_25_super_nerd_pat]
+region = 'route_25'
+type = 'trainer'
+id = 182
+trainer = 'super_nerd_pat'
+label = 'Pat'
+
+[route_26_ace_trainer_f_jamie]
+region = 'route_26'
+type = 'trainer'
+id = 183
+trainer = 'ace_trainer_f_jamie'
+label = 'Jamie'
+
+[route_26_ace_trainer_f_joyce]
+region = 'route_26'
+type = 'trainer'
+id = 184
+trainer = 'ace_trainer_f_joyce'
+label = 'Joyce'
+
+[route_26_ace_trainer_m_gaven]
+region = 'route_26'
+type = 'trainer'
+id = 185
+trainer = 'ace_trainer_m_gaven'
+label = 'Gaven'
+
+[route_26_ace_trainer_m_jake]
+region = 'route_26'
+type = 'trainer'
+id = 186
+trainer = 'ace_trainer_m_jake'
+label = 'Jake'
+
+[route_26_fisherman_scott]
+region = 'route_26'
+type = 'trainer'
+id = 187
+trainer = 'fisherman_scott'
+label = 'Scott'
+
+[route_26_psychic_m_vernon]
+region = 'route_26'
+type = 'trainer'
+id = 188
+trainer = 'psychic_m_vernon'
+label = 'Vernon'
+
+[route_27_ace_trainer_f_megan]
+region = 'route_27'
+type = 'trainer'
+id = 189
+trainer = 'ace_trainer_f_megan'
+label = 'Megan'
+
+[route_27_ace_trainer_f_reena]
+region = 'route_27'
+type = 'trainer'
+id = 190
+trainer = 'ace_trainer_f_reena'
+label = 'Reena'
+
+[route_27_ace_trainer_m_blake]
+region = 'route_27'
+type = 'trainer'
+id = 191
+trainer = 'ace_trainer_m_blake'
+label = 'Blake'
+
+[route_27_ace_trainer_m_brian]
+region = 'route_27'
+type = 'trainer'
+id = 192
+trainer = 'ace_trainer_m_brian'
+label = 'Brian'
+
+[route_27_bird_keeper_gs_jose_2]
+region = 'route_27'
+type = 'trainer'
+id = 193
+trainer = 'bird_keeper_gs_jose_2'
+label = 'Jose'
+
+[route_27_psychic_m_eli]
+region = 'route_27'
+type = 'trainer'
+id = 194
+trainer = 'psychic_m_eli'
+label = 'Eli'
+
+[route_2_east_bug_catcher_ed]
+region = 'route_2_east'
+type = 'trainer'
+id = 195
+trainer = 'bug_catcher_ed'
+label = 'Ed'
+
+[route_3_black_belt_ander]
+region = 'route_3'
+type = 'trainer'
+id = 196
+trainer = 'black_belt_ander'
+label = 'Ander'
+
+[route_3_black_belt_manford]
+region = 'route_3'
+type = 'trainer'
+id = 197
+trainer = 'black_belt_manford'
+label = 'Manford'
+
+[route_3_double_team_zac_and_jen]
+region = 'route_3'
+type = 'trainer'
+id = 198
+trainer = 'double_team_zac_and_jen'
+label = 'Zac & Jen'
+
+[route_3_firebreather_burt]
+region = 'route_3'
+type = 'trainer'
+id = 199
+trainer = 'firebreather_burt'
+label = 'Burt'
+
+[route_3_firebreather_otis]
+region = 'route_3'
+type = 'trainer'
+id = 200
+trainer = 'firebreather_otis'
+label = 'Otis'
+
+[route_3_hiker_bruce]
+region = 'route_3'
+type = 'trainer'
+id = 201
+trainer = 'hiker_bruce'
+label = 'Bruce'
+
+[route_3_hiker_dwight]
+region = 'route_3'
+type = 'trainer'
+id = 202
+trainer = 'hiker_dwight'
+label = 'Dwight'
+
+[route_3_youngster_jimmy]
+region = 'route_3'
+type = 'trainer'
+id = 203
+trainer = 'youngster_jimmy'
+label = 'Jimmy'
+
+[route_3_youngster_regis]
+region = 'route_3'
+type = 'trainer'
+id = 204
+trainer = 'youngster_regis'
+label = 'Regis'
+
+[route_3_youngster_warren]
+region = 'route_3'
+type = 'trainer'
+id = 205
+trainer = 'youngster_warren'
+label = 'Warren'
+
+[route_30_bug_catcher_don]
+region = 'route_30'
+type = 'trainer'
+id = 206
+trainer = 'bug_catcher_don'
+label = 'Don'
+
+[route_30_youngster_joey]
+region = 'route_30'
+type = 'trainer'
+id = 207
+trainer = 'youngster_joey'
+label = 'Joey'
+
+[route_30_youngster_mikey]
+region = 'route_30'
+type = 'trainer'
+id = 208
+trainer = 'youngster_mikey'
+label = 'Mikey'
+
+[route_31_bug_catcher_wade]
+region = 'route_31'
+type = 'trainer'
+id = 209
+trainer = 'bug_catcher_wade'
+label = 'Wade'
+
+[route_32_bird_keeper_gs_peter]
+region = 'route_32'
+type = 'trainer'
+id = 210
+trainer = 'bird_keeper_gs_peter'
+label = 'Peter'
+
+[route_32_camper_roland]
+region = 'route_32'
+type = 'trainer'
+id = 211
+trainer = 'camper_roland'
+label = 'Roland'
+
+[route_32_fisherman_henry]
+region = 'route_32'
+type = 'trainer'
+id = 212
+trainer = 'fisherman_henry'
+label = 'Henry'
+
+[route_32_fisherman_justin]
+region = 'route_32'
+type = 'trainer'
+id = 213
+trainer = 'fisherman_justin'
+label = 'Justin'
+
+[route_32_fisherman_ralph]
+region = 'route_32'
+type = 'trainer'
+id = 214
+trainer = 'fisherman_ralph'
+label = 'Ralph'
+
+[route_32_picnicker_liz]
+region = 'route_32'
+type = 'trainer'
+id = 215
+trainer = 'picnicker_liz'
+label = 'Liz'
+
+[route_32_youngster_albert]
+region = 'route_32'
+type = 'trainer'
+id = 216
+trainer = 'youngster_albert'
+label = 'Albert'
+
+[route_32_youngster_gordon]
+region = 'route_32'
+type = 'trainer'
+id = 217
+trainer = 'youngster_gordon'
+label = 'Gordon'
+
+[route_33_hiker_anthony]
+region = 'route_33'
+type = 'trainer'
+id = 218
+trainer = 'hiker_anthony'
+label = 'Anthony'
+
+[route_34_camper_todd]
+region = 'route_34'
+type = 'trainer'
+id = 219
+trainer = 'camper_todd'
+label = 'Todd'
+
+[route_34_picnicker_gina]
+region = 'route_34'
+type = 'trainer'
+id = 220
+trainer = 'picnicker_gina'
+label = 'Gina'
+
+[route_34_pokefan_m_brandon]
+region = 'route_34'
+type = 'trainer'
+id = 221
+trainer = 'pokefan_m_brandon'
+label = 'Brandon'
+
+[route_34_policeman_keith]
+region = 'route_34'
+type = 'trainer'
+id = 222
+trainer = 'policeman_keith'
+label = 'Keith'
+
+[route_34_youngster_ian]
+region = 'route_34'
+type = 'trainer'
+id = 223
+trainer = 'youngster_ian'
+label = 'Ian'
+
+[route_34_youngster_samuel]
+region = 'route_34'
+type = 'trainer'
+id = 224
+trainer = 'youngster_samuel'
+label = 'Samuel'
+
+[route_35_bird_keeper_gs_bryan]
+region = 'route_35'
+type = 'trainer'
+id = 225
+trainer = 'bird_keeper_gs_bryan'
+label = 'Bryan'
+
+[route_35_bug_catcher_arnie]
+region = 'route_35'
+type = 'trainer'
+id = 226
+trainer = 'bug_catcher_arnie'
+label = 'Arnie'
+
+[route_35_camper_elliot]
+region = 'route_35'
+type = 'trainer'
+id = 227
+trainer = 'camper_elliot'
+label = 'Elliot'
+
+[route_35_camper_ivan]
+region = 'route_35'
+type = 'trainer'
+id = 228
+trainer = 'camper_ivan'
+label = 'Ivan'
+
+[route_35_firebreather_walt]
+region = 'route_35'
+type = 'trainer'
+id = 229
+trainer = 'firebreather_walt'
+label = 'Walt'
+
+[route_35_juggler_irwin]
+region = 'route_35'
+type = 'trainer'
+id = 230
+trainer = 'juggler_irwin'
+label = 'Irwin'
+
+[route_35_picnicker_brooke]
+region = 'route_35'
+type = 'trainer'
+id = 231
+trainer = 'picnicker_brooke'
+label = 'Brooke'
+
+[route_35_picnicker_kim]
+region = 'route_35'
+type = 'trainer'
+id = 232
+trainer = 'picnicker_kim'
+label = 'Kim'
+
+[route_35_policeman_dirk]
+region = 'route_35'
+type = 'trainer'
+id = 233
+trainer = 'policeman_dirk'
+label = 'Dirk'
+
+[route_36_psychic_m_mark]
+region = 'route_36'
+type = 'trainer'
+id = 234
+trainer = 'psychic_m_mark'
+label = 'Mark'
+
+[route_36_school_kid_m_alan]
+region = 'route_36'
+type = 'trainer'
+id = 235
+trainer = 'school_kid_m_alan'
+label = 'Alan'
+
+[route_37_beauty_callie]
+region = 'route_37'
+type = 'trainer'
+id = 236
+trainer = 'beauty_callie'
+label = 'Callie'
+
+[route_37_beauty_kassandra]
+region = 'route_37'
+type = 'trainer'
+id = 237
+trainer = 'beauty_kassandra'
+label = 'Kassandra'
+
+[route_37_psychic_m_greg]
+region = 'route_37'
+type = 'trainer'
+id = 238
+trainer = 'psychic_m_greg'
+label = 'Greg'
+
+[route_37_twins_tori_and_til]
+region = 'route_37'
+type = 'trainer'
+id = 239
+trainer = 'twins_tori_and_til'
+label = 'Tori & Til'
+
+[route_38_beauty_valerie]
+region = 'route_38'
+type = 'trainer'
+id = 240
+trainer = 'beauty_valerie'
+label = 'Valerie'
+
+[route_38_bird_keeper_gs_toby]
+region = 'route_38'
+type = 'trainer'
+id = 241
+trainer = 'bird_keeper_gs_toby'
+label = 'Toby'
+
+[route_38_lass_dana]
+region = 'route_38'
+type = 'trainer'
+id = 242
+trainer = 'lass_dana'
+label = 'Dana'
+
+[route_38_sailor_harry]
+region = 'route_38'
+type = 'trainer'
+id = 243
+trainer = 'sailor_harry'
+label = 'Harry'
+
+[route_38_school_kid_m_chad]
+region = 'route_38'
+type = 'trainer'
+id = 244
+trainer = 'school_kid_m_chad'
+label = 'Chad'
+
+[route_39_pokefan_m_derek]
+region = 'route_39'
+type = 'trainer'
+id = 245
+trainer = 'pokefan_m_derek'
+label = 'Derek'
+
+[route_39_pokefan_ruth]
+region = 'route_39'
+type = 'trainer'
+id = 246
+trainer = 'pokefan_ruth'
+label = 'Ruth'
+
+[route_39_psychic_m_nelson]
+region = 'route_39'
+type = 'trainer'
+id = 247
+trainer = 'psychic_m_nelson'
+label = 'Nelson'
+
+[route_39_sailor_eugene]
+region = 'route_39'
+type = 'trainer'
+id = 248
+trainer = 'sailor_eugene'
+label = 'Eugene'
+
+[route_4_bird_keeper_gs_hank]
+region = 'route_4'
+type = 'trainer'
+id = 249
+trainer = 'bird_keeper_gs_hank'
+label = 'Hank'
+
+[route_4_picnicker_hope]
+region = 'route_4'
+type = 'trainer'
+id = 250
+trainer = 'picnicker_hope'
+label = 'Hope'
+
+[route_4_picnicker_sharon]
+region = 'route_4'
+type = 'trainer'
+id = 251
+trainer = 'picnicker_sharon'
+label = 'Sharon'
+
+[route_40_swimmer_f_elaine]
+region = 'route_40'
+type = 'trainer'
+id = 252
+trainer = 'swimmer_f_elaine'
+label = 'Elaine'
+
+[route_40_swimmer_f_paula]
+region = 'route_40'
+type = 'trainer'
+id = 253
+trainer = 'swimmer_f_paula'
+label = 'Paula'
+
+[route_40_swimmer_m_randall]
+region = 'route_40'
+type = 'trainer'
+id = 254
+trainer = 'swimmer_m_randall'
+label = 'Randall'
+
+[route_40_swimmer_m_simon]
+region = 'route_40'
+type = 'trainer'
+id = 255
+trainer = 'swimmer_m_simon'
+label = 'Simon'
+
+[route_41_swimmer_f_denise]
+region = 'route_41'
+type = 'trainer'
+id = 256
+trainer = 'swimmer_f_denise'
+label = 'Denise'
+
+[route_41_swimmer_f_kara]
+region = 'route_41'
+type = 'trainer'
+id = 257
+trainer = 'swimmer_f_kara'
+label = 'Kara'
+
+[route_41_swimmer_f_kaylee]
+region = 'route_41'
+type = 'trainer'
+id = 258
+trainer = 'swimmer_f_kaylee'
+label = 'Kaylee'
+
+[route_41_swimmer_f_susie]
+region = 'route_41'
+type = 'trainer'
+id = 259
+trainer = 'swimmer_f_susie'
+label = 'Susie'
+
+[route_41_swimmer_f_wendy]
+region = 'route_41'
+type = 'trainer'
+id = 260
+trainer = 'swimmer_f_wendy'
+label = 'Wendy'
+
+[route_41_swimmer_m_berke]
+region = 'route_41'
+type = 'trainer'
+id = 261
+trainer = 'swimmer_m_berke'
+label = 'Berke'
+
+[route_41_swimmer_m_charlie]
+region = 'route_41'
+type = 'trainer'
+id = 262
+trainer = 'swimmer_m_charlie'
+label = 'Charlie'
+
+[route_41_swimmer_m_george]
+region = 'route_41'
+type = 'trainer'
+id = 263
+trainer = 'swimmer_m_george'
+label = 'George'
+
+[route_41_swimmer_m_matthew]
+region = 'route_41'
+type = 'trainer'
+id = 264
+trainer = 'swimmer_m_matthew'
+label = 'Matthew'
+
+[route_41_swimmer_m_ronald]
+region = 'route_41'
+type = 'trainer'
+id = 265
+trainer = 'swimmer_m_ronald'
+label = 'Ronald'
+
+[route_42_fisherman_tully]
+region = 'route_42'
+type = 'trainer'
+id = 266
+trainer = 'fisherman_tully'
+label = 'Tully'
+
+[route_42_hiker_benjamin]
+region = 'route_42'
+type = 'trainer'
+id = 267
+trainer = 'hiker_benjamin'
+label = 'Benjamin'
+
+[route_42_poke_maniac_shane]
+region = 'route_42'
+type = 'trainer'
+id = 268
+trainer = 'poke_maniac_shane'
+label = 'Shane'
+
+[route_43_camper_spencer]
+region = 'route_43'
+type = 'trainer'
+id = 269
+trainer = 'camper_spencer'
+label = 'Spencer'
+
+[route_43_fisherman_marvin]
+region = 'route_43'
+type = 'trainer'
+id = 270
+trainer = 'fisherman_marvin'
+label = 'Marvin'
+
+[route_43_picnicker_tiffany]
+region = 'route_43'
+type = 'trainer'
+id = 271
+trainer = 'picnicker_tiffany'
+label = 'Tiffany'
+
+[route_43_poke_maniac_beckett]
+region = 'route_43'
+type = 'trainer'
+id = 272
+trainer = 'poke_maniac_beckett'
+label = 'Beckett'
+
+[route_43_poke_maniac_brent]
+region = 'route_43'
+type = 'trainer'
+id = 273
+trainer = 'poke_maniac_brent'
+label = 'Brent'
+
+[route_43_poke_maniac_ron]
+region = 'route_43'
+type = 'trainer'
+id = 274
+trainer = 'poke_maniac_ron'
+label = 'Ron'
+
+[route_44_ace_trainer_f_cybil]
+region = 'route_44'
+type = 'trainer'
+id = 275
+trainer = 'ace_trainer_f_cybil'
+label = 'Cybil'
+
+[route_44_ace_trainer_m_allen]
+region = 'route_44'
+type = 'trainer'
+id = 276
+trainer = 'ace_trainer_m_allen'
+label = 'Allen'
+
+[route_44_bird_keeper_gs_vance]
+region = 'route_44'
+type = 'trainer'
+id = 277
+trainer = 'bird_keeper_gs_vance'
+label = 'Vance'
+
+[route_44_fisherman_edgar]
+region = 'route_44'
+type = 'trainer'
+id = 278
+trainer = 'fisherman_edgar'
+label = 'Edgar'
+
+[route_44_fisherman_wilton]
+region = 'route_44'
+type = 'trainer'
+id = 279
+trainer = 'fisherman_wilton'
+label = 'Wilton'
+
+[route_44_poke_maniac_zach]
+region = 'route_44'
+type = 'trainer'
+id = 280
+trainer = 'poke_maniac_zach'
+label = 'Zach'
+
+[route_44_psychic_m_phil]
+region = 'route_44'
+type = 'trainer'
+id = 281
+trainer = 'psychic_m_phil'
+label = 'Phil'
+
+[route_45_ace_trainer_f_kelly]
+region = 'route_45'
+type = 'trainer'
+id = 282
+trainer = 'ace_trainer_f_kelly'
+label = 'Kelly'
+
+[route_45_ace_trainer_m_ryan]
+region = 'route_45'
+type = 'trainer'
+id = 283
+trainer = 'ace_trainer_m_ryan'
+label = 'Ryan'
+
+[route_45_black_belt_kenji]
+region = 'route_45'
+type = 'trainer'
+id = 284
+trainer = 'black_belt_kenji'
+label = 'Kenji'
+
+[route_45_hiker_erik]
+region = 'route_45'
+type = 'trainer'
+id = 285
+trainer = 'hiker_erik'
+label = 'Erik'
+
+[route_45_hiker_michael]
+region = 'route_45'
+type = 'trainer'
+id = 286
+trainer = 'hiker_michael'
+label = 'Michael'
+
+[route_45_hiker_parry]
+region = 'route_45'
+type = 'trainer'
+id = 287
+trainer = 'hiker_parry'
+label = 'Parry'
+
+[route_45_hiker_timothy]
+region = 'route_45'
+type = 'trainer'
+id = 288
+trainer = 'hiker_timothy'
+label = 'Timothy'
+
+[route_46_camper_ted]
+region = 'route_46'
+type = 'trainer'
+id = 289
+trainer = 'camper_ted'
+label = 'Ted'
+
+[route_46_hiker_bailey]
+region = 'route_46'
+type = 'trainer'
+id = 290
+trainer = 'hiker_bailey'
+label = 'Bailey'
+
+[route_46_picnicker_erin]
+region = 'route_46'
+type = 'trainer'
+id = 291
+trainer = 'picnicker_erin'
+label = 'Erin'
+
+[route_47_camper_grant]
+region = 'route_47'
+type = 'trainer'
+id = 292
+trainer = 'camper_grant'
+label = 'Grant'
+
+[route_47_double_team_thom_and_kae]
+region = 'route_47'
+type = 'trainer'
+id = 293
+trainer = 'double_team_thom_and_kae'
+label = 'Thom & Kae'
+
+[route_47_hiker_devin]
+region = 'route_47'
+type = 'trainer'
+id = 294
+trainer = 'hiker_devin'
+label = 'Devin'
+
+[route_47_young_couple_duff_and_eda]
+region = 'route_47'
+type = 'trainer'
+id = 295
+trainer = 'young_couple_duff_and_eda'
+label = 'Duff & Eda'
+
+[route_6_camper_virgil]
+region = 'route_6'
+type = 'trainer'
+id = 296
+trainer = 'camper_virgil'
+label = 'Virgil'
+
+[route_6_picnicker_selina]
+region = 'route_6'
+type = 'trainer'
+id = 297
+trainer = 'picnicker_selina'
+label = 'Selina'
+
+[route_6_twins_day_and_dani]
+region = 'route_6'
+type = 'trainer'
+id = 298
+trainer = 'twins_day_and_dani'
+label = 'Day & Dani'
+
+[route_8_biker_dwayne]
+region = 'route_8'
+type = 'trainer'
+id = 299
+trainer = 'biker_dwayne'
+label = 'Dwayne'
+
+[route_8_biker_harris]
+region = 'route_8'
+type = 'trainer'
+id = 300
+trainer = 'biker_harris'
+label = 'Harris'
+
+[route_8_biker_zeke]
+region = 'route_8'
+type = 'trainer'
+id = 301
+trainer = 'biker_zeke'
+label = 'Zeke'
+
+[route_8_gentleman_milton]
+region = 'route_8'
+type = 'trainer'
+id = 302
+trainer = 'gentleman_milton'
+label = 'Milton'
+
+[route_8_super_nerd_sam]
+region = 'route_8'
+type = 'trainer'
+id = 303
+trainer = 'super_nerd_sam'
+label = 'Sam'
+
+[route_8_super_nerd_tyrone]
+region = 'route_8'
+type = 'trainer'
+id = 304
+trainer = 'super_nerd_tyrone'
+label = 'Tyrone'
+
+[route_8_young_couple_moe_and_lulu]
+region = 'route_8'
+type = 'trainer'
+id = 305
+trainer = 'young_couple_moe_and_lulu'
+label = 'Moe & Lulu'
+
+[route_9_camper_dean]
+region = 'route_9'
+type = 'trainer'
+id = 306
+trainer = 'camper_dean'
+label = 'Dean'
+
+[route_9_camper_sid]
+region = 'route_9'
+type = 'trainer'
+id = 307
+trainer = 'camper_sid'
+label = 'Sid'
+
+[route_9_hiker_clarke]
+region = 'route_9'
+type = 'trainer'
+id = 308
+trainer = 'hiker_clarke'
+label = 'Clarke'
+
+[route_9_hiker_eoin]
+region = 'route_9'
+type = 'trainer'
+id = 309
+trainer = 'hiker_eoin'
+label = 'Eoin'
+
+[route_9_picnicker_edna]
+region = 'route_9'
+type = 'trainer'
+id = 310
+trainer = 'picnicker_edna'
+label = 'Edna'
+
+[route_9_picnicker_heidi]
+region = 'route_9'
+type = 'trainer'
+id = 311
+trainer = 'picnicker_heidi'
+label = 'Heidi'
+
+[ruins_of_alph_psychic_m_nathan]
+region = 'ruins_of_alph'
+type = 'trainer'
+id = 312
+trainer = 'psychic_m_nathan'
+label = 'Nathan'
+
+[saffron_gym_medium_darcy]
+region = 'saffron_gym'
+type = 'trainer'
+id = 313
+trainer = 'medium_darcy'
+label = 'Darcy'
+
+[saffron_gym_medium_rebecca]
+region = 'saffron_gym'
+type = 'trainer'
+id = 314
+trainer = 'medium_rebecca'
+label = 'Rebecca'
+
+[saffron_gym_psychic_m_franklin]
+region = 'saffron_gym'
+type = 'trainer'
+id = 315
+trainer = 'psychic_m_franklin'
+label = 'Franklin'
+
+[saffron_gym_psychic_m_jared]
+region = 'saffron_gym'
+type = 'trainer'
+id = 316
+trainer = 'psychic_m_jared'
+label = 'Jared'
+
+[seafoam_islands_b2f_boarder_bryce]
+region = 'seafoam_islands_b2f'
+type = 'trainer'
+id = 317
+trainer = 'boarder_bryce'
+label = 'Bryce'
+
+[seafoam_islands_b2f_boarder_shaun]
+region = 'seafoam_islands_b2f'
+type = 'trainer'
+id = 318
+trainer = 'boarder_shaun'
+label = 'Shaun'
+
+[seafoam_islands_b2f_skier_cady]
+region = 'seafoam_islands_b2f'
+type = 'trainer'
+id = 319
+trainer = 'skier_cady'
+label = 'Cady'
+
+[slowpoke_well_b1f_team_rocket_f_grunt]
+region = 'slowpoke_well_b1f'
+type = 'trainer'
+id = 320
+trainer = 'team_rocket_f_grunt'
+label = 'Grunt'
+
+[slowpoke_well_b1f_team_rocket_grunt]
+region = 'slowpoke_well_b1f'
+type = 'trainer'
+id = 321
+trainer = 'team_rocket_grunt'
+label = 'Grunt'
+
+[slowpoke_well_b1f_team_rocket_grunt_2]
+region = 'slowpoke_well_b1f'
+type = 'trainer'
+id = 322
+trainer = 'team_rocket_grunt_2'
+label = 'Grunt'
+
+[sprout_tower_1f_sage_chow]
+region = 'sprout_tower_1f'
+type = 'trainer'
+id = 323
+trainer = 'sage_chow'
+label = 'Chow'
+
+[sprout_tower_2f_sage_edmond]
+region = 'sprout_tower_2f'
+type = 'trainer'
+id = 324
+trainer = 'sage_edmond'
+label = 'Edmond'
+
+[sprout_tower_2f_sage_nico]
+region = 'sprout_tower_2f'
+type = 'trainer'
+id = 325
+trainer = 'sage_nico'
+label = 'Nico'
+
+[sprout_tower_3f_sage_jin]
+region = 'sprout_tower_3f'
+type = 'trainer'
+id = 326
+trainer = 'sage_jin'
+label = 'Jin'
+
+[sprout_tower_3f_sage_neal]
+region = 'sprout_tower_3f'
+type = 'trainer'
+id = 327
+trainer = 'sage_neal'
+label = 'Neal'
+
+[sprout_tower_3f_sage_troy]
+region = 'sprout_tower_3f'
+type = 'trainer'
+id = 328
+trainer = 'sage_troy'
+label = 'Troy'
+
+[ss_aqua_1f_northeast_rooms_beauty_cassie]
+region = 'ss_aqua_1f_northeast_rooms'
+type = 'trainer'
+id = 329
+trainer = 'beauty_cassie'
+label = 'Cassie'
+
+[ss_aqua_1f_northeast_rooms_bug_catcher_ken]
+region = 'ss_aqua_1f_northeast_rooms'
+type = 'trainer'
+id = 330
+trainer = 'bug_catcher_ken'
+label = 'Ken'
+
+[ss_aqua_1f_northeast_rooms_firebreather_lyle]
+region = 'ss_aqua_1f_northeast_rooms'
+type = 'trainer'
+id = 331
+trainer = 'firebreather_lyle'
+label = 'Lyle'
+
+[ss_aqua_1f_northeast_rooms_guitarist_clyde]
+region = 'ss_aqua_1f_northeast_rooms'
+type = 'trainer'
+id = 332
+trainer = 'guitarist_clyde'
+label = 'Clyde'
+
+[ss_aqua_1f_northwest_rooms_pokefan_georgia]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 333
+trainer = 'pokefan_georgia'
+label = 'Georgia'
+
+[ss_aqua_1f_northwest_rooms_pokefan_m_colin]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 334
+trainer = 'pokefan_m_colin'
+label = 'Colin'
+
+[ss_aqua_1f_northwest_rooms_pokefan_m_jeremy]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 335
+trainer = 'pokefan_m_jeremy'
+label = 'Jeremy'
+
+[ss_aqua_1f_northwest_rooms_psychic_m_rodney]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 336
+trainer = 'psychic_m_rodney'
+label = 'Rodney'
+
+[ss_aqua_1f_northwest_rooms_super_nerd_shawn]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 337
+trainer = 'super_nerd_shawn'
+label = 'Shawn'
+
+[ss_aqua_1f_northwest_rooms_twins_meg_and_peg]
+region = 'ss_aqua_1f_northwest_rooms'
+type = 'trainer'
+id = 338
+trainer = 'twins_meg_and_peg'
+label = 'Meg & Peg'
+
+[ss_aqua_1f_southeast_rooms_burglar_corey]
+region = 'ss_aqua_1f_southeast_rooms'
+type = 'trainer'
+id = 339
+trainer = 'burglar_corey'
+label = 'Corey'
+
+[ss_aqua_1f_southeast_rooms_gentleman_edward]
+region = 'ss_aqua_1f_southeast_rooms'
+type = 'trainer'
+id = 340
+trainer = 'gentleman_edward'
+label = 'Edward'
+
+[ss_aqua_1f_southwest_rooms_ace_trainer_f_carol]
+region = 'ss_aqua_1f_southwest_rooms'
+type = 'trainer'
+id = 341
+trainer = 'ace_trainer_f_carol'
+label = 'Carol'
+
+[ss_aqua_1f_southwest_rooms_ace_trainer_m_shaye]
+region = 'ss_aqua_1f_southwest_rooms'
+type = 'trainer'
+id = 342
+trainer = 'ace_trainer_m_shaye'
+label = 'Shaye'
+
+[ss_aqua_1f_southwest_rooms_hiker_noland]
+region = 'ss_aqua_1f_southwest_rooms'
+type = 'trainer'
+id = 343
+trainer = 'hiker_noland'
+label = 'Noland'
+
+[ss_aqua_1f_southwest_rooms_poke_maniac_morgan]
+region = 'ss_aqua_1f_southwest_rooms'
+type = 'trainer'
+id = 344
+trainer = 'poke_maniac_morgan'
+label = 'Morgan'
+
+[ss_aqua_b1f_black_belt_wai]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 345
+trainer = 'black_belt_wai'
+label = 'Wai'
+
+[ss_aqua_b1f_fisherman_jonah]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 346
+trainer = 'fisherman_jonah'
+label = 'Jonah'
+
+[ss_aqua_b1f_juggler_fritz]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 347
+trainer = 'juggler_fritz'
+label = 'Fritz'
+
+[ss_aqua_b1f_picnicker_debra]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 348
+trainer = 'picnicker_debra'
+label = 'Debra'
+
+[ss_aqua_b1f_sailor_garrett]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 349
+trainer = 'sailor_garrett'
+label = 'Garrett'
+
+[ss_aqua_b1f_sailor_jeff]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 350
+trainer = 'sailor_jeff'
+label = 'Jeff'
+
+[ss_aqua_b1f_sailor_kenneth]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 351
+trainer = 'sailor_kenneth'
+label = 'Kenneth'
+
+[ss_aqua_b1f_school_kid_m_nate]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 352
+trainer = 'school_kid_m_nate'
+label = 'Nate'
+
+[ss_aqua_b1f_school_kid_m_ricky]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 353
+trainer = 'school_kid_m_ricky'
+label = 'Ricky'
+
+[ss_aqua_b1f_teacher_shirley]
+region = 'ss_aqua_b1f'
+type = 'trainer'
+id = 354
+trainer = 'teacher_shirley'
+label = 'Shirley'
+
+[team_rocket_headquarters_b1f_scientist_gs_gregg]
+region = 'team_rocket_headquarters_b1f'
+type = 'trainer'
+id = 355
+trainer = 'scientist_gs_gregg'
+label = 'Gregg'
+
+[team_rocket_headquarters_b1f_team_rocket_grunt_15]
+region = 'team_rocket_headquarters_b1f'
+type = 'trainer'
+id = 356
+trainer = 'team_rocket_grunt_15'
+label = 'Grunt'
+
+[team_rocket_headquarters_b2f_team_rocket_grunt_16]
+region = 'team_rocket_headquarters_b2f'
+type = 'trainer'
+id = 357
+trainer = 'team_rocket_grunt_16'
+label = 'Grunt'
+
+[team_rocket_headquarters_b2f_team_rocket_grunt_17]
+region = 'team_rocket_headquarters_b2f'
+type = 'trainer'
+id = 358
+trainer = 'team_rocket_grunt_17'
+label = 'Grunt'
+
+[team_rocket_headquarters_b2f_team_rocket_grunt_18]
+region = 'team_rocket_headquarters_b2f'
+type = 'trainer'
+id = 359
+trainer = 'team_rocket_grunt_18'
+label = 'Grunt'
+
+[team_rocket_headquarters_b3f_scientist_gs_mitch]
+region = 'team_rocket_headquarters_b3f'
+type = 'trainer'
+id = 360
+trainer = 'scientist_gs_mitch'
+label = 'Mitch'
+
+[team_rocket_headquarters_b3f_scientist_gs_ross]
+region = 'team_rocket_headquarters_b3f'
+type = 'trainer'
+id = 361
+trainer = 'scientist_gs_ross'
+label = 'Ross'
+
+[team_rocket_headquarters_b3f_team_rocket_f_grunt_5]
+region = 'team_rocket_headquarters_b3f'
+type = 'trainer'
+id = 362
+trainer = 'team_rocket_f_grunt_5'
+label = 'Grunt'
+
+[team_rocket_headquarters_b3f_team_rocket_grunt_19]
+region = 'team_rocket_headquarters_b3f'
+type = 'trainer'
+id = 363
+trainer = 'team_rocket_grunt_19'
+label = 'Grunt'
+
+[union_cave_1f_firebreather_bill]
+region = 'union_cave_1f'
+type = 'trainer'
+id = 364
+trainer = 'firebreather_bill'
+label = 'Bill'
+
+[union_cave_1f_firebreather_ray]
+region = 'union_cave_1f'
+type = 'trainer'
+id = 365
+trainer = 'firebreather_ray'
+label = 'Ray'
+
+[union_cave_1f_hiker_daniel]
+region = 'union_cave_1f'
+type = 'trainer'
+id = 366
+trainer = 'hiker_daniel'
+label = 'Daniel'
+
+[union_cave_1f_hiker_russel]
+region = 'union_cave_1f'
+type = 'trainer'
+id = 367
+trainer = 'hiker_russel'
+label = 'Russel'
+
+[union_cave_1f_poke_maniac_larry]
+region = 'union_cave_1f'
+type = 'trainer'
+id = 368
+trainer = 'poke_maniac_larry'
+label = 'Larry'
+
+[union_cave_b1f_hiker_leonard]
+region = 'union_cave_b1f'
+type = 'trainer'
+id = 369
+trainer = 'hiker_leonard'
+label = 'Leonard'
+
+[union_cave_b1f_hiker_phillip]
+region = 'union_cave_b1f'
+type = 'trainer'
+id = 370
+trainer = 'hiker_phillip'
+label = 'Phillip'
+
+[union_cave_b1f_poke_maniac_andrew]
+region = 'union_cave_b1f'
+type = 'trainer'
+id = 371
+trainer = 'poke_maniac_andrew'
+label = 'Andrew'
+
+[union_cave_b1f_poke_maniac_calvin]
+region = 'union_cave_b1f'
+type = 'trainer'
+id = 372
+trainer = 'poke_maniac_calvin'
+label = 'Calvin'
+
+[union_cave_b2f_ace_trainer_f_emma]
+region = 'union_cave_b2f'
+type = 'trainer'
+id = 373
+trainer = 'ace_trainer_f_emma'
+label = 'Emma'
+
+[union_cave_b2f_ace_trainer_f_gwen]
+region = 'union_cave_b2f'
+type = 'trainer'
+id = 374
+trainer = 'ace_trainer_f_gwen'
+label = 'Gwen'
+
+[union_cave_b2f_ace_trainer_m_nick]
+region = 'union_cave_b2f'
+type = 'trainer'
+id = 375
+trainer = 'ace_trainer_m_nick'
+label = 'Nick'
+
+[vermilion_gym_gentleman_gregory]
+region = 'vermilion_gym'
+type = 'trainer'
+id = 376
+trainer = 'gentleman_gregory'
+label = 'Gregory'
+
+[vermilion_gym_guitarist_vincent]
+region = 'vermilion_gym'
+type = 'trainer'
+id = 377
+trainer = 'guitarist_vincent'
+label = 'Vincent'
+
+[vermilion_gym_juggler_horton]
+region = 'vermilion_gym'
+type = 'trainer'
+id = 378
+trainer = 'juggler_horton'
+label = 'Horton'
+
+[violet_gym_bird_keeper_gs_abe]
+region = 'violet_gym'
+type = 'trainer'
+id = 379
+trainer = 'bird_keeper_gs_abe'
+label = 'Abe'
+
+[violet_gym_bird_keeper_gs_rod]
+region = 'violet_gym'
+type = 'trainer'
+id = 380
+trainer = 'bird_keeper_gs_rod'
+label = 'Rod'
+
+[viridian_forest_bug_catcher_abner]
+region = 'viridian_forest'
+type = 'trainer'
+id = 381
+trainer = 'bug_catcher_abner'
+label = 'Abner'
+
+[viridian_forest_bug_catcher_dane]
+region = 'viridian_forest'
+type = 'trainer'
+id = 382
+trainer = 'bug_catcher_dane'
+label = 'Dane'
+
+[viridian_forest_bug_catcher_dion]
+region = 'viridian_forest'
+type = 'trainer'
+id = 383
+trainer = 'bug_catcher_dion'
+label = 'Dion'
+
+[viridian_forest_bug_catcher_ellis]
+region = 'viridian_forest'
+type = 'trainer'
+id = 384
+trainer = 'bug_catcher_ellis'
+label = 'Ellis'
+
+[viridian_forest_bug_catcher_stacey]
+region = 'viridian_forest'
+type = 'trainer'
+id = 385
+trainer = 'bug_catcher_stacey'
+label = 'Stacey'
+
+[viridian_gym_ace_trainer_f_salma]
+region = 'viridian_gym'
+type = 'trainer'
+id = 386
+trainer = 'ace_trainer_f_salma'
+label = 'Salma'
+
+[viridian_gym_ace_trainer_m_arabella]
+region = 'viridian_gym'
+type = 'trainer'
+id = 387
+trainer = 'ace_trainer_m_arabella'
+label = 'Arabella'
+
+[viridian_gym_ace_trainer_m_bonita]
+region = 'viridian_gym'
+type = 'trainer'
+id = 388
+trainer = 'ace_trainer_m_bonita'
+label = 'Bonita'
+
+[viridian_gym_double_team_elan_and_ida]
+region = 'viridian_gym'
+type = 'trainer'
+id = 389
+trainer = 'double_team_elan_and_ida'
+label = 'Elan & Ida'
+
+# type = 'dexsanity' (task M3.4, Dexsanity): one reserved AP location per
+# real-national-dex species (493 total, species.real_species_pool's own
+# universe -- excludes HGSS alt forms: Deoxys/Wormadam/Giratina Origin/
+# Shaymin Sky/Rotom, same exclusion wild-encounter randomization already
+# uses). Every species gets an id here (like 'trainer' locations reserve
+# ids for all 390 trainers regardless of trainersanity), but a given
+# location is only actually created for a seed where that species genuinely
+# appears somewhere in world.generated_encounters -- see
+# species.species_encounter_methods and locations.py's create_locations.
+# Static/gift Pokemon (starters, legendaries, in-game gifts) are excluded:
+# they're vanilla/fixed in this project (see data_gen/locations.toml's own
+# header, C4/C5's "excluded from this pass" note), never wild-randomized,
+# so they can never be "seed-aware scoped" the way a wild table entry can.
+#
+# region is fixed to 'new_bark' for every entry -- always reachable with no
+# gate of its own, since Dexsanity's real gating is entirely on the
+# location's access_rule (built from species_encounter_methods in
+# locations.py: requires owning an HM+badge for surf/rock_smash, or the
+# matching rod for a fishing-only species; no rule at all if the species is
+# also obtainable from plain grass or headbutt anywhere). Like 'trainer'
+# locations, no original_item field: create_items() contributes a filler
+# item per created location instead (see __init__.py) -- Dexsanity checks
+# never hold a progression item, since the access rule is deliberately
+# looser than this seed's real per-region logic (see options.py's
+# Dexsanity docstring).
+
+[dexsanity_abomasnow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 0
+species = 'abomasnow'
+label = 'Dexsanity: Abomasnow'
+
+[dexsanity_abra]
+region = 'new_bark'
+type = 'dexsanity'
+id = 1
+species = 'abra'
+label = 'Dexsanity: Abra'
+
+[dexsanity_absol]
+region = 'new_bark'
+type = 'dexsanity'
+id = 2
+species = 'absol'
+label = 'Dexsanity: Absol'
+
+[dexsanity_aerodactyl]
+region = 'new_bark'
+type = 'dexsanity'
+id = 3
+species = 'aerodactyl'
+label = 'Dexsanity: Aerodactyl'
+
+[dexsanity_aggron]
+region = 'new_bark'
+type = 'dexsanity'
+id = 4
+species = 'aggron'
+label = 'Dexsanity: Aggron'
+
+[dexsanity_aipom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 5
+species = 'aipom'
+label = 'Dexsanity: Aipom'
+
+[dexsanity_alakazam]
+region = 'new_bark'
+type = 'dexsanity'
+id = 6
+species = 'alakazam'
+label = 'Dexsanity: Alakazam'
+
+[dexsanity_altaria]
+region = 'new_bark'
+type = 'dexsanity'
+id = 7
+species = 'altaria'
+label = 'Dexsanity: Altaria'
+
+[dexsanity_ambipom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 8
+species = 'ambipom'
+label = 'Dexsanity: Ambipom'
+
+[dexsanity_ampharos]
+region = 'new_bark'
+type = 'dexsanity'
+id = 9
+species = 'ampharos'
+label = 'Dexsanity: Ampharos'
+
+[dexsanity_anorith]
+region = 'new_bark'
+type = 'dexsanity'
+id = 10
+species = 'anorith'
+label = 'Dexsanity: Anorith'
+
+[dexsanity_arbok]
+region = 'new_bark'
+type = 'dexsanity'
+id = 11
+species = 'arbok'
+label = 'Dexsanity: Arbok'
+
+[dexsanity_arcanine]
+region = 'new_bark'
+type = 'dexsanity'
+id = 12
+species = 'arcanine'
+label = 'Dexsanity: Arcanine'
+
+[dexsanity_arceus]
+region = 'new_bark'
+type = 'dexsanity'
+id = 13
+species = 'arceus'
+label = 'Dexsanity: Arceus'
+
+[dexsanity_ariados]
+region = 'new_bark'
+type = 'dexsanity'
+id = 14
+species = 'ariados'
+label = 'Dexsanity: Ariados'
+
+[dexsanity_armaldo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 15
+species = 'armaldo'
+label = 'Dexsanity: Armaldo'
+
+[dexsanity_aron]
+region = 'new_bark'
+type = 'dexsanity'
+id = 16
+species = 'aron'
+label = 'Dexsanity: Aron'
+
+[dexsanity_articuno]
+region = 'new_bark'
+type = 'dexsanity'
+id = 17
+species = 'articuno'
+label = 'Dexsanity: Articuno'
+
+[dexsanity_azelf]
+region = 'new_bark'
+type = 'dexsanity'
+id = 18
+species = 'azelf'
+label = 'Dexsanity: Azelf'
+
+[dexsanity_azumarill]
+region = 'new_bark'
+type = 'dexsanity'
+id = 19
+species = 'azumarill'
+label = 'Dexsanity: Azumarill'
+
+[dexsanity_azurill]
+region = 'new_bark'
+type = 'dexsanity'
+id = 20
+species = 'azurill'
+label = 'Dexsanity: Azurill'
+
+[dexsanity_bagon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 21
+species = 'bagon'
+label = 'Dexsanity: Bagon'
+
+[dexsanity_baltoy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 22
+species = 'baltoy'
+label = 'Dexsanity: Baltoy'
+
+[dexsanity_banette]
+region = 'new_bark'
+type = 'dexsanity'
+id = 23
+species = 'banette'
+label = 'Dexsanity: Banette'
+
+[dexsanity_barboach]
+region = 'new_bark'
+type = 'dexsanity'
+id = 24
+species = 'barboach'
+label = 'Dexsanity: Barboach'
+
+[dexsanity_bastiodon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 25
+species = 'bastiodon'
+label = 'Dexsanity: Bastiodon'
+
+[dexsanity_bayleef]
+region = 'new_bark'
+type = 'dexsanity'
+id = 26
+species = 'bayleef'
+label = 'Dexsanity: Bayleef'
+
+[dexsanity_beautifly]
+region = 'new_bark'
+type = 'dexsanity'
+id = 27
+species = 'beautifly'
+label = 'Dexsanity: Beautifly'
+
+[dexsanity_beedrill]
+region = 'new_bark'
+type = 'dexsanity'
+id = 28
+species = 'beedrill'
+label = 'Dexsanity: Beedrill'
+
+[dexsanity_beldum]
+region = 'new_bark'
+type = 'dexsanity'
+id = 29
+species = 'beldum'
+label = 'Dexsanity: Beldum'
+
+[dexsanity_bellossom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 30
+species = 'bellossom'
+label = 'Dexsanity: Bellossom'
+
+[dexsanity_bellsprout]
+region = 'new_bark'
+type = 'dexsanity'
+id = 31
+species = 'bellsprout'
+label = 'Dexsanity: Bellsprout'
+
+[dexsanity_bibarel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 32
+species = 'bibarel'
+label = 'Dexsanity: Bibarel'
+
+[dexsanity_bidoof]
+region = 'new_bark'
+type = 'dexsanity'
+id = 33
+species = 'bidoof'
+label = 'Dexsanity: Bidoof'
+
+[dexsanity_blastoise]
+region = 'new_bark'
+type = 'dexsanity'
+id = 34
+species = 'blastoise'
+label = 'Dexsanity: Blastoise'
+
+[dexsanity_blaziken]
+region = 'new_bark'
+type = 'dexsanity'
+id = 35
+species = 'blaziken'
+label = 'Dexsanity: Blaziken'
+
+[dexsanity_blissey]
+region = 'new_bark'
+type = 'dexsanity'
+id = 36
+species = 'blissey'
+label = 'Dexsanity: Blissey'
+
+[dexsanity_bonsly]
+region = 'new_bark'
+type = 'dexsanity'
+id = 37
+species = 'bonsly'
+label = 'Dexsanity: Bonsly'
+
+[dexsanity_breloom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 38
+species = 'breloom'
+label = 'Dexsanity: Breloom'
+
+[dexsanity_bronzong]
+region = 'new_bark'
+type = 'dexsanity'
+id = 39
+species = 'bronzong'
+label = 'Dexsanity: Bronzong'
+
+[dexsanity_bronzor]
+region = 'new_bark'
+type = 'dexsanity'
+id = 40
+species = 'bronzor'
+label = 'Dexsanity: Bronzor'
+
+[dexsanity_budew]
+region = 'new_bark'
+type = 'dexsanity'
+id = 41
+species = 'budew'
+label = 'Dexsanity: Budew'
+
+[dexsanity_buizel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 42
+species = 'buizel'
+label = 'Dexsanity: Buizel'
+
+[dexsanity_bulbasaur]
+region = 'new_bark'
+type = 'dexsanity'
+id = 43
+species = 'bulbasaur'
+label = 'Dexsanity: Bulbasaur'
+
+[dexsanity_buneary]
+region = 'new_bark'
+type = 'dexsanity'
+id = 44
+species = 'buneary'
+label = 'Dexsanity: Buneary'
+
+[dexsanity_burmy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 45
+species = 'burmy'
+label = 'Dexsanity: Burmy'
+
+[dexsanity_butterfree]
+region = 'new_bark'
+type = 'dexsanity'
+id = 46
+species = 'butterfree'
+label = 'Dexsanity: Butterfree'
+
+[dexsanity_cacnea]
+region = 'new_bark'
+type = 'dexsanity'
+id = 47
+species = 'cacnea'
+label = 'Dexsanity: Cacnea'
+
+[dexsanity_cacturne]
+region = 'new_bark'
+type = 'dexsanity'
+id = 48
+species = 'cacturne'
+label = 'Dexsanity: Cacturne'
+
+[dexsanity_camerupt]
+region = 'new_bark'
+type = 'dexsanity'
+id = 49
+species = 'camerupt'
+label = 'Dexsanity: Camerupt'
+
+[dexsanity_carnivine]
+region = 'new_bark'
+type = 'dexsanity'
+id = 50
+species = 'carnivine'
+label = 'Dexsanity: Carnivine'
+
+[dexsanity_carvanha]
+region = 'new_bark'
+type = 'dexsanity'
+id = 51
+species = 'carvanha'
+label = 'Dexsanity: Carvanha'
+
+[dexsanity_cascoon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 52
+species = 'cascoon'
+label = 'Dexsanity: Cascoon'
+
+[dexsanity_castform]
+region = 'new_bark'
+type = 'dexsanity'
+id = 53
+species = 'castform'
+label = 'Dexsanity: Castform'
+
+[dexsanity_caterpie]
+region = 'new_bark'
+type = 'dexsanity'
+id = 54
+species = 'caterpie'
+label = 'Dexsanity: Caterpie'
+
+[dexsanity_celebi]
+region = 'new_bark'
+type = 'dexsanity'
+id = 55
+species = 'celebi'
+label = 'Dexsanity: Celebi'
+
+[dexsanity_chansey]
+region = 'new_bark'
+type = 'dexsanity'
+id = 56
+species = 'chansey'
+label = 'Dexsanity: Chansey'
+
+[dexsanity_charizard]
+region = 'new_bark'
+type = 'dexsanity'
+id = 57
+species = 'charizard'
+label = 'Dexsanity: Charizard'
+
+[dexsanity_charmander]
+region = 'new_bark'
+type = 'dexsanity'
+id = 58
+species = 'charmander'
+label = 'Dexsanity: Charmander'
+
+[dexsanity_charmeleon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 59
+species = 'charmeleon'
+label = 'Dexsanity: Charmeleon'
+
+[dexsanity_chatot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 60
+species = 'chatot'
+label = 'Dexsanity: Chatot'
+
+[dexsanity_cherrim]
+region = 'new_bark'
+type = 'dexsanity'
+id = 61
+species = 'cherrim'
+label = 'Dexsanity: Cherrim'
+
+[dexsanity_cherubi]
+region = 'new_bark'
+type = 'dexsanity'
+id = 62
+species = 'cherubi'
+label = 'Dexsanity: Cherubi'
+
+[dexsanity_chikorita]
+region = 'new_bark'
+type = 'dexsanity'
+id = 63
+species = 'chikorita'
+label = 'Dexsanity: Chikorita'
+
+[dexsanity_chimchar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 64
+species = 'chimchar'
+label = 'Dexsanity: Chimchar'
+
+[dexsanity_chimecho]
+region = 'new_bark'
+type = 'dexsanity'
+id = 65
+species = 'chimecho'
+label = 'Dexsanity: Chimecho'
+
+[dexsanity_chinchou]
+region = 'new_bark'
+type = 'dexsanity'
+id = 66
+species = 'chinchou'
+label = 'Dexsanity: Chinchou'
+
+[dexsanity_chingling]
+region = 'new_bark'
+type = 'dexsanity'
+id = 67
+species = 'chingling'
+label = 'Dexsanity: Chingling'
+
+[dexsanity_clamperl]
+region = 'new_bark'
+type = 'dexsanity'
+id = 68
+species = 'clamperl'
+label = 'Dexsanity: Clamperl'
+
+[dexsanity_claydol]
+region = 'new_bark'
+type = 'dexsanity'
+id = 69
+species = 'claydol'
+label = 'Dexsanity: Claydol'
+
+[dexsanity_clefable]
+region = 'new_bark'
+type = 'dexsanity'
+id = 70
+species = 'clefable'
+label = 'Dexsanity: Clefable'
+
+[dexsanity_clefairy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 71
+species = 'clefairy'
+label = 'Dexsanity: Clefairy'
+
+[dexsanity_cleffa]
+region = 'new_bark'
+type = 'dexsanity'
+id = 72
+species = 'cleffa'
+label = 'Dexsanity: Cleffa'
+
+[dexsanity_cloyster]
+region = 'new_bark'
+type = 'dexsanity'
+id = 73
+species = 'cloyster'
+label = 'Dexsanity: Cloyster'
+
+[dexsanity_combee]
+region = 'new_bark'
+type = 'dexsanity'
+id = 74
+species = 'combee'
+label = 'Dexsanity: Combee'
+
+[dexsanity_combusken]
+region = 'new_bark'
+type = 'dexsanity'
+id = 75
+species = 'combusken'
+label = 'Dexsanity: Combusken'
+
+[dexsanity_corphish]
+region = 'new_bark'
+type = 'dexsanity'
+id = 76
+species = 'corphish'
+label = 'Dexsanity: Corphish'
+
+[dexsanity_corsola]
+region = 'new_bark'
+type = 'dexsanity'
+id = 77
+species = 'corsola'
+label = 'Dexsanity: Corsola'
+
+[dexsanity_cradily]
+region = 'new_bark'
+type = 'dexsanity'
+id = 78
+species = 'cradily'
+label = 'Dexsanity: Cradily'
+
+[dexsanity_cranidos]
+region = 'new_bark'
+type = 'dexsanity'
+id = 79
+species = 'cranidos'
+label = 'Dexsanity: Cranidos'
+
+[dexsanity_crawdaunt]
+region = 'new_bark'
+type = 'dexsanity'
+id = 80
+species = 'crawdaunt'
+label = 'Dexsanity: Crawdaunt'
+
+[dexsanity_cresselia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 81
+species = 'cresselia'
+label = 'Dexsanity: Cresselia'
+
+[dexsanity_croagunk]
+region = 'new_bark'
+type = 'dexsanity'
+id = 82
+species = 'croagunk'
+label = 'Dexsanity: Croagunk'
+
+[dexsanity_crobat]
+region = 'new_bark'
+type = 'dexsanity'
+id = 83
+species = 'crobat'
+label = 'Dexsanity: Crobat'
+
+[dexsanity_croconaw]
+region = 'new_bark'
+type = 'dexsanity'
+id = 84
+species = 'croconaw'
+label = 'Dexsanity: Croconaw'
+
+[dexsanity_cubone]
+region = 'new_bark'
+type = 'dexsanity'
+id = 85
+species = 'cubone'
+label = 'Dexsanity: Cubone'
+
+[dexsanity_cyndaquil]
+region = 'new_bark'
+type = 'dexsanity'
+id = 86
+species = 'cyndaquil'
+label = 'Dexsanity: Cyndaquil'
+
+[dexsanity_darkrai]
+region = 'new_bark'
+type = 'dexsanity'
+id = 87
+species = 'darkrai'
+label = 'Dexsanity: Darkrai'
+
+[dexsanity_delcatty]
+region = 'new_bark'
+type = 'dexsanity'
+id = 88
+species = 'delcatty'
+label = 'Dexsanity: Delcatty'
+
+[dexsanity_delibird]
+region = 'new_bark'
+type = 'dexsanity'
+id = 89
+species = 'delibird'
+label = 'Dexsanity: Delibird'
+
+[dexsanity_deoxys]
+region = 'new_bark'
+type = 'dexsanity'
+id = 90
+species = 'deoxys'
+label = 'Dexsanity: Deoxys'
+
+[dexsanity_dewgong]
+region = 'new_bark'
+type = 'dexsanity'
+id = 91
+species = 'dewgong'
+label = 'Dexsanity: Dewgong'
+
+[dexsanity_dialga]
+region = 'new_bark'
+type = 'dexsanity'
+id = 92
+species = 'dialga'
+label = 'Dexsanity: Dialga'
+
+[dexsanity_diglett]
+region = 'new_bark'
+type = 'dexsanity'
+id = 93
+species = 'diglett'
+label = 'Dexsanity: Diglett'
+
+[dexsanity_ditto]
+region = 'new_bark'
+type = 'dexsanity'
+id = 94
+species = 'ditto'
+label = 'Dexsanity: Ditto'
+
+[dexsanity_dodrio]
+region = 'new_bark'
+type = 'dexsanity'
+id = 95
+species = 'dodrio'
+label = 'Dexsanity: Dodrio'
+
+[dexsanity_doduo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 96
+species = 'doduo'
+label = 'Dexsanity: Doduo'
+
+[dexsanity_donphan]
+region = 'new_bark'
+type = 'dexsanity'
+id = 97
+species = 'donphan'
+label = 'Dexsanity: Donphan'
+
+[dexsanity_dragonair]
+region = 'new_bark'
+type = 'dexsanity'
+id = 98
+species = 'dragonair'
+label = 'Dexsanity: Dragonair'
+
+[dexsanity_dragonite]
+region = 'new_bark'
+type = 'dexsanity'
+id = 99
+species = 'dragonite'
+label = 'Dexsanity: Dragonite'
+
+[dexsanity_drapion]
+region = 'new_bark'
+type = 'dexsanity'
+id = 100
+species = 'drapion'
+label = 'Dexsanity: Drapion'
+
+[dexsanity_dratini]
+region = 'new_bark'
+type = 'dexsanity'
+id = 101
+species = 'dratini'
+label = 'Dexsanity: Dratini'
+
+[dexsanity_drifblim]
+region = 'new_bark'
+type = 'dexsanity'
+id = 102
+species = 'drifblim'
+label = 'Dexsanity: Drifblim'
+
+[dexsanity_drifloon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 103
+species = 'drifloon'
+label = 'Dexsanity: Drifloon'
+
+[dexsanity_drowzee]
+region = 'new_bark'
+type = 'dexsanity'
+id = 104
+species = 'drowzee'
+label = 'Dexsanity: Drowzee'
+
+[dexsanity_dugtrio]
+region = 'new_bark'
+type = 'dexsanity'
+id = 105
+species = 'dugtrio'
+label = 'Dexsanity: Dugtrio'
+
+[dexsanity_dunsparce]
+region = 'new_bark'
+type = 'dexsanity'
+id = 106
+species = 'dunsparce'
+label = 'Dexsanity: Dunsparce'
+
+[dexsanity_dusclops]
+region = 'new_bark'
+type = 'dexsanity'
+id = 107
+species = 'dusclops'
+label = 'Dexsanity: Dusclops'
+
+[dexsanity_dusknoir]
+region = 'new_bark'
+type = 'dexsanity'
+id = 108
+species = 'dusknoir'
+label = 'Dexsanity: Dusknoir'
+
+[dexsanity_duskull]
+region = 'new_bark'
+type = 'dexsanity'
+id = 109
+species = 'duskull'
+label = 'Dexsanity: Duskull'
+
+[dexsanity_dustox]
+region = 'new_bark'
+type = 'dexsanity'
+id = 110
+species = 'dustox'
+label = 'Dexsanity: Dustox'
+
+[dexsanity_eevee]
+region = 'new_bark'
+type = 'dexsanity'
+id = 111
+species = 'eevee'
+label = 'Dexsanity: Eevee'
+
+[dexsanity_ekans]
+region = 'new_bark'
+type = 'dexsanity'
+id = 112
+species = 'ekans'
+label = 'Dexsanity: Ekans'
+
+[dexsanity_electabuzz]
+region = 'new_bark'
+type = 'dexsanity'
+id = 113
+species = 'electabuzz'
+label = 'Dexsanity: Electabuzz'
+
+[dexsanity_electivire]
+region = 'new_bark'
+type = 'dexsanity'
+id = 114
+species = 'electivire'
+label = 'Dexsanity: Electivire'
+
+[dexsanity_electrike]
+region = 'new_bark'
+type = 'dexsanity'
+id = 115
+species = 'electrike'
+label = 'Dexsanity: Electrike'
+
+[dexsanity_electrode]
+region = 'new_bark'
+type = 'dexsanity'
+id = 116
+species = 'electrode'
+label = 'Dexsanity: Electrode'
+
+[dexsanity_elekid]
+region = 'new_bark'
+type = 'dexsanity'
+id = 117
+species = 'elekid'
+label = 'Dexsanity: Elekid'
+
+[dexsanity_empoleon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 118
+species = 'empoleon'
+label = 'Dexsanity: Empoleon'
+
+[dexsanity_entei]
+region = 'new_bark'
+type = 'dexsanity'
+id = 119
+species = 'entei'
+label = 'Dexsanity: Entei'
+
+[dexsanity_espeon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 120
+species = 'espeon'
+label = 'Dexsanity: Espeon'
+
+[dexsanity_exeggcute]
+region = 'new_bark'
+type = 'dexsanity'
+id = 121
+species = 'exeggcute'
+label = 'Dexsanity: Exeggcute'
+
+[dexsanity_exeggutor]
+region = 'new_bark'
+type = 'dexsanity'
+id = 122
+species = 'exeggutor'
+label = 'Dexsanity: Exeggutor'
+
+[dexsanity_exploud]
+region = 'new_bark'
+type = 'dexsanity'
+id = 123
+species = 'exploud'
+label = 'Dexsanity: Exploud'
+
+[dexsanity_farfetchd]
+region = 'new_bark'
+type = 'dexsanity'
+id = 124
+species = 'farfetchd'
+label = 'Dexsanity: Farfetchd'
+
+[dexsanity_fearow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 125
+species = 'fearow'
+label = 'Dexsanity: Fearow'
+
+[dexsanity_feebas]
+region = 'new_bark'
+type = 'dexsanity'
+id = 126
+species = 'feebas'
+label = 'Dexsanity: Feebas'
+
+[dexsanity_feraligatr]
+region = 'new_bark'
+type = 'dexsanity'
+id = 127
+species = 'feraligatr'
+label = 'Dexsanity: Feraligatr'
+
+[dexsanity_finneon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 128
+species = 'finneon'
+label = 'Dexsanity: Finneon'
+
+[dexsanity_flaaffy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 129
+species = 'flaaffy'
+label = 'Dexsanity: Flaaffy'
+
+[dexsanity_flareon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 130
+species = 'flareon'
+label = 'Dexsanity: Flareon'
+
+[dexsanity_floatzel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 131
+species = 'floatzel'
+label = 'Dexsanity: Floatzel'
+
+[dexsanity_flygon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 132
+species = 'flygon'
+label = 'Dexsanity: Flygon'
+
+[dexsanity_forretress]
+region = 'new_bark'
+type = 'dexsanity'
+id = 133
+species = 'forretress'
+label = 'Dexsanity: Forretress'
+
+[dexsanity_froslass]
+region = 'new_bark'
+type = 'dexsanity'
+id = 134
+species = 'froslass'
+label = 'Dexsanity: Froslass'
+
+[dexsanity_furret]
+region = 'new_bark'
+type = 'dexsanity'
+id = 135
+species = 'furret'
+label = 'Dexsanity: Furret'
+
+[dexsanity_gabite]
+region = 'new_bark'
+type = 'dexsanity'
+id = 136
+species = 'gabite'
+label = 'Dexsanity: Gabite'
+
+[dexsanity_gallade]
+region = 'new_bark'
+type = 'dexsanity'
+id = 137
+species = 'gallade'
+label = 'Dexsanity: Gallade'
+
+[dexsanity_garchomp]
+region = 'new_bark'
+type = 'dexsanity'
+id = 138
+species = 'garchomp'
+label = 'Dexsanity: Garchomp'
+
+[dexsanity_gardevoir]
+region = 'new_bark'
+type = 'dexsanity'
+id = 139
+species = 'gardevoir'
+label = 'Dexsanity: Gardevoir'
+
+[dexsanity_gastly]
+region = 'new_bark'
+type = 'dexsanity'
+id = 140
+species = 'gastly'
+label = 'Dexsanity: Gastly'
+
+[dexsanity_gastrodon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 141
+species = 'gastrodon'
+label = 'Dexsanity: Gastrodon'
+
+[dexsanity_gengar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 142
+species = 'gengar'
+label = 'Dexsanity: Gengar'
+
+[dexsanity_geodude]
+region = 'new_bark'
+type = 'dexsanity'
+id = 143
+species = 'geodude'
+label = 'Dexsanity: Geodude'
+
+[dexsanity_gible]
+region = 'new_bark'
+type = 'dexsanity'
+id = 144
+species = 'gible'
+label = 'Dexsanity: Gible'
+
+[dexsanity_girafarig]
+region = 'new_bark'
+type = 'dexsanity'
+id = 145
+species = 'girafarig'
+label = 'Dexsanity: Girafarig'
+
+[dexsanity_giratina]
+region = 'new_bark'
+type = 'dexsanity'
+id = 146
+species = 'giratina'
+label = 'Dexsanity: Giratina'
+
+[dexsanity_glaceon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 147
+species = 'glaceon'
+label = 'Dexsanity: Glaceon'
+
+[dexsanity_glalie]
+region = 'new_bark'
+type = 'dexsanity'
+id = 148
+species = 'glalie'
+label = 'Dexsanity: Glalie'
+
+[dexsanity_glameow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 149
+species = 'glameow'
+label = 'Dexsanity: Glameow'
+
+[dexsanity_gligar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 150
+species = 'gligar'
+label = 'Dexsanity: Gligar'
+
+[dexsanity_gliscor]
+region = 'new_bark'
+type = 'dexsanity'
+id = 151
+species = 'gliscor'
+label = 'Dexsanity: Gliscor'
+
+[dexsanity_gloom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 152
+species = 'gloom'
+label = 'Dexsanity: Gloom'
+
+[dexsanity_golbat]
+region = 'new_bark'
+type = 'dexsanity'
+id = 153
+species = 'golbat'
+label = 'Dexsanity: Golbat'
+
+[dexsanity_goldeen]
+region = 'new_bark'
+type = 'dexsanity'
+id = 154
+species = 'goldeen'
+label = 'Dexsanity: Goldeen'
+
+[dexsanity_golduck]
+region = 'new_bark'
+type = 'dexsanity'
+id = 155
+species = 'golduck'
+label = 'Dexsanity: Golduck'
+
+[dexsanity_golem]
+region = 'new_bark'
+type = 'dexsanity'
+id = 156
+species = 'golem'
+label = 'Dexsanity: Golem'
+
+[dexsanity_gorebyss]
+region = 'new_bark'
+type = 'dexsanity'
+id = 157
+species = 'gorebyss'
+label = 'Dexsanity: Gorebyss'
+
+[dexsanity_granbull]
+region = 'new_bark'
+type = 'dexsanity'
+id = 158
+species = 'granbull'
+label = 'Dexsanity: Granbull'
+
+[dexsanity_graveler]
+region = 'new_bark'
+type = 'dexsanity'
+id = 159
+species = 'graveler'
+label = 'Dexsanity: Graveler'
+
+[dexsanity_grimer]
+region = 'new_bark'
+type = 'dexsanity'
+id = 160
+species = 'grimer'
+label = 'Dexsanity: Grimer'
+
+[dexsanity_grotle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 161
+species = 'grotle'
+label = 'Dexsanity: Grotle'
+
+[dexsanity_groudon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 162
+species = 'groudon'
+label = 'Dexsanity: Groudon'
+
+[dexsanity_grovyle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 163
+species = 'grovyle'
+label = 'Dexsanity: Grovyle'
+
+[dexsanity_growlithe]
+region = 'new_bark'
+type = 'dexsanity'
+id = 164
+species = 'growlithe'
+label = 'Dexsanity: Growlithe'
+
+[dexsanity_grumpig]
+region = 'new_bark'
+type = 'dexsanity'
+id = 165
+species = 'grumpig'
+label = 'Dexsanity: Grumpig'
+
+[dexsanity_gulpin]
+region = 'new_bark'
+type = 'dexsanity'
+id = 166
+species = 'gulpin'
+label = 'Dexsanity: Gulpin'
+
+[dexsanity_gyarados]
+region = 'new_bark'
+type = 'dexsanity'
+id = 167
+species = 'gyarados'
+label = 'Dexsanity: Gyarados'
+
+[dexsanity_happiny]
+region = 'new_bark'
+type = 'dexsanity'
+id = 168
+species = 'happiny'
+label = 'Dexsanity: Happiny'
+
+[dexsanity_hariyama]
+region = 'new_bark'
+type = 'dexsanity'
+id = 169
+species = 'hariyama'
+label = 'Dexsanity: Hariyama'
+
+[dexsanity_haunter]
+region = 'new_bark'
+type = 'dexsanity'
+id = 170
+species = 'haunter'
+label = 'Dexsanity: Haunter'
+
+[dexsanity_heatran]
+region = 'new_bark'
+type = 'dexsanity'
+id = 171
+species = 'heatran'
+label = 'Dexsanity: Heatran'
+
+[dexsanity_heracross]
+region = 'new_bark'
+type = 'dexsanity'
+id = 172
+species = 'heracross'
+label = 'Dexsanity: Heracross'
+
+[dexsanity_hippopotas]
+region = 'new_bark'
+type = 'dexsanity'
+id = 173
+species = 'hippopotas'
+label = 'Dexsanity: Hippopotas'
+
+[dexsanity_hippowdon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 174
+species = 'hippowdon'
+label = 'Dexsanity: Hippowdon'
+
+[dexsanity_hitmonchan]
+region = 'new_bark'
+type = 'dexsanity'
+id = 175
+species = 'hitmonchan'
+label = 'Dexsanity: Hitmonchan'
+
+[dexsanity_hitmonlee]
+region = 'new_bark'
+type = 'dexsanity'
+id = 176
+species = 'hitmonlee'
+label = 'Dexsanity: Hitmonlee'
+
+[dexsanity_hitmontop]
+region = 'new_bark'
+type = 'dexsanity'
+id = 177
+species = 'hitmontop'
+label = 'Dexsanity: Hitmontop'
+
+[dexsanity_ho_oh]
+region = 'new_bark'
+type = 'dexsanity'
+id = 178
+species = 'ho_oh'
+label = 'Dexsanity: Ho Oh'
+
+[dexsanity_honchkrow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 179
+species = 'honchkrow'
+label = 'Dexsanity: Honchkrow'
+
+[dexsanity_hoothoot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 180
+species = 'hoothoot'
+label = 'Dexsanity: Hoothoot'
+
+[dexsanity_hoppip]
+region = 'new_bark'
+type = 'dexsanity'
+id = 181
+species = 'hoppip'
+label = 'Dexsanity: Hoppip'
+
+[dexsanity_horsea]
+region = 'new_bark'
+type = 'dexsanity'
+id = 182
+species = 'horsea'
+label = 'Dexsanity: Horsea'
+
+[dexsanity_houndoom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 183
+species = 'houndoom'
+label = 'Dexsanity: Houndoom'
+
+[dexsanity_houndour]
+region = 'new_bark'
+type = 'dexsanity'
+id = 184
+species = 'houndour'
+label = 'Dexsanity: Houndour'
+
+[dexsanity_huntail]
+region = 'new_bark'
+type = 'dexsanity'
+id = 185
+species = 'huntail'
+label = 'Dexsanity: Huntail'
+
+[dexsanity_hypno]
+region = 'new_bark'
+type = 'dexsanity'
+id = 186
+species = 'hypno'
+label = 'Dexsanity: Hypno'
+
+[dexsanity_igglybuff]
+region = 'new_bark'
+type = 'dexsanity'
+id = 187
+species = 'igglybuff'
+label = 'Dexsanity: Igglybuff'
+
+[dexsanity_illumise]
+region = 'new_bark'
+type = 'dexsanity'
+id = 188
+species = 'illumise'
+label = 'Dexsanity: Illumise'
+
+[dexsanity_infernape]
+region = 'new_bark'
+type = 'dexsanity'
+id = 189
+species = 'infernape'
+label = 'Dexsanity: Infernape'
+
+[dexsanity_ivysaur]
+region = 'new_bark'
+type = 'dexsanity'
+id = 190
+species = 'ivysaur'
+label = 'Dexsanity: Ivysaur'
+
+[dexsanity_jigglypuff]
+region = 'new_bark'
+type = 'dexsanity'
+id = 191
+species = 'jigglypuff'
+label = 'Dexsanity: Jigglypuff'
+
+[dexsanity_jirachi]
+region = 'new_bark'
+type = 'dexsanity'
+id = 192
+species = 'jirachi'
+label = 'Dexsanity: Jirachi'
+
+[dexsanity_jolteon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 193
+species = 'jolteon'
+label = 'Dexsanity: Jolteon'
+
+[dexsanity_jumpluff]
+region = 'new_bark'
+type = 'dexsanity'
+id = 194
+species = 'jumpluff'
+label = 'Dexsanity: Jumpluff'
+
+[dexsanity_jynx]
+region = 'new_bark'
+type = 'dexsanity'
+id = 195
+species = 'jynx'
+label = 'Dexsanity: Jynx'
+
+[dexsanity_kabuto]
+region = 'new_bark'
+type = 'dexsanity'
+id = 196
+species = 'kabuto'
+label = 'Dexsanity: Kabuto'
+
+[dexsanity_kabutops]
+region = 'new_bark'
+type = 'dexsanity'
+id = 197
+species = 'kabutops'
+label = 'Dexsanity: Kabutops'
+
+[dexsanity_kadabra]
+region = 'new_bark'
+type = 'dexsanity'
+id = 198
+species = 'kadabra'
+label = 'Dexsanity: Kadabra'
+
+[dexsanity_kakuna]
+region = 'new_bark'
+type = 'dexsanity'
+id = 199
+species = 'kakuna'
+label = 'Dexsanity: Kakuna'
+
+[dexsanity_kangaskhan]
+region = 'new_bark'
+type = 'dexsanity'
+id = 200
+species = 'kangaskhan'
+label = 'Dexsanity: Kangaskhan'
+
+[dexsanity_kecleon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 201
+species = 'kecleon'
+label = 'Dexsanity: Kecleon'
+
+[dexsanity_kingdra]
+region = 'new_bark'
+type = 'dexsanity'
+id = 202
+species = 'kingdra'
+label = 'Dexsanity: Kingdra'
+
+[dexsanity_kingler]
+region = 'new_bark'
+type = 'dexsanity'
+id = 203
+species = 'kingler'
+label = 'Dexsanity: Kingler'
+
+[dexsanity_kirlia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 204
+species = 'kirlia'
+label = 'Dexsanity: Kirlia'
+
+[dexsanity_koffing]
+region = 'new_bark'
+type = 'dexsanity'
+id = 205
+species = 'koffing'
+label = 'Dexsanity: Koffing'
+
+[dexsanity_krabby]
+region = 'new_bark'
+type = 'dexsanity'
+id = 206
+species = 'krabby'
+label = 'Dexsanity: Krabby'
+
+[dexsanity_kricketot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 207
+species = 'kricketot'
+label = 'Dexsanity: Kricketot'
+
+[dexsanity_kricketune]
+region = 'new_bark'
+type = 'dexsanity'
+id = 208
+species = 'kricketune'
+label = 'Dexsanity: Kricketune'
+
+[dexsanity_kyogre]
+region = 'new_bark'
+type = 'dexsanity'
+id = 209
+species = 'kyogre'
+label = 'Dexsanity: Kyogre'
+
+[dexsanity_lairon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 210
+species = 'lairon'
+label = 'Dexsanity: Lairon'
+
+[dexsanity_lanturn]
+region = 'new_bark'
+type = 'dexsanity'
+id = 211
+species = 'lanturn'
+label = 'Dexsanity: Lanturn'
+
+[dexsanity_lapras]
+region = 'new_bark'
+type = 'dexsanity'
+id = 212
+species = 'lapras'
+label = 'Dexsanity: Lapras'
+
+[dexsanity_larvitar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 213
+species = 'larvitar'
+label = 'Dexsanity: Larvitar'
+
+[dexsanity_latias]
+region = 'new_bark'
+type = 'dexsanity'
+id = 214
+species = 'latias'
+label = 'Dexsanity: Latias'
+
+[dexsanity_latios]
+region = 'new_bark'
+type = 'dexsanity'
+id = 215
+species = 'latios'
+label = 'Dexsanity: Latios'
+
+[dexsanity_leafeon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 216
+species = 'leafeon'
+label = 'Dexsanity: Leafeon'
+
+[dexsanity_ledian]
+region = 'new_bark'
+type = 'dexsanity'
+id = 217
+species = 'ledian'
+label = 'Dexsanity: Ledian'
+
+[dexsanity_ledyba]
+region = 'new_bark'
+type = 'dexsanity'
+id = 218
+species = 'ledyba'
+label = 'Dexsanity: Ledyba'
+
+[dexsanity_lickilicky]
+region = 'new_bark'
+type = 'dexsanity'
+id = 219
+species = 'lickilicky'
+label = 'Dexsanity: Lickilicky'
+
+[dexsanity_lickitung]
+region = 'new_bark'
+type = 'dexsanity'
+id = 220
+species = 'lickitung'
+label = 'Dexsanity: Lickitung'
+
+[dexsanity_lileep]
+region = 'new_bark'
+type = 'dexsanity'
+id = 221
+species = 'lileep'
+label = 'Dexsanity: Lileep'
+
+[dexsanity_linoone]
+region = 'new_bark'
+type = 'dexsanity'
+id = 222
+species = 'linoone'
+label = 'Dexsanity: Linoone'
+
+[dexsanity_lombre]
+region = 'new_bark'
+type = 'dexsanity'
+id = 223
+species = 'lombre'
+label = 'Dexsanity: Lombre'
+
+[dexsanity_lopunny]
+region = 'new_bark'
+type = 'dexsanity'
+id = 224
+species = 'lopunny'
+label = 'Dexsanity: Lopunny'
+
+[dexsanity_lotad]
+region = 'new_bark'
+type = 'dexsanity'
+id = 225
+species = 'lotad'
+label = 'Dexsanity: Lotad'
+
+[dexsanity_loudred]
+region = 'new_bark'
+type = 'dexsanity'
+id = 226
+species = 'loudred'
+label = 'Dexsanity: Loudred'
+
+[dexsanity_lucario]
+region = 'new_bark'
+type = 'dexsanity'
+id = 227
+species = 'lucario'
+label = 'Dexsanity: Lucario'
+
+[dexsanity_ludicolo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 228
+species = 'ludicolo'
+label = 'Dexsanity: Ludicolo'
+
+[dexsanity_lugia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 229
+species = 'lugia'
+label = 'Dexsanity: Lugia'
+
+[dexsanity_lumineon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 230
+species = 'lumineon'
+label = 'Dexsanity: Lumineon'
+
+[dexsanity_lunatone]
+region = 'new_bark'
+type = 'dexsanity'
+id = 231
+species = 'lunatone'
+label = 'Dexsanity: Lunatone'
+
+[dexsanity_luvdisc]
+region = 'new_bark'
+type = 'dexsanity'
+id = 232
+species = 'luvdisc'
+label = 'Dexsanity: Luvdisc'
+
+[dexsanity_luxio]
+region = 'new_bark'
+type = 'dexsanity'
+id = 233
+species = 'luxio'
+label = 'Dexsanity: Luxio'
+
+[dexsanity_luxray]
+region = 'new_bark'
+type = 'dexsanity'
+id = 234
+species = 'luxray'
+label = 'Dexsanity: Luxray'
+
+[dexsanity_machamp]
+region = 'new_bark'
+type = 'dexsanity'
+id = 235
+species = 'machamp'
+label = 'Dexsanity: Machamp'
+
+[dexsanity_machoke]
+region = 'new_bark'
+type = 'dexsanity'
+id = 236
+species = 'machoke'
+label = 'Dexsanity: Machoke'
+
+[dexsanity_machop]
+region = 'new_bark'
+type = 'dexsanity'
+id = 237
+species = 'machop'
+label = 'Dexsanity: Machop'
+
+[dexsanity_magby]
+region = 'new_bark'
+type = 'dexsanity'
+id = 238
+species = 'magby'
+label = 'Dexsanity: Magby'
+
+[dexsanity_magcargo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 239
+species = 'magcargo'
+label = 'Dexsanity: Magcargo'
+
+[dexsanity_magikarp]
+region = 'new_bark'
+type = 'dexsanity'
+id = 240
+species = 'magikarp'
+label = 'Dexsanity: Magikarp'
+
+[dexsanity_magmar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 241
+species = 'magmar'
+label = 'Dexsanity: Magmar'
+
+[dexsanity_magmortar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 242
+species = 'magmortar'
+label = 'Dexsanity: Magmortar'
+
+[dexsanity_magnemite]
+region = 'new_bark'
+type = 'dexsanity'
+id = 243
+species = 'magnemite'
+label = 'Dexsanity: Magnemite'
+
+[dexsanity_magneton]
+region = 'new_bark'
+type = 'dexsanity'
+id = 244
+species = 'magneton'
+label = 'Dexsanity: Magneton'
+
+[dexsanity_magnezone]
+region = 'new_bark'
+type = 'dexsanity'
+id = 245
+species = 'magnezone'
+label = 'Dexsanity: Magnezone'
+
+[dexsanity_makuhita]
+region = 'new_bark'
+type = 'dexsanity'
+id = 246
+species = 'makuhita'
+label = 'Dexsanity: Makuhita'
+
+[dexsanity_mamoswine]
+region = 'new_bark'
+type = 'dexsanity'
+id = 247
+species = 'mamoswine'
+label = 'Dexsanity: Mamoswine'
+
+[dexsanity_manaphy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 248
+species = 'manaphy'
+label = 'Dexsanity: Manaphy'
+
+[dexsanity_manectric]
+region = 'new_bark'
+type = 'dexsanity'
+id = 249
+species = 'manectric'
+label = 'Dexsanity: Manectric'
+
+[dexsanity_mankey]
+region = 'new_bark'
+type = 'dexsanity'
+id = 250
+species = 'mankey'
+label = 'Dexsanity: Mankey'
+
+[dexsanity_mantine]
+region = 'new_bark'
+type = 'dexsanity'
+id = 251
+species = 'mantine'
+label = 'Dexsanity: Mantine'
+
+[dexsanity_mantyke]
+region = 'new_bark'
+type = 'dexsanity'
+id = 252
+species = 'mantyke'
+label = 'Dexsanity: Mantyke'
+
+[dexsanity_mareep]
+region = 'new_bark'
+type = 'dexsanity'
+id = 253
+species = 'mareep'
+label = 'Dexsanity: Mareep'
+
+[dexsanity_marill]
+region = 'new_bark'
+type = 'dexsanity'
+id = 254
+species = 'marill'
+label = 'Dexsanity: Marill'
+
+[dexsanity_marowak]
+region = 'new_bark'
+type = 'dexsanity'
+id = 255
+species = 'marowak'
+label = 'Dexsanity: Marowak'
+
+[dexsanity_marshtomp]
+region = 'new_bark'
+type = 'dexsanity'
+id = 256
+species = 'marshtomp'
+label = 'Dexsanity: Marshtomp'
+
+[dexsanity_masquerain]
+region = 'new_bark'
+type = 'dexsanity'
+id = 257
+species = 'masquerain'
+label = 'Dexsanity: Masquerain'
+
+[dexsanity_mawile]
+region = 'new_bark'
+type = 'dexsanity'
+id = 258
+species = 'mawile'
+label = 'Dexsanity: Mawile'
+
+[dexsanity_medicham]
+region = 'new_bark'
+type = 'dexsanity'
+id = 259
+species = 'medicham'
+label = 'Dexsanity: Medicham'
+
+[dexsanity_meditite]
+region = 'new_bark'
+type = 'dexsanity'
+id = 260
+species = 'meditite'
+label = 'Dexsanity: Meditite'
+
+[dexsanity_meganium]
+region = 'new_bark'
+type = 'dexsanity'
+id = 261
+species = 'meganium'
+label = 'Dexsanity: Meganium'
+
+[dexsanity_meowth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 262
+species = 'meowth'
+label = 'Dexsanity: Meowth'
+
+[dexsanity_mesprit]
+region = 'new_bark'
+type = 'dexsanity'
+id = 263
+species = 'mesprit'
+label = 'Dexsanity: Mesprit'
+
+[dexsanity_metagross]
+region = 'new_bark'
+type = 'dexsanity'
+id = 264
+species = 'metagross'
+label = 'Dexsanity: Metagross'
+
+[dexsanity_metang]
+region = 'new_bark'
+type = 'dexsanity'
+id = 265
+species = 'metang'
+label = 'Dexsanity: Metang'
+
+[dexsanity_metapod]
+region = 'new_bark'
+type = 'dexsanity'
+id = 266
+species = 'metapod'
+label = 'Dexsanity: Metapod'
+
+[dexsanity_mew]
+region = 'new_bark'
+type = 'dexsanity'
+id = 267
+species = 'mew'
+label = 'Dexsanity: Mew'
+
+[dexsanity_mewtwo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 268
+species = 'mewtwo'
+label = 'Dexsanity: Mewtwo'
+
+[dexsanity_mightyena]
+region = 'new_bark'
+type = 'dexsanity'
+id = 269
+species = 'mightyena'
+label = 'Dexsanity: Mightyena'
+
+[dexsanity_milotic]
+region = 'new_bark'
+type = 'dexsanity'
+id = 270
+species = 'milotic'
+label = 'Dexsanity: Milotic'
+
+[dexsanity_miltank]
+region = 'new_bark'
+type = 'dexsanity'
+id = 271
+species = 'miltank'
+label = 'Dexsanity: Miltank'
+
+[dexsanity_mime_jr]
+region = 'new_bark'
+type = 'dexsanity'
+id = 272
+species = 'mime_jr'
+label = 'Dexsanity: Mime Jr'
+
+[dexsanity_minun]
+region = 'new_bark'
+type = 'dexsanity'
+id = 273
+species = 'minun'
+label = 'Dexsanity: Minun'
+
+[dexsanity_misdreavus]
+region = 'new_bark'
+type = 'dexsanity'
+id = 274
+species = 'misdreavus'
+label = 'Dexsanity: Misdreavus'
+
+[dexsanity_mismagius]
+region = 'new_bark'
+type = 'dexsanity'
+id = 275
+species = 'mismagius'
+label = 'Dexsanity: Mismagius'
+
+[dexsanity_moltres]
+region = 'new_bark'
+type = 'dexsanity'
+id = 276
+species = 'moltres'
+label = 'Dexsanity: Moltres'
+
+[dexsanity_monferno]
+region = 'new_bark'
+type = 'dexsanity'
+id = 277
+species = 'monferno'
+label = 'Dexsanity: Monferno'
+
+[dexsanity_mothim]
+region = 'new_bark'
+type = 'dexsanity'
+id = 278
+species = 'mothim'
+label = 'Dexsanity: Mothim'
+
+[dexsanity_mr_mime]
+region = 'new_bark'
+type = 'dexsanity'
+id = 279
+species = 'mr_mime'
+label = 'Dexsanity: Mr Mime'
+
+[dexsanity_mudkip]
+region = 'new_bark'
+type = 'dexsanity'
+id = 280
+species = 'mudkip'
+label = 'Dexsanity: Mudkip'
+
+[dexsanity_muk]
+region = 'new_bark'
+type = 'dexsanity'
+id = 281
+species = 'muk'
+label = 'Dexsanity: Muk'
+
+[dexsanity_munchlax]
+region = 'new_bark'
+type = 'dexsanity'
+id = 282
+species = 'munchlax'
+label = 'Dexsanity: Munchlax'
+
+[dexsanity_murkrow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 283
+species = 'murkrow'
+label = 'Dexsanity: Murkrow'
+
+[dexsanity_natu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 284
+species = 'natu'
+label = 'Dexsanity: Natu'
+
+[dexsanity_nidoking]
+region = 'new_bark'
+type = 'dexsanity'
+id = 285
+species = 'nidoking'
+label = 'Dexsanity: Nidoking'
+
+[dexsanity_nidoqueen]
+region = 'new_bark'
+type = 'dexsanity'
+id = 286
+species = 'nidoqueen'
+label = 'Dexsanity: Nidoqueen'
+
+[dexsanity_nidoran_f]
+region = 'new_bark'
+type = 'dexsanity'
+id = 287
+species = 'nidoran_f'
+label = 'Dexsanity: Nidoran F'
+
+[dexsanity_nidoran_m]
+region = 'new_bark'
+type = 'dexsanity'
+id = 288
+species = 'nidoran_m'
+label = 'Dexsanity: Nidoran M'
+
+[dexsanity_nidorina]
+region = 'new_bark'
+type = 'dexsanity'
+id = 289
+species = 'nidorina'
+label = 'Dexsanity: Nidorina'
+
+[dexsanity_nidorino]
+region = 'new_bark'
+type = 'dexsanity'
+id = 290
+species = 'nidorino'
+label = 'Dexsanity: Nidorino'
+
+[dexsanity_nincada]
+region = 'new_bark'
+type = 'dexsanity'
+id = 291
+species = 'nincada'
+label = 'Dexsanity: Nincada'
+
+[dexsanity_ninetales]
+region = 'new_bark'
+type = 'dexsanity'
+id = 292
+species = 'ninetales'
+label = 'Dexsanity: Ninetales'
+
+[dexsanity_ninjask]
+region = 'new_bark'
+type = 'dexsanity'
+id = 293
+species = 'ninjask'
+label = 'Dexsanity: Ninjask'
+
+[dexsanity_noctowl]
+region = 'new_bark'
+type = 'dexsanity'
+id = 294
+species = 'noctowl'
+label = 'Dexsanity: Noctowl'
+
+[dexsanity_nosepass]
+region = 'new_bark'
+type = 'dexsanity'
+id = 295
+species = 'nosepass'
+label = 'Dexsanity: Nosepass'
+
+[dexsanity_numel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 296
+species = 'numel'
+label = 'Dexsanity: Numel'
+
+[dexsanity_nuzleaf]
+region = 'new_bark'
+type = 'dexsanity'
+id = 297
+species = 'nuzleaf'
+label = 'Dexsanity: Nuzleaf'
+
+[dexsanity_octillery]
+region = 'new_bark'
+type = 'dexsanity'
+id = 298
+species = 'octillery'
+label = 'Dexsanity: Octillery'
+
+[dexsanity_oddish]
+region = 'new_bark'
+type = 'dexsanity'
+id = 299
+species = 'oddish'
+label = 'Dexsanity: Oddish'
+
+[dexsanity_omanyte]
+region = 'new_bark'
+type = 'dexsanity'
+id = 300
+species = 'omanyte'
+label = 'Dexsanity: Omanyte'
+
+[dexsanity_omastar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 301
+species = 'omastar'
+label = 'Dexsanity: Omastar'
+
+[dexsanity_onix]
+region = 'new_bark'
+type = 'dexsanity'
+id = 302
+species = 'onix'
+label = 'Dexsanity: Onix'
+
+[dexsanity_pachirisu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 303
+species = 'pachirisu'
+label = 'Dexsanity: Pachirisu'
+
+[dexsanity_palkia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 304
+species = 'palkia'
+label = 'Dexsanity: Palkia'
+
+[dexsanity_paras]
+region = 'new_bark'
+type = 'dexsanity'
+id = 305
+species = 'paras'
+label = 'Dexsanity: Paras'
+
+[dexsanity_parasect]
+region = 'new_bark'
+type = 'dexsanity'
+id = 306
+species = 'parasect'
+label = 'Dexsanity: Parasect'
+
+[dexsanity_pelipper]
+region = 'new_bark'
+type = 'dexsanity'
+id = 307
+species = 'pelipper'
+label = 'Dexsanity: Pelipper'
+
+[dexsanity_persian]
+region = 'new_bark'
+type = 'dexsanity'
+id = 308
+species = 'persian'
+label = 'Dexsanity: Persian'
+
+[dexsanity_phanpy]
+region = 'new_bark'
+type = 'dexsanity'
+id = 309
+species = 'phanpy'
+label = 'Dexsanity: Phanpy'
+
+[dexsanity_phione]
+region = 'new_bark'
+type = 'dexsanity'
+id = 310
+species = 'phione'
+label = 'Dexsanity: Phione'
+
+[dexsanity_pichu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 311
+species = 'pichu'
+label = 'Dexsanity: Pichu'
+
+[dexsanity_pidgeot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 312
+species = 'pidgeot'
+label = 'Dexsanity: Pidgeot'
+
+[dexsanity_pidgeotto]
+region = 'new_bark'
+type = 'dexsanity'
+id = 313
+species = 'pidgeotto'
+label = 'Dexsanity: Pidgeotto'
+
+[dexsanity_pidgey]
+region = 'new_bark'
+type = 'dexsanity'
+id = 314
+species = 'pidgey'
+label = 'Dexsanity: Pidgey'
+
+[dexsanity_pikachu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 315
+species = 'pikachu'
+label = 'Dexsanity: Pikachu'
+
+[dexsanity_piloswine]
+region = 'new_bark'
+type = 'dexsanity'
+id = 316
+species = 'piloswine'
+label = 'Dexsanity: Piloswine'
+
+[dexsanity_pineco]
+region = 'new_bark'
+type = 'dexsanity'
+id = 317
+species = 'pineco'
+label = 'Dexsanity: Pineco'
+
+[dexsanity_pinsir]
+region = 'new_bark'
+type = 'dexsanity'
+id = 318
+species = 'pinsir'
+label = 'Dexsanity: Pinsir'
+
+[dexsanity_piplup]
+region = 'new_bark'
+type = 'dexsanity'
+id = 319
+species = 'piplup'
+label = 'Dexsanity: Piplup'
+
+[dexsanity_plusle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 320
+species = 'plusle'
+label = 'Dexsanity: Plusle'
+
+[dexsanity_politoed]
+region = 'new_bark'
+type = 'dexsanity'
+id = 321
+species = 'politoed'
+label = 'Dexsanity: Politoed'
+
+[dexsanity_poliwag]
+region = 'new_bark'
+type = 'dexsanity'
+id = 322
+species = 'poliwag'
+label = 'Dexsanity: Poliwag'
+
+[dexsanity_poliwhirl]
+region = 'new_bark'
+type = 'dexsanity'
+id = 323
+species = 'poliwhirl'
+label = 'Dexsanity: Poliwhirl'
+
+[dexsanity_poliwrath]
+region = 'new_bark'
+type = 'dexsanity'
+id = 324
+species = 'poliwrath'
+label = 'Dexsanity: Poliwrath'
+
+[dexsanity_ponyta]
+region = 'new_bark'
+type = 'dexsanity'
+id = 325
+species = 'ponyta'
+label = 'Dexsanity: Ponyta'
+
+[dexsanity_poochyena]
+region = 'new_bark'
+type = 'dexsanity'
+id = 326
+species = 'poochyena'
+label = 'Dexsanity: Poochyena'
+
+[dexsanity_porygon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 327
+species = 'porygon'
+label = 'Dexsanity: Porygon'
+
+[dexsanity_porygon2]
+region = 'new_bark'
+type = 'dexsanity'
+id = 328
+species = 'porygon2'
+label = 'Dexsanity: Porygon2'
+
+[dexsanity_porygon_z]
+region = 'new_bark'
+type = 'dexsanity'
+id = 329
+species = 'porygon_z'
+label = 'Dexsanity: Porygon Z'
+
+[dexsanity_primeape]
+region = 'new_bark'
+type = 'dexsanity'
+id = 330
+species = 'primeape'
+label = 'Dexsanity: Primeape'
+
+[dexsanity_prinplup]
+region = 'new_bark'
+type = 'dexsanity'
+id = 331
+species = 'prinplup'
+label = 'Dexsanity: Prinplup'
+
+[dexsanity_probopass]
+region = 'new_bark'
+type = 'dexsanity'
+id = 332
+species = 'probopass'
+label = 'Dexsanity: Probopass'
+
+[dexsanity_psyduck]
+region = 'new_bark'
+type = 'dexsanity'
+id = 333
+species = 'psyduck'
+label = 'Dexsanity: Psyduck'
+
+[dexsanity_pupitar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 334
+species = 'pupitar'
+label = 'Dexsanity: Pupitar'
+
+[dexsanity_purugly]
+region = 'new_bark'
+type = 'dexsanity'
+id = 335
+species = 'purugly'
+label = 'Dexsanity: Purugly'
+
+[dexsanity_quagsire]
+region = 'new_bark'
+type = 'dexsanity'
+id = 336
+species = 'quagsire'
+label = 'Dexsanity: Quagsire'
+
+[dexsanity_quilava]
+region = 'new_bark'
+type = 'dexsanity'
+id = 337
+species = 'quilava'
+label = 'Dexsanity: Quilava'
+
+[dexsanity_qwilfish]
+region = 'new_bark'
+type = 'dexsanity'
+id = 338
+species = 'qwilfish'
+label = 'Dexsanity: Qwilfish'
+
+[dexsanity_raichu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 339
+species = 'raichu'
+label = 'Dexsanity: Raichu'
+
+[dexsanity_raikou]
+region = 'new_bark'
+type = 'dexsanity'
+id = 340
+species = 'raikou'
+label = 'Dexsanity: Raikou'
+
+[dexsanity_ralts]
+region = 'new_bark'
+type = 'dexsanity'
+id = 341
+species = 'ralts'
+label = 'Dexsanity: Ralts'
+
+[dexsanity_rampardos]
+region = 'new_bark'
+type = 'dexsanity'
+id = 342
+species = 'rampardos'
+label = 'Dexsanity: Rampardos'
+
+[dexsanity_rapidash]
+region = 'new_bark'
+type = 'dexsanity'
+id = 343
+species = 'rapidash'
+label = 'Dexsanity: Rapidash'
+
+[dexsanity_raticate]
+region = 'new_bark'
+type = 'dexsanity'
+id = 344
+species = 'raticate'
+label = 'Dexsanity: Raticate'
+
+[dexsanity_rattata]
+region = 'new_bark'
+type = 'dexsanity'
+id = 345
+species = 'rattata'
+label = 'Dexsanity: Rattata'
+
+[dexsanity_rayquaza]
+region = 'new_bark'
+type = 'dexsanity'
+id = 346
+species = 'rayquaza'
+label = 'Dexsanity: Rayquaza'
+
+[dexsanity_regice]
+region = 'new_bark'
+type = 'dexsanity'
+id = 347
+species = 'regice'
+label = 'Dexsanity: Regice'
+
+[dexsanity_regigigas]
+region = 'new_bark'
+type = 'dexsanity'
+id = 348
+species = 'regigigas'
+label = 'Dexsanity: Regigigas'
+
+[dexsanity_regirock]
+region = 'new_bark'
+type = 'dexsanity'
+id = 349
+species = 'regirock'
+label = 'Dexsanity: Regirock'
+
+[dexsanity_registeel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 350
+species = 'registeel'
+label = 'Dexsanity: Registeel'
+
+[dexsanity_relicanth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 351
+species = 'relicanth'
+label = 'Dexsanity: Relicanth'
+
+[dexsanity_remoraid]
+region = 'new_bark'
+type = 'dexsanity'
+id = 352
+species = 'remoraid'
+label = 'Dexsanity: Remoraid'
+
+[dexsanity_rhydon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 353
+species = 'rhydon'
+label = 'Dexsanity: Rhydon'
+
+[dexsanity_rhyhorn]
+region = 'new_bark'
+type = 'dexsanity'
+id = 354
+species = 'rhyhorn'
+label = 'Dexsanity: Rhyhorn'
+
+[dexsanity_rhyperior]
+region = 'new_bark'
+type = 'dexsanity'
+id = 355
+species = 'rhyperior'
+label = 'Dexsanity: Rhyperior'
+
+[dexsanity_riolu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 356
+species = 'riolu'
+label = 'Dexsanity: Riolu'
+
+[dexsanity_roselia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 357
+species = 'roselia'
+label = 'Dexsanity: Roselia'
+
+[dexsanity_roserade]
+region = 'new_bark'
+type = 'dexsanity'
+id = 358
+species = 'roserade'
+label = 'Dexsanity: Roserade'
+
+[dexsanity_rotom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 359
+species = 'rotom'
+label = 'Dexsanity: Rotom'
+
+[dexsanity_sableye]
+region = 'new_bark'
+type = 'dexsanity'
+id = 360
+species = 'sableye'
+label = 'Dexsanity: Sableye'
+
+[dexsanity_salamence]
+region = 'new_bark'
+type = 'dexsanity'
+id = 361
+species = 'salamence'
+label = 'Dexsanity: Salamence'
+
+[dexsanity_sandshrew]
+region = 'new_bark'
+type = 'dexsanity'
+id = 362
+species = 'sandshrew'
+label = 'Dexsanity: Sandshrew'
+
+[dexsanity_sandslash]
+region = 'new_bark'
+type = 'dexsanity'
+id = 363
+species = 'sandslash'
+label = 'Dexsanity: Sandslash'
+
+[dexsanity_sceptile]
+region = 'new_bark'
+type = 'dexsanity'
+id = 364
+species = 'sceptile'
+label = 'Dexsanity: Sceptile'
+
+[dexsanity_scizor]
+region = 'new_bark'
+type = 'dexsanity'
+id = 365
+species = 'scizor'
+label = 'Dexsanity: Scizor'
+
+[dexsanity_scyther]
+region = 'new_bark'
+type = 'dexsanity'
+id = 366
+species = 'scyther'
+label = 'Dexsanity: Scyther'
+
+[dexsanity_seadra]
+region = 'new_bark'
+type = 'dexsanity'
+id = 367
+species = 'seadra'
+label = 'Dexsanity: Seadra'
+
+[dexsanity_seaking]
+region = 'new_bark'
+type = 'dexsanity'
+id = 368
+species = 'seaking'
+label = 'Dexsanity: Seaking'
+
+[dexsanity_sealeo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 369
+species = 'sealeo'
+label = 'Dexsanity: Sealeo'
+
+[dexsanity_seedot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 370
+species = 'seedot'
+label = 'Dexsanity: Seedot'
+
+[dexsanity_seel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 371
+species = 'seel'
+label = 'Dexsanity: Seel'
+
+[dexsanity_sentret]
+region = 'new_bark'
+type = 'dexsanity'
+id = 372
+species = 'sentret'
+label = 'Dexsanity: Sentret'
+
+[dexsanity_seviper]
+region = 'new_bark'
+type = 'dexsanity'
+id = 373
+species = 'seviper'
+label = 'Dexsanity: Seviper'
+
+[dexsanity_sharpedo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 374
+species = 'sharpedo'
+label = 'Dexsanity: Sharpedo'
+
+[dexsanity_shaymin]
+region = 'new_bark'
+type = 'dexsanity'
+id = 375
+species = 'shaymin'
+label = 'Dexsanity: Shaymin'
+
+[dexsanity_shedinja]
+region = 'new_bark'
+type = 'dexsanity'
+id = 376
+species = 'shedinja'
+label = 'Dexsanity: Shedinja'
+
+[dexsanity_shelgon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 377
+species = 'shelgon'
+label = 'Dexsanity: Shelgon'
+
+[dexsanity_shellder]
+region = 'new_bark'
+type = 'dexsanity'
+id = 378
+species = 'shellder'
+label = 'Dexsanity: Shellder'
+
+[dexsanity_shellos]
+region = 'new_bark'
+type = 'dexsanity'
+id = 379
+species = 'shellos'
+label = 'Dexsanity: Shellos'
+
+[dexsanity_shieldon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 380
+species = 'shieldon'
+label = 'Dexsanity: Shieldon'
+
+[dexsanity_shiftry]
+region = 'new_bark'
+type = 'dexsanity'
+id = 381
+species = 'shiftry'
+label = 'Dexsanity: Shiftry'
+
+[dexsanity_shinx]
+region = 'new_bark'
+type = 'dexsanity'
+id = 382
+species = 'shinx'
+label = 'Dexsanity: Shinx'
+
+[dexsanity_shroomish]
+region = 'new_bark'
+type = 'dexsanity'
+id = 383
+species = 'shroomish'
+label = 'Dexsanity: Shroomish'
+
+[dexsanity_shuckle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 384
+species = 'shuckle'
+label = 'Dexsanity: Shuckle'
+
+[dexsanity_shuppet]
+region = 'new_bark'
+type = 'dexsanity'
+id = 385
+species = 'shuppet'
+label = 'Dexsanity: Shuppet'
+
+[dexsanity_silcoon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 386
+species = 'silcoon'
+label = 'Dexsanity: Silcoon'
+
+[dexsanity_skarmory]
+region = 'new_bark'
+type = 'dexsanity'
+id = 387
+species = 'skarmory'
+label = 'Dexsanity: Skarmory'
+
+[dexsanity_skiploom]
+region = 'new_bark'
+type = 'dexsanity'
+id = 388
+species = 'skiploom'
+label = 'Dexsanity: Skiploom'
+
+[dexsanity_skitty]
+region = 'new_bark'
+type = 'dexsanity'
+id = 389
+species = 'skitty'
+label = 'Dexsanity: Skitty'
+
+[dexsanity_skorupi]
+region = 'new_bark'
+type = 'dexsanity'
+id = 390
+species = 'skorupi'
+label = 'Dexsanity: Skorupi'
+
+[dexsanity_skuntank]
+region = 'new_bark'
+type = 'dexsanity'
+id = 391
+species = 'skuntank'
+label = 'Dexsanity: Skuntank'
+
+[dexsanity_slaking]
+region = 'new_bark'
+type = 'dexsanity'
+id = 392
+species = 'slaking'
+label = 'Dexsanity: Slaking'
+
+[dexsanity_slakoth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 393
+species = 'slakoth'
+label = 'Dexsanity: Slakoth'
+
+[dexsanity_slowbro]
+region = 'new_bark'
+type = 'dexsanity'
+id = 394
+species = 'slowbro'
+label = 'Dexsanity: Slowbro'
+
+[dexsanity_slowking]
+region = 'new_bark'
+type = 'dexsanity'
+id = 395
+species = 'slowking'
+label = 'Dexsanity: Slowking'
+
+[dexsanity_slowpoke]
+region = 'new_bark'
+type = 'dexsanity'
+id = 396
+species = 'slowpoke'
+label = 'Dexsanity: Slowpoke'
+
+[dexsanity_slugma]
+region = 'new_bark'
+type = 'dexsanity'
+id = 397
+species = 'slugma'
+label = 'Dexsanity: Slugma'
+
+[dexsanity_smeargle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 398
+species = 'smeargle'
+label = 'Dexsanity: Smeargle'
+
+[dexsanity_smoochum]
+region = 'new_bark'
+type = 'dexsanity'
+id = 399
+species = 'smoochum'
+label = 'Dexsanity: Smoochum'
+
+[dexsanity_sneasel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 400
+species = 'sneasel'
+label = 'Dexsanity: Sneasel'
+
+[dexsanity_snorlax]
+region = 'new_bark'
+type = 'dexsanity'
+id = 401
+species = 'snorlax'
+label = 'Dexsanity: Snorlax'
+
+[dexsanity_snorunt]
+region = 'new_bark'
+type = 'dexsanity'
+id = 402
+species = 'snorunt'
+label = 'Dexsanity: Snorunt'
+
+[dexsanity_snover]
+region = 'new_bark'
+type = 'dexsanity'
+id = 403
+species = 'snover'
+label = 'Dexsanity: Snover'
+
+[dexsanity_snubbull]
+region = 'new_bark'
+type = 'dexsanity'
+id = 404
+species = 'snubbull'
+label = 'Dexsanity: Snubbull'
+
+[dexsanity_solrock]
+region = 'new_bark'
+type = 'dexsanity'
+id = 405
+species = 'solrock'
+label = 'Dexsanity: Solrock'
+
+[dexsanity_spearow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 406
+species = 'spearow'
+label = 'Dexsanity: Spearow'
+
+[dexsanity_spheal]
+region = 'new_bark'
+type = 'dexsanity'
+id = 407
+species = 'spheal'
+label = 'Dexsanity: Spheal'
+
+[dexsanity_spinarak]
+region = 'new_bark'
+type = 'dexsanity'
+id = 408
+species = 'spinarak'
+label = 'Dexsanity: Spinarak'
+
+[dexsanity_spinda]
+region = 'new_bark'
+type = 'dexsanity'
+id = 409
+species = 'spinda'
+label = 'Dexsanity: Spinda'
+
+[dexsanity_spiritomb]
+region = 'new_bark'
+type = 'dexsanity'
+id = 410
+species = 'spiritomb'
+label = 'Dexsanity: Spiritomb'
+
+[dexsanity_spoink]
+region = 'new_bark'
+type = 'dexsanity'
+id = 411
+species = 'spoink'
+label = 'Dexsanity: Spoink'
+
+[dexsanity_squirtle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 412
+species = 'squirtle'
+label = 'Dexsanity: Squirtle'
+
+[dexsanity_stantler]
+region = 'new_bark'
+type = 'dexsanity'
+id = 413
+species = 'stantler'
+label = 'Dexsanity: Stantler'
+
+[dexsanity_staraptor]
+region = 'new_bark'
+type = 'dexsanity'
+id = 414
+species = 'staraptor'
+label = 'Dexsanity: Staraptor'
+
+[dexsanity_staravia]
+region = 'new_bark'
+type = 'dexsanity'
+id = 415
+species = 'staravia'
+label = 'Dexsanity: Staravia'
+
+[dexsanity_starly]
+region = 'new_bark'
+type = 'dexsanity'
+id = 416
+species = 'starly'
+label = 'Dexsanity: Starly'
+
+[dexsanity_starmie]
+region = 'new_bark'
+type = 'dexsanity'
+id = 417
+species = 'starmie'
+label = 'Dexsanity: Starmie'
+
+[dexsanity_staryu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 418
+species = 'staryu'
+label = 'Dexsanity: Staryu'
+
+[dexsanity_steelix]
+region = 'new_bark'
+type = 'dexsanity'
+id = 419
+species = 'steelix'
+label = 'Dexsanity: Steelix'
+
+[dexsanity_stunky]
+region = 'new_bark'
+type = 'dexsanity'
+id = 420
+species = 'stunky'
+label = 'Dexsanity: Stunky'
+
+[dexsanity_sudowoodo]
+region = 'new_bark'
+type = 'dexsanity'
+id = 421
+species = 'sudowoodo'
+label = 'Dexsanity: Sudowoodo'
+
+[dexsanity_suicune]
+region = 'new_bark'
+type = 'dexsanity'
+id = 422
+species = 'suicune'
+label = 'Dexsanity: Suicune'
+
+[dexsanity_sunflora]
+region = 'new_bark'
+type = 'dexsanity'
+id = 423
+species = 'sunflora'
+label = 'Dexsanity: Sunflora'
+
+[dexsanity_sunkern]
+region = 'new_bark'
+type = 'dexsanity'
+id = 424
+species = 'sunkern'
+label = 'Dexsanity: Sunkern'
+
+[dexsanity_surskit]
+region = 'new_bark'
+type = 'dexsanity'
+id = 425
+species = 'surskit'
+label = 'Dexsanity: Surskit'
+
+[dexsanity_swablu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 426
+species = 'swablu'
+label = 'Dexsanity: Swablu'
+
+[dexsanity_swalot]
+region = 'new_bark'
+type = 'dexsanity'
+id = 427
+species = 'swalot'
+label = 'Dexsanity: Swalot'
+
+[dexsanity_swampert]
+region = 'new_bark'
+type = 'dexsanity'
+id = 428
+species = 'swampert'
+label = 'Dexsanity: Swampert'
+
+[dexsanity_swellow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 429
+species = 'swellow'
+label = 'Dexsanity: Swellow'
+
+[dexsanity_swinub]
+region = 'new_bark'
+type = 'dexsanity'
+id = 430
+species = 'swinub'
+label = 'Dexsanity: Swinub'
+
+[dexsanity_taillow]
+region = 'new_bark'
+type = 'dexsanity'
+id = 431
+species = 'taillow'
+label = 'Dexsanity: Taillow'
+
+[dexsanity_tangela]
+region = 'new_bark'
+type = 'dexsanity'
+id = 432
+species = 'tangela'
+label = 'Dexsanity: Tangela'
+
+[dexsanity_tangrowth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 433
+species = 'tangrowth'
+label = 'Dexsanity: Tangrowth'
+
+[dexsanity_tauros]
+region = 'new_bark'
+type = 'dexsanity'
+id = 434
+species = 'tauros'
+label = 'Dexsanity: Tauros'
+
+[dexsanity_teddiursa]
+region = 'new_bark'
+type = 'dexsanity'
+id = 435
+species = 'teddiursa'
+label = 'Dexsanity: Teddiursa'
+
+[dexsanity_tentacool]
+region = 'new_bark'
+type = 'dexsanity'
+id = 436
+species = 'tentacool'
+label = 'Dexsanity: Tentacool'
+
+[dexsanity_tentacruel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 437
+species = 'tentacruel'
+label = 'Dexsanity: Tentacruel'
+
+[dexsanity_togekiss]
+region = 'new_bark'
+type = 'dexsanity'
+id = 438
+species = 'togekiss'
+label = 'Dexsanity: Togekiss'
+
+[dexsanity_togepi]
+region = 'new_bark'
+type = 'dexsanity'
+id = 439
+species = 'togepi'
+label = 'Dexsanity: Togepi'
+
+[dexsanity_togetic]
+region = 'new_bark'
+type = 'dexsanity'
+id = 440
+species = 'togetic'
+label = 'Dexsanity: Togetic'
+
+[dexsanity_torchic]
+region = 'new_bark'
+type = 'dexsanity'
+id = 441
+species = 'torchic'
+label = 'Dexsanity: Torchic'
+
+[dexsanity_torkoal]
+region = 'new_bark'
+type = 'dexsanity'
+id = 442
+species = 'torkoal'
+label = 'Dexsanity: Torkoal'
+
+[dexsanity_torterra]
+region = 'new_bark'
+type = 'dexsanity'
+id = 443
+species = 'torterra'
+label = 'Dexsanity: Torterra'
+
+[dexsanity_totodile]
+region = 'new_bark'
+type = 'dexsanity'
+id = 444
+species = 'totodile'
+label = 'Dexsanity: Totodile'
+
+[dexsanity_toxicroak]
+region = 'new_bark'
+type = 'dexsanity'
+id = 445
+species = 'toxicroak'
+label = 'Dexsanity: Toxicroak'
+
+[dexsanity_trapinch]
+region = 'new_bark'
+type = 'dexsanity'
+id = 446
+species = 'trapinch'
+label = 'Dexsanity: Trapinch'
+
+[dexsanity_treecko]
+region = 'new_bark'
+type = 'dexsanity'
+id = 447
+species = 'treecko'
+label = 'Dexsanity: Treecko'
+
+[dexsanity_tropius]
+region = 'new_bark'
+type = 'dexsanity'
+id = 448
+species = 'tropius'
+label = 'Dexsanity: Tropius'
+
+[dexsanity_turtwig]
+region = 'new_bark'
+type = 'dexsanity'
+id = 449
+species = 'turtwig'
+label = 'Dexsanity: Turtwig'
+
+[dexsanity_typhlosion]
+region = 'new_bark'
+type = 'dexsanity'
+id = 450
+species = 'typhlosion'
+label = 'Dexsanity: Typhlosion'
+
+[dexsanity_tyranitar]
+region = 'new_bark'
+type = 'dexsanity'
+id = 451
+species = 'tyranitar'
+label = 'Dexsanity: Tyranitar'
+
+[dexsanity_tyrogue]
+region = 'new_bark'
+type = 'dexsanity'
+id = 452
+species = 'tyrogue'
+label = 'Dexsanity: Tyrogue'
+
+[dexsanity_umbreon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 453
+species = 'umbreon'
+label = 'Dexsanity: Umbreon'
+
+[dexsanity_unown]
+region = 'new_bark'
+type = 'dexsanity'
+id = 454
+species = 'unown'
+label = 'Dexsanity: Unown'
+
+[dexsanity_ursaring]
+region = 'new_bark'
+type = 'dexsanity'
+id = 455
+species = 'ursaring'
+label = 'Dexsanity: Ursaring'
+
+[dexsanity_uxie]
+region = 'new_bark'
+type = 'dexsanity'
+id = 456
+species = 'uxie'
+label = 'Dexsanity: Uxie'
+
+[dexsanity_vaporeon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 457
+species = 'vaporeon'
+label = 'Dexsanity: Vaporeon'
+
+[dexsanity_venomoth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 458
+species = 'venomoth'
+label = 'Dexsanity: Venomoth'
+
+[dexsanity_venonat]
+region = 'new_bark'
+type = 'dexsanity'
+id = 459
+species = 'venonat'
+label = 'Dexsanity: Venonat'
+
+[dexsanity_venusaur]
+region = 'new_bark'
+type = 'dexsanity'
+id = 460
+species = 'venusaur'
+label = 'Dexsanity: Venusaur'
+
+[dexsanity_vespiquen]
+region = 'new_bark'
+type = 'dexsanity'
+id = 461
+species = 'vespiquen'
+label = 'Dexsanity: Vespiquen'
+
+[dexsanity_vibrava]
+region = 'new_bark'
+type = 'dexsanity'
+id = 462
+species = 'vibrava'
+label = 'Dexsanity: Vibrava'
+
+[dexsanity_victreebel]
+region = 'new_bark'
+type = 'dexsanity'
+id = 463
+species = 'victreebel'
+label = 'Dexsanity: Victreebel'
+
+[dexsanity_vigoroth]
+region = 'new_bark'
+type = 'dexsanity'
+id = 464
+species = 'vigoroth'
+label = 'Dexsanity: Vigoroth'
+
+[dexsanity_vileplume]
+region = 'new_bark'
+type = 'dexsanity'
+id = 465
+species = 'vileplume'
+label = 'Dexsanity: Vileplume'
+
+[dexsanity_volbeat]
+region = 'new_bark'
+type = 'dexsanity'
+id = 466
+species = 'volbeat'
+label = 'Dexsanity: Volbeat'
+
+[dexsanity_voltorb]
+region = 'new_bark'
+type = 'dexsanity'
+id = 467
+species = 'voltorb'
+label = 'Dexsanity: Voltorb'
+
+[dexsanity_vulpix]
+region = 'new_bark'
+type = 'dexsanity'
+id = 468
+species = 'vulpix'
+label = 'Dexsanity: Vulpix'
+
+[dexsanity_wailmer]
+region = 'new_bark'
+type = 'dexsanity'
+id = 469
+species = 'wailmer'
+label = 'Dexsanity: Wailmer'
+
+[dexsanity_wailord]
+region = 'new_bark'
+type = 'dexsanity'
+id = 470
+species = 'wailord'
+label = 'Dexsanity: Wailord'
+
+[dexsanity_walrein]
+region = 'new_bark'
+type = 'dexsanity'
+id = 471
+species = 'walrein'
+label = 'Dexsanity: Walrein'
+
+[dexsanity_wartortle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 472
+species = 'wartortle'
+label = 'Dexsanity: Wartortle'
+
+[dexsanity_weavile]
+region = 'new_bark'
+type = 'dexsanity'
+id = 473
+species = 'weavile'
+label = 'Dexsanity: Weavile'
+
+[dexsanity_weedle]
+region = 'new_bark'
+type = 'dexsanity'
+id = 474
+species = 'weedle'
+label = 'Dexsanity: Weedle'
+
+[dexsanity_weepinbell]
+region = 'new_bark'
+type = 'dexsanity'
+id = 475
+species = 'weepinbell'
+label = 'Dexsanity: Weepinbell'
+
+[dexsanity_weezing]
+region = 'new_bark'
+type = 'dexsanity'
+id = 476
+species = 'weezing'
+label = 'Dexsanity: Weezing'
+
+[dexsanity_whiscash]
+region = 'new_bark'
+type = 'dexsanity'
+id = 477
+species = 'whiscash'
+label = 'Dexsanity: Whiscash'
+
+[dexsanity_whismur]
+region = 'new_bark'
+type = 'dexsanity'
+id = 478
+species = 'whismur'
+label = 'Dexsanity: Whismur'
+
+[dexsanity_wigglytuff]
+region = 'new_bark'
+type = 'dexsanity'
+id = 479
+species = 'wigglytuff'
+label = 'Dexsanity: Wigglytuff'
+
+[dexsanity_wingull]
+region = 'new_bark'
+type = 'dexsanity'
+id = 480
+species = 'wingull'
+label = 'Dexsanity: Wingull'
+
+[dexsanity_wobbuffet]
+region = 'new_bark'
+type = 'dexsanity'
+id = 481
+species = 'wobbuffet'
+label = 'Dexsanity: Wobbuffet'
+
+[dexsanity_wooper]
+region = 'new_bark'
+type = 'dexsanity'
+id = 482
+species = 'wooper'
+label = 'Dexsanity: Wooper'
+
+[dexsanity_wormadam]
+region = 'new_bark'
+type = 'dexsanity'
+id = 483
+species = 'wormadam'
+label = 'Dexsanity: Wormadam'
+
+[dexsanity_wurmple]
+region = 'new_bark'
+type = 'dexsanity'
+id = 484
+species = 'wurmple'
+label = 'Dexsanity: Wurmple'
+
+[dexsanity_wynaut]
+region = 'new_bark'
+type = 'dexsanity'
+id = 485
+species = 'wynaut'
+label = 'Dexsanity: Wynaut'
+
+[dexsanity_xatu]
+region = 'new_bark'
+type = 'dexsanity'
+id = 486
+species = 'xatu'
+label = 'Dexsanity: Xatu'
+
+[dexsanity_yanma]
+region = 'new_bark'
+type = 'dexsanity'
+id = 487
+species = 'yanma'
+label = 'Dexsanity: Yanma'
+
+[dexsanity_yanmega]
+region = 'new_bark'
+type = 'dexsanity'
+id = 488
+species = 'yanmega'
+label = 'Dexsanity: Yanmega'
+
+[dexsanity_zangoose]
+region = 'new_bark'
+type = 'dexsanity'
+id = 489
+species = 'zangoose'
+label = 'Dexsanity: Zangoose'
+
+[dexsanity_zapdos]
+region = 'new_bark'
+type = 'dexsanity'
+id = 490
+species = 'zapdos'
+label = 'Dexsanity: Zapdos'
+
+[dexsanity_zigzagoon]
+region = 'new_bark'
+type = 'dexsanity'
+id = 491
+species = 'zigzagoon'
+label = 'Dexsanity: Zigzagoon'
+
+[dexsanity_zubat]
+region = 'new_bark'
+type = 'dexsanity'
+id = 492
+species = 'zubat'
+label = 'Dexsanity: Zubat'
+
+# --- Static legendary Pokemon ------------------------------------------
+#
+# Real, fillable locations (like type = 'trainer'/'badge') with no
+# original_item. Check detection reuses FLAG_CAUGHT_HO_OH/FLAG_CAUGHT_LUGIA,
+# gated reachable behind `elite_four_defeated` -- see NOTES.md for the full
+# derivation.
+[catch_ho_oh]
+region = 'bell_tower_roof'
+type = 'static_pokemon'
+id = 0
+label = 'Bell Tower - Ho-Oh'
+
+[catch_lugia]
+region = 'whirl_islands_b3f_lugia_cave'
+type = 'static_pokemon'
+id = 1
+label = 'Whirl Islands - Lugia'

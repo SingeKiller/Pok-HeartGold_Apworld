@@ -20,19 +20,19 @@ for the exact v1 scope (and what's planned for later).
   [.tar.gz](https://github.com/SingeKiller/Pok-HeartGold_Apworld/archive/refs/heads/main.tar.gz)
   (GitHub doesn't natively offer `.rar`).
 - **Default YAML file** (if you can't get the Launcher to generate one
-  for you): [`docs/Pokemon HeartGold.yaml`](docs/Pokemon%20HeartGold.yaml) -
+  for you): [`docs/Pokemon HGSS.yaml`](docs/Pokemon%20HGSS.yaml) -
   edit it with a text editor, then drop it in your Archipelago install's
   `Players` folder.
 
 ## Quick install
 
-1. Put `pokemon_heartgold.apworld` in your Archipelago install's
+1. Put `pokemon_hgss.apworld` in your Archipelago install's
    `custom_worlds` folder (not `lib/worlds`). No separate install step is
    needed -- the ROM read/write dependencies are bundled directly inside
    the `.apworld`.
 2. Generate your options file (YAML) via `Generate Templates` in the
    Archipelago Launcher, then place it in the `Players` folder -- or grab
-   the [default YAML file](docs/Pokemon%20HeartGold.yaml) above directly
+   the [default YAML file](docs/Pokemon%20HGSS.yaml) above directly
    if you'd rather not generate your own.
 3. Run generation normally from the Launcher.
 
@@ -47,7 +47,7 @@ APWorld, not tests or dev tooling (kept locally via `.gitignore`, see
 
 ```bash
 python data_gen.py   # regenerates data/ from data_gen/
-python build.py      # produces pokemon_heartgold.apworld at the repo root
+python build.py      # produces pokemon_hgss.apworld at the repo root
 ```
 
 Full architecture and design-decision documentation:

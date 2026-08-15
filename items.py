@@ -20,7 +20,7 @@ _CLASSIFICATIONS: dict[str, ItemClassification] = {
 
 
 class HeartGoldItem(Item):
-    game: str = "Pokemon HeartGold"
+    game: str = "Pokemon HGSS"
 
 
 def create_item_label_to_code_map() -> dict[str, int]:

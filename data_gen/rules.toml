@@ -168,6 +168,17 @@ from = "route_20"
 to = "seafoam_islands_1f"
 hms = ["surf"]
 
+# Route 27 (map_code R27, a land route, not a `W` code) still has a
+# mandatory water crossing between New Bark Town and Route 26: confirmed by
+# its own [route_27.surf] Tentacool/Tentacruel encounter table in
+# data_gen/encounters.toml, decomp-native proof of water tiles on this map
+# (the W-map-code heuristic above only catches maps that are entirely
+# water, missing routes like this one that mix land and water).
+[[exit_rule]]
+from = "new_bark"
+to = "route_27"
+hms = ["surf"]
+
 # --- Strength (plain badge) --------------------------------------------
 # Each confirmed by a SPRITE_ROCK (boulder) object on the destination map.
 [[exit_rule]]
@@ -312,10 +323,17 @@ from = "whirl_islands_b2f"
 to = "whirl_islands_b3f"
 hms = ["whirlpool"]
 
+# The Lugia chamber itself only becomes reachable after defeating the
+# Elite Four/Champion in vanilla (task "Ho-Oh/Lugia comme Pokemon
+# statiques", 2026-08-15 -- scr_seq_0825_T10R0701.s's own Hall of Fame
+# victory script clears FLAG_HIDE_WHIRL_ISLAND_LUGIA the first time; see
+# data_gen/locations.toml's catch_lugia entry) -- combined here with the
+# Whirlpool requirement above (AND, not a separate blocking gate).
 [[exit_rule]]
 from = "whirl_islands_b2f"
 to = "whirl_islands_b3f_lugia_cave"
 hms = ["whirlpool"]
+events = ["elite_four_defeated"]
 
 # --- Rock Climb (earth badge) -------------------------------------------
 # The Cliff Cave/Cliff Edge Gate shortcut between Cianwood and Route 47 (a
@@ -345,17 +363,23 @@ from = "ss_aqua_olivine_port_interior"
 to = "ss_aqua_olivine_port_exterior"
 items = ["s_s_ticket"]
 
+# Route 36's Sudowoodo blocks the path to Route 37/Ecruteak until watered
+# away: `HasItem ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s. Route 36 and
+# Route 37 are two distinct data_gen/regions.toml regions joined by a real,
+# direct exit (data_gen/regions.toml's [route_36]/[route_37] blocks), so
+# this gate is expressible at region granularity after all, unlike the
+# note below originally assumed.
+[[exit_rule]]
+from = "route_36"
+to = "route_37"
+items = ["squirtbottle"]
+
 # --- Known limitations (documented, not hidden; see this task's handoff
 # notes for the full rationale) --------------------------------------------
 # The following data_gen/items.toml "progression" key items were
 # specifically investigated (per this task's brief) and found to NOT gate
 # any data_gen/regions.toml exit in vanilla, so they are intentionally
 # absent from [[exit_rule]] above:
-#   - squirtbottle: revives the Route 36 Sudowoodo (`HasItem
-#     ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s), but Route 36 is a single
-#     data_gen/regions.toml region (no sub-map node either side of the
-#     tree) -- this is a real vanilla gate that this graph's per-map
-#     granularity cannot express as an inter-region exit.
 #   - secretpotion: `TakeItem ITEM_SECRETPOTION` at the Olivine Lighthouse
 #     light room (scr_seq_0066_D27R0107.s) is Jasmine's Amphy-cure
 #     questline delivery -- dialogue/plot only, does not block any route.
@@ -369,20 +393,78 @@ items = ["s_s_ticket"]
 #     data_gen/regions.toml exit (Bicycle is a speed convenience; the rods
 #     gate specific fishing *locations*, not region traversal -- out of
 #     this task's `exits`-only scope).
-# Two additional gates were found but are deliberately NOT modeled here
-# because they are pure story/event flags with no corresponding
-# data_gen/items.toml or [badges] entry to attach a rule to (no "own this"
-# state exists yet to check against): FLAG_UNLOCKED_WEST_KANTO and
-# FLAG_UNLOCKED_MT_SILVER, both guarding NPC policemen at the Route 22
-# Pokemon League reception gate (R22R0101; see scr_seq_0213_R22R0101.s and
-# scr_seq_0741_T02.s/scr_seq_0740_T01R0301.s for where they get set --
-# Kanto/Viridian progress and post-Elite-Four Mt. Silver access,
-# respectively). Left for a future task once this project has an event/flag
-# concept (e.g. alongside victory-condition work) -- flagged here rather
-# than silently omitted.
-# No genuine "badge alone, no HM" exit gate was found in this pass (the
-# `badges` field of [[exit_rule]] above is unused for now, kept only for
-# schema extensibility/future correction) -- every `CheckBadge` call found
-# in scr_seq/*.s is either a gym-rematch dialogue flavor check or an
-# unrelated side-event condition (e.g. the Sinjoh Ruins Mystri Stone
-# trigger in D24R0101, itself v2/out of scope), never a passage block.
+# --- Scenario gates (task M0.3) -------------------------------------------
+# The Route 22 Pokemon League reception gate (R22R0101) is a 4-way hub:
+# route_22 (north, toward Viridian/Kanto), route_26 (west, toward New Bark),
+# route_28 (toward Mount Silver, its own only entrance -- confirmed by
+# data_gen/regions.toml, route_28's sole exits are this gate and
+# mount_silver), and victory_road_1f (south, toward the Elite Four).
+# scr_seq_0213_R22R0101.s has two NPC policemen physically blocking two of
+# these four exits (obj_R22R0101_policeman_2/_3) until
+# FLAG_UNLOCKED_MT_SILVER/FLAG_UNLOCKED_WEST_KANTO are set, by
+# y-coordinate: policeman_3 guards the route_22 side, policeman_2 the
+# route_28 side. Neither flag has a corresponding data_gen/items.toml or
+# [badges] entry (they are pure story flags), so both use the new `events`
+# Requirement field (task M0.3) instead:
+#   - FLAG_UNLOCKED_WEST_KANTO is set on first entering T02 (Route 2, Kanto
+#     mainland, scr_seq_0741_T02.s) -- reachable only via the S.S. Aqua
+#     ferry from Olivine at this point in the graph (see the S.S. Ticket
+#     gate above), so this edge is gated by the same item rather than a new
+#     event: owning the ticket is both necessary and sufficient to have
+#     made that first crossing.
+#   - FLAG_UNLOCKED_MT_SILVER is set in scr_seq_0740_T01R0301.s
+#     (pokemon_league_hall_of_fame), the exact same script line that hands
+#     over HM08 from Silver -- i.e. only reachable after defeating the
+#     Elite Four + Champion Lance, whose rooms
+#     (data_gen/regions.toml's pokemon_league_entrance and onward)
+#     physically block progress with no known scripted flag of their own
+#     (no scr_seq file exists for indigo_plateau/victory_road_1f at all).
+#     Modeled as a locked `type = 'event'` location at
+#     pokemon_league_hall_of_fame (data_gen/locations.toml's
+#     elite_four_defeated_event), granting the `elite_four_defeated` event.
+[[exit_rule]]
+from = "route_22_pokemon_league_reception_gate"
+to = "route_22"
+items = ["s_s_ticket"]
+
+[[exit_rule]]
+from = "route_22_pokemon_league_reception_gate"
+to = "route_28"
+events = ["elite_four_defeated"]
+
+# Bell Tower's own Ho-Oh encounter, same "elite_four_defeated" gate (see
+# data_gen/locations.toml's catch_ho_oh entry / NOTES.md). No HM/item is
+# otherwise needed to reach the room itself.
+[[exit_rule]]
+from = "bell_tower_10f"
+to = "bell_tower_roof"
+events = ["elite_four_defeated"]
+
+# The Elite Four themselves require the 8 Johto badges to challenge (public
+# HGSS/Gen2 knowledge; no CheckBadge script call was found for this
+# specifically -- see the note above on indigo_plateau/victory_road_1f
+# having no scr_seq file at all, this is presumably enforced by the Elite
+# Four trainers' own battle-eligibility data, not a map script). Gated at
+# the first edge into the Elite Four's own room chain rather than earlier
+# (route_22_pokemon_league_reception_gate -> victory_road_1f is left
+# ungated, matching the total absence of any script there).
+[[exit_rule]]
+from = "indigo_plateau"
+to = "pokemon_league_entrance"
+badges = ["zephyr", "hive", "plain", "fog", "storm", "mineral", "glacier", "rising"]
+
+# No genuine "badge alone, no HM" exit gate besides the Elite Four one above
+# was found in this pass -- every other `CheckBadge` call found in
+# scr_seq/*.s is either a gym-rematch dialogue flavor check or an unrelated
+# side-event condition (e.g. the Sinjoh Ruins Mystri Stone trigger in
+# D24R0101, itself v2/out of scope), never a passage block.
+#
+# Known remaining gap (task M0.4, not this one): pokemon_league_entrance's
+# own room chain (will/koga/bruno/karen/lance rooms) is modeled as a flat,
+# symmetrized graph with no sequencing at all -- data_gen/regions.toml lists
+# all 4 rooms as direct exits of pokemon_league_entrance itself, and there is
+# no known flag gating door-to-door progress between them, so right now (even
+# after the 8-badge gate above) a full-inventory reachability check can walk
+# straight to karen_room/lance_room without having "beaten" will/koga/bruno
+# first. Same class of issue as the Route 46/45 one-way ledge M0.4 is
+# scoped to fix.

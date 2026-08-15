@@ -61,7 +61,7 @@ _VERSION_NAME_BY_OPTION_VALUE = {
 
 
 class HeartGoldProcedurePatch(APAutoPatchInterface):
-    game = "Pokemon HeartGold"
+    game = "Pokemon HGSS"
     hashes = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
     patch_file_ending = ".apheartgold"
     result_file_ending = ".nds"
@@ -89,7 +89,7 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
             installed_version = _installed_world_version()
             if generated_version != installed_version:
                 raise RomError(
-                    f"This patch was generated with Pokemon HeartGold APWorld "
+                    f"This patch was generated with Pokemon HGSS APWorld "
                     f"version {generated_version}, but version "
                     f"{installed_version} is currently installed -- the patch "
                     "data format may not match what this version expects. "
@@ -137,6 +137,15 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         substitutions = json.loads(self.get_file("item_substitutions.json"))
         patch_gen.apply_local_item_substitutions(rom, substitutions)
 
+        patch_gen.apply_badge_neutralization(rom)
+
+        patch_gen.apply_placeholder_text_fix(rom)
+
+        starters = json.loads(self.get_file("starters.json"))
+        starters = tuple(starters)
+        patch_gen.apply_starter_randomization(rom, starters)
+        patch_gen.apply_starter_selection_text_fix(rom, starters)
+
         rom.save(target)
 
 
@@ -144,11 +153,22 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
     """{location_key: item_key} for every one of this player's own
     ground_item/npc_gift/hm_tm/hidden_item locations.
 
-    A location whose item belongs to this same player gets its real item
-    key -- ROM-substituted so picking it up hands over exactly that item.
-    A location whose item belongs to another player gets None: leaving
-    the vanilla item in the ROM would silently hand the player a real,
-    unearned item (found via a real playtest, see NOTES.md).
+    A location whose item belongs to this same player, or to an item-link
+    group this player is a member of, gets its real item key --
+    ROM-substituted so picking it up hands over exactly that item. "Local"
+    here must match `__init__.py::_constrain_undetectable_locations`'s own
+    definition exactly: that function is what lets the fill algorithm place
+    an item-link item on one of the 30 undetectable locations
+    (location_flags.unsupported_location_keys(), no real savedata flag this
+    client can read) in the first place, on the assumption that ROM
+    substitution is the only delivery path for those specific locations
+    (no check-detection means no client-side remote-item delivery either).
+    Treating that same item-link item as "belongs to another player" here
+    would substitute it away as empty, permanently losing it for everyone in
+    the group (found via code audit, task M1.2).
+    A location whose item genuinely belongs to another player gets None:
+    leaving the vanilla item in the ROM would silently hand the player a
+    real, unearned item (found via a real playtest, see NOTES.md).
     `patch_gen.apply_local_item_substitutions` writes the "empty"
     substitution for None -- the location still fires check-detection,
     grants nothing physically."""
@@ -156,6 +176,7 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
     from data.locations import LOCATIONS
 
     label_to_key = {data["label"]: key for key, data in ITEMS.items()}
+    local_players = {world.player} | world.multiworld.get_player_groups(world.player)
 
     substitutions: dict[str, str | None] = {}
     for location in world.multiworld.get_locations(world.player):
@@ -164,7 +185,7 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
         location_data = LOCATIONS.get(location.name)
         if location_data is None or location_data["type"] not in _SUBSTITUTABLE_LOCATION_TYPES:
             continue
-        if location.item.player != world.player:
+        if location.item.player not in local_players:
             substitutions[location.name] = None
             continue
         item_key = label_to_key.get(location.item.name)
@@ -178,6 +199,7 @@ def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
     patch.write_file("world_version.json", json.dumps(_installed_world_version()).encode())
     declared_version = _VERSION_NAME_BY_OPTION_VALUE[world.options.game_version.value]
     patch.write_file("game_version.json", json.dumps(declared_version).encode())
+    patch.write_file("starters.json", json.dumps(world.generated_starters).encode())
     patch.write_file("trainers.json", json.dumps(world.generated_trainer_parties).encode())
     patch.write_file("encounters.json", json.dumps(world.generated_encounters).encode())
     patch.write_file("species.json", json.dumps(world.generated_species).encode())

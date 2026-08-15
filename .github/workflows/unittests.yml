@@ -14,7 +14,7 @@ env:
   # ArchipelagoMW/Archipelago main as of 2026-08-11.
   AP_REF: fe5b49e1899b32bcb9f65e91cb7f74d6aa6d0ff8
   # Must match build.py's module_name().
-  WORLD_MODULE: pokemon_heartgold
+  WORLD_MODULE: pokemon_hgss
 
 jobs:
   test:

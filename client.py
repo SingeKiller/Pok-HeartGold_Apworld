@@ -7,20 +7,13 @@
 #     RAM once ctx.items_received reports them.
 #
 # Every read/write here is relative to the RAM address of the running
-# game's SaveData struct. That address is NOT fixed -- HGSS double-
-# buffers save data across two physical slots, so it moves across a
-# save-file reload. This client relocates it fresh every session (and
-# whenever a reload is detected) by scanning for SaveData.arrayHeaders[]'s
-# own signature -- see the "Dynamic SaveData location" section below. An
-# earlier fixed-address approach caused a real save corruption before
-# this was built -- see NOTES.md.
+# game's SaveData struct, relocated fresh every session (see "Dynamic
+# SaveData location" below) since HGSS double-buffers save data across two
+# physical slots. See NOTES.md for the full derivation and history.
 #
 # HEARTGOLD_BAG_BASE_ADDRESS/HEARTGOLD_FLAGS_ARRAY_ADDRESS env vars are a
 # manual override (skips the scan) for troubleshooting -- unset by
 # default.
-#
-# A QoL pair (fast_text_speed/skip_battle_animations) was tried and
-# pulled 2026-08-11 -- see NOTES.md.
 
 from __future__ import annotations
 
@@ -32,14 +25,22 @@ import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
 from data.items import ITEMS
+from data.rules import BADGES
 from items import HEARTGOLD_ITEM_ID_BASE
-from location_flags import build_flag_id_to_ap_location_id, build_locally_substituted_ap_location_ids
+from location_flags import (
+    build_dexsanity_flag_to_ap_location_id,
+    build_flag_id_to_ap_location_id,
+    build_locally_substituted_ap_location_ids,
+)
 from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE
 from save_layout import (
     BAG_POCKET_OFFSETS,
+    BATTLE_SCENE_BIT,
     FLAGS_ARRAY_OFFSET,
     FLAGS_ARRAY_SIZE,
     POCKET_KEY_TO_BAG_FIELD,
+    TEXT_SPEED_FAST_VALUE,
+    TEXT_SPEED_MASK,
     is_flag_set,
     plan_bag_item_write,
     stack_cap_for_pocket,
@@ -70,15 +71,8 @@ def _resolve_address_override(env_var: str) -> int | None:
 # -- Dynamic SaveData location -----------------------------------------------
 #
 # Locate SaveData fresh every session by scanning for SaveData.
-# arrayHeaders[] instead of trusting any fixed address. arrayHeaders[0..4]
-# are five consecutive 16-byte SaveArrayHeader records whose id fields are
-# exactly 0,1,2,3,4 in order -- a compile-time-constant shape independent
-# of what the player owns. Once found, arrayHeaders[SAVE_BAG].offset/
-# arrayHeaders[SAVE_FLAGS].offset give the real, ground-truth chunk
-# offsets the game itself computed. The signature is strong but not
-# unique enough to trust blindly (real RAM has plenty of small integers),
-# so `_locate_save_addresses` also checks each candidate's derived Bag
-# address against real ItemSlot contents before accepting it.
+# arrayHeaders[]'s own signature instead of trusting a fixed address --
+# see NOTES.md for the full struct derivation.
 
 _SAVE_ARRAY_HEADER_SIZE = 16  # include/save.h: SaveArrayHeader, 4+4+4+2+2
 _SAVE_ARRAY_HEADER_SIGNATURE_CHUNK_COUNT = 5  # SysInfo..SaveVarsFlags
@@ -86,6 +80,40 @@ _DYNAMIC_REGION_SIZE = 35 * 0x1000  # SAVE_PAGE_MAX * SAVE_SECTOR_SIZE
 _SAVE_COUNTER_SIZE = 4
 _BAG_CHUNK_ID = 3  # SAVE_BAG
 _FLAGS_CHUNK_ID = 4  # SAVE_FLAGS
+_POKEDEX_CHUNK_ID = 6  # SAVE_POKEDEX
+_PARTY_CHUNK_ID = 2  # SAVE_PARTY
+_GAMESTATS_CHUNK_ID = 16  # SAVE_GAMESTATS
+
+# DeathLink send: GAME_STAT_PLAYER_MON_FAINTED counter, a real vanilla
+# savedata field -- see NOTES.md for the struct derivation.
+_GAME_STAT_PLAYER_MON_FAINTED_OFFSET = 338
+
+# DeathLink receive: PartyCore/PartyPokemon layout for zeroing current HP,
+# a plain unencrypted savedata field -- see NOTES.md for the derivation.
+_PARTY_CUR_COUNT_OFFSET = 4
+_PARTY_MONS_OFFSET = 8
+_PARTY_POKEMON_STRUCT_SIZE = 0xEC
+_PARTY_POKEMON_HP_OFFSET = 0x96
+_PARTY_MAX_SIZE = 6
+
+# Pokedex.caughtSpecies -- see location_flags.dexsanity_pokedex_bit_for_species.
+_POKEDEX_CAUGHT_SPECIES_OFFSET = 4
+_POKEDEX_CAUGHT_SPECIES_SIZE = 64
+
+_PLAYERDATA_CHUNK_ID = 1  # SAVE_PLAYERDATA
+
+# include/player_data.h PLAYERDATA/PlayerProfile layout -- see NOTES.md
+# for the full field-offset derivation, including the badge-flag bit
+# split (johtoBadges for badge_no < 8, kantoBadges otherwise).
+_PLAYERDATA_PROFILE_OFFSET = 4
+
+# Options sits at the start of PLAYERDATA (offset 0) -- see save_layout.py
+# for the live-verified bit layout.
+_PLAYERDATA_OPTIONS_OFFSET = 0
+_PROFILE_MONEY_OFFSET = 20
+_PROFILE_JOHTO_BADGES_OFFSET = 26
+_PROFILE_KANTO_BADGES_OFFSET = 31
+_MAX_MONEY = 999999  # include/player_data.h: MAX_MONEY
 
 # Scan window for arrayHeaders -- generous but bounded (EWRAM is 4 MiB
 # total). See NOTES.md for how this range was chosen.
@@ -177,11 +205,14 @@ async def _bag_looks_plausible(ctx: BizHawkClientContext, bag_address: int) -> b
     return True
 
 
-async def _locate_save_addresses(ctx: BizHawkClientContext) -> tuple[int, int, int] | None:
-    """Locate this session's real Bag/SaveVarsFlags.flags[] addresses
-    fresh. Tries every scan candidate, accepting the first whose derived
-    Bag address passes `_bag_looks_plausible`. Returns None if nothing
-    plausible was found (caller retries next tick)."""
+async def _locate_save_addresses(
+    ctx: BizHawkClientContext,
+) -> tuple[int, int, int, int, int, int, int] | None:
+    """Locate this session's real Bag/SaveVarsFlags.flags[]/Pokedex.
+    caughtSpecies/PlayerProfile/Party/GameStats addresses fresh. Tries
+    every scan candidate, accepting the first whose derived Bag address
+    passes `_bag_looks_plausible`. Returns None if nothing plausible was
+    found (caller retries next tick)."""
     data = await _read_chunked(ctx, _ARRAY_HEADERS_SCAN_START, _ARRAY_HEADERS_SCAN_LENGTH, "ARM9 System Bus")
 
     for candidate_offset in _find_array_headers_candidates(data):
@@ -195,7 +226,23 @@ async def _locate_save_addresses(ctx: BizHawkClientContext) -> tuple[int, int, i
 
         flags_chunk_offset = await _chunk_offset(ctx, array_headers_address, _FLAGS_CHUNK_ID)
         flags_array_address = dynamic_region_base + flags_chunk_offset + FLAGS_ARRAY_OFFSET
-        return bag_address, flags_array_address, array_headers_address
+        pokedex_chunk_offset = await _chunk_offset(ctx, array_headers_address, _POKEDEX_CHUNK_ID)
+        pokedex_caught_species_address = dynamic_region_base + pokedex_chunk_offset + _POKEDEX_CAUGHT_SPECIES_OFFSET
+        playerdata_chunk_offset = await _chunk_offset(ctx, array_headers_address, _PLAYERDATA_CHUNK_ID)
+        playerdata_profile_address = dynamic_region_base + playerdata_chunk_offset + _PLAYERDATA_PROFILE_OFFSET
+        party_chunk_offset = await _chunk_offset(ctx, array_headers_address, _PARTY_CHUNK_ID)
+        party_address = dynamic_region_base + party_chunk_offset
+        gamestats_chunk_offset = await _chunk_offset(ctx, array_headers_address, _GAMESTATS_CHUNK_ID)
+        gamestats_address = dynamic_region_base + gamestats_chunk_offset
+        return (
+            bag_address,
+            flags_array_address,
+            pokedex_caught_species_address,
+            playerdata_profile_address,
+            array_headers_address,
+            party_address,
+            gamestats_address,
+        )
 
     return None
 
@@ -223,6 +270,14 @@ async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_ad
 # v1.
 _APPLIED_ITEM_COUNT_KEY_TEMPLATE = "pokemon_heartgold_applied_item_count_{team}_{slot}"
 
+# task M1.5: cap on how many pending items _apply_received_items will write
+# in a single game_watcher tick -- batches a large backlog (e.g. right
+# after connecting, or catching up after a big multiworld fill) down to a
+# handful of ticks instead of one item per tick (roughly one per second on
+# a real BizHawk session), while still bounding how long any one tick's
+# run of Bag read/write RPC round trips can take.
+_MAX_ITEMS_APPLIED_PER_TICK = 20
+
 
 # -- Item id <-> Bag pocket mapping ------------------------------------------
 
@@ -241,7 +296,31 @@ def _build_ap_item_id_to_bag_write_info() -> dict[int, tuple[int, str]]:
 
 _AP_ITEM_ID_TO_BAG_WRITE_INFO = _build_ap_item_id_to_bag_write_info()
 
+
+def _build_ap_item_id_to_badge_index() -> dict[int, int]:
+    """AP item id -> badge.h's own BADGE_* index (0-15), for the 16
+    badge_<name> synthetic items. pocket = "badge" is deliberately absent
+    from POCKET_KEY_TO_BAG_FIELD, so these never appear in
+    _AP_ITEM_ID_TO_BAG_WRITE_INFO above -- receiving one instead sets the
+    matching bit in PlayerProfile.johtoBadges/kantoBadges."""
+    result: dict[int, int] = {}
+    for key, data in ITEMS.items():
+        if data["pocket"] != "badge":
+            continue
+        badge_name = key.removeprefix("badge_")
+        result[HEARTGOLD_ITEM_ID_BASE + data["id"]] = BADGES[badge_name]
+    return result
+
+
+_AP_ITEM_ID_TO_BADGE_INDEX = _build_ap_item_id_to_badge_index()
+
 _FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
+
+# Pokedex.caughtSpecies bit -> AP location id (task M3.4, Dexsanity) -- a
+# separate savedata array from SaveVarsFlags.flags[] above, so a separate
+# dict and a separate read/check path (see location_flags.build_dexsanity_
+# flag_to_ap_location_id's own docstring for why these can't share one map).
+_DEXSANITY_FLAG_ID_TO_AP_LOCATION_ID = build_dexsanity_flag_to_ap_location_id()
 
 # AP location ids already covered by ROM substitution -- see NOTES.md for
 # the double-delivery bug this prevents.
@@ -249,7 +328,7 @@ _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS = build_locally_substituted_ap_location_ids
 
 
 class HeartGoldClient(BizHawkClient):
-    game = "Pokemon HeartGold"
+    game = "Pokemon HGSS"
     system = "NDS"
     # Must match output_patch.HeartGoldProcedurePatch.patch_file_ending --
     # this is what makes the Launcher's "Open Patch" dialog recognize a
@@ -259,20 +338,40 @@ class HeartGoldClient(BizHawkClient):
     local_checked_locations: set[int]
     bag_base_address: int | None
     flags_array_address: int | None
+    pokedex_caught_species_address: int | None
+    playerdata_profile_address: int | None
+    party_address: int | None
+    gamestats_address: int | None
     _array_headers_address: int | None
     _manual_bag_base_override: int | None
     _manual_flags_array_override: int | None
     _applied_item_count: int
+    _qol_applied: bool
+    _known_tm_quantities: dict[int, int] | None
+    _known_player_mon_fainted: int | None
+    _previous_death_link: float | None
+    _ignore_next_death_link: bool
+    _death_link_tag_set: bool
 
     def __init__(self) -> None:
         super().__init__()
         self.local_checked_locations = set()
         self.bag_base_address = None
         self.flags_array_address = None
+        self.pokedex_caught_species_address = None
+        self.playerdata_profile_address = None
+        self.party_address = None
+        self.gamestats_address = None
         self._array_headers_address = None
         self._manual_bag_base_override = None
         self._manual_flags_array_override = None
         self._applied_item_count = 0
+        self._qol_applied = False
+        self._known_tm_quantities = None
+        self._known_player_mon_fainted = None
+        self._previous_death_link = None
+        self._ignore_next_death_link = False
+        self._death_link_tag_set = False
 
     async def validate_rom(self, ctx: BizHawkClientContext) -> bool:
         try:
@@ -293,15 +392,31 @@ class HeartGoldClient(BizHawkClient):
         self._manual_flags_array_override = _resolve_address_override(HEARTGOLD_FLAGS_ARRAY_ADDRESS_ENV)
         self.bag_base_address = self._manual_bag_base_override
         self.flags_array_address = self._manual_flags_array_override
+        self.pokedex_caught_species_address = None
+        self.playerdata_profile_address = None
+        self.party_address = None
+        self.gamestats_address = None
         self._array_headers_address = None
         self._applied_item_count = 0
+        self._qol_applied = False
+        self._known_tm_quantities = None
+        self._known_player_mon_fainted = None
+        self._previous_death_link = None
+        self._ignore_next_death_link = False
+        self._death_link_tag_set = False
 
         return True
 
     async def _ensure_addresses_located(self, ctx: BizHawkClientContext) -> bool:
         """Make sure bag_base_address/flags_array_address are current,
         relocating via SaveData.arrayHeaders[] if needed. Returns whether
-        both addresses are currently usable."""
+        both addresses are currently usable. pokedex_caught_species_address/
+        playerdata_profile_address are best-effort: the manual bag/flags
+        override env vars predate Dexsanity/badges and skip the scan
+        entirely, so that override combination leaves them None forever
+        (_check_locations/_apply_received_items skip the Dexsanity check
+        and badge delivery respectively in that case, rather than failing
+        the whole tick)."""
         if self._manual_bag_base_override is not None and self._manual_flags_array_override is not None:
             return True
 
@@ -314,18 +429,178 @@ class HeartGoldClient(BizHawkClient):
         if located is None:
             self.bag_base_address = self._manual_bag_base_override
             self.flags_array_address = self._manual_flags_array_override
+            self.pokedex_caught_species_address = None
+            self.playerdata_profile_address = None
+            self.party_address = None
+            self.gamestats_address = None
             self._array_headers_address = None
             return False
 
-        bag_address, flags_array_address, array_headers_address = located
+        (
+            bag_address,
+            flags_array_address,
+            pokedex_caught_species_address,
+            playerdata_profile_address,
+            array_headers_address,
+            party_address,
+            gamestats_address,
+        ) = located
         self.bag_base_address = (
             bag_address if self._manual_bag_base_override is None else self._manual_bag_base_override
         )
         self.flags_array_address = (
             flags_array_address if self._manual_flags_array_override is None else self._manual_flags_array_override
         )
+        self.pokedex_caught_species_address = pokedex_caught_species_address
+        self.playerdata_profile_address = playerdata_profile_address
+        self.party_address = party_address
+        self.gamestats_address = gamestats_address
         self._array_headers_address = array_headers_address
         return True
+
+    async def _apply_qol_options(self, ctx: BizHawkClientContext) -> None:
+        """Set Text Speed/Battle Scene from this player's `fast_text_
+        speed`/`skip_battle_animations` options, once per connection. A
+        plain read-modify-write of the Options word -- other bits are
+        preserved untouched, and the player can still change either
+        setting freely afterward from the in-game Options menu."""
+        if self._qol_applied or self.playerdata_profile_address is None:
+            return
+
+        fast_text_speed = bool(ctx.slot_data.get("fast_text_speed", False))
+        skip_battle_animations = bool(ctx.slot_data.get("skip_battle_animations", False))
+        if not fast_text_speed and not skip_battle_animations:
+            self._qol_applied = True
+            return
+
+        playerdata_base_address = self.playerdata_profile_address - _PLAYERDATA_PROFILE_OFFSET
+        options_address = playerdata_base_address + _PLAYERDATA_OPTIONS_OFFSET
+        current = (await bizhawk.read(ctx.bizhawk_ctx, [(options_address, 2, "ARM9 System Bus")]))[0]
+        (value,) = struct.unpack("<H", bytes(current))
+
+        new_value = value
+        if fast_text_speed:
+            new_value = (new_value & ~TEXT_SPEED_MASK) | TEXT_SPEED_FAST_VALUE
+        if skip_battle_animations:
+            new_value |= BATTLE_SCENE_BIT
+
+        if new_value != value:
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(options_address, struct.pack("<H", new_value), "ARM9 System Bus")],
+                [(options_address, bytes(current), "ARM9 System Bus")],
+            )
+        self._qol_applied = True
+
+    async def _restore_reusable_tms(self, ctx: BizHawkClientContext) -> None:
+        """Reusable TMs: no ROM patch (see NOTES.md for why the ARM hook
+        approach was abandoned). Every tick, compare each TM/HM pocket
+        item's total quantity (summed across slots) against the last
+        tick's count and write back any decrease via the same
+        plan_bag_item_write/guarded_write path _apply_received_items uses
+        -- a consumed TM/HM simply reappears next poll. The first tick
+        after (re)connecting only records a baseline."""
+        if not bool(ctx.slot_data.get("reusable_tms", False)) or self.bag_base_address is None:
+            return
+
+        pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS["TMsHMs"]
+        pocket_address = self.bag_base_address + pocket_offset
+        pocket_bytes = bytearray(
+            (await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_capacity * 4, "ARM9 System Bus")]))[0]
+        )
+
+        current_quantities: dict[int, int] = {}
+        for offset in range(0, len(pocket_bytes), 4):
+            item_id, quantity = struct.unpack_from("<HH", bytes(pocket_bytes), offset)
+            if item_id != 0:
+                current_quantities[item_id] = current_quantities.get(item_id, 0) + quantity
+
+        if self._known_tm_quantities is not None:
+            stack_cap = stack_cap_for_pocket("TMsHMs")
+            for item_id, known_quantity in self._known_tm_quantities.items():
+                missing = known_quantity - current_quantities.get(item_id, 0)
+                if missing <= 0:
+                    continue
+                plan = plan_bag_item_write(bytes(pocket_bytes), item_id, missing, stack_cap)
+                if plan is None:
+                    continue  # pocket full, or stack cap reached -- retry next tick
+                slot_offset, slot_bytes = plan
+                write_succeeded = await bizhawk.guarded_write(
+                    ctx.bizhawk_ctx,
+                    [(pocket_address + slot_offset, slot_bytes, "ARM9 System Bus")],
+                    [(pocket_address + slot_offset, bytes(pocket_bytes[slot_offset : slot_offset + 4]), "ARM9 System Bus")],
+                )
+                if write_succeeded:
+                    pocket_bytes[slot_offset : slot_offset + 4] = slot_bytes
+                    current_quantities[item_id] = current_quantities.get(item_id, 0) + missing
+
+        self._known_tm_quantities = current_quantities
+
+    async def _update_death_link_tag(self, ctx: BizHawkClientContext) -> None:
+        """Set/clear the "DeathLink" connection tag once per connection to
+        match this player's own `death_link` option -- CommonContext's own
+        `update_death_link` helper (also used to send the initial
+        ConnectUpdate)."""
+        if self._death_link_tag_set:
+            return
+        await ctx.update_death_link(bool(ctx.slot_data.get("death_link", False)))
+        self._death_link_tag_set = True
+
+    async def _send_death_link_on_faint(self, ctx: BizHawkClientContext) -> None:
+        """DeathLink send side: poll GAME_STAT_PLAYER_MON_FAINTED (see
+        NOTES.md) and send a death the moment it increases. The first
+        tick after (re)connecting only records a baseline."""
+        if not bool(ctx.slot_data.get("death_link", False)) or self.gamestats_address is None:
+            return
+
+        stat_address = self.gamestats_address + _GAME_STAT_PLAYER_MON_FAINTED_OFFSET
+        raw = (await bizhawk.read(ctx.bizhawk_ctx, [(stat_address, 2, "ARM9 System Bus")]))[0]
+        (fainted_count,) = struct.unpack("<H", bytes(raw))
+
+        if self._known_player_mon_fainted is not None and fainted_count > self._known_player_mon_fainted:
+            self._ignore_next_death_link = True
+            await ctx.send_death(f"{ctx.player_names[ctx.slot]}'s Pokémon fainted!")
+
+        self._known_player_mon_fainted = fainted_count
+
+    async def _receive_death_link(self, ctx: BizHawkClientContext) -> None:
+        """DeathLink receive side: notice `ctx.last_death_link` changing
+        (CommonContext's own DeathLink bookkeeping) and zero every real
+        party Pokemon's current HP, matching a vanilla blackout.
+        `_ignore_next_death_link` skips the echo of this player's own
+        just-sent death (Bounce rebroadcasts to the sender too)."""
+        if not bool(ctx.slot_data.get("death_link", False)) or self.party_address is None:
+            return
+
+        if self._previous_death_link is None:
+            self._previous_death_link = ctx.last_death_link
+            return
+
+        if ctx.last_death_link == self._previous_death_link:
+            return
+        self._previous_death_link = ctx.last_death_link
+
+        if self._ignore_next_death_link:
+            self._ignore_next_death_link = False
+            return
+
+        cur_count_raw = (
+            await bizhawk.read(ctx.bizhawk_ctx, [(self.party_address + _PARTY_CUR_COUNT_OFFSET, 4, "ARM9 System Bus")])
+        )[0]
+        (cur_count,) = struct.unpack("<i", bytes(cur_count_raw))
+        cur_count = max(0, min(cur_count, _PARTY_MAX_SIZE))
+
+        mons_address = self.party_address + _PARTY_MONS_OFFSET
+        writes = [
+            (
+                mons_address + i * _PARTY_POKEMON_STRUCT_SIZE + _PARTY_POKEMON_HP_OFFSET,
+                struct.pack("<H", 0),
+                "ARM9 System Bus",
+            )
+            for i in range(cur_count)
+        ]
+        if writes:
+            await bizhawk.write(ctx.bizhawk_ctx, writes)
 
     async def game_watcher(self, ctx: BizHawkClientContext) -> None:
         if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None:
@@ -339,8 +614,13 @@ class HeartGoldClient(BizHawkClient):
         self._applied_item_count = max(self._applied_item_count, int(ctx.stored_data.get(applied_key, 0) or 0))
 
         try:
+            await self._apply_qol_options(ctx)
+            await self._restore_reusable_tms(ctx)
+            await self._update_death_link_tag(ctx)
+            await self._send_death_link_on_faint(ctx)
+            await self._receive_death_link(ctx)
             await self._check_locations(ctx)
-            await self._apply_next_received_item(ctx, applied_key)
+            await self._apply_received_items(ctx, applied_key)
         except bizhawk.RequestFailedError:
             pass  # exit handler, return to main loop to reconnect
 
@@ -354,59 +634,124 @@ class HeartGoldClient(BizHawkClient):
             if ap_location_id in ctx.missing_locations and is_flag_set(bytes(flags_bytes), flag_id)
         }
 
+        # Dexsanity (task M3.4): Pokedex.caughtSpecies is its own savedata
+        # array, not SaveVarsFlags.flags[] -- a separate read, separate map,
+        # unioned into the same newly_checked set so one ctx.check_locations
+        # call covers both. Best-effort: pokedex_caught_species_address can
+        # be None under the manual bag/flags override env vars (see
+        # _ensure_addresses_located), in which case Dexsanity checks are
+        # simply skipped this tick rather than failing the whole thing.
+        if self.pokedex_caught_species_address is not None:
+            pokedex_bytes = (
+                await bizhawk.read(
+                    ctx.bizhawk_ctx,
+                    [(self.pokedex_caught_species_address, _POKEDEX_CAUGHT_SPECIES_SIZE, "ARM9 System Bus")],
+                )
+            )[0]
+            newly_checked |= {
+                ap_location_id
+                for bit, ap_location_id in _DEXSANITY_FLAG_ID_TO_AP_LOCATION_ID.items()
+                if ap_location_id in ctx.missing_locations and is_flag_set(bytes(pokedex_bytes), bit)
+            }
+
         if newly_checked and newly_checked != self.local_checked_locations:
             self.local_checked_locations = newly_checked
             await ctx.check_locations(newly_checked)
 
-    async def _apply_next_received_item(self, ctx: BizHawkClientContext, applied_key: str) -> None:
-        if self._applied_item_count >= len(ctx.items_received):
-            return
+    async def _apply_received_items(self, ctx: BizHawkClientContext, applied_key: str) -> None:
+        """Apply as many pending items as possible in this single tick (up
+        to _MAX_ITEMS_APPLIED_PER_TICK), instead of just one -- otherwise a
+        large backlog trickles in at roughly one item per second. Stops
+        early (retried next tick) the moment a real Bag write is needed
+        and genuinely can't proceed yet."""
+        applied_this_tick = 0
+        while (
+            applied_this_tick < _MAX_ITEMS_APPLIED_PER_TICK
+            and self._applied_item_count < len(ctx.items_received)
+        ):
+            next_item = ctx.items_received[self._applied_item_count]
 
-        next_item = ctx.items_received[self._applied_item_count]
+            # Archipelago's server sends every item belonging to this
+            # player through items_received once its location is checked
+            # -- including this player's own locations, which this client
+            # already delivered via ROM substitution. Writing it into the
+            # Bag again would double it -- see NOTES.md.
+            already_delivered_locally = (
+                next_item.player == ctx.slot and next_item.location in _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS
+            )
 
-        # Archipelago's server sends every item belonging to this player
-        # through items_received once its location is checked -- including
-        # this player's own locations, which this client already
-        # delivered via ROM substitution. Writing it into the Bag again
-        # would double it -- see NOTES.md.
-        already_delivered_locally = (
-            next_item.player == ctx.slot and next_item.location in _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS
-        )
-        write_info = None if already_delivered_locally else _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(next_item.item)
-        if write_info is None:
-            # Not one of this world's own bag items, or already delivered
-            # locally -- count it as "applied" so the queue doesn't stall.
+            # Badges never go through the Bag at all -- receiving one sets
+            # the matching bit in PlayerProfile.johtoBadges/kantoBadges
+            # directly instead (see rom/badgedata.py for how the vanilla
+            # local grant is neutralized so it can't also set this bit).
+            badge_index = None if already_delivered_locally else _AP_ITEM_ID_TO_BADGE_INDEX.get(next_item.item)
+            if badge_index is not None:
+                if self.playerdata_profile_address is None:
+                    # Best-effort (see _ensure_addresses_located) -- retry
+                    # next tick once the profile address is located.
+                    break
+                byte_offset = _PROFILE_JOHTO_BADGES_OFFSET if badge_index < 8 else _PROFILE_KANTO_BADGES_OFFSET
+                bit = badge_index if badge_index < 8 else badge_index - 8
+                badge_byte_address = self.playerdata_profile_address + byte_offset
+
+                current_byte = (
+                    await bizhawk.read(ctx.bizhawk_ctx, [(badge_byte_address, 1, "ARM9 System Bus")])
+                )[0]
+                new_byte = bytes([current_byte[0] | (1 << bit)])
+                write_succeeded = await bizhawk.guarded_write(
+                    ctx.bizhawk_ctx,
+                    [(badge_byte_address, new_byte, "ARM9 System Bus")],
+                    [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
+                )
+                if not write_succeeded:
+                    # Byte changed between read and write -- retry next tick.
+                    break
+
+                self._applied_item_count += 1
+                applied_this_tick += 1
+                continue
+
+            write_info = None if already_delivered_locally else _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(next_item.item)
+            if write_info is None:
+                # Not one of this world's own bag items, or already
+                # delivered locally -- count it as "applied" so the queue
+                # doesn't stall, no RPC round trip needed, keep looping.
+                self._applied_item_count += 1
+                applied_this_tick += 1
+                continue
+
+            native_item_id, bag_field = write_info
+            pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS[bag_field]
+            pocket_address = self.bag_base_address + pocket_offset
+            pocket_size = pocket_capacity * 4
+
+            pocket_bytes = (
+                await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_size, "ARM9 System Bus")])
+            )[0]
+
+            plan = plan_bag_item_write(bytes(pocket_bytes), native_item_id, 1, stack_cap_for_pocket(bag_field))
+            if plan is None:
+                # Pocket genuinely full -- try again next tick (e.g. once
+                # the player has made room); do not advance the counter.
+                break
+
+            slot_offset, slot_bytes = plan
+            write_succeeded = await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(pocket_address + slot_offset, slot_bytes, "ARM9 System Bus")],
+                [(pocket_address + slot_offset, bytes(pocket_bytes[slot_offset : slot_offset + 4]), "ARM9 System Bus")],
+            )
+            if not write_succeeded:
+                # Pocket contents changed between the read and the write
+                # (e.g. the player used/moved an item at the same time) --
+                # retry next tick rather than writing over stale data.
+                break
+
             self._applied_item_count += 1
+            applied_this_tick += 1
+
+        if applied_this_tick > 0:
             await self._store_applied_item_count(ctx, applied_key)
-            return
-
-        native_item_id, bag_field = write_info
-        pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS[bag_field]
-        pocket_address = self.bag_base_address + pocket_offset
-        pocket_size = pocket_capacity * 4
-
-        pocket_bytes = (await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_size, "ARM9 System Bus")]))[0]
-
-        plan = plan_bag_item_write(bytes(pocket_bytes), native_item_id, 1, stack_cap_for_pocket(bag_field))
-        if plan is None:
-            # Pocket genuinely full -- try again next tick (e.g. once the
-            # player has made room); do not advance the counter.
-            return
-
-        slot_offset, slot_bytes = plan
-        write_succeeded = await bizhawk.guarded_write(
-            ctx.bizhawk_ctx,
-            [(pocket_address + slot_offset, slot_bytes, "ARM9 System Bus")],
-            [(pocket_address + slot_offset, bytes(pocket_bytes[slot_offset : slot_offset + 4]), "ARM9 System Bus")],
-        )
-        if not write_succeeded:
-            # Pocket contents changed between the read and the write
-            # (e.g. the player used/moved an item at the same time) --
-            # retry next tick rather than writing over stale data.
-            return
-
-        self._applied_item_count += 1
-        await self._store_applied_item_count(ctx, applied_key)
 
     async def _store_applied_item_count(self, ctx: BizHawkClientContext, applied_key: str) -> None:
         ctx.stored_data[applied_key] = self._applied_item_count

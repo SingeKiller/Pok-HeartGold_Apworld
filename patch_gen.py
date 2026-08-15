@@ -26,13 +26,16 @@ import tempfile
 from pathlib import Path
 
 from rom import HeartGoldRom
+from rom import badgedata as rom_badgedata
 from rom import encounterdata as rom_encounterdata
 from rom import eventscriptdata as rom_eventscriptdata
+from rom import msgdata as rom_msgdata
 from rom import evodata as rom_evodata
 from rom import hiddenitemdata as rom_hiddenitemdata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
 from rom import speciesdata as rom_speciesdata
+from rom import starterdata as rom_starterdata
 from rom import trainerdata as rom_trainerdata
 
 ROOT = Path(__file__).resolve().parent
@@ -183,22 +186,101 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             raise ValueError(
                 f"location {location_key!r} is type {location_type!r} -- "
                 "apply_local_item_substitutions only supports "
-                "ground_item/npc_gift/hm_tm/hidden_item (badge is out of scope)."
+                "ground_item/npc_gift/hm_tm/hidden_item (badge has its own, "
+                "unconditional patch path, see apply_badge_neutralization/"
+                "rom/badgedata.py -- it is never seed-dependent, so it is "
+                "never routed through this per-seed substitutions dict)."
             )
 
     if hidden_item_substitutions:
         rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions)
 
 
+def apply_badge_neutralization(rom: HeartGoldRom) -> None:
+    """Neutralize every gym script's own vanilla `GiveBadge` call (see
+    rom/badgedata.py). Unconditional -- always applied regardless of this
+    seed's fill result, unlike apply_local_item_substitutions above."""
+    rom_badgedata.write_all_badges_neutralized(rom)
+
+
+# Item id 0 ("None") is what write_npc_gift_empty/write_ground_item_empty/
+# write_hidden_item_substitutions already write for a location whose item
+# belongs to another player (see apply_local_item_substitutions above) --
+# picking it up previously showed a garbled "???" (task "Replace the ???
+# placeholder", 2026-08-15; msg_0222 entry 0 genuinely decodes to "None",
+# not blank -- the "???" was this game's own generic label for a picked-up
+# item id 0 shows in that specific dialogue context, not a missing/corrupt
+# string this project introduced). Unconditional, like badge neutralization
+# above: always applied regardless of this seed's fill result.
+PLACEHOLDER_ITEM_MSG_NO = 0
+PLACEHOLDER_ITEM_TEXT = "Item sent to another player!"
+
+
+def apply_placeholder_text_fix(rom: HeartGoldRom) -> None:
+    """Replace msg_0222's item-name entry for id 0 with a clearer message
+    than the vanilla default (see rom/msgdata.py for the binary format)."""
+    rom_msgdata.write_message_text(
+        rom, rom_msgdata.ITEM_NAMES_SUBFILE_INDEX, PLACEHOLDER_ITEM_MSG_NO, PLACEHOLDER_ITEM_TEXT
+    )
+
+
 # -- Species/move/trainer/encounter randomization ----------------------------
 #
 # Applies species.py's randomizer output to a ROM copy via the rom/*.py
 # write layers, every one round-trip verified against the real ROM.
-#
-# rom/starterdata.py is deliberately NOT called here: its target address
-# is a well-evidenced candidate, not a live-verified one, and this
-# project's standing policy is to never wire an unverified address into
-# the normal patch path.
+
+
+def apply_starter_randomization(rom: HeartGoldRom, starters: tuple[str, str, str]) -> None:
+    """Apply species.py's randomize_starters output (3 data/species.py
+    keys) to rom/starterdata.py's live-confirmed species[] address (task
+    "Randomize Starters", 2026-08-15 -- see that module's own docstring
+    for the derivation/live-verification writeup)."""
+    from data.species import SPECIES
+
+    raw_ids = tuple(SPECIES[key]["id"] for key in starters)
+    rom_starterdata.write_starters(rom, raw_ids)
+
+
+# msg_0190 (choose_starter_app.c's own text bank): entries 1-3 are the
+# "So, you like X?" question for each of the 3 starter-choice slots,
+# entries 4-6 the "X is in this Poke Ball!" confirmation, same slot
+# order -- see NOTES.md for the color-code tradeoff.
+STARTER_SELECTION_QUESTION_MSG_NOS = (1, 2, 3)
+STARTER_SELECTION_CONFIRM_MSG_NOS = (4, 5, 6)
+_STARTER_SELECTION_QUESTION_TEMPLATES = (
+    "Professor Elm: So, you like {name}, the {type}-type Pokémon?",
+    "Professor Elm: How about {name}, the {type}-type Pokémon?",
+    "Professor Elm: Do you want {name}, the {type}-type Pokémon?",
+)
+_STARTER_SELECTION_CONFIRM_TEMPLATE = "{name}, the {type}-type Pokémon, is in this Poké Ball!"
+
+
+def apply_starter_selection_text_fix(rom: HeartGoldRom, starters: tuple[str, str, str]) -> None:
+    """Rewrite msg_0190's starter-choice question/confirmation text to
+    name the actually-randomized species for each slot instead of the
+    vanilla, hardcoded Chikorita/Cyndaquil/Totodile -- the species itself
+    was already correct (rom/starterdata.py), only this display text
+    lagged behind. A no-op when starters are still vanilla."""
+    from species import VANILLA_STARTERS
+
+    if tuple(starters) == VANILLA_STARTERS:
+        return
+
+    from data.species import SPECIES
+
+    for slot, species_key in enumerate(starters):
+        data = SPECIES[species_key]
+        name = data["label"]
+        type_name = data["types"][0].capitalize()
+        question = _STARTER_SELECTION_QUESTION_TEMPLATES[slot].format(name=name, type=type_name)
+        confirm = _STARTER_SELECTION_CONFIRM_TEMPLATE.format(name=name, type=type_name)
+        rom_msgdata.write_message_text(
+            rom, rom_msgdata.STARTER_SELECTION_SUBFILE_INDEX, STARTER_SELECTION_QUESTION_MSG_NOS[slot], question
+        )
+        rom_msgdata.write_message_text(
+            rom, rom_msgdata.STARTER_SELECTION_SUBFILE_INDEX, STARTER_SELECTION_CONFIRM_MSG_NOS[slot], confirm
+        )
+
 
 # Decomposition include/constants/pokemon.h's EvoMethod enum -- cross-
 # checked against a real evolution read live off the ROM (bulbasaur:

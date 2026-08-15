@@ -18,14 +18,19 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Requirement:
     """A single (AND-combined) access requirement: own every item in
-    `items` (a `data_gen/items.toml` key each) and hold every badge in
-    `badges` (a `data_gen/rules.toml` `[badges]` key each)."""
+    `items` (a `data_gen/items.toml` key each), hold every badge in
+    `badges` (a `data_gen/rules.toml` `[badges]` key each), and have
+    triggered every scenario flag in `events` (a locked progression event
+    granted by a `type = "event"` `data_gen/locations.toml` location, for a
+    vanilla story gate with no bag item or badge behind it, e.g. having
+    defeated the Elite Four)."""
 
     items: tuple[str, ...] = ()
     badges: tuple[str, ...] = ()
+    events: tuple[str, ...] = ()
 
     def is_empty(self) -> bool:
-        return not self.items and not self.badges
+        return not self.items and not self.badges and not self.events
 
 
 def hm_requirement(hm: str, hm_badges: Mapping[str, str], hm_items: Mapping[str, str]) -> Requirement:
@@ -50,6 +55,7 @@ def combine(*requirements: Requirement) -> Requirement:
     order-preserving)."""
     items: list[str] = []
     badges: list[str] = []
+    events: list[str] = []
     for requirement in requirements:
         for item in requirement.items:
             if item not in items:
@@ -57,7 +63,10 @@ def combine(*requirements: Requirement) -> Requirement:
         for badge in requirement.badges:
             if badge not in badges:
                 badges.append(badge)
-    return Requirement(items=tuple(items), badges=tuple(badges))
+        for event in requirement.events:
+            if event not in events:
+                events.append(event)
+    return Requirement(items=tuple(items), badges=tuple(badges), events=tuple(events))
 
 
 def build_exit_rule_requirement(
@@ -71,8 +80,9 @@ def build_exit_rule_requirement(
     parts = [hm_requirement(hm, hm_badges, hm_items) for hm in entry.get("hms", [])]
     extra_items = tuple(entry.get("items", []))
     extra_badges = tuple(entry.get("badges", []))
-    if extra_items or extra_badges:
-        parts.append(Requirement(items=extra_items, badges=extra_badges))
+    extra_events = tuple(entry.get("events", []))
+    if extra_items or extra_badges or extra_events:
+        parts.append(Requirement(items=extra_items, badges=extra_badges, events=extra_events))
     return combine(*parts)
 
 
@@ -109,15 +119,20 @@ def is_satisfied(
     requirement: Requirement,
     owned_items: Sequence[str] | set[str],
     owned_badges: Sequence[str] | set[str],
+    owned_events: Sequence[str] | set[str] = (),
 ) -> bool:
-    """True if `owned_items`/`owned_badges` together satisfy every item and
-    badge `requirement` demands (AND semantics). Used both by
-    `tests/test_rules.py` (graph connectivity with a full inventory) and
-    intended for reuse by a future world-logic `rules.py` traversal check."""
+    """True if `owned_items`/`owned_badges`/`owned_events` together satisfy
+    every item, badge, and event `requirement` demands (AND semantics).
+    Used both by `tests/test_rules.py` (graph connectivity with a full
+    inventory) and intended for reuse by a future world-logic `rules.py`
+    traversal check."""
     owned_items_set = owned_items if isinstance(owned_items, set) else set(owned_items)
     owned_badges_set = owned_badges if isinstance(owned_badges, set) else set(owned_badges)
-    return all(item in owned_items_set for item in requirement.items) and all(
-        badge in owned_badges_set for badge in requirement.badges
+    owned_events_set = owned_events if isinstance(owned_events, set) else set(owned_events)
+    return (
+        all(item in owned_items_set for item in requirement.items)
+        and all(badge in owned_badges_set for badge in requirement.badges)
+        and all(event in owned_events_set for event in requirement.events)
     )
 
 
@@ -125,12 +140,13 @@ def validate_requirement(
     requirement: Requirement,
     known_items: Sequence[str] | None = None,
     known_badges: Sequence[str] | None = None,
+    known_events: Sequence[str] | None = None,
 ) -> list[str]:
-    """Return human-readable warning strings for any item/badge referenced
-    by `requirement` that isn't in `known_items`/`known_badges`. Never
-    raises -- defensive, same spirit as this repo's other
-    `data_gen_templates/*.py` dangling-reference warnings (see e.g.
-    `data_gen_templates/regions.py`)."""
+    """Return human-readable warning strings for any item/badge/event
+    referenced by `requirement` that isn't in
+    `known_items`/`known_badges`/`known_events`. Never raises -- defensive,
+    same spirit as this repo's other `data_gen_templates/*.py`
+    dangling-reference warnings (see e.g. `data_gen_templates/regions.py`)."""
     warnings: list[str] = []
     if known_items is not None:
         known_items_set = set(known_items)
@@ -142,4 +158,9 @@ def validate_requirement(
         for badge in requirement.badges:
             if badge not in known_badges_set:
                 warnings.append(f"unknown badge {badge!r}")
+    if known_events is not None:
+        known_events_set = set(known_events)
+        for event in requirement.events:
+            if event not in known_events_set:
+                warnings.append(f"unknown event {event!r}")
     return warnings

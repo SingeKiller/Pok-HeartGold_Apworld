@@ -14,7 +14,17 @@ from typing import Any
 
 from . import GENERATED_FILE_HEADER, load_toml
 
-_VALID_TYPES = {"ground_item", "hidden_item", "npc_gift", "hm_tm", "badge"}
+_VALID_TYPES = {
+    "ground_item",
+    "hidden_item",
+    "npc_gift",
+    "hm_tm",
+    "badge",
+    "event",
+    "trainer",
+    "dexsanity",
+    "static_pokemon",
+}
 
 
 def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
@@ -23,8 +33,11 @@ def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
         "type": entry["type"],
         "id": entry["id"],
     }
-    # original_item is absent for badge locations (see data_gen/locations.toml
-    # header); x/z and label are only present for a subset of location kinds.
+    # original_item is absent for badge/event/trainer/dexsanity locations
+    # (see data_gen/locations.toml header); x/z and label are only present
+    # for a subset of location kinds; event is only present for type =
+    # 'event'; trainer is only present for type = 'trainer'; species is only
+    # present for type = 'dexsanity'.
     if "original_item" in entry:
         location["original_item"] = entry["original_item"]
     if "x" in entry:
@@ -33,6 +46,12 @@ def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
         location["z"] = entry["z"]
     if "label" in entry:
         location["label"] = entry["label"]
+    if "event" in entry:
+        location["event"] = entry["event"]
+    if "trainer" in entry:
+        location["trainer"] = entry["trainer"]
+    if "species" in entry:
+        location["species"] = entry["species"]
     return location
 
 
@@ -42,6 +61,8 @@ def generate_locations() -> str:
     locations_toml = load_toml("locations")
     regions_toml = load_toml("regions")
     items_toml = load_toml("items")
+    trainers_toml = load_toml("trainers")
+    species_toml = load_toml("species")
 
     locations: dict[str, dict[str, Any]] = {}
     seen_ids: dict[tuple[str, int], str] = {}
@@ -74,6 +95,20 @@ def generate_locations() -> str:
             print(
                 f"warning: data_gen/locations.toml: {key}.original_item "
                 f"references unknown item {original_item!r}; keeping as-is.",
+                file=sys.stderr,
+            )
+        trainer = location.get("trainer")
+        if trainer is not None and trainer not in trainers_toml:
+            print(
+                f"warning: data_gen/locations.toml: {key}.trainer references "
+                f"unknown trainer {trainer!r}; keeping as-is.",
+                file=sys.stderr,
+            )
+        species = location.get("species")
+        if species is not None and species not in species_toml:
+            print(
+                f"warning: data_gen/locations.toml: {key}.species references "
+                f"unknown species {species!r}; keeping as-is.",
                 file=sys.stderr,
             )
         id_key = (location["type"], location["id"])

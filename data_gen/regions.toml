@@ -1046,12 +1046,19 @@ exits = [
     'mahogany',
 ]
 
+# route_45 <-> route_46: hand patch (task M0.4, same category as this
+# file's other documented hand patches above), one-way only. The mapmatrix
+# adjacency this pair was extracted from (method 2 above) is inherently
+# undirected and can't express the ledge on Route 46 that lets the player
+# jump down into Route 45 but never climb back up (public HGSS route-guide
+# knowledge; no known vanilla mechanism, HM or otherwise, reverses a ledge
+# drop in any mainline Pokemon game). route_46 keeps 'route_45' in its own
+# exits (the legitimate jump-down); route_45 does NOT list 'route_46' back.
 [route_45]
 map_code = 'R45'
 exits = [
     'blackthorn',
     'dark_cave_route_45_side',
-    'route_46',
 ]
 
 [route_46]

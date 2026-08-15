@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """build.py
 
-Pure-Python fallback to build the Pokemon HeartGold `.apworld` on platforms
+Pure-Python fallback to build the Pokemon HGSS `.apworld` on platforms
 without `make` (e.g. plain Windows). Produces a `<module>.apworld` zip at
 the repository root, packaged from the paths whitelisted in `.apignore`,
 plus `archipelago.json` as the manifest.

@@ -1,6 +1,6 @@
 # requirements.txt
 #
-# Runtime dependencies of the Pokemon HeartGold APWorld itself. As of the
+# Runtime dependencies of the Pokemon HGSS APWorld itself. As of the
 # ndspy -> apnds migration, this world has none: `apnds` (MIT, James
 # Petersen) is vendored directly in this repository (see /apnds/,
 # /apnds_version.txt) and packaged inside the built `.apworld` (see

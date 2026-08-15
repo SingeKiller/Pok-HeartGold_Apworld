@@ -4,10 +4,6 @@
 # Every class docstring below is player-facing (shown in the generated
 # YAML template and the WebHost options page) -- do not trim those.
 #
-# No RandomizeStarters option: starters is shelved (species.py's own
-# randomize_starters computation stays in place, tested, unconnected).
-# No dexsanity: removed, infeasible at full scope (see docs/scope.md).
-#
 # Imports only from Options, never worlds.*, to avoid triggering
 # Archipelago's full world-plugin autoload before this project's own
 # World class is registered.
@@ -16,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Options import Choice, OptionGroup, PerGameCommonOptions, Range, StartInventoryPool, Toggle
+from Options import Choice, DeathLink, OptionGroup, PerGameCommonOptions, Range, StartInventoryPool, Toggle
 
 
 class GameVersion(Choice):
@@ -47,13 +43,46 @@ class RandomizeWildPokemon(Choice):
       appears somewhere, just moved around).
     - full_random: every wild encounter slot is replaced by an
       independently-chosen random species.
+    - zone_method_mapping: every route's own encounter method (its grass
+      table, its surf table, its Old Rod table, etc.) gets one replacement
+      species, applied consistently to every slot in that table -- so
+      every grass encounter on a given route is the same species, but that
+      route's surf table can be a different one. Unlike full_random, this
+      tries to use as many distinct species as possible across the whole
+      game (no repeats until every eligible species has been used once).
     """
 
     display_name = "Randomize Wild Pokémon"
     option_vanilla = 0
     option_shuffle = 1
     option_full_random = 2
+    option_zone_method_mapping = 3
     default = 0
+
+
+class ExcludeLegendaries(Toggle):
+    """Never place a legendary or mythical Pokémon (Articuno through
+    Arceus) in the wild encounter pool when `randomize_wild_pokemon` is
+    set to `full_random` or `zone_method_mapping`, or as a starter when
+    `randomize_starters` is on. Has no effect on `vanilla`/`shuffle` --
+    vanilla wild tables don't place legendaries in grass/surf/fishing/
+    rock-smash slots to begin with, so there's nothing to exclude from a
+    shuffle of the existing multiset.
+    """
+
+    display_name = "Exclude Legendaries"
+
+
+class RandomizeStarters(Toggle):
+    """Randomize the 3 starter Pokémon (Chikorita/Cyndaquil/Totodile) --
+    also changes the rival's own starter, which is always your starter's
+    type-advantaged counter, same as vanilla. Only species with at least
+    one evolution are picked, matching vanilla (each starter has two).
+    Live-verified: the Pokémon you actually receive is genuinely
+    randomized, and the on-screen name shown during the selection scene
+    matches it too."""
+
+    display_name = "Randomize Starters"
 
 
 class RandomizeTrainers(Toggle):
@@ -201,6 +230,26 @@ class Trainersanity(Toggle):
     display_name = "Trainersanity"
 
 
+class Dexsanity(Toggle):
+    """Add a check for catching each species for the first time.
+
+    Seed-aware (task M3.4): only species that genuinely appear somewhere in
+    this seed's own randomize_wild_pokemon tables get a check -- static/gift
+    Pokemon (starters, legendaries, in-game gifts) stay vanilla/fixed and
+    are never a Dexsanity check. Every Dexsanity check only ever holds a
+    filler item, never a progression one: the access rule only requires
+    owning the right catching tool (Surf, a fishing rod, Rock Smash) for
+    some occurrence of that species, not the exact region it spawns in, so
+    it is deliberately looser than the game's real logic and unsafe to gate
+    anything mandatory behind.
+
+    v1 stretch goal (see docs/scope.md) -- off by default, not required for
+    a playable v1.
+    """
+
+    display_name = "Dexsanity"
+
+
 class DisableOhkoMoves(Toggle):
     """Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
     Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
@@ -230,6 +279,68 @@ class DisableTrappingAbilities(Toggle):
     display_name = "Disable Trapping Abilities"
 
 
+class FastTextSpeed(Toggle):
+    """Set Text Speed to Fast, the fastest tier the game itself defines,
+    as soon as this client connects, instead of the vanilla default
+    (Mid). Applied once per connection, directly to savedata -- can still
+    be changed freely afterward from the in-game Options menu like any
+    other setting. Off by default (vanilla behavior unchanged)."""
+
+    display_name = "Fast Text Speed"
+
+
+class SkipBattleAnimations(Toggle):
+    """Set Battle Scene to Off as soon as this client connects, skipping
+    move/entry animations in battle. Applied once per connection,
+    directly to savedata -- can still be changed freely afterward from
+    the in-game Options menu like any other setting. Off by default
+    (vanilla behavior unchanged)."""
+
+    display_name = "Skip Battle Animations"
+
+
+class ReusableTms(Toggle):
+    """Make TMs reusable: whenever a TM is consumed while teaching a
+    move, this client puts it right back the next time it polls the Bag
+    (HMs are already never consumed in vanilla). Off by default (vanilla
+    behavior unchanged)."""
+
+    display_name = "Reusable TMs"
+
+
+class ConvertTradeEvolutions(Toggle):
+    """Convert every trade and friendship evolution (Kadabra, Machoke,
+    Graveler, Haunter, Onix/Steelix's trade-item variant, Eevee's
+    friendship evolutions, Golbat, etc.) into a plain level-up evolution
+    instead, at the level set by `trade_evolution_level` below --
+    trading and grinding friendship are both genuine single-player
+    accessibility problems. Applied after `randomize_evolutions`, so it
+    fixes whichever method an edge actually ends up with, randomized or
+    vanilla. Off by default (vanilla behavior unchanged)."""
+
+    display_name = "Convert Trade/Friendship Evolutions"
+
+
+class TradeEvolutionLevel(Range):
+    """The level trade/friendship evolutions are converted to when
+    `convert_trade_evolutions` is on. Ignored otherwise."""
+
+    display_name = "Trade/Friendship Evolution Level"
+    range_start = 1
+    range_end = 100
+    default = 30
+
+
+class HeartGoldDeathLink(DeathLink):
+    __doc__ = (
+        DeathLink.__doc__
+        + "\n\n    In Pokemon HeartGold/SoulSilver, having one of your own Pokemon "
+        "faint sends a death, and receiving a death faints your entire "
+        "party (zeroes each party Pokemon's current HP, same as a "
+        "vanilla blackout).\n"
+    )
+
+
 @dataclass
 class HeartGoldOptions(PerGameCommonOptions):
     game_version: GameVersion
@@ -238,7 +349,9 @@ class HeartGoldOptions(PerGameCommonOptions):
     goal_badge_count: GoalBadgeCount
 
     randomize_wild_pokemon: RandomizeWildPokemon
+    randomize_starters: RandomizeStarters
     randomize_trainers: RandomizeTrainers
+    exclude_legendaries: ExcludeLegendaries
     randomize_evolutions: RandomizeEvolutions
     randomize_base_stats: RandomizeBaseStats
     randomize_moves: RandomizeMoves
@@ -249,7 +362,16 @@ class HeartGoldOptions(PerGameCommonOptions):
     disable_ohko_moves: DisableOhkoMoves
     disable_trapping_abilities: DisableTrappingAbilities
 
+    fast_text_speed: FastTextSpeed
+    skip_battle_animations: SkipBattleAnimations
+    reusable_tms: ReusableTms
+    convert_trade_evolutions: ConvertTradeEvolutions
+    trade_evolution_level: TradeEvolutionLevel
+
+    death_link: HeartGoldDeathLink
+
     trainersanity: Trainersanity
+    dexsanity: Dexsanity
 
     start_inventory_from_pool: StartInventoryPool
 
@@ -267,6 +389,8 @@ OPTION_GROUPS = [
         "Randomizers",
         [
             RandomizeWildPokemon,
+            RandomizeStarters,
+            ExcludeLegendaries,
             RandomizeTrainers,
             RandomizeEvolutions,
             RandomizeBaseStats,
@@ -281,8 +405,16 @@ OPTION_GROUPS = [
         [DisableOhkoMoves, DisableTrappingAbilities],
     ),
     OptionGroup(
+        "Quality of Life",
+        [FastTextSpeed, SkipBattleAnimations, ReusableTms, ConvertTradeEvolutions, TradeEvolutionLevel],
+    ),
+    OptionGroup(
+        "DeathLink",
+        [HeartGoldDeathLink],
+    ),
+    OptionGroup(
         "Stretch Goals",
-        [Trainersanity],
+        [Trainersanity, Dexsanity],
         start_collapsed=True,
     ),
 ]

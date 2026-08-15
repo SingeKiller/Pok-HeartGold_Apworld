@@ -90,6 +90,7 @@ def generate_init() -> str:
 # call `load_toml`/reference `GENERATED_FILE_HEADER` from this module at
 # import time, so they must be defined above before these submodules are
 # imported.
+from .charmap import generate_charmap  # noqa: E402
 from .encounter_zone_index import generate_encounter_zone_index  # noqa: E402
 from .encounters import generate_encounters  # noqa: E402
 from .items import generate_items  # noqa: E402
@@ -103,6 +104,7 @@ from .trainers import generate_trainers  # noqa: E402
 
 __all__ = [
     "generate_init",
+    "generate_charmap",
     "generate_encounter_zone_index",
     "generate_encounters",
     "generate_items",

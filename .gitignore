@@ -34,3 +34,7 @@ dist/
 # project cleanup, 2026-08-12) -- for Claude/agents working on this repo
 # later, not for GitHub.
 /NOTES.md
+
+# Personal notes and manual test scratch data -- not part of the public repo.
+/Update/
+/scratch_*/

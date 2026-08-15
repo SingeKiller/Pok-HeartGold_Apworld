@@ -104,12 +104,15 @@ POCKET_KEY_TO_BAG_FIELD: dict[str, str] = {
     "battle_items": "battleItems",
 }
 
-# Vanilla per-slot stack cap. Key items, TMs/HMs and Mail are never
-# stackable (always exactly 1 per slot); every other pocket caps at 99 --
-# the well-established Gen IV convention, not itself decompiled here.
-_UNSTACKABLE_BAG_FIELDS = {"keyItems", "TMsHMs", "mail"}
-DEFAULT_STACK_CAP = 99
-UNSTACKABLE_STACK_CAP = 1
+# Vanilla per-slot stack cap (src/bag.c's Bag_GetItemSlotForAdd, include/
+# constants/items.h). Every pocket except TMsHMs caps at
+# BAG_SLOT_QUANTITY_MAX (999), TMsHMs alone caps at BAG_TMHM_QUANTITY_MAX
+# (99) -- there is no cap-1 pocket in the real bag layer at all (key items
+# and mail only ever appear to be "unstackable" because the game never
+# actually tries to hand out a second copy of the same one, not because
+# Bag_GetItemSlotForAdd treats them specially).
+TMHM_STACK_CAP = 99
+DEFAULT_STACK_CAP = 999
 
 
 def _bag_pocket_offsets() -> dict[str, tuple[int, int]]:
@@ -128,19 +131,24 @@ BAG_SIZE = sum(count for _, count in BAG_POCKETS) * ITEM_SLOT_SIZE + REGISTERED_
 
 
 def stack_cap_for_pocket(bag_field: str) -> int:
-    return UNSTACKABLE_STACK_CAP if bag_field in _UNSTACKABLE_BAG_FIELDS else DEFAULT_STACK_CAP
+    return TMHM_STACK_CAP if bag_field == "TMsHMs" else DEFAULT_STACK_CAP
 
 
 def plan_bag_item_write(
     pocket_bytes: bytes, native_item_id: int, quantity: int, stack_cap: int
 ) -> tuple[int, bytes] | None:
     """Decide what to write into one Bag pocket's raw bytes to add
-    `quantity` of `native_item_id`. Prefers stacking onto an existing slot
-    with room; otherwise the first free slot. Returns None if the pocket
-    is genuinely full. Deliberately simple: doesn't replicate
-    Bag_AddItem's TM/HM/Berry pocket re-sort -- the item still lands in a
-    valid, correctly-typed slot, just not necessarily where vanilla
-    sorting would put it."""
+    `quantity` of `native_item_id`. Mirrors src/bag.c's
+    Pocket_GetItemSlotForAdd exactly: an existing stack of the same item
+    always takes priority over any free slot, even if adding would exceed
+    `stack_cap` -- in that case the real game refuses the whole add rather
+    than partially filling the existing stack or starting a second one
+    elsewhere ("only one stack allowed per item", per that function's own
+    comment). Returns None if the pocket is genuinely full, or if the
+    matching stack has no room for the full `quantity`. Deliberately
+    simple: doesn't replicate Bag_AddItem's TM/HM/Berry pocket re-sort --
+    the item still lands in a valid, correctly-typed slot, just not
+    necessarily where vanilla sorting would put it."""
     if len(pocket_bytes) % ITEM_SLOT_SIZE != 0:
         raise ValueError(f"pocket_bytes length {len(pocket_bytes)} is not a multiple of {ITEM_SLOT_SIZE}")
 
@@ -148,31 +156,29 @@ def plan_bag_item_write(
     for offset in range(0, len(pocket_bytes), ITEM_SLOT_SIZE):
         slot_id = int.from_bytes(pocket_bytes[offset : offset + 2], "little")
         slot_qty = int.from_bytes(pocket_bytes[offset + 2 : offset + 4], "little")
-        if slot_id == native_item_id and slot_qty < stack_cap:
-            new_qty = min(slot_qty + quantity, stack_cap)
+        if slot_id == native_item_id:
+            if quantity + slot_qty > stack_cap:
+                return None
+            new_qty = slot_qty + quantity
             return offset, native_item_id.to_bytes(2, "little") + new_qty.to_bytes(2, "little")
         if slot_id == 0 and first_free_offset is None:
             first_free_offset = offset
 
     if first_free_offset is not None:
-        new_qty = min(quantity, stack_cap)
-        return first_free_offset, native_item_id.to_bytes(2, "little") + new_qty.to_bytes(2, "little")
+        return first_free_offset, native_item_id.to_bytes(2, "little") + quantity.to_bytes(2, "little")
 
     return None
 
 
 # -- Options bitfield -----------------------------------------------------
 #
-# A `fast_text_speed`/`skip_battle_animations` QoL pair briefly lived here
-# (2026-08-11), read-modify-writing `PLAYERDATA`'s `Options.textSpeed`/
-# `battleScene` bits directly. Pulled the same day: live BizHawk testing
-# showed neither option actually changed anything in-game. The in-word bit
-# order it relied on (standard little-endian ARM bitfield packing,
-# first-declared member in the low bits) was a reasoned assumption from the
-# decomp source, never independently confirmed against a live session --
-# exactly the kind of thing that turned out to matter. Revisit only with a
-# real live-BizHawk verification step (dump the actual `Options` word,
-# toggle the setting in-game, diff) before re-adding either option.
+# include/options.h: `struct Options { u16 textSpeed:4; u16 soundMethod:2;
+# u16 battleStyle:1; u16 battleScene:1; u16 buttonMode:2; u16 frame:5; u16
+# dummy:1; }`. Live-verified against a real BizHawk session 2026-08-15 --
+# see NOTES.md for the verification detail.
+TEXT_SPEED_MASK = 0x000F
+TEXT_SPEED_FAST_VALUE = 2
+BATTLE_SCENE_BIT = 0x0080  # 1 = off (skip animations), 0 = on (vanilla)
 
 # -- Chunk framing (Decomposition src/save.c) --------------------------------
 
