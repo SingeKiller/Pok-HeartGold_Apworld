@@ -30,6 +30,7 @@ from data_gen_templates import (
     generate_species,
     generate_species_index,
     generate_trainers,
+    generate_type_chart,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -54,6 +55,7 @@ def main() -> None:
     _write("encounters.py", generate_encounters())
     _write("encounter_zone_index.py", generate_encounter_zone_index())
     _write("charmap.py", generate_charmap())
+    _write("type_chart.py", generate_type_chart())
 
 
 if __name__ == "__main__":

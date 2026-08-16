@@ -113,6 +113,26 @@ world).
     Pokédex item first (an assumption this task initially got wrong from
     other Pokémon games' conventions, corrected against the actual decomp
     and a live catch-before-Pokédex test).
+    **Follow-up (2026-08-17, community feedback + user request):
+    `dexsanity_trigger` (catch/encounter) and `dexsanity_encounter_types`
+    options.** `dexsanity_trigger` picks which Pokédex bitfield gates each
+    check: `catch` (default, unchanged behaviour above) or `encounter`,
+    which instead reads `Pokedex.seenSpecies` -- a second, same-size
+    bitfield sitting immediately after `caughtSpecies` in the same struct
+    (`include/pokedex.h`), so `client.py` just adds a fixed byte offset to
+    the address it already resolves, no new location-detection machinery.
+    `dexsanity_encounter_types` (`OptionSet`, default = every method)
+    restricts which encounter methods count at all, filtering each
+    species' allowed-method set (`species.species_encounter_methods()`,
+    already computed per seed) down to the player's chosen subset at
+    generation time; a species left with zero allowed methods after the
+    filter simply gets no Dexsanity location that seed, same as one this
+    seed's own wild tables never place anywhere -- a no-op when every
+    method stays allowed (the option's own default). Note for future
+    reference: `encounter` mode is intentionally more generous than
+    `catch` (seenSpecies flips on any wild/trainer battle encounter, no
+    capture required) -- offered as an explicit opt-in for players who
+    want a faster/more casual Dexsanity, not as a replacement default.
 
 ## Shelved (task M4.5, 2026-08-10)
 
@@ -510,6 +530,168 @@ close the existing flag-reading mechanism already gets.
   `exclude_legendaries` is off -- `legendarysanity` only concerns their
   separate, guaranteed static encounter.
 
+## Community feedback batch (task "green-lit options", 2026-08-16/17)
+
+A community feedback comparison against Platinum/Crystal's option sets was
+triaged into "already have," "feasible, no blocker identified" (🟢), "no
+sibling world does it" and "really blocked" buckets (see the triage
+message itself for the full table). The 🟢 bucket, minus
+`dexsanity_encounter_types` (already covered above), was implemented as one
+batch:
+
+- **`randomize_move_categories`**: Generation IV assigns Physical/Special
+  per move (`MoveTbl.category`, offset 2), not per type like Gen 1-3/5 --
+  confirmed against the decomp (`src/battle/battle_controller_player.c`
+  compares `category == CATEGORY_PHYSICAL/CATEGORY_SPECIAL` to pick
+  Attack/Sp. Attack), so this is a real, engine-honored split, not a
+  cosmetic one. Only shuffles physical<->special on already-damaging
+  moves; a Status move never becomes damaging and vice versa (either
+  would leave a broken 0-power "damaging" move or a damage-dealing Status
+  move with no stat behind it).
+
+- **`randomize_tm_moves`**: `src/item.c`'s `sTMHMMoves[]`, a 100-entry
+  (92 TM + 8 HM) u16 array in the decompressed main ARM9 image -- same
+  class of target as the starter species array (`rom/starterdata.py`),
+  but located via a live byte-pattern search
+  (`rom/tmhmdata.py::_find_array_offset`) instead of a hardcoded address,
+  since no real ROM was available this session to independently confirm
+  one (starterdata.py's address *was* cross-checked against a real ROM in
+  an earlier session -- see that module's own docstring). The 200-byte
+  vanilla pattern is long enough that a false match is effectively
+  impossible; the search still raises rather than guessing if it ever
+  finds zero or more than one. HM01-HM08 are deliberately never
+  randomized: this project's region-access rules (`hms = ["surf"]` etc.)
+  key off owning the HM item, not whatever move it currently teaches, so
+  a randomized HM03 could teach something other than Surf while the
+  player logically "has" Surf per AP's own rules -- a silent, unrecoverable
+  soft-lock. Verified safe because the 92 TM-taught moves and 8 HM-taught
+  moves are already two disjoint sets in vanilla (no HM-exclusive field
+  move is ever teachable by a TM), so restricting the shuffle to the TM
+  set can't accidentally grant Surf/Fly/etc. through a TM either.
+
+- **`randomize_type_chart`**: `sTypeEffectiveness[][3]`
+  (`src/battle/overlay_12_0224E4FC.c`), a 112-row sparse
+  (attacker, defender, multiplier) exception table -- unlike the two
+  targets above, this one lives inside ARM9 **overlay 12** (the
+  battle-only code overlay), so `rom/typechart.py` uses
+  `rom.read_overlay(12)`/`write_overlay(12, ...)` instead of the main-image
+  helpers. Row order is load-bearing and never touched: one row is a
+  `TYPE_FORESIGHT` sentinel the Foresight/Odor Sleuth/Scrappy mechanic
+  scans for and `break`s its own lookup loop on
+  (`if (sTypeEffectiveness[i][0] == TYPE_FORESIGHT) { ... break; }`),
+  relying on the two real matchups placed immediately after it
+  (normal/ghost, fighting/ghost) being skipped whenever that break fires
+  -- since this feature only ever shuffles the 3rd byte (multiplier) of
+  each row and never reorders rows or touches the marker's own bytes,
+  that mechanic is unaffected regardless of which "real" row ends up with
+  which multiplier. A new `data_gen/type_chart.toml` -> `data/type_chart.py`
+  source was added (same generation pipeline as every other randomized
+  table) so the shuffle logic is unit-testable without a ROM, matching
+  every other randomizer in this project.
+
+- **`starting_money`**: `PlayerProfile.money`, a plain savedata u32 this
+  project already had located and cross-validated (`client.py`'s
+  `_PROFILE_MONEY_OFFSET = 20`/`_MAX_MONEY = 999999` predate this task,
+  derivable from `include/player_data.h`'s `PlayerProfile` struct layout
+  and cross-checked against the already-live-verified badge-offset
+  constants sitting right after it in the same struct). A plain
+  Archipelago `Range` option (0-5000, default 3000/vanilla) rather than a
+  bespoke on/off randomizer -- `random` in the player's YAML already gets
+  generator-side randomization for free. Applied client-side, exactly
+  once ever per slot: guarded by a flag this world stores server-side via
+  Archipelago's Datastorage `Set`+`max` mechanism (the same durable,
+  reconnect-safe pattern `_applied_item_count` already uses for received
+  items) -- deliberately not a "money still looks vanilla" heuristic,
+  since the player's money changes constantly during play and could
+  coincidentally pass back through any fixed value later, which would
+  make a value-based guard misfire and wipe out money the player has
+  since earned or spent.
+
+- **`johto_only`**: excludes Kanto's 180 regions from the region graph
+  entirely (no Location created, no item added to the pool). The
+  boundary is derived from real graph topology, not map-code numbering --
+  Kanto/Johto towns and routes share the same numeric T*/R* pools (e.g.
+  `indigo_plateau` is `T10`, in the "Kanto" numeric range, but is Johto's
+  own Elite Four complex and must stay). `regions.KANTO_REGION_KEYS` is a
+  flood-fill from `new_bark` over `data/regions.py`'s own exits, blocking
+  the 3 real Johto<->Kanto crossings found by graph analysis (not
+  assumption): `viridian <-> route_22` (Indigo Plateau/Victory Road's
+  approach doubles as the mainland border -- Route 22 itself and
+  everything toward Indigo Plateau/Mount Silver stays Johto-side, only
+  Viridian and beyond is Kanto), `cerulean <-> route_24` (the Bill's
+  house/Nugget Bridge approach), and the S.S. Aqua ferry's Olivine-side
+  gate. `tests/test_regions.py::test_kanto_region_keys_matches_graph_
+  derivation` independently re-derives the same set from the same
+  algorithm and asserts equality with the shipped constant, so a future
+  `data_gen/regions.toml` edit that shifts the boundary gets caught by
+  CI instead of silently drifting. `regions.create_regions`/
+  `locations.create_locations` both gained an `excluded_region_keys`
+  param (default empty, a no-op for every other option); `create_items`
+  and `_constrain_undetectable_locations` needed the identical filter
+  threaded through by hand (5 of the 30 "undetectable" locations are in
+  Kanto). Neither Johto's own Elite Four nor the post-game Red fight on
+  Mount Silver needs any Kanto badge in this project's own rules (no
+  16-badge gate was found on Mount Silver's cave in
+  `data_gen/rules.toml`), so both goals stay reachable unmodified; only
+  the `n_badges` goal needed a defensive cap (`goal_badge_count` silently
+  clamped to 8) since only Johto's 8 badges can ever exist. Real
+  end-to-end coverage: a full `create_regions`/`create_items`/`set_rules`/
+  `fill`/`can_beat_game()` run with `johto_only` + `trainersanity` +
+  `dexsanity` + `full_random` all on, in
+  `tests/test_world_init.py::test_real_generation_multiple_seeds_and_
+  option_combinations`.
+
+  **Shop randomization (stock + shopsanity), investigated same batch, not
+  yet implemented.** Regular Poké Marts do NOT have their own per-town
+  stock array -- `ScrCmd_MartBuy` (`src/scrcmd_mart.c`) computes the same
+  shared, badge-tier-gated item list (`_020FBF22`) everywhere; only the
+  "special" marts (Department Store floors, prize counters, etc. --
+  `ScrCmd_SpecialMartBuy`, `_0210FA3C`, 30 fixed arrays) are genuinely
+  per-location and stock-randomizable the same way as the TM/type-chart
+  tables above (not yet wired up). The shopsanity half (buying a slot
+  once grants a real AP item) has a real blocker: unlike ground items/
+  NPC gifts/hidden items, a shop purchase writes no savedata flag at all
+  in vanilla -- there is nothing this project's existing flag-detection
+  client-code can read to know "this slot was bought." Making that work
+  needs a genuine ARM code hook into the purchase-confirm path
+  (`src/overlay_03/shop_menu.c`) to write a *new* flag, plus locating
+  actually-free flag bits -- both require live BizHawk verification this
+  session did not have access to. Deferred to a live-testing session with
+  the user (who has ROM/BizHawk access) rather than guessed at blind.
+
+  **Attempted live, then abandoned (2026-08-17).** The live-testing session
+  above happened: fully hand-decoded `ov03_02257F24` (`shop_menu.c`,
+  overlay 3) instruction-by-instruction and cross-validated it against the
+  known C source as the purchase-confirmation hook point (`r4` = `MartData*`
+  held live for the whole function -- `martType`/+0x283, `item`/+0x284,
+  `quantity`/+0x286, `cost`/+0x28C, `varsFlags`/+0x260, live-confirmed
+  against two real purchases, Antidote id=18/cost=100 and Potion id=17/
+  cost=300). Built `patches/shop_purchase_hook.s`: a Thumb `blx` at the
+  call site (replacing the 4-byte `mov r1,#0xA6 / mov r0,#4` right before
+  `data->unk298=4; return TASK_MART_4;`) to an appended ARM hook that would
+  write a shopsanity flag via the same `SaveVarsFlags.flags[]` mechanism
+  every other flag-based location already uses. **Crashed on the actual
+  purchase confirmation both times it was live-tested** (game froze at the
+  "you got X" message). First suspected cause: `rom.append_to_arm9()` does
+  a raw byte-append with no `SDK_COMPRESSED_STATIC_END` bookkeeping update
+  (the same class of boot-corruption bug already fixed once for hidden
+  items, see the 0.1.1 changelog entry) -- fixed via a proper decompress /
+  append / recompute-static-end / recompress cycle for the second attempt.
+  **Crashed identically anyway.** Root cause never conclusively found;
+  three real suspects remain undistinguished (an ASM bug in the hook body
+  itself, a hand-decode error in the upstream instructions, or this being
+  the project's first-ever cross-overlay `BLX` and hitting some
+  overlay-loading precondition the main-image-only patches never
+  exercised). User agreed to stop after the second failure rather than
+  spend a third live-testing attempt guessing blind. `patches/
+  shop_purchase_hook.s` stays in the repo with a large "NOT WORKING YET --
+  DO NOT WIRE INTO patch_gen.py/output_patch.py" header documenting all of
+  the above; not wired into any pipeline. Shopsanity remains fully
+  unimplemented -- stock randomization for the 30 fixed special-mart
+  arrays (the non-blocked half of this idea, see above) is still open and
+  doesn't share this blocker, since it's a plain data-table edit like
+  TM moves/type chart, no ASM needed.
+
 ## v3 (deferred -- each blocked on something outside a normal implementation
 pass: an external prerequisite, or a real ARM code hook this project has no
 working toolchain for -- 2026-08-15)
@@ -703,6 +885,102 @@ working toolchain for -- 2026-08-15)
      rather than a `SaveVarsFlags` flag. Not investigated further; would
      need its own pass if a "start with National Dex" option is wanted.
 
+  **Implemented (2026-08-17), a different and simpler design than the
+  `sSpawnMaps`-teleport plan above.** Steps 3-4 of the plan above (writing
+  a starter Pokemon directly into the Party struct, reworking the region
+  graph for a variable origin) turned out to be unnecessary once a much
+  safer trigger was found: Elm's Lab's own map already has an
+  `InitScriptEntry_OnFrameTable` auto-trigger
+  (`scr_seq_0616_T20R0101_hdr.s`) that runs `ChooseStarter` automatically
+  on room entry whenever `VAR_SCENE_ELMS_LAB == 0` (a fresh save's default)
+  -- so instead of teleporting the player to a town and separately forcing
+  the starter scene to run out of context (investigated and found to
+  need a live `FieldSystem*` that doesn't exist yet at that point in
+  boot), the shipped design spawns the player directly inside Elm's Lab
+  and lets 100% of the vanilla `ChooseStarter` scene play out untouched --
+  real 3-way choice, correct dialogue, correct species delivery, nothing
+  hand-rolled.
+  - **Spawn point**: `sLocation_PlayerRoom` (the same ROM constant
+    live-verified above) repointed to `MAP_NEW_BARK_ELMS_LAB_1F` (map id
+    61), coordinates chosen to sit inside the auto-trigger's own step-on
+    strip (`zone_event/058_T20R0101.json`'s `{"x":3,"z":10,"w":4,"h":1}`
+    entry) as a soft anti-softlock safeguard -- the player cannot end up
+    standing in the lab without immediately triggering Elm's dialogue.
+  - **Exit redirect**: Elm's Lab's own exit-door warp is a single u32
+    destination-map field inside its zone_event NARC record (word index 91
+    of the 408-byte T20R0101 entry, vanilla value 60 = `MAP_NEW_BARK`) --
+    live-verified by direct patching against three different real
+    destinations (Cherrygrove, Goldenrod, Violet), zero crashes. A new
+    `rom/startlocation.py` module owns both this and the spawn-point patch,
+    refusing to guess (raises) if the vanilla value at that offset doesn't
+    match what was live-verified, so ROM/decomp drift fails loudly instead
+    of silently mispatching. `options.py`'s `StartingTown` (`Choice`,
+    10 curated destinations -- every town from the community-feedback
+    exclusion list above minus the postgame-only/sparse-check ones) picks
+    which; Archipelago's own built-in `random` YAML keyword covers seed-time
+    randomization, no bespoke random-handling needed in `__init__.py`.
+  - **Menu unlocks + starter/rival bookkeeping**: `client.py`'s
+    `_apply_start_location_flags` (mirroring `_apply_starting_money`'s
+    already-established guarded-write + Datastorage-flag pattern) waits
+    for `FLAG_GOT_STARTER` to flip (i.e. waits for the player to actually
+    finish the vanilla choice scene, no race with it), then sets
+    `FLAG_GOT_BAG`/`FLAG_GOT_TRAINER_CARD`/`FLAG_GOT_SAVE_BUTTON`/
+    `FLAG_GOT_OPTIONS_BUTTON`/`FLAG_GOT_POKEDEX`/`FLAG_GOT_POKEGEAR` (the
+    same flags found above) plus `FLAG_HIDE_NEW_BARK_RIVAL` (so the rival
+    doesn't wait forever for a first encounter that will never happen in
+    New Bark) and clears `FLAG_HIDE_CHERRYGROVE_RIVAL` (so he reappears
+    normally at his next real checkpoint) -- both via the flags array, no
+    ASM. `FLAG_ELMS_LAB_PREVENT_PLAYER_ESCAPE` was investigated and found
+    to only gate Elm's own re-interaction dialogue, not the physical door,
+    so it needed no special handling either way.
+  - **Deliberately deferred, per explicit user decision ("auto attribute",
+    2026-08-17)**: making Bag/Trainer Card/Pokégear/Pokédex/Save/Options
+    real, independently toggleable AP pool items (see the idea below) --
+    tonight ships the simpler always-auto-grant version only.
+  - **Known gap, documented in `options.py`'s own docstring**: the region
+    graph still treats New Bark as the fixed logical origin regardless of
+    this option -- Archipelago's fill algorithm doesn't yet know the
+    player's *logical* start moved, only their *physical* one. Treat this
+    as a cosmetic/QoL start (skip the intro, land somewhere else, keep
+    playing) rather than a logic-integrated one for now; a real
+    region-graph rework (originally step 4 above) is still open if a
+    fully logic-aware variable start is wanted later.
+  - **Live-verified end-to-end 2026-08-17**: real local
+    `ArchipelagoGenerate.exe`/`ArchipelagoServer.exe` seed, real BizHawk
+    connection via the normal Launcher "Open Patch" flow -- spawn in Elm's
+    Lab, real starter choice, exit warp to Violet City, and Bag/Trainer
+    Card/Save/Options/Pokédex/Pokégear all confirmed present in the pause
+    menu after connecting, no separate Lua/manual step needed.
+  - **Region graph closed, logic-integrated 2026-08-17 (closes the "known
+    gap" noted above and in step 4 of the remaining-work list below).**
+    `HeartGoldWorld.generate_early()` now overrides the *instance*
+    `origin_region_name` to `generated_start_location_town` whenever
+    `randomize_start_location` is on -- Archipelago's own
+    `CollectionState.update_reachable_regions()` (`BaseClasses.py`) reads
+    `world.origin_region_name` fresh on every reachability sweep and
+    treats it as the one always-free region, so the fill algorithm's own
+    logic now genuinely starts from the chosen town instead of always
+    assuming New Bark. `starting_town`'s option keys are already the exact
+    same strings as their `data/regions.py` region keys, so no separate
+    mapping table was needed. New Bark's own content isn't cut off by
+    this -- it's simply no longer free, reachable the normal way by
+    walking there once the player leaves their actual starting town, same
+    as any other town revisit. Also added to `universal_tracker.
+    TRACKED_OPTION_NAMES` (`randomize_start_location`, `starting_town`),
+    closing a UT-desync gap this change would otherwise have introduced
+    (a UT re-run would otherwise have silently rebuilt with New Bark as
+    the origin regardless of what the real seed used).
+    **Verified, not just implemented**: `tests/test_world_init.py::
+    test_start_location_towns_are_all_completable` runs real
+    `create_regions`/`create_items`/`set_rules`/`Fill.
+    distribute_items_restrictive`/`can_beat_game()` -- the project's own
+    established "T1" completability standard -- once per candidate town,
+    with that town as the sole free region. **All 10 pass**: no starting
+    town is a logical dead end given the real region graph and exit
+    rules, so no exclusions were needed beyond the community-feedback
+    curation (sparse-check/postgame-only towns) already applied when
+    `StartingTown`'s option list was built.
+
   **Related, much smaller idea surfaced by this investigation (2026-08-16
   user request)**: since Bag/Pokedex/Pokegear are just flags like badges
   already are, they could each become their own real, independently
@@ -718,18 +996,244 @@ working toolchain for -- 2026-08-15)
   granted by no location anywhere in this project's data (a real gap,
   simple `npc_gift`-shaped fix, confirmed non-logic-blocking since no
   `data_gen/rules.toml` exit rule depends on owning it).
+- **`randomize_menu_unlocks`** (task "randomize_menu_unlocks", 2026-08-17,
+  the "much smaller idea" surfaced by the start-location investigation
+  above, done as its own separate task). An OptionSet of 6 keys (bag,
+  trainer_card, pokedex, pokegear, save_button, options_button) -- each one
+  selected turns that pause-menu icon into a real, shufflable AP item
+  instead of always being unlocked for free. 6 new `type = 'menu_unlock'`
+  locations (data_gen/locations.toml), one per flag, region = wherever
+  vanilla actually sets it (New Bark's Mom scene for 5 of the 6,
+  Route 30's Mr. Pokemon for pokedex) -- check detection is entirely free,
+  reusing `location_flags.py`'s existing generic FLAG_GOT_* polling
+  mechanism (a new `_MENU_UNLOCK_FLAG_IDS` dict + one `flag_id_for_
+  location` branch was all that was needed). 6 new synthetic items
+  (`menu_unlock_*`, id 9020-9025, pocket = "menu_unlock" -- deliberately
+  excluded from `save_layout.POCKET_KEY_TO_BAG_FIELD`, same reasoning as
+  `badge_*`'s own pocket, so receiving one never writes a bogus item into
+  the real Bag).
+  No ROM patch needed for the actual gating (a real, considered
+  alternative -- neutralize the vanilla scripts' own SetFlag calls, the
+  same technique badge neutralization uses): client.py's new
+  `_apply_menu_unlock_gating` instead actively forces each selected flag's
+  bit to match item ownership every tick (1 if `ctx.items_received`
+  contains the matching item, 0 -- suppressed -- otherwise), overriding
+  whatever vanilla story progression would have set it to. Must run after
+  the existing generic check-detection in `game_watcher`'s tick order, not
+  before: the location's own check fires off that same bit's first
+  natural 0->1 transition, and once a check is sent it's tracked durably
+  server-side, so suppressing the bit back down afterward is safe.
+  Combines with `randomize_start_location`: that feature's own
+  `_apply_start_location_flags` unconditionally grants these same 6 flags
+  once a starter is picked (see its own v3 entry above) -- now filtered to
+  skip whichever ones `randomize_menu_unlocks` covers, so the two
+  mechanisms don't fight each other. Verified via a real generation test
+  combining both options together (`tests/test_world_init.py::
+  test_real_generation_with_menu_unlocks_and_start_location_combined`).
+  **Real, documented gap, not fixed**: the flag this project can read/
+  write only gates the pause-menu icon itself (`src/sys_flags.c`'s
+  `CheckGotMenuIconI`) -- catching a Pokemon still populates the real
+  Pokedex/Dexsanity detection immediately regardless of whether
+  `menu_unlock_pokedex` has been received yet, since `GivePokedex` writes
+  a separate struct bit this project doesn't touch. None of the 6 are
+  classified progression (nothing in this project's own rules.toml gates
+  on any of them) -- `useful` instead.
+  **Side finding while wiring Universal Tracker support for the new
+  option**: `legendarysanity` was missing from `universal_tracker.
+  TRACKED_OPTION_NAMES` entirely -- a real, pre-existing UT-desync gap
+  (same class of bug `dexsanity`/`exclude_legendaries` being added there
+  fixed originally), unrelated to this task but fixed alongside it since
+  it was directly adjacent.
+
+- **Fairy-type support** (feasibility investigation, 2026-08-17 user
+  request). **Blocked, not attempted.** HGSS (Generation IV) only has 18
+  real type slots (`include/constants/pokemon.h`'s `TYPE_*` constants,
+  0-17: Normal through Dark, with id 9 already reserved for the
+  `TYPE_MYSTERY`/"???" engine sentinel every other randomizer in this
+  project already deliberately excludes, not a usable 18th real type) --
+  there is no spare slot to repurpose. Adding a genuine 19th type would
+  need: (1) growing `sTypeEffectiveness` (overlay 12, the same table
+  `randomize_type_chart` already edits) with new Fairy-vs-everything
+  rows -- every existing write to this table is a same-size in-place
+  multiplier edit, never a resize, and growing an overlay is the same
+  risk class as the shopsanity ASM hook this session already abandoned
+  after two live crashes with the root cause never found; (2) new type-
+  icon graphics (no Fairy icon asset exists anywhere in HGSS, and this
+  project has no graphics-injection tooling); (3) new localized text for
+  the type's name. Categorized alongside non-US localization support as
+  a real, blocked v3 item (an external-prerequisite/no-safe-toolchain
+  blocker), not a same-session task.
+
 - **Extra difficulty option: artificial route/passage blockers** (user
-  request 2026-08-16). Idea: lock some routes/passages behind additional,
-  non-vanilla requirements purely to raise randomizer difficulty (beyond
-  the existing HM/badge/item gates already modeled in `data_gen/
-  rules.toml`). Not investigated yet -- open questions before this can be
-  scoped: which routes/passages, what the "key" requirement looks like
-  (a new synthetic item? an existing item repurposed? a badge count
-  threshold?), and whether it's expressed as a new exit_rule concept or a
-  seed-time toggle over the existing rule set. No blocker identified yet
-  (unlike the two entries above, this doesn't obviously need live/dynamic
-  memory access) -- likely tractable as a pure `data_gen/rules.toml` +
-  `rules.py` change, but needs its own design pass before implementation.
+  request 2026-08-16). **Implemented (task "randomize_route_blockers",
+  2026-08-17):** rather than inventing a new synthetic "key" item concept
+  (the open question this note originally left unscoped), consulted
+  `platinum_archipelago` (a sibling Archipelago Gen4 world, kept locally
+  as a read-only reference) for how a comparable feature is handled
+  there -- its own `PastoriaBarriers` option turns out to follow the
+  exact same shape this task needed: close a real, existing vanilla
+  shortcut rather than add a new gate, no new item or location required
+  at all. HGSS's own equivalent shortcut was already fully identified by
+  this project's own prior work: the region-graph-logic-fixes entry above
+  documents the Route 46 -> Route 45 one-way ledge as a genuine vanilla
+  shortcut (not a bug) that leaves 7 of Johto's 16 badges reachable with
+  zero items, deliberately left in by default. `extra_route_blockers`
+  (Toggle, off by default) removes that single edge from the region graph
+  entirely when on (`regions.py`'s new `_EXTRA_DIFFICULTY_BLOCKED_EXITS`,
+  applied in `create_regions`'s own exit-connection loop) -- no new item,
+  no new location, so no pool-balance concerns at all. Confirmed
+  genuinely redundant, not a chokepoint: that side of the map is also
+  reachable via the normal Mahogany/Ice Path direction regardless (the
+  same conclusion `randomize_start_location`'s own 10-town completability
+  sweep already independently demonstrates, since Blackthorn is reached
+  from every one of those 10 towns). Verified two ways:
+  `tests/test_world_init.py::test_extra_route_blockers_removes_the_
+  route_46_45_edge` (structural: the edge is present when off, absent
+  when on) and `test_real_generation_with_extra_route_blockers` (the
+  project's own "T1" real generation + fill + `can_beat_game()` standard,
+  confirming the closure never makes a seed uncompletable).
+
+## Code review fixes (2026-08-17, before first commit of tonight's work)
+
+A full read-only code review of every uncommitted change above (menu unlocks,
+start-location logic integration, route blockers, learnsets) found 4
+blocking defects and several lower-severity issues before anything shipped.
+All 4 blockers fixed and covered by new regression tests; several of the
+lower-severity suggestions fixed too.
+
+- **`randomize_menu_unlocks` self-checked its own locations.** The generic
+  `_check_locations` polling and `_apply_menu_unlock_gating`'s own
+  ownership-based write used the *same* SaveVarsFlags bit for two different
+  purposes -- detecting "the player reached this point in the story" and
+  "does the player currently own the item." Since gating writes that same
+  bit to 1 the moment the item is owned (from anywhere in the multiworld),
+  the generic poll reported the location as checked on the very next tick,
+  with no real in-game action at all -- releasing whatever item was placed
+  there for free. Compounding this, the two functions read/wrote the bit at
+  different points in the same tick, so a genuine vanilla `SetFlag` landing
+  in that window could be cleared before ever being observed -- a
+  permanently lost check (5 of the 6 flags are set by a script with its own
+  no-replay guard). Fixed by making `_apply_menu_unlock_gating` the sole
+  reader/writer of these 6 bits: it now detects a real transition as
+  `currently_set and not owned` (a bit gating itself only ever sets when
+  owned can only read as 1-while-not-owned if something *else* -- vanilla
+  -- set it), reports the check itself from that same read, and is removed
+  entirely from the generic `_FLAG_ID_TO_AP_LOCATION_ID` map. When
+  `randomize_start_location` is also on (vanilla can never set these bits
+  at all, since New Bark's own scripts never run), `FLAG_GOT_STARTER` --
+  the same substitute "game has begun" trigger `_apply_start_location_flags`
+  already uses for the other menu-unlock flags -- is used as the check-fire
+  signal instead. 3 new tests lock this in (self-check no longer fires,
+  real vanilla transition still reports+suppresses correctly, the
+  start-location substitute trigger works).
+- **`johto_only` + `sphere_based_trainer_leveling` crashed generation.**
+  `_sphere_map_for_type` built its trainer/Leader -> region map from every
+  `LOCATIONS` entry of that type, including the ~180 Kanto ones `johto_only`
+  never creates Region objects for -- `_compute_region_spheres`'s
+  `state.can_reach_region` raised `KeyError` trying to look one up, only
+  surfacing after a full real multiworld fill (`generate_output`, a stage
+  no other test in this project reaches). Fixed by threading
+  `excluded_region_keys` through to `_sphere_map_for_type` and filtering
+  before computing spheres, same pattern `create_regions`/`create_items`
+  already use. New regression test runs a real, filled, `johto_only`
+  multiworld through the actual fixed code path.
+- **`randomize_learnsets`'s ROM write ran unconditionally for every
+  player.** `apply_evolution_and_stat_randomization` called
+  `rom_learnsetdata.write_species_learnset` for all 505 species on every
+  patch, even with the option off (vanilla data, nothing to change) --
+  risking a hard crash for players who never enabled it if a future
+  `data_gen/species.toml` edit ever introduced a real entry-count mismatch
+  (the generation template already silently drops an unrecognized move-key
+  entry with only a warning, exactly the kind of edit that could cause
+  this). Fixed two ways: (1) the write is now skipped entirely whenever the
+  target learnset already matches what's in the ROM -- true for every
+  species, for every player, whenever the option is off; (2) if a write
+  *is* needed but hits an entry-count mismatch, that one species is left
+  vanilla with a warning instead of aborting the whole patch. Also
+  empirically verified (2026-08-17) against both real HeartGold and
+  SoulSilver ROMs: zero entry-count mismatches across all 505 species on
+  either version, and `wotbl.narc`'s NitroFS path (`a/0/3/3`) and byte
+  layout are identical between them -- the SoulSilver path this module's
+  own docstring had flagged as unverified is now confirmed safe. 2 new
+  tests cover both the skip-when-unchanged path and the graceful-recovery
+  path (a synthetic truncated learnset).
+- **`_apply_start_location_flags`'s write guard was built from a stale
+  snapshot.** The new byte values were computed from an early cached read,
+  but the `guarded_write` guard was built from a *second*, later, fresh
+  read -- if the underlying byte changed in that window (FLAG_GOT_STARTER
+  and FLAG_GOT_POKEDEX share a byte, so this wasn't purely theoretical), the
+  fresh guard would pass while the new_value (computed from the earlier,
+  now-stale snapshot) clobbered whatever had changed. Fixed by using the
+  same original-read snapshot for both the computed value and the guard
+  (the same pattern `_apply_menu_unlock_gating` already used correctly).
+  New regression test exercises the exact shared-byte case.
+- **`set_rules` had a latent `KeyError`** if any `EXIT_RULES` entry ever
+  targeted an edge `extra_route_blockers` removes (both endpoint regions
+  still exist, only the specific edge is gone, so the existing
+  `src not in regions or dest not in regions` guard doesn't catch it) --
+  not currently triggered (no rule targets `route_46 -> route_45` today)
+  but fixed defensively by also checking the Entrance itself exists.
+- Also fixed while reviewing: `RandomizeStartLocation`'s own docstring
+  still described the "known gap" the region-graph rework above already
+  closed (user-facing wrong information); `DexsanityEncounterTypes.default`
+  bound the class's own mutable `valid_keys` set instead of a copy;
+  `dexsanity_encounter_types` was missing from `universal_tracker.
+  TRACKED_OPTION_NAMES` despite changing which Dexsanity locations get
+  created (a real UT-desync gap, same class already fixed for
+  `legendarysanity` earlier tonight).
+
+## Randomize Learnsets (task "randomize_learnsets", 2026-08-17, user request)
+
+`randomize_learnsets` (Toggle, off by default): randomizes which move each
+species learns at each level-up slot -- the level itself stays vanilla, only
+which move lands there changes. Turned out to need far less new
+investigation than expected: `data_gen/species.toml`'s own `level_learnset`
+field (a per-species list of `(level, move_key)` pairs) had already been
+extracted from `wotbl.narc` in an earlier session and was sitting unused in
+`data/species.py` -- no randomization logic and no ROM write path existed
+for it yet, purely a data-layer spike.
+
+- **`species.randomize_learnsets`**: for every species, replaces each
+  learnset entry's move with an independently-drawn real move (`data/
+  moves.py`'s full 467-move pool), keeping the level unchanged. No
+  HM-safety exclusion needed here the way `randomize_tm_moves` needed one
+  -- this project's region-access rules key off owning the HM *item*, never
+  off which move a species happens to learn by leveling up, so this option
+  is purely cosmetic to logic, same class as `randomize_move_types`/
+  `randomize_base_stats`/`trainer_level_scaling` (also absent from
+  `universal_tracker.TRACKED_OPTION_NAMES` for the same reason).
+- **`rom/learnsetdata.py`** (new): `wotbl.narc`, NitroFS path `a/0/3/3` --
+  found empirically (the decomp's own `NARC_poketool_personal_wotbl = 33`
+  id has no confirmed general formula to a NitroFS path; a nearby
+  NARC id/path pair, `waza_tbl.narc` id 11 -> `a/0/1/1`, was checked as a
+  possible pattern but doesn't generalize either). 508 sub-files, matching
+  `data/species_index.py`'s `SPECIES_KEY_TO_RAW_INDEX` 1:1 the same way
+  `personal.narc` does. Verified directly against the real ROM: Bulbasaur's
+  (raw index 1) real entries decode to exactly the same (level, move)
+  sequence the toml already recorded by hand.
+  **Real ROM quirk found while implementing the write side** (caught by a
+  genuine round-trip test, not assumed): each sub-file's entry count isn't
+  simply "buffer length / 2 - 1" -- Bulbasaur's own 32-byte buffer holds 14
+  real entries + the `0xFFFF` terminator at word 14, plus one extra
+  `0x0000` padding word at word 15 (likely a 4-byte NARC member alignment
+  artifact). The first write attempt assumed the terminator was always the
+  buffer's last word and miscounted the expected entry count by one,
+  failing loudly (a `ValueError`, not a silent corruption) rather than
+  writing anything wrong. Fixed by scanning for the real terminator
+  position instead of assuming it, and preserving every byte from that
+  point onward (terminator + any trailing padding) completely untouched on
+  write -- same "no narc member resize, no cross-region ARM9 append risk"
+  safety property every other in-place NARC field rewrite in this project
+  already has.
+- Wired into the existing `generated_species` pipeline in
+  `__init__.py::generate_early()` (species.py's other per-species field
+  randomizers already live there) and `patch_gen.py`'s existing
+  `apply_evolution_and_stat_randomization` (extended, not a new function --
+  it already iterates the whole species dict once per species for
+  evolutions/base stats/types/abilities) -- no new JSON serialization or
+  `output_patch.py` wiring needed at all, since `generated_species`'s whole
+  dict (including `level_learnset`) already round-trips through
+  `species.json` end to end.
 
 ## Why this split
 

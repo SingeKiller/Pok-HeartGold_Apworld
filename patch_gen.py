@@ -32,11 +32,15 @@ from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
 from rom import evodata as rom_evodata
 from rom import hiddenitemdata as rom_hiddenitemdata
+from rom import learnsetdata as rom_learnsetdata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
 from rom import speciesdata as rom_speciesdata
+from rom import startlocation as rom_startlocation
 from rom import starterdata as rom_starterdata
+from rom import tmhmdata as rom_tmhmdata
 from rom import trainerdata as rom_trainerdata
+from rom import typechart as rom_typechart
 
 ROOT = Path(__file__).resolve().parent
 PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
@@ -254,6 +258,40 @@ _STARTER_SELECTION_QUESTION_TEMPLATES = (
 )
 _STARTER_SELECTION_CONFIRM_TEMPLATE = "{name}, the {type}-type Pokémon, is in this Poké Ball!"
 
+# data/species.py's `label` field is the raw decomp identifier, not
+# display text -- fine for the ~490 species whose real name has no
+# special characters (their label IS their display name, just upper-
+# cased), but a real bug for the handful that don't: a bare "_" has no
+# data/charmap.py entry at all (confirmed live, 2026-08-17 -- a real
+# generation crashed here), and this ROM's own font doesn't have the ♂/♀
+# glyphs vanilla Nidoran's names use either. Every non-alnum label this
+# project's species pool can actually produce, mapped to a charmap-safe
+# display form.
+_SPECIES_LABEL_DISPLAY_OVERRIDES: dict[str, str] = {
+    "NIDORAN_F": "Nidoran-F",
+    "NIDORAN_M": "Nidoran-M",
+    "MR_MIME": "Mr. Mime",
+    "HO_OH": "Ho-Oh",
+    "MIME_JR": "Mime Jr.",
+    "PORYGON_Z": "Porygon-Z",
+    "DEOXYS_ATK": "Deoxys (Attack)",
+    "DEOXYS_DEF": "Deoxys (Defense)",
+    "DEOXYS_SPD": "Deoxys (Speed)",
+    "WORMADAM_SANDY": "Wormadam (Sandy)",
+    "WORMADAM_TRASH": "Wormadam (Trash)",
+    "GIRATINA_ORIGIN": "Giratina (Origin)",
+    "SHAYMIN_SKY": "Shaymin (Sky)",
+    "ROTOM_HEAT": "Rotom (Heat)",
+    "ROTOM_WASH": "Rotom (Wash)",
+    "ROTOM_FROST": "Rotom (Frost)",
+    "ROTOM_FAN": "Rotom (Fan)",
+    "ROTOM_MOW": "Rotom (Mow)",
+}
+
+
+def _species_display_name(label: str) -> str:
+    return _SPECIES_LABEL_DISPLAY_OVERRIDES.get(label, label)
+
 
 def apply_starter_selection_text_fix(rom: HeartGoldRom, starters: tuple[str, str, str]) -> None:
     """Rewrite msg_0190's starter-choice question/confirmation text to
@@ -270,7 +308,7 @@ def apply_starter_selection_text_fix(rom: HeartGoldRom, starters: tuple[str, str
 
     for slot, species_key in enumerate(starters):
         data = SPECIES[species_key]
-        name = data["label"]
+        name = _species_display_name(data["label"])
         type_name = data["types"][0].capitalize()
         question = _STARTER_SELECTION_QUESTION_TEMPLATES[slot].format(name=name, type=type_name)
         confirm = _STARTER_SELECTION_CONFIRM_TEMPLATE.format(name=name, type=type_name)
@@ -368,11 +406,32 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
     """Apply species.py's randomize_evolutions/randomize_base_stats/
-    randomize_species_types/neutralize_trapping_abilities output -- writes
-    the evolution table, base-stats table, types, and abilities for every
-    species. Abilities are written unconditionally (data["abilities"]
-    always carries some value, the vanilla pair when the option is off) --
-    a harmless idempotent no-op, keeps this function option-agnostic."""
+    randomize_species_types/neutralize_trapping_abilities/
+    randomize_learnsets output -- writes the evolution table, base-stats
+    table, types, abilities, and level-up learnset for every species.
+    Abilities are written unconditionally (data["abilities"] always
+    carries some value, the vanilla one when the matching option is off)
+    -- a harmless idempotent no-op, keeps this function option-agnostic.
+
+    The learnset write is different: skipped entirely for a species whose
+    target learnset already matches what's in the ROM (which is every
+    species, for every player, whenever randomize_learnsets is off, since
+    species["level_learnset"] is then just the untouched vanilla data) --
+    and, if a write *is* needed but the entry count doesn't match the
+    real ROM data (rom_learnsetdata.write_species_learnset's own safety
+    check; see that module's docstring for the real 4-byte-alignment-
+    padding bug this project already found and fixed once), that one
+    species' learnset is left vanilla with a warning instead of aborting
+    every other player's patch for an option they may never have
+    enabled. Verified empirically against both real HeartGold and
+    SoulSilver ROMs (2026-08-17): zero entry-count mismatches across all
+    505 species on either version, and wotbl.narc's own NitroFS path
+    (a/0/3/3) and byte layout are identical between the two -- but a
+    future data_gen/species.toml edit could still reintroduce one (data_
+    gen_templates/species.py's own _build_species silently *drops* an
+    unrecognized move-key entry rather than failing loudly), hence this
+    defensive skip rather than trusting that to stay true forever."""
+    from data.moves import MOVES
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
     for species_key, data in species.items():
@@ -397,10 +456,22 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
         ability1, ability2 = data["abilities"]
         rom_speciesdata.write_abilities(rom, species_key, ability1, ability2)
 
+        raw_learnset = [(level, MOVES[move_key]["id"]) for level, move_key in data["level_learnset"]]
+        if raw_learnset != rom_learnsetdata.read_species_learnset(rom, raw_index):
+            try:
+                rom_learnsetdata.write_species_learnset(rom, raw_index, raw_learnset)
+            except ValueError as error:
+                print(
+                    f"warning: could not write randomized learnset for {species_key!r} "
+                    f"({error}); leaving this species' learnset vanilla.",
+                    file=sys.stderr,
+                )
+
 
 def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
     """Apply species.py's randomize_move_stats/randomize_move_types/
-    disable_ohko_moves output. A move is routed through
+    randomize_move_categories/disable_ohko_moves output. A move is routed
+    through
     rom_movedata.write_ohko_neutralization instead of write_combat_stats
     precisely when its vanilla effect was "one_hit_ko" but no longer is --
     i.e. exactly the moves disable_ohko_moves touched. write_combat_stats
@@ -413,6 +484,31 @@ def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
             rom_movedata.write_ohko_neutralization(rom, move_key)
         rom_movedata.write_combat_stats(rom, move_key, power=data["power"], accuracy=data["accuracy"], pp=data["pp"])
         rom_movedata.write_type(rom, move_key, rom_movedata.TYPE_NAME_TO_ID[data["type"]])
+        rom_movedata.write_category(rom, move_key, rom_movedata.CATEGORY_NAME_TO_ID[data["category"]])
+
+
+def apply_tm_hm_randomization(rom: HeartGoldRom, tm_hm_moves: dict) -> None:
+    """Apply species.py's randomize_tm_hm_moves output ({machine: move_key}).
+    HM01-HM08 entries are present in the dict (unchanged from vanilla by
+    construction) but rom_tmhmdata.write_tm_hm_moves ignores them
+    regardless -- see that function's own docstring."""
+    from data.moves import MOVES
+
+    machine_to_move_id = {machine: MOVES[move_key]["id"] for machine, move_key in tm_hm_moves.items()}
+    rom_tmhmdata.write_tm_hm_moves(rom, machine_to_move_id)
+
+
+def apply_type_chart_randomization(rom: HeartGoldRom, type_chart: list) -> None:
+    """Apply species.py's randomize_type_chart output."""
+    rom_typechart.write_type_chart(rom, type_chart)
+
+
+def apply_start_location(rom: HeartGoldRom, town_key: str) -> None:
+    """Apply randomize_start_location's chosen destination town (a
+    rom/startlocation.py TOWN_MAP_IDS key): spawn point + Elm's Lab exit
+    door, both live-verified this project (see that module's own
+    docstring)."""
+    rom_startlocation.write_start_location(rom, town_key)
 
 
 def main(argv: list[str] | None = None) -> int:

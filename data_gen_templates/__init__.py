@@ -101,6 +101,7 @@ from .rules import generate_rules  # noqa: E402
 from .species import generate_species  # noqa: E402
 from .species_index import generate_species_index  # noqa: E402
 from .trainers import generate_trainers  # noqa: E402
+from .type_chart import generate_type_chart  # noqa: E402
 
 __all__ = [
     "generate_init",
@@ -115,4 +116,5 @@ __all__ = [
     "generate_species",
     "generate_species_index",
     "generate_trainers",
+    "generate_type_chart",
 ]

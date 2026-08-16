@@ -134,6 +134,16 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         moves = json.loads(self.get_file("moves.json"))
         patch_gen.apply_move_randomization(rom, moves)
 
+        tm_hm_moves = json.loads(self.get_file("tm_hm_moves.json"))
+        patch_gen.apply_tm_hm_randomization(rom, tm_hm_moves)
+
+        type_chart = json.loads(self.get_file("type_chart.json"))
+        patch_gen.apply_type_chart_randomization(rom, type_chart)
+
+        start_location_town = json.loads(self.get_file("start_location_town.json"))
+        if start_location_town is not None:
+            patch_gen.apply_start_location(rom, start_location_town)
+
         substitutions = json.loads(self.get_file("item_substitutions.json"))
         patch_gen.apply_local_item_substitutions(rom, substitutions)
 
@@ -204,6 +214,9 @@ def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
     patch.write_file("encounters.json", json.dumps(world.generated_encounters).encode())
     patch.write_file("species.json", json.dumps(world.generated_species).encode())
     patch.write_file("moves.json", json.dumps(world.generated_moves).encode())
+    patch.write_file("tm_hm_moves.json", json.dumps(world.generated_tm_hm_moves).encode())
+    patch.write_file("type_chart.json", json.dumps(world.generated_type_chart).encode())
+    patch.write_file("start_location_town.json", json.dumps(world.generated_start_location_town).encode())
     patch.write_file("item_substitutions.json", json.dumps(build_item_substitutions(world)).encode())
 
     out_file_name = world.multiworld.get_out_file_name_base(world.player)

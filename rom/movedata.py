@@ -41,6 +41,7 @@ EXPECTED_ENTRY_COUNT = 471
 ENTRY_SIZE = 16
 
 _EFFECT_OFFSET = 0
+_CATEGORY_OFFSET = 2
 _POWER_OFFSET = 3
 _TYPE_OFFSET = 4
 _ACCURACY_OFFSET = 5
@@ -78,6 +79,18 @@ TYPE_NAME_TO_ID: dict[str, int] = {
     "ice": 15,
     "dragon": 16,
     "dark": 17,
+}
+
+# include/constants/moves.h's CATEGORY_* constants -- confirmed via the
+# decomp source (rom/../ressources/Decomposition/pokeheartgold), not a
+# guess: src/battle/battle_controller_player.c compares this exact field
+# (MOVEATTR_CLASS / MoveTbl.category, offset 2) against CATEGORY_PHYSICAL/
+# CATEGORY_SPECIAL to pick Attack/Sp. Attack, i.e. Generation IV's real
+# per-move physical/special split (unlike Gen 1-3/5's type-based one).
+CATEGORY_NAME_TO_ID: dict[str, int] = {
+    "physical": 0,
+    "special": 1,
+    "status": 2,
 }
 
 
@@ -141,6 +154,30 @@ def write_type(rom: HeartGoldRom, move_key: str, move_type: int) -> None:
         raise ValueError(f"move {move_key!r} (id {move_id}) entry is {len(entry)} bytes, expected {ENTRY_SIZE}")
     entry[_TYPE_OFFSET] = move_type
     write_entry(rom, move_id, bytes(entry))
+
+
+def write_category(rom: HeartGoldRom, move_key: str, category: int) -> None:
+    """Overwrite one move's category byte (offset 2) in place, leaving
+    power/accuracy/pp/type and everything else untouched -- for
+    randomize_move_categories (species.py)."""
+    from data.moves import MOVES
+
+    move_id = MOVES[move_key]["id"]
+    entry = bytearray(read_entry(rom, move_id))
+    if len(entry) != ENTRY_SIZE:
+        raise ValueError(f"move {move_key!r} (id {move_id}) entry is {len(entry)} bytes, expected {ENTRY_SIZE}")
+    entry[_CATEGORY_OFFSET] = category
+    write_entry(rom, move_id, bytes(entry))
+
+
+def read_category(rom: HeartGoldRom, move_key: str) -> int:
+    """Read one move's raw category byte (offset 2) -- mainly for tests/
+    verification."""
+    from data.moves import MOVES
+
+    move_id = MOVES[move_key]["id"]
+    entry = read_entry(rom, move_id)
+    return entry[_CATEGORY_OFFSET]
 
 
 def read_effect(rom: HeartGoldRom, move_key: str) -> int:

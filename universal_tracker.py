@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 TRACKED_OPTION_NAMES = (
     "goal",
     "goal_badge_count",
+    "johto_only",
     "game_version",
     "randomize_wild_pokemon",
     "randomize_starters",
@@ -44,6 +45,12 @@ TRACKED_OPTION_NAMES = (
     "trainer_level_scaling",
     "trainersanity",
     "dexsanity",
+    "dexsanity_encounter_types",
+    "randomize_start_location",
+    "starting_town",
+    "randomize_menu_unlocks",
+    "legendarysanity",
+    "extra_route_blockers",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is

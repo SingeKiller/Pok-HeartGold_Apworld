@@ -8,8 +8,9 @@
 # species.py's randomizers have no Location/Item of their own in this
 # project's v1 data model -- set_rules() below runs them (seeded from
 # self.random) and stores their output on self (generated_encounters/
-# generated_trainer_parties/generated_species/generated_moves) for
-# patch_gen.py's apply_* functions to consume at generate_output time.
+# generated_trainer_parties/generated_species/generated_moves/
+# generated_tm_hm_moves/generated_type_chart) for patch_gen.py's apply_*
+# functions to consume at generate_output time.
 
 from __future__ import annotations
 
@@ -57,6 +58,7 @@ from options import OPTION_GROUPS, GameVersion, Goal, HeartGoldOptions  # noqa: 
 
 from output_patch import HeartGoldProcedurePatch  # noqa: E402, F401 -- import side effect only
 from output_patch import generate_output as write_output_patch  # noqa: E402
+from regions import KANTO_REGION_KEYS  # noqa: E402
 from regions import create_regions as build_region_graph  # noqa: E402
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
@@ -66,11 +68,15 @@ from species import (  # noqa: E402
     neutralize_trapping_abilities,
     randomize_base_stats,
     randomize_evolutions,
+    randomize_learnsets,
+    randomize_move_categories,
     randomize_move_stats,
     randomize_move_types,
     randomize_species_types,
     randomize_starters,
+    randomize_tm_hm_moves,
     randomize_trainer_parties,
+    randomize_type_chart,
     randomize_wild_encounters,
     scale_trainer_levels,
     scale_trainer_levels_by_sphere,
@@ -109,6 +115,9 @@ _LABEL_TO_ITEM_KEY = {data["label"]: key for key, data in ITEMS.items()}
 # Reachability proxies for the goal option -- see NOTES.md.
 _ELITE_FOUR_GOAL_REGION = "pokemon_league_hall_of_fame"
 _CHAMPION_RED_GOAL_REGION = "mount_silver_cave_summit"
+
+# johto_only: only this many badges exist once Kanto's 8 are excluded.
+_JOHTO_BADGE_COUNT = 8
 
 
 def _compute_region_spheres(multiworld, player: int, region_keys) -> dict[str, int]:
@@ -155,7 +164,9 @@ def _compute_region_spheres(multiworld, player: int, region_keys) -> dict[str, i
 _GYM_LEADER_REGION_OVERRIDES = {"leader_clair_clair": "blackthorn_gym"}
 
 
-def _sphere_map_for_type(multiworld, player: int, location_type: str) -> dict[str, int]:
+def _sphere_map_for_type(
+    multiworld, player: int, location_type: str, excluded_region_keys: frozenset[str] = frozenset()
+) -> dict[str, int]:
     """data/trainers.py key -> 0-indexed sphere, for every `location_type`
     LOCATIONS entry's own `trainer`/`region` fields (`_GYM_LEADER_REGION_
     OVERRIDES` applied for `location_type == "badge"`), joined against
@@ -163,11 +174,23 @@ def _sphere_map_for_type(multiworld, player: int, location_type: str) -> dict[st
     Independent of the `trainersanity`/badge-always-on status: every
     trainer/Leader has a region regardless of whether its own Location
     was actually created this seed. A trainer whose region is never
-    reached is simply absent from the result."""
+    reached is simply absent from the result. `excluded_region_keys`
+    (`johto_only`'s KANTO_REGION_KEYS, or empty) must be passed whenever
+    it was also passed to `create_regions` -- a trainer/Leader whose own
+    region was skipped there has no matching Region object at all, and
+    `_compute_region_spheres`'s `state.can_reach_region` would otherwise
+    raise `KeyError` trying to look one up (real bug, found by code
+    review 2026-08-17: `johto_only` + `sphere_based_trainer_leveling`
+    crashed generation after a full multiworld fill)."""
     trainer_regions = {
         data["trainer"]: _GYM_LEADER_REGION_OVERRIDES.get(data["trainer"], data["region"])
         for data in LOCATIONS.values()
         if data["type"] == location_type
+    }
+    trainer_regions = {
+        trainer_key: region_key
+        for trainer_key, region_key in trainer_regions.items()
+        if region_key not in excluded_region_keys
     }
     region_spheres = _compute_region_spheres(multiworld, player, set(trainer_regions.values()))
     return {
@@ -177,10 +200,13 @@ def _sphere_map_for_type(multiworld, player: int, location_type: str) -> dict[st
     }
 
 
-def _constrain_undetectable_locations(player: int, multiworld) -> None:
+def _constrain_undetectable_locations(player: int, multiworld, excluded_region_keys: frozenset[str]) -> None:
     """30 of 128 npc_gift/hm_tm locations have no vanilla savedata flag
     this client can read -- constrain to this player's own (incl. item
-    link groups), non-progression items only. See NOTES.md for why."""
+    link groups), non-progression items only. See NOTES.md for why.
+    `excluded_region_keys` (`johto_only`'s KANTO_REGION_KEYS, or empty)
+    skips any of these whose own region was never created -- 5 of the 30
+    are in Kanto."""
     from BaseClasses import ItemClassification
 
     local_players = {player} | multiworld.get_player_groups(player)
@@ -189,6 +215,8 @@ def _constrain_undetectable_locations(player: int, multiworld) -> None:
         return item.player in local_players and item.classification != ItemClassification.progression
 
     for location_key in location_flags.unsupported_location_keys():
+        if LOCATIONS[location_key]["region"] in excluded_region_keys:
+            continue
         multiworld.get_location(location_key, player).item_rule = rule
 
 
@@ -323,9 +351,53 @@ class HeartGoldWorld(World):
             exclude_legendaries=bool(self.options.exclude_legendaries.value),
         )
         self.dexsanity_species_methods = species_encounter_methods(self.generated_encounters)
+        # dexsanity_encounter_types restricts which methods count at all --
+        # a species left with no allowed method after this filter simply
+        # gets no Dexsanity location this seed (same as one this seed's
+        # own wild tables never place anywhere). A no-op when every method
+        # is still allowed (the option's own default).
+        allowed_methods = set(self.options.dexsanity_encounter_types.value)
+        self.dexsanity_species_methods = {
+            species: methods & allowed_methods
+            for species, methods in self.dexsanity_species_methods.items()
+            if methods & allowed_methods
+        }
+
+        self.generated_start_location_town: str | None = None
+        if bool(self.options.randomize_start_location.value):
+            # Archipelago's own Choice option machinery already resolves
+            # a YAML "random" value into one real option before this
+            # runs -- self.options.starting_town is never literally
+            # "random" here, so no extra RNG handling is needed.
+            self.generated_start_location_town = self.options.starting_town.current_key
+            # The physical spawn point is always inside Elm's Lab (see
+            # rom/startlocation.py), and its one door warps straight to
+            # `generated_start_location_town` -- the player never sets
+            # foot in New Bark's own outdoor map at all when this option
+            # is on. Overriding the *instance* attribute (shadowing the
+            # class-level default set below) makes CollectionState.
+            # update_reachable_regions() (BaseClasses.py) treat that town
+            # as the free, always-reachable region instead of New Bark, so
+            # the fill algorithm's own logic actually matches where the
+            # player starts rather than just the physical ROM patch --
+            # closing the "known gap" flagged in StartingTown's own
+            # docstring. `starting_town`'s option keys are already the
+            # exact same snake_case strings as their data/regions.py
+            # region keys (see rom/startlocation.py's TOWN_MAP_IDS), so no
+            # separate key/region mapping table is needed. New Bark's own
+            # region (and Elm's Lab's) isn't cut off by this -- it's still
+            # reachable the normal way, by walking there from wherever the
+            # player actually starts, just no longer free.
+            self.origin_region_name = self.generated_start_location_town
 
     def create_regions(self) -> None:
-        self.regions = build_region_graph(self.player, self.multiworld)
+        self._excluded_region_keys = KANTO_REGION_KEYS if bool(self.options.johto_only.value) else frozenset()
+        self.regions = build_region_graph(
+            self.player,
+            self.multiworld,
+            excluded_region_keys=self._excluded_region_keys,
+            extra_route_blockers=bool(self.options.extra_route_blockers.value),
+        )
         create_locations(
             self.player,
             self.regions,
@@ -334,6 +406,8 @@ class HeartGoldWorld(World):
             dexsanity_species_methods=self.dexsanity_species_methods,
             legendarysanity=bool(self.options.legendarysanity.value),
             hidden_items_require_dowsing_machine=bool(self.options.hidden_items_require_dowsing_machine.value),
+            excluded_region_keys=self._excluded_region_keys,
+            menu_unlocks=frozenset(self.options.randomize_menu_unlocks.value),
         )
 
     def create_items(self) -> None:
@@ -348,9 +422,16 @@ class HeartGoldWorld(World):
         trainersanity = bool(self.options.trainersanity.value)
         dexsanity = bool(self.options.dexsanity.value)
         legendarysanity = bool(self.options.legendarysanity.value)
+        menu_unlocks = frozenset(self.options.randomize_menu_unlocks.value)
         pool = []
         for key in _ID_ASSIGNABLE_LOCATION_KEYS:
             data = LOCATIONS[key]
+            if data["region"] in self._excluded_region_keys:
+                # johto_only: create_regions() already skipped this
+                # location's own Region/Location objects entirely -- must
+                # not contribute a matching item either, or the item pool
+                # would outnumber the created locations.
+                continue
             if data["type"] == "trainer":
                 if not trainersanity:
                     continue
@@ -368,6 +449,10 @@ class HeartGoldWorld(World):
                     continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
+            elif data["type"] == "menu_unlock":
+                if key.removeprefix("menu_unlock_") not in menu_unlocks:
+                    continue
+                pool.append(create_item(data["original_item"], self.player))
             else:
                 pool.append(create_item(data["original_item"], self.player))
 
@@ -393,10 +478,15 @@ class HeartGoldWorld(World):
 
     def set_rules(self) -> None:
         apply_exit_rules(self.player, self.multiworld, self.regions)
-        _constrain_undetectable_locations(self.player, self.multiworld)
+        _constrain_undetectable_locations(self.player, self.multiworld, self._excluded_region_keys)
 
+        goal_badge_count = self.options.goal_badge_count.value
+        if self._excluded_region_keys and goal_badge_count > _JOHTO_BADGE_COUNT:
+            # johto_only: only Johto's 8 badges exist -- an n_badges goal
+            # asking for more than that would never be completable.
+            goal_badge_count = _JOHTO_BADGE_COUNT
         self.multiworld.completion_condition[self.player] = _goal_rule(
-            self.player, self.options.goal.value, self.options.goal_badge_count.value
+            self.player, self.options.goal.value, goal_badge_count
         )
 
         # Everything below is ROM-only randomization for `generate_output()`
@@ -434,12 +524,24 @@ class HeartGoldWorld(World):
         self.generated_species = neutralize_trapping_abilities(
             bool(self.options.disable_trapping_abilities.value), species=self.generated_species
         )
+        self.generated_species = randomize_learnsets(
+            self.random, bool(self.options.randomize_learnsets.value), species=self.generated_species
+        )
         self.generated_moves = randomize_move_stats(self.random, self.options.randomize_moves.value)
         self.generated_moves = randomize_move_types(
             self.random, bool(self.options.randomize_move_types.value), moves=self.generated_moves
         )
+        self.generated_moves = randomize_move_categories(
+            self.random, bool(self.options.randomize_move_categories.value), moves=self.generated_moves
+        )
         self.generated_moves = disable_ohko_moves(
             bool(self.options.disable_ohko_moves.value), moves=self.generated_moves
+        )
+        self.generated_tm_hm_moves = randomize_tm_hm_moves(
+            self.random, bool(self.options.randomize_tm_moves.value)
+        )
+        self.generated_type_chart = randomize_type_chart(
+            self.random, bool(self.options.randomize_type_chart.value)
         )
 
     def get_filler_item_name(self) -> str:
@@ -457,6 +559,10 @@ class HeartGoldWorld(World):
             "skip_battle_animations": bool(self.options.skip_battle_animations.value),
             "reusable_tms": bool(self.options.reusable_tms.value),
             "death_link": bool(self.options.death_link.value),
+            "dexsanity_trigger": self.options.dexsanity_trigger.current_key,
+            "starting_money": self.options.starting_money.value,
+            "randomize_start_location": bool(self.options.randomize_start_location.value),
+            "randomize_menu_unlocks": sorted(self.options.randomize_menu_unlocks.value),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
 
@@ -470,7 +576,9 @@ class HeartGoldWorld(World):
             # pulled toward this seed's single weakest regular trainer.
             bonus = self.options.sphere_based_trainer_leveling_bonus.value
             for location_type in ("trainer", "badge"):
-                trainer_sphere = _sphere_map_for_type(self.multiworld, self.player, location_type)
+                trainer_sphere = _sphere_map_for_type(
+                    self.multiworld, self.player, location_type, self._excluded_region_keys
+                )
                 self.generated_trainer_parties = scale_trainer_levels_by_sphere(
                     self.generated_trainer_parties, trainer_sphere, bonus
                 )

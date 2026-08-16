@@ -1,0 +1,688 @@
+# data_gen/type_chart.toml
+#
+# Vanilla type-effectiveness table. Source: src/battle/
+# overlay_12_0224E4FC.c's sTypeEffectiveness[][3] (ARM9 overlay 12), a
+# sparse (attacker, defender, multiplier) exception list walked linearly
+# by the battle engine's damage calc -- any (attacker, defender) pair NOT
+# listed here is an implicit "normal" (1x) matchup, never written here.
+#
+# Row ORDER is load-bearing, never re-sort this file: the entry with
+# special = "foresight_marker" is a sentinel the Foresight/Odor Sleuth/
+# Scrappy mechanic scans for (src/battle/overlay_12_0224E4FC.c's
+# ov12_02252054/damage-calc loop: `if (sTypeEffectiveness[i][0] ==
+# TYPE_FORESIGHT) { ... break; }`) -- it relies on the two real matchups
+# right after it (normal/ghost, fighting/ghost) being skipped when the scan
+# breaks there. `randomizable = false` marks that entry and the trailing
+# `end_table` sentinel -- species.py's randomize_type_chart must never touch
+# either one's own fields, only shuffle `multiplier` among randomizable=true
+# rows (never row order, never attacker/defender).
+
+[[entry]]
+attacker = "normal"
+defender = "rock"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "normal"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "fire"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "water"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "grass"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "ice"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "bug"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "rock"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "dragon"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fire"
+defender = "steel"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "fire"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "water"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "grass"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "ground"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "rock"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "water"
+defender = "dragon"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "water"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "electric"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "grass"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "ground"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "flying"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "electric"
+defender = "dragon"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "fire"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "water"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "grass"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "poison"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "ground"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "flying"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "bug"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "rock"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "dragon"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "grass"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "water"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "grass"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "ice"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "ground"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "flying"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "dragon"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ice"
+defender = "fire"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "normal"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "ice"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "poison"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "flying"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "psychic"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "bug"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "rock"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "dark"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "steel"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "grass"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "poison"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "ground"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "rock"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "ghost"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "poison"
+defender = "steel"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "fire"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "electric"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "grass"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "poison"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "flying"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "bug"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "rock"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ground"
+defender = "steel"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "electric"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "grass"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "fighting"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "bug"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "rock"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "flying"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "psychic"
+defender = "fighting"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "psychic"
+defender = "poison"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "psychic"
+defender = "psychic"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "psychic"
+defender = "dark"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "psychic"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "fire"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "grass"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "fighting"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "poison"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "flying"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "psychic"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "ghost"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "dark"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "bug"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "fire"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "ice"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "fighting"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "ground"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "flying"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "bug"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "rock"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ghost"
+defender = "normal"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "ghost"
+defender = "psychic"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ghost"
+defender = "dark"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ghost"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "ghost"
+defender = "ghost"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dragon"
+defender = "dragon"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dragon"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dark"
+defender = "fighting"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dark"
+defender = "psychic"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dark"
+defender = "ghost"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dark"
+defender = "dark"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "dark"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "fire"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "water"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "electric"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "ice"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "rock"
+multiplier = "super_effective"
+randomizable = true
+
+[[entry]]
+attacker = "steel"
+defender = "steel"
+multiplier = "not_effective"
+randomizable = true
+
+[[entry]]
+special = "foresight_marker"
+multiplier = "no_effect"
+randomizable = false
+
+[[entry]]
+attacker = "normal"
+defender = "ghost"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+attacker = "fighting"
+defender = "ghost"
+multiplier = "no_effect"
+randomizable = true
+
+[[entry]]
+special = "end_table"
+multiplier = "no_effect"
+randomizable = false

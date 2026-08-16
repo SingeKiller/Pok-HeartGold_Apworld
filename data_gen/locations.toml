@@ -4491,6 +4491,72 @@ original_item = 'badge_earth'
 trainer = 'leader_blue_blue'
 label = 'Viridian Gym - Earth Badge'
 
+# --- Menu unlocks (randomize_menu_unlocks, 2026-08-17) ---------------------
+#
+# Real, fillable locations like type = 'badge', gated per-item behind the
+# `randomize_menu_unlocks` OptionSet (options.py) -- create_locations only
+# creates whichever of these 6 keys the player actually enabled, same
+# per-item filtering pattern dexsanity already uses for species. Region and
+# original_item mirror where/how each flag is set in vanilla (see
+# scr_seq_0845_T20R0201.s -- New Bark, Mom's own scene in the player's
+# house -- for bag/trainer_card/save_button/options_button/pokegear, and
+# scr_seq_0229_R30R0201.s -- Route 30, Mr. Pokemon's House -- for pokedex).
+# Check detection reuses the exact same FLAG_GOT_* SaveVarsFlags bits
+# randomize_start_location's own flag-write mechanism already uses
+# (location_flags.py's _MENU_UNLOCK_FLAG_IDS) -- the location's own check
+# simply fires once the player has reached that point in the story, exactly
+# like a badge location fires once its Leader is beaten, independent of
+# which item (possibly someone else's) actually ends up placed there.
+# Real gap, not fixed here: FLAG_GOT_* only gates the *pause menu icon*
+# (src/sys_flags.c's CheckGotMenuIconI) -- it does not touch whatever
+# underlying mechanic the vanilla scene also triggers alongside it (e.g.
+# GivePokedex's own separate Pokedex-struct bit), so e.g. Dexsanity catch
+# detection keeps working immediately regardless of whether this player has
+# received menu_unlock_pokedex yet. Documented, not solved -- see
+# client.py's _apply_menu_unlock_gating for the full caveat.
+
+[menu_unlock_bag]
+region = 'new_bark_player_house_1f'
+type = 'menu_unlock'
+id = 0
+original_item = 'menu_unlock_bag'
+label = "New Bark Town - Mom's House (Bag)"
+
+[menu_unlock_trainer_card]
+region = 'new_bark_player_house_1f'
+type = 'menu_unlock'
+id = 1
+original_item = 'menu_unlock_trainer_card'
+label = "New Bark Town - Mom's House (Trainer Card)"
+
+[menu_unlock_pokegear]
+region = 'new_bark_player_house_1f'
+type = 'menu_unlock'
+id = 2
+original_item = 'menu_unlock_pokegear'
+label = "New Bark Town - Mom's House (Pokegear)"
+
+[menu_unlock_save_button]
+region = 'new_bark_player_house_1f'
+type = 'menu_unlock'
+id = 3
+original_item = 'menu_unlock_save_button'
+label = "New Bark Town - Mom's House (Save Menu)"
+
+[menu_unlock_options_button]
+region = 'new_bark_player_house_1f'
+type = 'menu_unlock'
+id = 4
+original_item = 'menu_unlock_options_button'
+label = "New Bark Town - Mom's House (Options Menu)"
+
+[menu_unlock_pokedex]
+region = 'route_30_mr_pokemon_house'
+type = 'menu_unlock'
+id = 5
+original_item = 'menu_unlock_pokedex'
+label = "Route 30 - Mr. Pokemon's House (Pokedex)"
+
 [pewter_gym_tm80]
 region = 'pewter_gym'
 type = 'hm_tm'

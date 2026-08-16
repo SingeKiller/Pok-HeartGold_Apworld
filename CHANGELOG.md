@@ -5,6 +5,110 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-08-17
+
+### Fixed
+Code review caught these before anything in 0.6.0 shipped -- see
+`docs/scope.md`'s "Code review fixes" entry for the full writeup.
+- `randomize_menu_unlocks` locations were self-checking: receiving the
+  item auto-completed the player's own location for it, with no real
+  in-game action, and a genuine vanilla trigger landing at the wrong
+  moment could be lost permanently. Detection and gating are now handled
+  atomically by the same function.
+- `johto_only` combined with `sphere_based_trainer_leveling` crashed
+  generation (`KeyError`) after a full multiworld fill.
+- `randomize_learnsets`'s ROM write ran unconditionally for every player,
+  not just those who enabled it -- now skipped whenever unchanged, and
+  degrades gracefully instead of crashing on a future data mismatch.
+  Also verified safe on a real SoulSilver ROM (previously unverified).
+- A write-guard race in `_apply_start_location_flags` (start-location
+  menu-unlock grant) could clobber a flag that changed mid-write.
+- A latent crash in `set_rules` if a future exit rule ever targeted an
+  edge `extra_route_blockers` removes.
+
+## [0.6.0] - 2026-08-17
+
+### Added
+- **`randomize_start_location`'s region graph is now logic-integrated**,
+  closing that option's own "known gap": the fill algorithm's own
+  reachability now genuinely starts from the chosen `starting_town`
+  instead of always assuming New Bark, regardless of this option. All 10
+  candidate towns verified completable via real generation + fill.
+- **`randomize_menu_unlocks`** option: turn any of Bag/Trainer Card/
+  Pokedex/Pokegear/Save button/Options button into a real, shufflable AP
+  item instead of always being unlocked for free. Combines cleanly with
+  `randomize_start_location`. None selected by default (no effect).
+- **`extra_route_blockers`** option: closes the Route 46 -> Route 45
+  one-way ledge shortcut for extra difficulty (previously left in as
+  vanilla behavior -- it lets a player reach 7 of Johto's 16 badges with
+  effectively zero items). Off by default; verified safe in combination
+  with every `randomize_start_location` starting town.
+- **`randomize_learnsets`** option: randomizes which move each species
+  learns at each level-up slot (the level itself stays vanilla). Purely
+  cosmetic to this project's own logic -- no region-access rule depends
+  on level-up movesets, only on owning HM items.
+
+## [0.5.0] - 2026-08-17
+
+### Added
+- **`randomize_start_location`**: skip the New Bark Town origin story and
+  spawn directly inside Elm's Lab instead. The real, vanilla 3-way starter
+  choice still plays out exactly as normal (Elm's own lab script, not a
+  hand-rolled substitute); a new `starting_town` option picks (or
+  `random`-rolls) which of 10 towns the lab's exit door leads to instead of
+  New Bark. Bag, Trainer Card, Save, Options, Pokédex and Pokégear access
+  are all granted automatically once the starter is chosen, and the rival
+  is pre-advanced past his first New Bark/Cherrygrove checkpoint so he
+  doesn't wait forever for an encounter that will never happen. Off by
+  default. Known gap: the region graph still treats New Bark as the fixed
+  logical origin regardless of this option -- see `docs/scope.md`.
+
+### Fixed
+- **Randomized starters whose display label is a raw decomp identifier**
+  (Nidoran-M/F, Mr. Mime, Ho-Oh, Mime Jr., Porygon-Z, and the Deoxys/
+  Wormadam/Giratina/Shaymin/Rotom alternate forms) crashed the
+  starter-selection text patch with a charmap error whenever
+  `randomize_starters` happened to land on one of them. A pre-existing
+  bug, never triggered before since no earlier seed had picked one of
+  these species; fixed with a small display-name override table plus
+  regression tests covering every affected species.
+
+## [0.4.0] - 2026-08-17
+
+### Added
+- **`randomize_move_categories`**: shuffle each damaging move's Physical/
+  Special category (a real, engine-honored per-move split in Generation
+  IV). Status moves are never touched either direction.
+- **`randomize_tm_moves`**: shuffle which move each TM (TM01-TM92)
+  teaches. HM01-HM08 always keep their vanilla move -- this project's
+  region-access rules key off owning the HM item, not whatever move it
+  currently teaches.
+- **`randomize_type_chart`**: shuffle the type-effectiveness chart's
+  resistances/weaknesses/immunities across the vanilla exception table.
+  Never touches the two engine-internal marker rows the Foresight/Odor
+  Sleuth/Scrappy mechanic depends on.
+- **`starting_money`**: set (or `random`-roll, 0-5000) how much money the
+  player starts with. Applied once, client-side, guarded by a
+  server-stored flag so a later reconnect never re-wipes money the
+  player has since earned or spent.
+- **`johto_only`**: exclude all of Kanto (180 regions) from the region
+  graph -- no location is created there, Kanto's 8 badges are never
+  added to the item pool, and `goal_badge_count` is silently capped at 8
+  for the `n_badges` goal. Johto's own Elite Four and the post-game Red
+  fight on Mount Silver are unaffected.
+
+## [0.3.3] - 2026-08-16
+
+### Added
+- **`dexsanity_trigger`** option: choose whether Dexsanity checks fire on
+  catching a species (`catch`, default, unchanged) or on merely
+  encountering it (`encounter`, reads the Pokedex's `seenSpecies`
+  bitfield instead of `caughtSpecies`).
+- **`dexsanity_encounter_types`** option: restrict which encounter
+  methods (land, surf, rock smash, old/good/super rod, headbutt) count
+  toward Dexsanity at all. Defaults to every method (no behaviour
+  change).
+
 ## [0.3.2] - 2026-08-17
 
 ### Fixed

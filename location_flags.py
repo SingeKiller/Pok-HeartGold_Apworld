@@ -35,6 +35,24 @@ _STATIC_POKEMON_FLAG_IDS: dict[str, int] = {
     "catch_lugia": 0x117,
 }
 
+# include/constants/flags.h's FLAG_GOT_BAG/_TRAINER_CARD/_SAVE_BUTTON/
+# _OPTIONS_BUTTON/_POKEDEX/_POKEGEAR -- src/sys_flags.c's own
+# CheckGotMenuIconI gates each pause-menu icon behind one of these, same
+# SaveVarsFlags.flags[] array as every other flag this module reads (task
+# "Randomized start location", 2026-08-16, reconfirmed for
+# randomize_menu_unlocks, 2026-08-17). Vanilla sets them all via
+# scr_seq_0845_T20R0201.s (New Bark, Mom's own scene) except
+# FLAG_GOT_POKEDEX (scr_seq_0229_R30R0201.s, Route 30, Mr. Pokemon's
+# House) -- see data_gen/locations.toml's own menu_unlock section header.
+_MENU_UNLOCK_FLAG_IDS: dict[str, int] = {
+    "menu_unlock_bag": 0x11B,
+    "menu_unlock_trainer_card": 0x11C,
+    "menu_unlock_save_button": 0x11D,
+    "menu_unlock_options_button": 0x11E,
+    "menu_unlock_pokedex": 0x6B,
+    "menu_unlock_pokegear": 0x9C,
+}
+
 # npc_gift locations with no single-purpose FLAG_GOT_* constant get a
 # synthetic id in this reserved band instead -- no real vanilla savedata
 # flag to read, so check detection can't observe them via RAM by default.
@@ -256,6 +274,8 @@ def flag_id_for_location(location_key: str) -> int | None:
         return TRAINER_FLAG_BASE + TRAINERS[data["trainer"]]["id"]
     if location_type == "static_pokemon":
         return _STATIC_POKEMON_FLAG_IDS[location_key]
+    if location_type == "menu_unlock":
+        return _MENU_UNLOCK_FLAG_IDS[location_key]
     return None
 
 
@@ -354,6 +374,16 @@ def build_badge_index_to_trainer_flag_id() -> dict[int, int]:
         badge_name = data["original_item"].removeprefix("badge_")
         result[BADGES[badge_name]] = TRAINER_FLAG_BASE + TRAINERS[data["trainer"]]["id"]
     return result
+
+
+def menu_unlock_flag_id_by_item_key() -> dict[str, int]:
+    """data/items.py `menu_unlock_*` key -> the SaveVarsFlags flag id it
+    ultimately unlocks -- client.py's own item-key -> flag-id lookup for
+    `_apply_menu_unlock_gating` (the item key and the location key it's
+    the `original_item` of are always identical by construction, see
+    data_gen/locations.toml's menu_unlock section, but this keeps client.py
+    from having to know that coincidence directly)."""
+    return dict(_MENU_UNLOCK_FLAG_IDS)
 
 
 def unsupported_location_keys() -> list[str]:

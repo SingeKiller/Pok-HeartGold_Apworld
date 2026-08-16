@@ -23,9 +23,10 @@ from __future__ import annotations
 from random import Random
 
 from data.encounters import ENCOUNTERS
-from data.moves import MOVES
+from data.moves import MOVES, TM_HM_MOVES
 from data.species import SPECIES
 from data.trainers import TRAINERS
+from data.type_chart import TYPE_CHART
 
 # Mirrors options.RandomizeWildPokemon's option_vanilla/option_shuffle/
 # option_full_random/option_zone_method_mapping values (see this module's
@@ -726,6 +727,68 @@ def randomize_move_types(rng: Random, enabled: bool, moves: dict = MOVES) -> dic
     return {key: {**data, "type": rng.choice(real_types)} for key, data in moves.items()}
 
 
+def randomize_move_categories(rng: Random, enabled: bool, moves: dict = MOVES) -> dict:
+    """Randomize each damaging move's Category between "physical" and
+    "special" (a coin flip per move). "status" moves are never touched
+    either direction -- a damaging move never becomes "status" and vice
+    versa, since Generation IV's category determines which stat pair
+    (Attack/Defense vs Sp. Attack/Sp. Defense) the move actually uses.
+    `enabled=False` returns `moves` unchanged."""
+    if not enabled:
+        return moves
+
+    return {
+        key: (
+            {**data, "category": rng.choice(("physical", "special"))} if data["category"] != "status" else data
+        )
+        for key, data in moves.items()
+    }
+
+
+def randomize_tm_hm_moves(rng: Random, enabled: bool, tm_hm_moves: dict = TM_HM_MOVES) -> dict:
+    """Shuffle which move each TM (TM01-TM92) teaches -- a permutation, so
+    the same 92 moves stay available, just reassigned across machine
+    numbers. HM01-HM08 are never touched: this project's region-access
+    rules key off owning the HM item, not off whatever move it currently
+    teaches, so an HM must always teach its vanilla field move or a
+    player with the AP-logic "Surf" item could be left unable to actually
+    Surf. `enabled=False` returns `tm_hm_moves` unchanged."""
+    if not enabled:
+        return tm_hm_moves
+
+    tm_keys = tuple(k for k in tm_hm_moves if k.startswith("tm"))
+    shuffled_moves = [tm_hm_moves[k] for k in tm_keys]
+    rng.shuffle(shuffled_moves)
+    new_tm_moves = dict(zip(tm_keys, shuffled_moves))
+
+    return {key: new_tm_moves.get(key, value) for key, value in tm_hm_moves.items()}
+
+
+def randomize_type_chart(rng: Random, enabled: bool, type_chart: list = TYPE_CHART) -> list:
+    """Shuffle the `multiplier` (not_effective/no_effect/super_effective)
+    column across every `randomizable: True` row -- a permutation, so the
+    same overall mix of immunities/resistances/weaknesses still exists,
+    just redistributed onto different attacker/defender pairs. Each row's
+    own `attacker`/`defender`/`special` fields and the list's own order
+    are never touched (row order encodes a real engine dependency -- see
+    data_gen/type_chart.toml's header comment -- reordering would be
+    unsafe even though this function never does it). The two
+    `randomizable: False` marker rows (foresight_marker, end_table) are
+    never touched either direction. `enabled=False` returns `type_chart`
+    unchanged."""
+    if not enabled:
+        return type_chart
+
+    randomizable_indices = [i for i, row in enumerate(type_chart) if row["randomizable"]]
+    shuffled_multipliers = [type_chart[i]["multiplier"] for i in randomizable_indices]
+    rng.shuffle(shuffled_multipliers)
+
+    new_chart = list(type_chart)
+    for i, multiplier in zip(randomizable_indices, shuffled_multipliers):
+        new_chart[i] = {**new_chart[i], "multiplier": multiplier}
+    return new_chart
+
+
 # --- 7. Nuzlocke aids ---------------------------------------------------------
 # Deterministic toggles, not randomizers -- see docs/scope.md's
 # "Nuzlocke mode" section.
@@ -794,4 +857,26 @@ def neutralize_trapping_abilities(enabled: bool, species: dict = SPECIES) -> dic
             new_abilities = (ability1, ability1)
 
         new_species[key] = {**data, "abilities": new_abilities}
+    return new_species
+
+
+def randomize_learnsets(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
+    """Randomize each species' level-up learnset (`level_learnset`, a
+    tuple of `(level, move_key)` pairs) -- each entry's move is replaced
+    with an independently-drawn real move, the level it's learned at is
+    left untouched (matches vanilla level-up pacing, only which move
+    lands there changes). Purely cosmetic to this project's own logic:
+    unlike `randomize_tm_moves`, no region-access rule anywhere depends
+    on which move a species learns by leveling up (only on owning the HM
+    *item*, see randomize_tm_hm_moves's own docstring), so there is no
+    HM-exclusion concern here the way there was there. `enabled=False`
+    returns `species` unchanged."""
+    if not enabled:
+        return species
+
+    move_keys = tuple(MOVES.keys())
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        new_learnset = tuple((level, rng.choice(move_keys)) for level, _move_key in data["level_learnset"])
+        new_species[key] = {**data, "level_learnset": new_learnset}
     return new_species

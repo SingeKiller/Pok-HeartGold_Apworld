@@ -144,6 +144,8 @@ def create_locations(
     dexsanity_species_methods: dict[str, frozenset[str]] | None = None,
     legendarysanity: bool = False,
     hidden_items_require_dowsing_machine: bool = False,
+    excluded_region_keys: frozenset[str] = frozenset(),
+    menu_unlocks: frozenset[str] = frozenset(),
 ) -> None:
     """Create a `HeartGoldLocation` for every `data/locations.py` entry and
     attach it to its parent `Region` (as built by
@@ -167,14 +169,30 @@ def create_locations(
     requiring the Dowsing Machine when `hidden_items_require_dowsing_
     machine` is set -- off by default, since vanilla never actually
     requires it to pick up an already-known hidden item (it's purely a
-    detection aid)."""
+    detection aid). `excluded_region_keys` (`johto_only`'s
+    regions.KANTO_REGION_KEYS, or empty) skips any location whose own
+    `region` is excluded -- must be the exact same region set passed to
+    `regions.create_regions`, or `regions[data["region"]]` below raises
+    KeyError for a location whose parent Region was never created.
+    `type = 'menu_unlock'` locations (task "randomize_menu_unlocks",
+    2026-08-17) are gated per-entry, not per-type: `menu_unlocks` is the
+    `options.RandomizeMenuUnlocks` OptionSet's own value (e.g. {"bag",
+    "pokedex"}), and a `menu_unlock_<key>` location is only created when
+    `<key>` is in that set -- every data/locations.py `menu_unlock_*` key
+    is exactly "menu_unlock_" + its own RandomizeMenuUnlocks option key by
+    construction (data_gen/locations.toml), so no separate mapping table
+    is needed."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
             continue
+        if data["region"] in excluded_region_keys:
+            continue
         if data["type"] == "trainer" and not trainersanity:
             continue
         if data["type"] == "static_pokemon" and not legendarysanity:
+            continue
+        if data["type"] == "menu_unlock" and key.removeprefix("menu_unlock_") not in menu_unlocks:
             continue
         methods: frozenset[str] | None = None
         if data["type"] == "dexsanity":

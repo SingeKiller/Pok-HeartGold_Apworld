@@ -44,11 +44,22 @@ def _make_access_rule(
 
 
 def set_rules(player: int, multiworld: MultiWorld, regions: dict[str, Region]) -> None:
-    """Apply every EXIT_RULES entry to its matching Entrance."""
+    """Apply every EXIT_RULES entry to its matching Entrance. Both
+    endpoint regions existing doesn't guarantee the Entrance between them
+    does -- `extra_route_blockers` (regions.py) can remove a specific
+    edge while leaving both of its regions intact (unlike `johto_only`,
+    which removes whole regions) -- so this also checks the Entrance
+    itself actually exists before calling `multiworld.get_entrance`
+    (which raises if it doesn't; latent bug found by code review,
+    2026-08-17, not currently triggered only because no EXIT_RULES entry
+    happens to target route_46 -> route_45 today)."""
     for (src, dest), requirement in EXIT_RULES.items():
         if src not in regions or dest not in regions:
             continue
-        entrance = multiworld.get_entrance(f"{src} -> {dest}", player)
+        entrance_name = f"{src} -> {dest}"
+        if entrance_name not in {exit_.name for exit_ in regions[src].exits}:
+            continue
+        entrance = multiworld.get_entrance(entrance_name, player)
         rule = _make_access_rule(
             player, tuple(requirement["items"]), tuple(requirement["badges"]), tuple(requirement.get("events", ()))
         )
