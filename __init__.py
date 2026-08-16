@@ -47,6 +47,7 @@ from data.locations import LOCATIONS  # noqa: E402
 from data.rules import BADGES  # noqa: E402
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import (  # noqa: E402
+    DOWSING_MACHINE_ITEM_LABEL,
     SHELVED_LOCATION_TYPES,
     badge_item_label,
     create_location_label_to_code_map,
@@ -72,6 +73,7 @@ from species import (  # noqa: E402
     randomize_trainer_parties,
     randomize_wild_encounters,
     scale_trainer_levels,
+    scale_trainer_levels_by_sphere,
     species_encounter_methods,
 )
 from universal_tracker import (  # noqa: E402
@@ -107,6 +109,72 @@ _LABEL_TO_ITEM_KEY = {data["label"]: key for key, data in ITEMS.items()}
 # Reachability proxies for the goal option -- see NOTES.md.
 _ELITE_FOUR_GOAL_REGION = "pokemon_league_hall_of_fame"
 _CHAMPION_RED_GOAL_REGION = "mount_silver_cave_summit"
+
+
+def _compute_region_spheres(multiworld, player: int, region_keys) -> dict[str, int]:
+    """0-indexed sphere at which each of `region_keys` (this player's own
+    region-graph keys) first becomes reachable, from the real, fully-
+    filled multiworld's own item-collection order -- not vanilla story
+    position. A region string absent from the result was never reached
+    (dead-end past an unreachable item, or a graph bug). Mirrors
+    MultiWorld.get_spheres()'s own sweep, but tracks region reachability
+    instead of location reachability."""
+    from BaseClasses import CollectionState
+
+    state = CollectionState(multiworld)
+    remaining = set(region_keys)
+    result: dict[str, int] = {}
+
+    def _record_reachable(sphere_index: int) -> None:
+        for region_key in list(remaining):
+            if state.can_reach_region(region_key, player):
+                result[region_key] = sphere_index
+                remaining.discard(region_key)
+
+    _record_reachable(0)
+    locations = set(multiworld.get_filled_locations())
+    sphere_index = 0
+    while locations and remaining:
+        sphere_index += 1
+        newly_reachable = {location for location in locations if location.can_reach(state)}
+        if not newly_reachable:
+            break
+        for location in newly_reachable:
+            state.collect(location.item, True, location)
+        locations -= newly_reachable
+        _record_reachable(sphere_index)
+
+    return result
+
+
+# A `badge` location's own `region` is where its flag is *detected*, which
+# for 15 of 16 Gym Leaders is simply their own gym -- Clair is the one
+# exception (her badge is detected at Dragon's Den Shrine's puzzle-
+# completion cutscene, not her real battle at Blackthorn Gym, see
+# data_gen/locations.toml's own note on this).
+_GYM_LEADER_REGION_OVERRIDES = {"leader_clair_clair": "blackthorn_gym"}
+
+
+def _sphere_map_for_type(multiworld, player: int, location_type: str) -> dict[str, int]:
+    """data/trainers.py key -> 0-indexed sphere, for every `location_type`
+    LOCATIONS entry's own `trainer`/`region` fields (`_GYM_LEADER_REGION_
+    OVERRIDES` applied for `location_type == "badge"`), joined against
+    `_compute_region_spheres` -- used by sphere-based trainer leveling.
+    Independent of the `trainersanity`/badge-always-on status: every
+    trainer/Leader has a region regardless of whether its own Location
+    was actually created this seed. A trainer whose region is never
+    reached is simply absent from the result."""
+    trainer_regions = {
+        data["trainer"]: _GYM_LEADER_REGION_OVERRIDES.get(data["trainer"], data["region"])
+        for data in LOCATIONS.values()
+        if data["type"] == location_type
+    }
+    region_spheres = _compute_region_spheres(multiworld, player, set(trainer_regions.values()))
+    return {
+        trainer_key: region_spheres[region_key]
+        for trainer_key, region_key in trainer_regions.items()
+        if region_key in region_spheres
+    }
 
 
 def _constrain_undetectable_locations(player: int, multiworld) -> None:
@@ -265,6 +333,7 @@ class HeartGoldWorld(World):
             dexsanity=bool(self.options.dexsanity.value),
             dexsanity_species_methods=self.dexsanity_species_methods,
             legendarysanity=bool(self.options.legendarysanity.value),
+            hidden_items_require_dowsing_machine=bool(self.options.hidden_items_require_dowsing_machine.value),
         )
 
     def create_items(self) -> None:
@@ -301,6 +370,20 @@ class HeartGoldWorld(World):
                 pool.append(create_item(item_key, self.player))
             else:
                 pool.append(create_item(data["original_item"], self.player))
+
+        if bool(self.options.hidden_items_require_dowsing_machine.value):
+            # Reclassify the one real Dowsing Machine item as progression --
+            # data/items.py's static classification ("useful") doesn't know
+            # about this option, but every hidden_item location's own
+            # access_rule now depends on it (locations.py's
+            # _hidden_item_access_rule).
+            from BaseClasses import ItemClassification
+
+            for item in pool:
+                if item.name == DOWSING_MACHINE_ITEM_LABEL:
+                    item.classification |= ItemClassification.progression
+                    break
+
         self.multiworld.itempool += pool
 
     def create_item(self, name: str) -> Item:
@@ -332,9 +415,10 @@ class HeartGoldWorld(World):
         self.generated_trainer_parties = randomize_trainer_parties(
             self.random, bool(self.options.randomize_trainers.value)
         )
-        self.generated_trainer_parties = scale_trainer_levels(
-            self.options.trainer_level_scaling.value, trainers=self.generated_trainer_parties
-        )
+        if not bool(self.options.sphere_based_trainer_leveling.value):
+            self.generated_trainer_parties = scale_trainer_levels(
+                self.options.trainer_level_scaling.value, trainers=self.generated_trainer_parties
+            )
         self.generated_species = randomize_evolutions(self.random, self.options.randomize_evolutions.value)
         self.generated_species = convert_trade_and_friendship_evolutions(
             self.generated_species,
@@ -377,4 +461,17 @@ class HeartGoldWorld(World):
         }
 
     def generate_output(self, output_directory: str) -> None:
+        if bool(self.options.sphere_based_trainer_leveling.value):
+            # Needs the multiworld's real, final item placement -- only
+            # known once fill has actually run, i.e. here, not set_rules().
+            # Regular trainers and Gym Leaders are scaled against separate
+            # curves (each own min/max, own max_sphere) so a Leader stays
+            # boss-tier relative to the other Leaders instead of being
+            # pulled toward this seed's single weakest regular trainer.
+            bonus = self.options.sphere_based_trainer_leveling_bonus.value
+            for location_type in ("trainer", "badge"):
+                trainer_sphere = _sphere_map_for_type(self.multiworld, self.player, location_type)
+                self.generated_trainer_parties = scale_trainer_levels_by_sphere(
+                    self.generated_trainer_parties, trainer_sphere, bonus
+                )
         write_output_patch(self, output_directory)

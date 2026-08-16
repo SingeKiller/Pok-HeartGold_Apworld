@@ -329,6 +329,33 @@ def build_locally_substituted_ap_location_ids() -> set[int]:
     return result
 
 
+def build_badge_index_to_trainer_flag_id() -> dict[int, int]:
+    """badge.h's own BADGE_* index (0-15) -> TRAINER_FLAG_BASE + that
+    gym Leader's own trainer id -- the *real* "have you actually beaten
+    them" flag, as opposed to PlayerProfile's badge bit (which a
+    multiworld can set from receiving the badge item at any location,
+    independent of whether this player has personally fought that
+    Leader yet). Used by client.py to defer applying a received badge_*
+    item's PlayerProfile bit until the Leader is actually beaten --
+    every gym Leader's own field script gates its `TrainerBattle` call
+    behind `CheckBadge`, so setting the bit *before* the real fight
+    would make the Leader think you already beat them and skip the
+    battle entirely (a real bug reported by a player, 2026-08-17):
+    `SetVar VAR_SCENE_ELMS_LAB, 6` and other story-progression writes
+    only happen inside that same battle-won branch, so skipping the
+    fight silently stalls the Elm's Lab egg-pickup call too, not just
+    the fight itself."""
+    from data.rules import BADGES
+
+    result: dict[int, int] = {}
+    for data in LOCATIONS.values():
+        if data["type"] != "badge":
+            continue
+        badge_name = data["original_item"].removeprefix("badge_")
+        result[BADGES[badge_name]] = TRAINER_FLAG_BASE + TRAINERS[data["trainer"]]["id"]
+    return result
+
+
 def unsupported_location_keys() -> list[str]:
     """Location keys with a real AP location that this client cannot
     detect via a savedata flag read. Exposed for diagnostics/logging, not

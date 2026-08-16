@@ -128,6 +128,13 @@ def get_location_region(key: str) -> str:
     return LOCATIONS[key]["region"]
 
 
+DOWSING_MACHINE_ITEM_LABEL = ITEMS["dowsing_mchn"]["label"]
+
+
+def _hidden_item_access_rule(player: int) -> Callable[[CollectionState], bool]:
+    return lambda state: state.has(DOWSING_MACHINE_ITEM_LABEL, player)
+
+
 def create_locations(
     player: int,
     regions: dict[str, Region],
@@ -136,6 +143,7 @@ def create_locations(
     dexsanity: bool = False,
     dexsanity_species_methods: dict[str, frozenset[str]] | None = None,
     legendarysanity: bool = False,
+    hidden_items_require_dowsing_machine: bool = False,
 ) -> None:
     """Create a `HeartGoldLocation` for every `data/locations.py` entry and
     attach it to its parent `Region` (as built by
@@ -155,7 +163,11 @@ def create_locations(
     (Ho-Oh/Lugia) work the same way, gated on `legendarysanity` -- off by
     default, matching every other Pokemon Archipelago world, which leaves
     static legendary encounters entirely vanilla rather than tracking
-    them as a check."""
+    them as a check. `type = 'hidden_item'` locations get an access_rule
+    requiring the Dowsing Machine when `hidden_items_require_dowsing_
+    machine` is set -- off by default, since vanilla never actually
+    requires it to pick up an already-known hidden item (it's purely a
+    detection aid)."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
@@ -184,4 +196,6 @@ def create_locations(
                 rule = _dexsanity_access_rule(player, methods)
                 if rule is not None:
                     location.access_rule = rule
+            elif data["type"] == "hidden_item" and hidden_items_require_dowsing_machine:
+                location.access_rule = _hidden_item_access_rule(player)
         region.locations.append(location)

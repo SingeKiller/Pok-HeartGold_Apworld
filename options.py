@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Options import Choice, DeathLink, OptionGroup, PerGameCommonOptions, Range, StartInventoryPool, Toggle
+from Options import Choice, DeathLink, FreeText, OptionGroup, PerGameCommonOptions, Range, StartInventoryPool, Toggle
 
 
 class GameVersion(Choice):
@@ -83,6 +83,34 @@ class RandomizeStarters(Toggle):
     matches it too."""
 
     display_name = "Randomize Starters"
+
+
+class RandomizeStartLocation(Toggle):
+    """Start the game already free-roaming in a random Johto/Kanto town
+    instead of New Bark Town -- the vanilla intro (Mom, Elm's Lab, rival,
+    Mystery Egg) is skipped entirely, not relocated. You begin with your
+    Bag, Pokédex, Pokégear, Trainer Card, and a single starter Pokémon
+    already granted (see `starter_species` to choose which one).
+
+    Off by default (vanilla intro, unchanged). Under active development
+    (2026-08-16) -- not yet live-verified end to end.
+    """
+
+    display_name = "Randomize Start Location"
+
+
+class StarterSpecies(FreeText):
+    """Only used when `randomize_start_location` is on: the single
+    Pokémon you're granted directly, no in-game selection screen.
+
+    Type an exact species name (case-insensitive, e.g. "Cyndaquil" or
+    "cyndaquil") to guarantee that species. Leave blank for a random
+    species (same pool/rules as `randomize_starters`). Ignored entirely
+    when `randomize_start_location` is off.
+    """
+
+    display_name = "Starter Species"
+    default = ""
 
 
 class RandomizeTrainers(Toggle):
@@ -183,12 +211,52 @@ class TrainerLevelScaling(Range):
     """Scale every trainer Pokémon's level by this percentage (100 = vanilla
     levels, unchanged). A difficulty knob, not a randomizer -- the same
     percentage applies uniformly to every trainer, every generation. Levels
-    are clamped to HGSS's own 1-100 range after scaling."""
+    are clamped to HGSS's own 1-100 range after scaling.
+
+    Ignored when `sphere_based_trainer_leveling` is on.
+    """
 
     display_name = "Trainer Level Scaling"
     range_start = 50
     range_end = 200
     default = 100
+
+
+class SphereBasedTrainerLeveling(Toggle):
+    """Rescale every trainer's levels to match how deep into *this seed's
+    own randomized region graph* they actually sit, instead of vanilla's
+    fixed story order -- a trainer near the start of your reachable area
+    gets an easy level, one behind a lot of required items gets a hard
+    one, regardless of where they'd be in a vanilla playthrough.
+
+    Computed after the world is filled, from the real order items become
+    available in this seed -- not a live in-game read, and not related to
+    your own party's actual levels. Each trainer's party keeps its own
+    internal level spread, just re-centered on a level appropriate for
+    when you can reach them. Overrides `trainer_level_scaling` when on.
+
+    Covers every regular trainer battle and every Gym Leader (scaled
+    against their own separate curve, so a Leader stays boss-tier
+    relative to the other Leaders instead of being pulled toward this
+    seed's single weakest regular trainer). Elite Four members and
+    rivals are left at their vanilla level -- neither has a reliably
+    known region in this world's own data.
+    """
+
+    display_name = "Sphere-Based Trainer Leveling"
+
+
+class SphereBasedTrainerLevelingBonus(Range):
+    """Shift every level computed by `sphere_based_trainer_leveling` by
+    this many levels before clamping to HGSS's 1-100 range -- negative
+    makes every trainer easier, positive makes every trainer harder.
+    Ignored when `sphere_based_trainer_leveling` is off.
+    """
+
+    display_name = "Sphere-Based Trainer Leveling Bonus"
+    range_start = -20
+    range_end = 20
+    default = 0
 
 
 class Goal(Choice):
@@ -218,6 +286,19 @@ class GoalBadgeCount(Range):
     range_start = 1
     range_end = 16
     default = 16
+
+
+class HiddenItemsRequireDowsingMachine(Toggle):
+    """Require owning the Dowsing Machine in logic before any hidden item
+    location is considered reachable.
+
+    Off by default: vanilla never actually requires it to pick up an
+    already-known hidden item (it's purely a detection aid, not a real
+    gate), matching this world's own accessibility assumptions everywhere
+    else.
+    """
+
+    display_name = "Hidden Items Require Dowsing Machine"
 
 
 class Trainersanity(Toggle):
@@ -364,6 +445,8 @@ class HeartGoldOptions(PerGameCommonOptions):
 
     randomize_wild_pokemon: RandomizeWildPokemon
     randomize_starters: RandomizeStarters
+    randomize_start_location: RandomizeStartLocation
+    starter_species: StarterSpecies
     randomize_trainers: RandomizeTrainers
     exclude_legendaries: ExcludeLegendaries
     randomize_evolutions: RandomizeEvolutions
@@ -372,6 +455,10 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_move_types: RandomizeMoveTypes
     randomize_species_types: RandomizeSpeciesTypes
     trainer_level_scaling: TrainerLevelScaling
+    sphere_based_trainer_leveling: SphereBasedTrainerLeveling
+    sphere_based_trainer_leveling_bonus: SphereBasedTrainerLevelingBonus
+
+    hidden_items_require_dowsing_machine: HiddenItemsRequireDowsingMachine
 
     disable_ohko_moves: DisableOhkoMoves
     disable_trapping_abilities: DisableTrappingAbilities
@@ -405,6 +492,8 @@ OPTION_GROUPS = [
         [
             RandomizeWildPokemon,
             RandomizeStarters,
+            RandomizeStartLocation,
+            StarterSpecies,
             ExcludeLegendaries,
             RandomizeTrainers,
             RandomizeEvolutions,
@@ -413,6 +502,9 @@ OPTION_GROUPS = [
             RandomizeMoveTypes,
             RandomizeSpeciesTypes,
             TrainerLevelScaling,
+            SphereBasedTrainerLeveling,
+            SphereBasedTrainerLevelingBonus,
+            HiddenItemsRequireDowsingMachine,
         ],
     ),
     OptionGroup(

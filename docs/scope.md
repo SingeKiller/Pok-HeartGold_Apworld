@@ -179,6 +179,17 @@ close the existing flag-reading mechanism already gets.
   recommending a `goal_badge_count` above 7 in the player yaml template/docs
   for anyone who wants a `n_badges` goal that actually requires
   progression.
+  **Closed out 2026-08-16**: re-verified with a real `ArchipelagoGenerate.exe`
+  run (every randomizer on, Trainersanity/Dexsanity/Legendarysanity all on,
+  `goal: champion_red`, the deepest goal) -- the playthrough now takes 4 real
+  spheres (badges/HMs/S.S. Ticket) before `elite_four_defeated`, no more
+  trivial sphere-0/1 completions, no unreachable-location warnings. Also
+  confirmed `route_28`/Mt Silver has exactly one incoming edge
+  (`route_22_pokemon_league_reception_gate -> route_28`), gated on
+  `elite_four_defeated` with no bypass. The playthrough correctly shows
+  nothing after `elite_four_defeated_event` for `champion_red` -- reaching
+  Mt Silver Summit needs no item beyond what E4 already required, so that's
+  not a truncated path, just nothing left to require.
 - **Real badge randomization** (as a tradeable/shufflable item, not just a
   fixed logic milestone). Corrected understanding (2026-08-11): a badge is
   a bit in `PlayerProfile.johtoBadges`/`kantoBadges` (the `SAVE_PLAYERDATA`
@@ -216,6 +227,32 @@ close the existing flag-reading mechanism already gets.
   rules (Surf/Rock Smash/etc. needing a badge to use the HM in the field)
   both now check ownership of the real `badge_*` item instead of the old
   locked-event name.
+  **Real bug, reported by a player and fixed 2026-08-17**: receiving a
+  `badge_*` item from anywhere in the multiworld *before* physically
+  reaching that gym set the `PlayerProfile` bit immediately -- but every
+  gym Leader's own field script gates its `TrainerBattle` call behind
+  `CheckBadge`, so the Leader then thought the fight had already
+  happened and skipped it entirely (decomp-confirmed in Violet Gym's own
+  script: `CheckBadge BADGE_ZEPHYR -> GoToIfEq <skip battle>`). This
+  silently broke more than just that one fight: `SetVar
+  VAR_SCENE_ELMS_LAB, 6` (which gates Elm's Lab's egg-pickup phone call)
+  and `SetTrainerFlag TRAINER_BIRD_KEEPER_GS_ROD`/`_ABE` (unlocking two
+  more, Trainersanity-eligible trainers) only happen inside that same
+  battle-won branch -- skipping the fight silently stalled all three.
+  **Fixed client-side, no ROM/script patch needed**: `client.py`'s
+  `_apply_pending_badges` (replacing the old immediate-write logic in
+  `_apply_received_items`) now defers setting the `PlayerProfile` badge
+  bit until `TRAINER_FLAG_BASE + <that Leader's trainer id>` is already
+  set (i.e. the player has genuinely beaten them for real) -- the exact
+  same flag the badge location's own check detection already reads.
+  Re-derived fresh from `ctx.items_received` every tick rather than
+  tracked in instance state, so a client restart mid-seed can't lose
+  track of a badge still waiting on its real fight. Verified this is the
+  *only* location type with this class of risk (checked every other item
+  this project writes directly to savedata -- Bag items, DeathLink's HP
+  zeroing, Dexsanity/legendarysanity filler -- none of them double as a
+  vanilla script's own "skip this content" condition the way a badge's
+  `PlayerProfile` bit does).
 - Pokéwalker.
 - Pokéathlon.
 - Bug Catching Contest / Safari Zone.
@@ -554,18 +591,133 @@ working toolchain for -- 2026-08-15)
   session (a live battle-state RAM signature scan, similar in spirit to
   the arrayHeaders scan but for dynamic memory) before this is even
   worth scoping further.
-- **Randomized start location + starter kit** (user request 2026-08-15).
-  Investigated live: the player's on-screen, *live* position lives in
-  the same dynamically-allocated runtime `FieldSystem`/`PlayerAvatar`
-  memory as battle state above -- not the persistent SaveData block.
+- **Randomized start location + starter kit** (user request 2026-08-15,
+  re-investigated in depth 2026-08-16 with live BizHawk verification --
+  most of the original "blocked" assessment below turned out to be
+  wrong). Original finding: the player's on-screen, *live* position lives
+  in the same dynamically-allocated runtime `FieldSystem`/`PlayerAvatar`
+  memory as battle state -- not the persistent SaveData block.
   `LocalFieldData_GetCurrentPosition` (`include/save_local_field_data.h`)
-  *is* a real, plain SaveData field for the player's map/x/y/direction,
-  but it's only read back at save-file *load* time (resuming a save) --
-  writing it while the game is already running would not move the
-  player on screen until a full reload, defeating the point of a live
-  teleport the moment this client first connects. Same blocked-not-hard
-  category as trainer level matching above; likely needs the same kind
-  of dynamic-memory investigation, possibly resolvable together.
+  *is* a real, plain SaveData field for map/x/y/direction, but only read
+  back at save-file *load* time -- writing it live would not move the
+  player until a full reload, so a live-teleport-on-connect design
+  (the original plan) genuinely doesn't work.
+
+  **What actually does work, decomp-verified and live-tested 2026-08-16:**
+  - `src/location_backup.c`'s `sLocation_PlayerRoom` (a plain, static,
+    5-word `Location` ROM constant -- mapId/warpId/x/y/direction) is
+    copied into `LocalFieldData.position` by `Save_SetPositionToPlayerRoom`,
+    called once from `overlay_36.c`'s `NewGame_InitSaveData` at New Game
+    creation (*before* the player even names their character) -- found by
+    byte-pattern search in the decompressed ARM9, single unique match at
+    RAM address `020FA17C` (file offset `0xFA17C`). **Live-verified
+    twice**: overwriting these 20 bytes at runtime (before the game reads
+    them) changes where the player actually spawns -- confirmed moving
+    within the same room (x/y shift) and confirmed warping to a
+    *different real town* (Cherrygrove Pokemon Center, mapId 69, x=8,
+    y=13) after character creation. Since this is a static ROM constant,
+    not a live teleport, it can simply be baked into the generated patch
+    at build time like every other data table this project already
+    edits -- no ASM, no reload-timing problem at all.
+  - **A complete, ready-made table of every safe warp destination
+    already exists in the ROM**: `sSpawnMaps` (`asm/unk_0203BA5C.s`,
+    not yet source-matched in the decomp but fully readable as ASM),
+    30 entries covering every major Johto/Kanto town and a few routes,
+    each with death-warp/fly-point/special-warp coordinates -- these are
+    the exact coordinates the game itself already uses for whiteout
+    recovery and Fly, so they're guaranteed-valid floor tiles, not
+    guessed values. Located and extracted directly from the ROM (byte
+    search for the first entry's known values, base offset `0xF9E80`,
+    18 bytes/entry): new_bark, cherrygrove, violet, azalea, cianwood,
+    goldenrod, olivine, ecruteak, mahogany, lake_of_rage, blackthorn,
+    mount_silver, pallet, viridian, pewter, cerulean, lavender,
+    vermilion, celadon, fuchsia, cinnabar, indigo_plateau, saffron,
+    safari_zone_gate, battle_frontier, pokeathlon_dome,
+    route_22_reception_gate, route_32, route_3, route_10 (some of these,
+    e.g. Indigo Plateau/postgame spots, would need excluding as
+    candidates the same way Crystal/FRLG blocklist theirs).
+  - **Skipping the New Bark intro entirely turned out to be simpler than
+    expected, but reveals more missing state than expected too.**
+    Investigated whether "OakSpeech" (`src/oaks_speech.c`, 2237 lines) is
+    the Mom/Elm/rival cutscene -- it isn't; despite the name (carried
+    over from Gen 1's Professor Oak), it's purely the character-creation
+    UI (name/gender/appearance), self-contained, running independently
+    of location. **Live-verified**: redirecting the spawn point to
+    Cherrygrove (via the `sLocation_PlayerRoom` patch above) skips the
+    New Bark intro entirely -- confirming the whole Mom/Elm's
+    Lab/rival/Mystery Egg sequence is gated on physically being in New
+    Bark's own maps, not on any global "intro in progress" state. But
+    the resulting save is missing more than just the starter: **no Bag,
+    no Trainer Card, no Save button, no Options button** were available
+    in the pause menu. Root-caused: `src/sys_flags.c`'s
+    `CheckGotMenuIconI(state, FLAG_GOT_BAG + icon_idx)` gates each pause
+    menu icon behind its own independent flag --
+    `include/constants/flags.h`: `FLAG_GOT_BAG` (0x11B),
+    `FLAG_GOT_TRAINER_CARD` (0x11C), `FLAG_GOT_SAVE_BUTTON` (0x11D),
+    `FLAG_GOT_OPTIONS_BUTTON` (0x11E), plus `FLAG_GOT_STARTER` (0x6A),
+    `FLAG_GOT_POKEDEX` (0x6B), `FLAG_GOT_POKEGEAR` (0x9C) found the same
+    way -- all in the same `SaveVarsFlags.flags[]` array this project
+    already reads/writes constantly (same mechanism as badges). No ASM
+    needed to unlock any of these, just the right flag writes.
+
+  **Community feedback (2026-08-16) on candidate town selection, worth
+  weighing in on step 1 below**: Cinnabar Island has so few checks in its
+  immediate area that the fill algorithm would be forced to place a
+  progression item almost immediately -- poor pacing/feel, not a logic
+  bug. Mt Silver risks the same issue *and* a real logic conflict on top
+  of it: it's already gated behind `elite_four_defeated` in this
+  project's own graph (see the Ho-Oh/Lugia entry above), so starting
+  there directly would clash with that gate. Likely also applies to
+  other side-content spawn points (Safari Zone Gate, Battle Frontier,
+  Pokeathlon Dome) -- the curated candidate list (step 1) needs to
+  actively exclude sparse-check and already-gated destinations, not just
+  postgame-only ones like Indigo Plateau.
+
+  **Remaining work to actually ship this (real, but no more unknown
+  blockers)**:
+  1. Extract the full `sSpawnMaps` table properly (script, not manual)
+     and pick a curated "safe" candidate subset -- excluding sparse-check
+     towns (e.g. Cinnabar Island) and anything already gated elsewhere in
+     this project's own graph (Mt Silver, Indigo Plateau), per the
+     community feedback above.
+  2. Bake the chosen town's `sLocation_PlayerRoom` replacement into the
+     generated patch (build-time ROM edit, already proven).
+  3. Client-side, on first connection to a fresh save: set
+     `FLAG_GOT_STARTER`/`FLAG_GOT_POKEDEX`/`FLAG_GOT_POKEGEAR`/
+     `FLAG_GOT_BAG`/`FLAG_GOT_TRAINER_CARD`/`FLAG_GOT_SAVE_BUTTON`/
+     `FLAG_GOT_OPTIONS_BUTTON`, and write an actual starter Pokemon into
+     the (currently empty) Party struct (species from the existing
+     `randomize_starters` pipeline) -- same class of write already used
+     for DeathLink's HP-zeroing and badge grants.
+  4. Rework the region graph to accept a variable starting region
+     instead of the hardcoded New Bark root, so Archipelago's own fill
+     algorithm naturally guarantees whatever items are needed to
+     progress from the chosen town.
+  5. Live-verify the whole chain end-to-end (position + flags + starter
+     together) before shipping -- tonight's tests only verified position
+     and confirmed the missing-menu-icons gap, not a full working seed.
+  6. **National Dex is a separate, harder problem**, deliberately not
+     solved above: no single flag grants it the way the others do --
+     vanilla ties it to completing the regional dex count plus an Oak
+     interaction, likely a mode bit inside the Pokedex struct itself
+     rather than a `SaveVarsFlags` flag. Not investigated further; would
+     need its own pass if a "start with National Dex" option is wanted.
+
+  **Related, much smaller idea surfaced by this investigation (2026-08-16
+  user request)**: since Bag/Pokedex/Pokegear are just flags like badges
+  already are, they could each become their own real, independently
+  toggleable AP item (`randomize_bag`/`randomize_pokedex`/
+  `randomize_pokegear`/etc. options, on/off per item in the pool) --
+  fully independent of the start-location project above, far simpler
+  (no position patch, no region-graph rework, just a flag write per
+  item, the same mechanism already proven for badges), and worth doing
+  as its own smaller task regardless of whether start-location
+  randomization ever ships. The Bicycle (`bicycle`, `data/items.py`
+  id 450, already classified `progression`) is a related but different
+  case -- not flag-gated at all, it's a plain key item, just currently
+  granted by no location anywhere in this project's data (a real gap,
+  simple `npc_gift`-shaped fix, confirmed non-logic-blocking since no
+  `data_gen/rules.toml` exit rule depends on owning it).
 - **Extra difficulty option: artificial route/passage blockers** (user
   request 2026-08-16). Idea: lock some routes/passages behind additional,
   non-vanilla requirements purely to raise randomizer difficulty (beyond

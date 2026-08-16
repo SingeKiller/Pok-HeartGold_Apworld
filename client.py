@@ -28,6 +28,7 @@ from data.items import ITEMS
 from data.rules import BADGES
 from items import HEARTGOLD_ITEM_ID_BASE
 from location_flags import (
+    build_badge_index_to_trainer_flag_id,
     build_dexsanity_flag_to_ap_location_id,
     build_flag_id_to_ap_location_id,
     build_locally_substituted_ap_location_ids,
@@ -41,6 +42,7 @@ from save_layout import (
     POCKET_KEY_TO_BAG_FIELD,
     TEXT_SPEED_FAST_VALUE,
     TEXT_SPEED_MASK,
+    flag_byte_and_bit,
     is_flag_set,
     plan_bag_item_write,
     stack_cap_for_pocket,
@@ -313,6 +315,11 @@ def _build_ap_item_id_to_badge_index() -> dict[int, int]:
 
 
 _AP_ITEM_ID_TO_BADGE_INDEX = _build_ap_item_id_to_badge_index()
+
+# badge index -> TRAINER_FLAG_BASE + that gym Leader's trainer id -- see
+# _apply_pending_badges's own docstring for why a received badge item's
+# PlayerProfile bit can't just be written immediately.
+_BADGE_INDEX_TO_TRAINER_FLAG_ID = build_badge_index_to_trainer_flag_id()
 
 _FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
 
@@ -621,6 +628,7 @@ class HeartGoldClient(BizHawkClient):
             await self._receive_death_link(ctx)
             await self._check_locations(ctx)
             await self._apply_received_items(ctx, applied_key)
+            await self._apply_pending_badges(ctx)
         except bizhawk.RequestFailedError:
             pass  # exit handler, return to main loop to reconnect
 
@@ -682,31 +690,12 @@ class HeartGoldClient(BizHawkClient):
 
             # Badges never go through the Bag at all -- receiving one sets
             # the matching bit in PlayerProfile.johtoBadges/kantoBadges
-            # directly instead (see rom/badgedata.py for how the vanilla
-            # local grant is neutralized so it can't also set this bit).
+            # instead (see rom/badgedata.py for how the vanilla local
+            # grant is neutralized so it can't also set this bit). That
+            # write itself is deferred to _apply_pending_badges (see its
+            # own docstring) -- here we only advance the resume counter.
             badge_index = None if already_delivered_locally else _AP_ITEM_ID_TO_BADGE_INDEX.get(next_item.item)
             if badge_index is not None:
-                if self.playerdata_profile_address is None:
-                    # Best-effort (see _ensure_addresses_located) -- retry
-                    # next tick once the profile address is located.
-                    break
-                byte_offset = _PROFILE_JOHTO_BADGES_OFFSET if badge_index < 8 else _PROFILE_KANTO_BADGES_OFFSET
-                bit = badge_index if badge_index < 8 else badge_index - 8
-                badge_byte_address = self.playerdata_profile_address + byte_offset
-
-                current_byte = (
-                    await bizhawk.read(ctx.bizhawk_ctx, [(badge_byte_address, 1, "ARM9 System Bus")])
-                )[0]
-                new_byte = bytes([current_byte[0] | (1 << bit)])
-                write_succeeded = await bizhawk.guarded_write(
-                    ctx.bizhawk_ctx,
-                    [(badge_byte_address, new_byte, "ARM9 System Bus")],
-                    [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
-                )
-                if not write_succeeded:
-                    # Byte changed between read and write -- retry next tick.
-                    break
-
                 self._applied_item_count += 1
                 applied_this_tick += 1
                 continue
@@ -766,4 +755,57 @@ class HeartGoldClient(BizHawkClient):
                 }
             ]
         )
+
+    async def _apply_pending_badges(self, ctx: BizHawkClientContext) -> None:
+        """Set PlayerProfile.johtoBadges/kantoBadges's bit for every
+        badge_* item this player has ever received, but only once this
+        player has actually beaten that gym Leader in a real battle
+        (TRAINER_FLAG_BASE + their trainer id, the same flag the badge
+        location's own check detection already reads) -- not immediately
+        on receipt, unlike every other item. Every gym Leader's own field
+        script gates its `TrainerBattle` call behind `CheckBadge`, so
+        setting the bit early makes the Leader think the fight already
+        happened and skip it entirely: a real bug (reported by a player,
+        2026-08-17) that also silently stalls whatever story progression
+        or chained trainer unlocks only fire inside that same battle-won
+        branch (e.g. Falkner's own script only advances
+        VAR_SCENE_ELMS_LAB, which gates Elm's Lab's egg-pickup call,
+        inside the real fight).
+
+        Re-derives the pending set from ctx.items_received fresh every
+        tick rather than tracking it in instance state, so a client
+        restart mid-seed can't lose track of a badge still waiting on
+        its real fight -- nothing here depends on anything but live
+        savedata and the server's own items_received list."""
+        if self.playerdata_profile_address is None or self.flags_array_address is None:
+            return
+
+        seen_badge_indices = {
+            _AP_ITEM_ID_TO_BADGE_INDEX[item.item] for item in ctx.items_received if item.item in _AP_ITEM_ID_TO_BADGE_INDEX
+        }
+        for badge_index in seen_badge_indices:
+            trainer_flag_id = _BADGE_INDEX_TO_TRAINER_FLAG_ID.get(badge_index)
+            if trainer_flag_id is None:
+                continue
+
+            byte_offset = _PROFILE_JOHTO_BADGES_OFFSET if badge_index < 8 else _PROFILE_KANTO_BADGES_OFFSET
+            bit = badge_index if badge_index < 8 else badge_index - 8
+            badge_byte_address = self.playerdata_profile_address + byte_offset
+            current_byte = (await bizhawk.read(ctx.bizhawk_ctx, [(badge_byte_address, 1, "ARM9 System Bus")]))[0]
+            if current_byte[0] & (1 << bit):
+                continue  # already applied
+
+            flag_byte_index, flag_bit_index = flag_byte_and_bit(trainer_flag_id)
+            flags_byte = (
+                await bizhawk.read(ctx.bizhawk_ctx, [(self.flags_array_address + flag_byte_index, 1, "ARM9 System Bus")])
+            )[0]
+            if not (flags_byte[0] & (1 << flag_bit_index)):
+                continue  # hasn't actually beaten this Leader yet -- retry next tick
+
+            new_byte = bytes([current_byte[0] | (1 << bit)])
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(badge_byte_address, new_byte, "ARM9 System Bus")],
+                [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
+            )
 

@@ -376,6 +376,51 @@ def scale_trainer_levels(scale_percent: int, trainers: dict = TRAINERS) -> dict:
     return new_trainers
 
 
+def scale_trainer_levels_by_sphere(trainers: dict, trainer_sphere: dict[str, int], bonus: int = 0) -> dict:
+    """Rescale every trainer's party around a target level derived from
+    how deep into the *actual randomized region graph* that trainer sits
+    (`trainer_sphere`: trainer key -> 0-indexed sphere, from the real
+    fill's own item-collection order -- not vanilla story position), an
+    alternative to the flat-percentage `scale_trainer_levels` above.
+    Target level curve is linear between the weakest and strongest
+    vanilla trainer level found anywhere in `trainers` (sphere 0 -> that
+    minimum, the deepest sphere present in `trainer_sphere` -> that
+    maximum), then shifted by `bonus` levels (negative = easier, positive
+    = harder) before clamping. Each trainer's party is scaled
+    proportionally around its own strongest mon (preserving relative
+    levels within the party, the same "reshape around a base level" idea
+    `scale_trainer_levels` uses for a flat percentage). A trainer absent
+    from `trainer_sphere` (its region was never reached in this seed's
+    own fill) is left unchanged. Empty `trainer_sphere` returns
+    `trainers` unchanged."""
+    if not trainer_sphere:
+        return trainers
+
+    # Scoped to just the trainers this call is actually scaling (e.g. Gym
+    # Leaders only, or regular trainers only, depending on the caller) --
+    # not the whole `trainers` dict, which would pull the target curve
+    # toward this seed's single weakest/strongest trainer of ANY kind.
+    all_levels = [mon["level"] for key in trainer_sphere for mon in trainers[key]["party"]]
+    min_level, max_level = min(all_levels), max(all_levels)
+    max_sphere = max(trainer_sphere.values())
+
+    new_trainers: dict[str, dict] = {}
+    for key, trainer in trainers.items():
+        sphere = trainer_sphere.get(key)
+        if sphere is None:
+            new_trainers[key] = trainer
+            continue
+        base_target = min_level if max_sphere == 0 else min_level + (max_level - min_level) * sphere / max_sphere
+        target_level = max(_MIN_LEVEL, min(_MAX_LEVEL, round(base_target + bonus)))
+        old_base_level = max(mon["level"] for mon in trainer["party"])
+        new_party = tuple(
+            {**mon, "level": max(_MIN_LEVEL, min(_MAX_LEVEL, round(mon["level"] * target_level / old_base_level)))}
+            for mon in trainer["party"]
+        )
+        new_trainers[key] = {**trainer, "party": new_party}
+    return new_trainers
+
+
 # --- 4. Evolutions -----------------------------------------------------------
 
 

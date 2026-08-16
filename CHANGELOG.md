@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-08-17
+
+### Fixed
+- **Receiving a badge from another location before physically reaching
+  that gym could permanently skip the fight.** Every gym Leader's own
+  field script gates its battle behind "do you already have my badge",
+  so setting the badge bit immediately on receipt (instead of on
+  actually beating them) made the Leader think the fight had already
+  happened. This silently broke more than the fight itself: Elm's Lab's
+  egg-pickup phone call and two Trainersanity-eligible trainers near
+  Violet City were also gated on that same battle actually happening.
+  Fixed client-side -- the badge bit is now only written once the
+  player has genuinely beaten that Leader, no ROM patch needed.
+
 ## [0.3.1] - 2026-08-16
 
 ### Added
