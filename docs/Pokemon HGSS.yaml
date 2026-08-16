@@ -1,4 +1,4 @@
-﻿# Q. What is this file?
+# Q. What is this file?
 # A. This file contains options which allow you to configure your multiworld experience while allowing
 #    others to play how they want as well.
 #
@@ -33,8 +33,6 @@ description: Default Pokemon HGSS Template
 game: Pokemon HGSS
 requires:
   version: 0.6.7 # Version of Archipelago required for this yaml to work as expected.
-  game:
-    Pokemon HGSS: 0.3.1 # Version of the world required for this yaml to work as expected.
 
 Pokemon HGSS:
   ################
@@ -42,7 +40,7 @@ Pokemon HGSS:
   ################
   progression_balancing:
     # A system that can move progression earlier, to try and prevent the player from getting stuck and bored early.
-    # 
+    #
     # A lower setting means more getting stuck. A higher setting means less getting stuck.
     #
     # You can define additional values between the minimum and maximum values.
@@ -58,9 +56,9 @@ Pokemon HGSS:
 
   accessibility:
     # Set rules for reachability of your items/locations.
-    # 
+    #
     # **Full:** ensure everything can be reached and acquired.
-    # 
+    #
     # **Minimal:** ensure what is needed to reach your goal can be acquired.
     full: 50
     minimal: 0
@@ -70,7 +68,7 @@ Pokemon HGSS:
   ################
   game_version:
     # Which physical ROM this patch is meant for: HeartGold or SoulSilver.
-    # 
+    #
     # This matters because wild encounters -- and potentially other data --
     # genuinely differ between the two versions (e.g. Route 29's morning
     # Sentret/Rattata swap). This choice must match the ROM you actually plan
@@ -86,7 +84,7 @@ Pokemon HGSS:
   ########
   goal:
     # The victory condition for this world.
-    # 
+    #
     # - elite_four: defeat the Elite Four and Champion, entering the Hall of Fame.
     # - champion_red: also defeat Red at the top of Mt. Silver.
     # - n_badges: obtain a configurable number of badges (see the
@@ -98,7 +96,7 @@ Pokemon HGSS:
   goal_badge_count:
     # Number of badges required to win when the `goal` option is set to
     # `n_badges`. Ignored for any other `goal` value.
-    # 
+    #
     # HeartGold & SoulSilver have 16 badges in total (8 Johto, 8 Kanto).
     #
     # You can define additional values between the minimum and maximum values.
@@ -110,13 +108,46 @@ Pokemon HGSS:
     random-high: 0 # random value weighted towards higher values
     random-range-1-16: 0 # random value between 1 and 16
 
+  johto_only:
+    # Exclude all of Kanto (180 regions -- every Kanto town/route/cave/
+    # building, the S.S. Aqua ferry, and the Kanto side of the Goldenrod<->
+    # Saffron Magnet Train) from the region graph entirely: no location is
+    # created there, and Kanto's 8 badges are never added to the item pool.
+    # Johto's own Elite Four/Champion Lance and the post-game Red fight on
+    # Mount Silver are unaffected -- both sit on the Johto side of the
+    # graph and need no Kanto badge to reach in this project's own rules.
+    # If `goal` is `n_badges` and `goal_badge_count` is above 8, it's
+    # silently capped to 8 when this is on (only Johto's badges exist).
+    'false': 50
+    'true': 0
+
+  extra_route_blockers:
+    # Close a real, documented vanilla shortcut for extra difficulty:
+    # Route 46's one-way ledge down into Route 45 (public route-guide
+    # knowledge -- no known vanilla mechanism ever reverses a ledge drop).
+    #
+    # Off by default, this shortcut is left exactly as vanilla and lets a
+    # player reach 7 of Johto's 16 badges (Violet, Azalea, Goldenrod,
+    # Ecruteak, Cianwood, Olivine, Blackthorn) with effectively zero items
+    # -- found via real tester spoiler-log feedback (2026-08-15/16, see
+    # docs/scope.md's "Region graph logic fixes" entry), and deliberately
+    # kept rather than treated as a bug to patch. Turning this on removes
+    # that single edge from the region graph entirely, forcing the normal
+    # Mahogany/Ice Path route into that side of the map instead -- purely a
+    # difficulty toggle, not a bugfix, since the shortcut is genuine vanilla
+    # behavior. Safe to combine with anything else: that side of the map is
+    # also reachable the normal way regardless of any other option, so this
+    # never disconnects anything, only closes one detour.
+    'false': 50
+    'true': 0
+
   ###############
   # Randomizers #
   ###############
   randomize_wild_pokemon:
     # Randomize wild Pokémon encounters (grass / surf / fishing / rock
     # smash / headbutt, across HGSS's morning/day/night tables).
-    # 
+    #
     # - vanilla: no randomization, wild encounters stay as in the base game.
     # - shuffle: shuffles which species appear across every wild encounter
     #   slot in the game (a permutation -- the same set of species still
@@ -146,6 +177,82 @@ Pokemon HGSS:
     'false': 50
     'true': 0
 
+  randomize_start_location:
+    # Spawn already inside Prof. Elm's Lab instead of New Bark's player
+    # house -- the walk through New Bark, Mom, and the outdoor overworld
+    # are skipped, but the starter-choice scene itself is NOT: you still
+    # pick your own starter from a real 3-way in-game choice (its species
+    # pool is controlled by `randomize_starters`, same as vanilla start).
+    # The moment you pick one, your Bag/Trainer Card/Save button/Options
+    # button/Pokédex/Pokégear are unlocked (vanilla would normally unlock
+    # these via New Bark content this option skips) -- except for whichever
+    # of those `randomize_menu_unlocks` turns into a real item instead, which
+    # wait for that item like normal -- and leaving the lab's only door
+    # warps you to a random Johto town (see `starting_town` to choose which
+    # one) instead of back outside in New Bark.
+    #
+    # Off by default (vanilla intro, unchanged). Live-verified end to end
+    # (2026-08-17): spawn point, unmodified starter-choice scene, exit-door
+    # redirect (tested against 3 different destination towns), and the
+    # menu-unlock flags all confirmed working together on the real US
+    # HeartGold ROM.
+    #
+    # Logic-integrated, not just cosmetic: this project's own region graph
+    # treats the chosen `starting_town` as the actual free/reachable origin
+    # (not New Bark) -- Archipelago's own fill algorithm genuinely accounts
+    # for where the player starts. All 10 candidate towns verified
+    # completable via real generation + fill (`tests/test_world_init.py`).
+    'false': 50
+    'true': 0
+
+  starting_town:
+    # Only used when `randomize_start_location` is on: which Johto town
+    # Elm's Lab's exit door sends you to. Set this to `random` in your
+    # YAML for Archipelago's own generator-side randomization (no separate
+    # on/off toggle needed) -- the plain default below is just a concrete
+    # fallback value, not this option's actual intended behavior. Mount
+    # Silver/Indigo Plateau and every Kanto town are deliberately not
+    # offered -- see `randomize_start_location`'s own docstring for why.
+    cherrygrove: 50
+    violet: 0
+    azalea: 0
+    cianwood: 0
+    goldenrod: 0
+    olivine: 0
+    ecruteak: 0
+    mahogany: 0
+    lake_of_rage: 0
+    blackthorn: 0
+
+  randomize_menu_unlocks:
+    # Turn any of these 6 pause-menu icons into a real, shufflable AP
+    # item instead of always being unlocked for free: `bag`, `trainer_card`,
+    # `pokedex`, `pokegear`, `save_button`, `options_button`. Each one you
+    # pick here becomes a real Location (where its flag is set in vanilla --
+    # New Bark's Mom scene for all but `pokedex`, Route 30's Mr. Pokémon for
+    # `pokedex`) holding a real, tradeable item -- pick this one up as
+    # someone else's check, or find it anywhere else in the multiworld,
+    # before that icon appears in your own pause menu.
+    #
+    # None selected by default (matches vanilla: every icon unlocks the
+    # normal way, no effect on generation).
+    #
+    # None of these gate reachability anywhere in this project's own rules
+    # -- they're all `useful`, not `progression` -- so combine freely with
+    # `randomize_start_location` (which otherwise unlocks the same icons for
+    # free once you pick a starter; whichever ones you list here are excluded
+    # from that automatic grant and wait for the real item instead).
+    #
+    # Real, decomp-confirmed gap, not fixed by this option: the flag this
+    # project can read/write only gates the pause-menu icon itself (src/
+    # sys_flags.c's CheckGotMenuIconI) -- it doesn't touch whatever else the
+    # vanilla scene also does alongside it. In particular, catching a
+    # Pokémon still populates Dexsanity/the real Pokédex data immediately
+    # regardless of whether you've received `menu_unlock_pokedex` yet -- only
+    # the icon (and therefore being able to open the Pokédex screen from the
+    # pause menu) is what's actually gated.
+    []
+
   exclude_legendaries:
     # Never place a legendary or mythical Pokémon (Articuno through
     # Arceus) in the wild encounter pool when `randomize_wild_pokemon` is
@@ -164,7 +271,7 @@ Pokemon HGSS:
 
   randomize_evolutions:
     # Randomize what each Pokémon evolves into.
-    # 
+    #
     # - off: evolutions stay vanilla.
     # - keep_method: evolution targets are randomized, but each species keeps
     #   its original evolution method (e.g. a level-up evolution stays a
@@ -184,7 +291,7 @@ Pokemon HGSS:
     # types` -- abilities, catch rate, TM/HM compatibility, learnset, ...)
     # are never touched by this option -- also unrelated to trainer level
     # scaling (`trainer_level_scaling`).
-    # 
+    #
     # - off: base stats stay vanilla.
     # - shuffle: shuffles each stat column independently across every
     #   species (a permutation -- the same multiset of, say, HP values
@@ -203,7 +310,7 @@ Pokemon HGSS:
     # separate option (`randomize_move_types`) -- unaffected by this one --
     # and nothing else about a move (effect, category, priority, ...) is
     # touched by either.
-    # 
+    #
     # - off: move stats stay vanilla.
     # - shuffle: shuffles each of Power/PP/Accuracy independently across
     #   every move (a permutation).
@@ -224,6 +331,65 @@ Pokemon HGSS:
     'false': 50
     'true': 0
 
+  randomize_move_categories:
+    # Randomize each damaging move's Category (Physical/Special) --
+    # Generation IV determines damage stat (Attack/Sp. Attack) and defense
+    # stat (Defense/Sp. Defense) per move, not per type, so this is a real,
+    # engine-honored split (unlike Gen 1-3/5's type-based category). Status
+    # moves (Category = Status) are never touched either direction -- a
+    # damaging move never becomes Status and a Status move never becomes
+    # damaging, since that would leave a 0-power "damaging" move or a
+    # Status move that deals damage with no stat behind it. Independent of
+    # `randomize_move_types`/`randomize_moves`.
+    'false': 50
+    'true': 0
+
+  randomize_tm_moves:
+    # Shuffle which move each TM (TM01-TM92) teaches -- a permutation, so
+    # the same 92 moves stay available, just reassigned across machine
+    # numbers. HM01-HM08 always keep their vanilla move (Cut/Fly/Surf/
+    # Strength/Whirlpool/Rock Smash/Waterfall/Rock Climb) -- this project's
+    # region-access rules key off owning the HM item, not whatever move it
+    # currently teaches, so randomizing HM-taught moves would risk a player
+    # logically having "Surf" (per AP rules) but being unable to actually
+    # Surf in the field.
+    'false': 50
+    'true': 0
+
+  randomize_type_chart:
+    # Shuffle the type-effectiveness chart's resistances/weaknesses/
+    # immunities -- a permutation, so the same overall mix (how many
+    # super-effective/not-very-effective/no-effect matchups exist) still
+    # exists, just redistributed onto different attacker/defender type
+    # pairs. Any (attacker, defender) pair not already an exception in the
+    # vanilla chart stays a normal (1x) matchup either way -- this option
+    # never creates a brand new exception, only reassigns which pairs the
+    # existing exceptions apply to. Independent of `randomize_move_types`/
+    # `randomize_species_types` (those change which type a move/species
+    # *is*; this changes what the types themselves *do* to each other).
+    'false': 50
+    'true': 0
+
+  starting_money:
+    # How much money the player starts the game with (vanilla is 3000).
+    # A plain fixed value by default -- set this to `random` in your YAML
+    # for Archipelago's own generator-side randomization (no separate
+    # on/off toggle needed). Applied once, client-side, on first connection
+    # to this slot -- guarded by a flag this world stores server-side (not
+    # a "money still looks vanilla" heuristic, which could misfire if the
+    # player's money later happens to pass back through the same value),
+    # so a later reconnect never re-applies it and wipes out money the
+    # player has since earned or spent.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 5000
+    3000: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-5000: 0 # random value between 0 and 5000
+
   randomize_species_types:
     # Randomize each Pokémon species' Type(s). A species keeps its
     # original single-type/dual-type status -- only *which* type(s) is
@@ -233,11 +399,23 @@ Pokemon HGSS:
     'false': 50
     'true': 0
 
+  randomize_learnsets:
+    # Randomize which move each species learns at each level-up slot.
+    # The level itself is untouched -- only which move lands there. Purely
+    # cosmetic to this project's own logic: unlike `randomize_tm_moves`, no
+    # region-access rule anywhere depends on which move a species learns by
+    # leveling up (only on owning the HM item), so there is no HM-safety
+    # concern to work around here.
+    'false': 50
+    'true': 0
+
   trainer_level_scaling:
     # Scale every trainer Pokémon's level by this percentage (100 = vanilla
     # levels, unchanged). A difficulty knob, not a randomizer -- the same
     # percentage applies uniformly to every trainer, every generation. Levels
     # are clamped to HGSS's own 1-100 range after scaling.
+    #
+    # Ignored when `sphere_based_trainer_leveling` is on.
     #
     # You can define additional values between the minimum and maximum values.
     # Minimum value is 50
@@ -248,6 +426,54 @@ Pokemon HGSS:
     random-high: 0 # random value weighted towards higher values
     random-range-50-200: 0 # random value between 50 and 200
 
+  sphere_based_trainer_leveling:
+    # Rescale every trainer's levels to match how deep into *this seed's
+    # own randomized region graph* they actually sit, instead of vanilla's
+    # fixed story order -- a trainer near the start of your reachable area
+    # gets an easy level, one behind a lot of required items gets a hard
+    # one, regardless of where they'd be in a vanilla playthrough.
+    #
+    # Computed after the world is filled, from the real order items become
+    # available in this seed -- not a live in-game read, and not related to
+    # your own party's actual levels. Each trainer's party keeps its own
+    # internal level spread, just re-centered on a level appropriate for
+    # when you can reach them. Overrides `trainer_level_scaling` when on.
+    #
+    # Covers every regular trainer battle and every Gym Leader (scaled
+    # against their own separate curve, so a Leader stays boss-tier
+    # relative to the other Leaders instead of being pulled toward this
+    # seed's single weakest regular trainer). Elite Four members and
+    # rivals are left at their vanilla level -- neither has a reliably
+    # known region in this world's own data.
+    'false': 50
+    'true': 0
+
+  sphere_based_trainer_leveling_bonus:
+    # Shift every level computed by `sphere_based_trainer_leveling` by
+    # this many levels before clamping to HGSS's 1-100 range -- negative
+    # makes every trainer easier, positive makes every trainer harder.
+    # Ignored when `sphere_based_trainer_leveling` is off.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is -20
+    # Maximum value is 20
+    0: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range--20-20: 0 # random value between -20 and 20
+
+  hidden_items_require_dowsing_machine:
+    # Require owning the Dowsing Machine in logic before any hidden item
+    # location is considered reachable.
+    #
+    # Off by default: vanilla never actually requires it to pick up an
+    # already-known hidden item (it's purely a detection aid, not a real
+    # gate), matching this world's own accessibility assumptions everywhere
+    # else.
+    'false': 50
+    'true': 0
+
   #################
   # Nuzlocke Aids #
   #################
@@ -255,7 +481,7 @@ Pokemon HGSS:
     # Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
     # Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
     # move with no special effect, instead of an RNG-based instant KO.
-    # 
+    #
     # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
     # randomizer -- this project does not enforce permadeath itself (that
     # stays honor-system, tracked externally), but an instant, uncounterable
@@ -271,7 +497,7 @@ Pokemon HGSS:
     # ability gets that ability copied into both slots instead; a species
     # whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
     # instead.
-    # 
+    #
     # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
     # randomizer -- an inescapable wild battle is a bad interaction with a
     # permadeath ruleset. Off by default (vanilla behavior unchanged).
@@ -337,7 +563,7 @@ Pokemon HGSS:
   #############
   death_link:
     # When you die, everyone who enabled death link dies. Of course, the reverse is true too.
-    # 
+    #
     # In Pokemon HeartGold/SoulSilver, having one of your own Pokemon faint sends a death, and receiving a death faints your entire party (zeroes each party Pokemon's current HP, same as a vanilla blackout).
     'false': 50
     'true': 0
@@ -347,7 +573,7 @@ Pokemon HGSS:
   #################
   trainersanity:
     # Add a check for every trainer battle won.
-    # 
+    #
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.
     'false': 50
@@ -355,7 +581,7 @@ Pokemon HGSS:
 
   dexsanity:
     # Add a check for catching each species for the first time.
-    # 
+    #
     # Seed-aware (task M3.4): only species that genuinely appear somewhere in
     # this seed's own randomize_wild_pokemon tables get a check -- static/gift
     # Pokemon (starters, legendaries, in-game gifts) stay vanilla/fixed and
@@ -365,17 +591,44 @@ Pokemon HGSS:
     # some occurrence of that species, not the exact region it spawns in, so
     # it is deliberately looser than the game's real logic and unsafe to gate
     # anything mandatory behind.
-    # 
+    #
     # v1 stretch goal (see docs/scope.md) -- off by default, not required for
     # a playable v1.
     'false': 50
     'true': 0
 
+  dexsanity_trigger:
+    # What counts as "getting" a species for `dexsanity` purposes.
+    #
+    # - catch: the check fires when you actually catch that species for
+    #   the first time (Pokédex.caughtSpecies) -- the original behavior.
+    # - encounter: the check fires the moment you merely see that species
+    #   in a wild encounter (Pokédex.seenSpecies), no catch required --
+    #   much faster to complete, since a single battle (or even just
+    #   running from one) is enough.
+    #
+    # Ignored when `dexsanity` is off.
+    catch: 50
+    encounter: 0
+
+  dexsanity_encounter_types:
+    # Which wild-encounter methods count toward `dexsanity` in the
+    # first place -- a species only obtainable through a method you
+    # deselect here gets no Dexsanity check at all this seed (same as a
+    # species this seed's own wild tables never place anywhere).
+    #
+    # All methods are on by default (matches the original, unrestricted
+    # behavior). Turn a method off if you don't want, say, fishing to be
+    # required to finish the Pokédex.
+    #
+    # Ignored when `dexsanity` is off.
+    ['good_rod', 'headbutt', 'old_rod', 'surf', 'super_rod', 'rock_smash', 'land']
+
   legendarysanity:
     # Add a check for catching Ho-Oh (Bell Tower) and Lugia (Whirl
     # Islands), both only reachable after defeating the Elite Four/Champion,
     # matching vanilla.
-    # 
+    #
     # Off by default: with this off, both stay exactly as in vanilla (same
     # place, same post-Elite Four requirement) -- they're just not tracked
     # as an Archipelago check, matching how other Pokemon Archipelago worlds
@@ -400,7 +653,7 @@ Pokemon HGSS:
 
   start_inventory_from_pool:
     # Start with the specified amount of these items and don't place them in the world. Example: {Bomb: 1, Arrow: 3}
-    # 
+    #
     # The game decides what the replacement items will be.
     {}
 
