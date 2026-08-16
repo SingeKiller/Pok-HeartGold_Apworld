@@ -52,6 +52,14 @@ TABLE: dict[str, list[tuple[int, int]]] = {
     'ecruteak_dowsing_machine_house_dowsing_mchn': [(929, 77)],
     'ecruteak_gym_tm30': [(922, 415)],
     'fuchsia_gym_tm84': [(809, 1875)],
+    # scr_seq_0890_T25R0201.s (Goldenrod Bike Shop): found live against
+    # the real ROM (task "randomize_bicycle", 2026-08-17) -- byte-pattern
+    # search for item id 450 (Bicycle) in narc sub-file 890 found exactly
+    # one match, with the quantity operand 6 bytes later reading 1,
+    # matching GiveItemNoCheck ITEM_BICYCLE, 1 exactly (see
+    # location_flags.py's own FLAG_UNK_089 note for this same script's
+    # check-detection flag).
+    'goldenrod_bike_shop_bicycle': [(890, 105)],
     'goldenrod_flower_shop_squirtbottle': [(896, 425)],
     'goldenrod_gym_tm45': [(886, 456)],
     'goldenrod_radio_tower_2f_blue_card': [(30, 392)],
