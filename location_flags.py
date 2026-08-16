@@ -180,6 +180,14 @@ _SYNTHETIC_ID_FLAG_OVERRIDES: dict[str, int] = {
     # but is referenced in 2 other S.S. Aqua rooms too and wasn't needed
     # once FLAG_UNK_ABB alone was confirmed unique).
     "ss_aqua_captain_room_flame_plate": 0xABB,
+    # scr_seq_0890_T25R0201.s (Goldenrod Bike Shop): FLAG_UNK_089 is set
+    # immediately after `GiveItemNoCheck ITEM_BICYCLE, 1`, and a
+    # `GoToIfSet FLAG_UNK_089` at the very top of the script is this
+    # exact interaction's own re-entry guard (skips the whole
+    # conversation once already given). Only SetFlag/GoToIfSet reference
+    # to this flag anywhere in the corpus (task "randomize_bicycle",
+    # 2026-08-17).
+    "goldenrod_bike_shop_bicycle": 0x89,
 }
 
 # Real bug, found and reverted live (2026-08-15, first live BizHawk test of

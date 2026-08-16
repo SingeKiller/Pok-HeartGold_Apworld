@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-08-17
+
+### Changed
+- **`randomize_menu_unlocks` split into 7 independent toggles** (user
+  request): `randomize_bag`, `randomize_trainer_card`, `randomize_pokedex`,
+  `randomize_pokegear`, `randomize_save_button`, `randomize_options_button`,
+  each pickable on its own instead of from one combined list.
+- **Added `randomize_bicycle`**: the Bicycle can now also be turned into a
+  real, shufflable AP item instead of always being handed over for free at
+  Goldenrod's Bike Shop -- previously a documented gap, never tracked as a
+  location at all.
+- Rewrote every option added tonight to be shorter and more direct for
+  players configuring their own YAML; regenerated the default template
+  (`docs/Pokemon HGSS.yaml`) to match.
+
 ## [0.6.1] - 2026-08-17
 
 ### Fixed

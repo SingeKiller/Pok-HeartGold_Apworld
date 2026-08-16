@@ -176,12 +176,19 @@ def create_locations(
     KeyError for a location whose parent Region was never created.
     `type = 'menu_unlock'` locations (task "randomize_menu_unlocks",
     2026-08-17) are gated per-entry, not per-type: `menu_unlocks` is the
-    `options.RandomizeMenuUnlocks` OptionSet's own value (e.g. {"bag",
-    "pokedex"}), and a `menu_unlock_<key>` location is only created when
-    `<key>` is in that set -- every data/locations.py `menu_unlock_*` key
-    is exactly "menu_unlock_" + its own RandomizeMenuUnlocks option key by
-    construction (data_gen/locations.toml), so no separate mapping table
-    is needed."""
+    combined set of enabled `randomize_bag`/`randomize_trainer_card`/
+    `randomize_pokedex`/`randomize_pokegear`/`randomize_save_button`/
+    `randomize_options_button`/`randomize_bicycle` option keys (e.g.
+    {"bag", "pokedex"} -- see `HeartGoldWorld._enabled_menu_unlocks`),
+    and a `menu_unlock_<key>` location is only created when `<key>` is in
+    that set -- every data/locations.py `menu_unlock_*` key is exactly
+    "menu_unlock_" + its own option key by construction (data_gen/
+    locations.toml), so no separate mapping table is needed.
+    `goldenrod_bike_shop_bicycle` (the 7th, differently-shaped member of
+    the same option family -- a plain `type = 'npc_gift'` entry, not
+    `menu_unlock`, since the Bicycle is a real vanilla item rather than a
+    synthetic pause-menu-icon flag) is gated the same way, just checked
+    by its own specific key instead of a type."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
@@ -193,6 +200,8 @@ def create_locations(
         if data["type"] == "static_pokemon" and not legendarysanity:
             continue
         if data["type"] == "menu_unlock" and key.removeprefix("menu_unlock_") not in menu_unlocks:
+            continue
+        if key == "goldenrod_bike_shop_bicycle" and "bicycle" not in menu_unlocks:
             continue
         methods: frozenset[str] | None = None
         if data["type"] == "dexsanity":

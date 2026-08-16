@@ -95,42 +95,23 @@ class RandomizeStarters(Toggle):
 
 
 class RandomizeStartLocation(Toggle):
-    """Spawn already inside Prof. Elm's Lab instead of New Bark's player
-    house -- the walk through New Bark, Mom, and the outdoor overworld
-    are skipped, but the starter-choice scene itself is NOT: you still
-    pick your own starter from a real 3-way in-game choice (its species
-    pool is controlled by `randomize_starters`, same as vanilla start).
-    The moment you pick one, your Bag/Trainer Card/Save button/Options
-    button/Pokédex/Pokégear are unlocked (vanilla would normally unlock
-    these via New Bark content this option skips) -- except for whichever
-    of those `randomize_menu_unlocks` turns into a real item instead, which
-    wait for that item like normal -- and leaving the lab's only door
-    warps you to a random Johto town (see `starting_town` to choose which
-    one) instead of back outside in New Bark.
+    """Spawn straight in Elm's Lab instead of New Bark Town.
 
-    Off by default (vanilla intro, unchanged). Live-verified end to end
-    (2026-08-17): spawn point, unmodified starter-choice scene, exit-door
-    redirect (tested against 3 different destination towns), and the
-    menu-unlock flags all confirmed working together on the real US
-    HeartGold ROM.
+    You still choose your starter the normal way. Once chosen, the lab's
+    exit door sends you to a random Johto town (pick which one with
+    `starting_town`) instead of back outside in New Bark.
 
-    Logic-integrated, not just cosmetic: this project's own region graph
-    treats the chosen `starting_town` as the actual free/reachable origin
-    (not New Bark) -- Archipelago's own fill algorithm genuinely accounts
-    for where the player starts. All 10 candidate towns verified
-    completable via real generation + fill (`tests/test_world_init.py`)."""
+    Off by default. The game logic fully accounts for your new starting
+    town, this is not just cosmetic."""
 
     display_name = "Randomize Start Location"
 
 
 class StartingTown(Choice):
-    """Only used when `randomize_start_location` is on: which Johto town
-    Elm's Lab's exit door sends you to. Set this to `random` in your
-    YAML for Archipelago's own generator-side randomization (no separate
-    on/off toggle needed) -- the plain default below is just a concrete
-    fallback value, not this option's actual intended behavior. Mount
-    Silver/Indigo Plateau and every Kanto town are deliberately not
-    offered -- see `randomize_start_location`'s own docstring for why."""
+    """Which Johto town you arrive in after choosing your starter.
+
+    Only matters if `randomize_start_location` is on. Set to `random` in
+    your YAML for a random town each seed."""
 
     display_name = "Starting Town"
     option_cherrygrove = 1
@@ -146,37 +127,56 @@ class StartingTown(Choice):
     default = 1
 
 
-class RandomizeMenuUnlocks(OptionSet):
-    """Turn any of these 6 pause-menu icons into a real, shufflable AP
-    item instead of always being unlocked for free: `bag`, `trainer_card`,
-    `pokedex`, `pokegear`, `save_button`, `options_button`. Each one you
-    pick here becomes a real Location (where its flag is set in vanilla --
-    New Bark's Mom scene for all but `pokedex`, Route 30's Mr. Pokémon for
-    `pokedex`) holding a real, tradeable item -- pick this one up as
-    someone else's check, or find it anywhere else in the multiworld,
-    before that icon appears in your own pause menu.
+class RandomizeBag(Toggle):
+    """Turn the Bag into a real item you must find, instead of getting it
+    for free. Off by default."""
 
-    None selected by default (matches vanilla: every icon unlocks the
-    normal way, no effect on generation).
+    display_name = "Randomize Bag"
 
-    None of these gate reachability anywhere in this project's own rules
-    -- they're all `useful`, not `progression` -- so combine freely with
-    `randomize_start_location` (which otherwise unlocks the same icons for
-    free once you pick a starter; whichever ones you list here are excluded
-    from that automatic grant and wait for the real item instead).
 
-    Real, decomp-confirmed gap, not fixed by this option: the flag this
-    project can read/write only gates the pause-menu icon itself (src/
-    sys_flags.c's CheckGotMenuIconI) -- it doesn't touch whatever else the
-    vanilla scene also does alongside it. In particular, catching a
-    Pokémon still populates Dexsanity/the real Pokédex data immediately
-    regardless of whether you've received `menu_unlock_pokedex` yet -- only
-    the icon (and therefore being able to open the Pokédex screen from the
-    pause menu) is what's actually gated."""
+class RandomizeTrainerCard(Toggle):
+    """Turn the Trainer Card into a real item you must find, instead of
+    getting it for free. Off by default."""
 
-    display_name = "Randomize Menu Unlocks"
-    valid_keys = {"bag", "trainer_card", "pokedex", "pokegear", "save_button", "options_button"}
-    default = frozenset()
+    display_name = "Randomize Trainer Card"
+
+
+class RandomizePokedex(Toggle):
+    """Turn the Pokedex into a real item you must find, instead of
+    getting it for free. Off by default.
+
+    Note: catching Pokemon still counts for Dexsanity right away even
+    before you have this. Only the pause menu icon is locked."""
+
+    display_name = "Randomize Pokedex"
+
+
+class RandomizePokegear(Toggle):
+    """Turn the Pokegear into a real item you must find, instead of
+    getting it for free. Off by default."""
+
+    display_name = "Randomize Pokegear"
+
+
+class RandomizeSaveButton(Toggle):
+    """Turn the Save menu button into a real item you must find, instead
+    of getting it for free. Off by default."""
+
+    display_name = "Randomize Save Button"
+
+
+class RandomizeOptionsButton(Toggle):
+    """Turn the Options menu button into a real item you must find,
+    instead of getting it for free. Off by default."""
+
+    display_name = "Randomize Options Button"
+
+
+class RandomizeBicycle(Toggle):
+    """Turn the Bicycle into a real item you must find, instead of
+    getting it for free from the Goldenrod Bike Shop. Off by default."""
+
+    display_name = "Randomize Bicycle"
 
 
 class RandomizeTrainers(Toggle):
@@ -264,57 +264,30 @@ class RandomizeMoveTypes(Toggle):
 
 
 class RandomizeMoveCategories(Toggle):
-    """Randomize each damaging move's Category (Physical/Special) --
-    Generation IV determines damage stat (Attack/Sp. Attack) and defense
-    stat (Defense/Sp. Defense) per move, not per type, so this is a real,
-    engine-honored split (unlike Gen 1-3/5's type-based category). Status
-    moves (Category = Status) are never touched either direction -- a
-    damaging move never becomes Status and a Status move never becomes
-    damaging, since that would leave a 0-power "damaging" move or a
-    Status move that deals damage with no stat behind it. Independent of
-    `randomize_move_types`/`randomize_moves`."""
+    """Randomly swap each damaging move between Physical and Special.
+    Status moves are never changed."""
 
     display_name = "Randomize Move Categories"
 
 
 class RandomizeTmMoves(Toggle):
-    """Shuffle which move each TM (TM01-TM92) teaches -- a permutation, so
-    the same 92 moves stay available, just reassigned across machine
-    numbers. HM01-HM08 always keep their vanilla move (Cut/Fly/Surf/
-    Strength/Whirlpool/Rock Smash/Waterfall/Rock Climb) -- this project's
-    region-access rules key off owning the HM item, not whatever move it
-    currently teaches, so randomizing HM-taught moves would risk a player
-    logically having "Surf" (per AP rules) but being unable to actually
-    Surf in the field."""
+    """Shuffle which move each TM teaches. HMs always keep their vanilla
+    move, so field moves like Surf still work normally."""
 
     display_name = "Randomize TM Moves"
 
 
 class RandomizeTypeChart(Toggle):
-    """Shuffle the type-effectiveness chart's resistances/weaknesses/
-    immunities -- a permutation, so the same overall mix (how many
-    super-effective/not-very-effective/no-effect matchups exist) still
-    exists, just redistributed onto different attacker/defender type
-    pairs. Any (attacker, defender) pair not already an exception in the
-    vanilla chart stays a normal (1x) matchup either way -- this option
-    never creates a brand new exception, only reassigns which pairs the
-    existing exceptions apply to. Independent of `randomize_move_types`/
-    `randomize_species_types` (those change which type a move/species
-    *is*; this changes what the types themselves *do* to each other)."""
+    """Shuffle type matchups (what is super effective, not very
+    effective, or has no effect). The same number of each still exists,
+    just moved to different type pairs."""
 
     display_name = "Randomize Type Chart"
 
 
 class StartingMoney(Range):
-    """How much money the player starts the game with (vanilla is 3000).
-    A plain fixed value by default -- set this to `random` in your YAML
-    for Archipelago's own generator-side randomization (no separate
-    on/off toggle needed). Applied once, client-side, on first connection
-    to this slot -- guarded by a flag this world stores server-side (not
-    a "money still looks vanilla" heuristic, which could misfire if the
-    player's money later happens to pass back through the same value),
-    so a later reconnect never re-applies it and wipes out money the
-    player has since earned or spent."""
+    """How much money you start the game with. Vanilla is 3000. Set to
+    `random` in your YAML for a random amount up to 5000."""
 
     display_name = "Starting Money"
     range_start = 0
@@ -323,36 +296,23 @@ class StartingMoney(Range):
 
 
 class JohtoOnly(Toggle):
-    """Exclude all of Kanto (180 regions -- every Kanto town/route/cave/
-    building, the S.S. Aqua ferry, and the Kanto side of the Goldenrod<->
-    Saffron Magnet Train) from the region graph entirely: no location is
-    created there, and Kanto's 8 badges are never added to the item pool.
-    Johto's own Elite Four/Champion Lance and the post-game Red fight on
-    Mount Silver are unaffected -- both sit on the Johto side of the
-    graph and need no Kanto badge to reach in this project's own rules.
-    If `goal` is `n_badges` and `goal_badge_count` is above 8, it's
-    silently capped to 8 when this is on (only Johto's badges exist)."""
+    """Remove all of Kanto from the game. No Kanto locations, no Kanto
+    badges in the item pool.
+
+    Johto's own Elite Four and the post game Red fight still work
+    normally. If your goal is `n_badges` and you asked for more than 8,
+    it gets capped to 8 automatically."""
 
     display_name = "Johto Only"
 
 
 class ExtraRouteBlockers(Toggle):
-    """Close a real, documented vanilla shortcut for extra difficulty:
-    Route 46's one-way ledge down into Route 45 (public route-guide
-    knowledge -- no known vanilla mechanism ever reverses a ledge drop).
+    """Close a real shortcut on Route 46 that lets you skip most of the
+    game with almost no items.
 
-    Off by default, this shortcut is left exactly as vanilla and lets a
-    player reach 7 of Johto's 16 badges (Violet, Azalea, Goldenrod,
-    Ecruteak, Cianwood, Olivine, Blackthorn) with effectively zero items
-    -- found via real tester spoiler-log feedback (2026-08-15/16, see
-    docs/scope.md's "Region graph logic fixes" entry), and deliberately
-    kept rather than treated as a bug to patch. Turning this on removes
-    that single edge from the region graph entirely, forcing the normal
-    Mahogany/Ice Path route into that side of the map instead -- purely a
-    difficulty toggle, not a bugfix, since the shortcut is genuine vanilla
-    behavior. Safe to combine with anything else: that side of the map is
-    also reachable the normal way regardless of any other option, so this
-    never disconnects anything, only closes one detour."""
+    Off by default, keeps the shortcut. On, forces the normal route
+    through Mahogany instead. Safe with any other option, nothing
+    becomes unreachable."""
 
     display_name = "Extra Route Blockers"
 
@@ -368,12 +328,8 @@ class RandomizeSpeciesTypes(Toggle):
 
 
 class RandomizeLearnsets(Toggle):
-    """Randomize which move each species learns at each level-up slot.
-    The level itself is untouched -- only which move lands there. Purely
-    cosmetic to this project's own logic: unlike `randomize_tm_moves`, no
-    region-access rule anywhere depends on which move a species learns by
-    leveling up (only on owning the HM item), so there is no HM-safety
-    concern to work around here."""
+    """Randomize which move each Pokemon learns at each level. The
+    levels themselves stay the same, only the moves change."""
 
     display_name = "Randomize Learnsets"
 
@@ -657,7 +613,13 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_starters: RandomizeStarters
     randomize_start_location: RandomizeStartLocation
     starting_town: StartingTown
-    randomize_menu_unlocks: RandomizeMenuUnlocks
+    randomize_bag: RandomizeBag
+    randomize_trainer_card: RandomizeTrainerCard
+    randomize_pokedex: RandomizePokedex
+    randomize_pokegear: RandomizePokegear
+    randomize_save_button: RandomizeSaveButton
+    randomize_options_button: RandomizeOptionsButton
+    randomize_bicycle: RandomizeBicycle
     randomize_trainers: RandomizeTrainers
     exclude_legendaries: ExcludeLegendaries
     randomize_evolutions: RandomizeEvolutions
@@ -712,7 +674,13 @@ OPTION_GROUPS = [
             RandomizeStarters,
             RandomizeStartLocation,
             StartingTown,
-            RandomizeMenuUnlocks,
+            RandomizeBag,
+            RandomizeTrainerCard,
+            RandomizePokedex,
+            RandomizePokegear,
+            RandomizeSaveButton,
+            RandomizeOptionsButton,
+            RandomizeBicycle,
             ExcludeLegendaries,
             RandomizeTrainers,
             RandomizeEvolutions,

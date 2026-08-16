@@ -1081,7 +1081,8 @@ class HeartGoldClient(BizHawkClient):
         grant: this only gates the pause-menu icon (src/sys_flags.c's
         CheckGotMenuIconI), not whatever else the vanilla scene also does
         alongside it (e.g. GivePokedex's own separate struct bit) -- see
-        options.RandomizeMenuUnlocks's own docstring."""
+        options.RandomizeBag's own docstring (shared by all 6 of the
+        per-icon toggles)."""
         if self.flags_array_address is None:
             return
 

@@ -390,6 +390,35 @@ class HeartGoldWorld(World):
             # player actually starts, just no longer free.
             self.origin_region_name = self.generated_start_location_town
 
+    def _enabled_menu_unlocks(self) -> frozenset[str]:
+        """The set of `randomize_bag`/`randomize_trainer_card`/
+        `randomize_pokedex`/`randomize_pokegear`/`randomize_save_button`/
+        `randomize_options_button`/`randomize_bicycle` option keys that
+        are actually turned on for this player -- 7 independent Toggle
+        options (task "randomize_menu_unlocks" per-item split,
+        2026-08-17), combined back into the single frozenset
+        `locations.create_locations`/`create_items` (below) and
+        `fill_slot_data` all expect, so the rest of the pipeline doesn't
+        need to know these are 7 separate options rather than one
+        multi-select. `bicycle` is included here (it shares the same
+        per-key location-gating mechanism) even though it's otherwise a
+        completely different delivery mechanism than the other 6 (a
+        plain real npc_gift item, not a pause-menu-icon flag -- see
+        options.RandomizeBicycle's own docstring); client.py's own
+        `_apply_menu_unlock_gating`/`_apply_start_location_flags` simply
+        never look up a "bicycle" key in their own 6-entry flag map, so
+        including it in the slot_data list they read is harmless."""
+        option_key_to_option = {
+            "bag": self.options.randomize_bag,
+            "trainer_card": self.options.randomize_trainer_card,
+            "pokedex": self.options.randomize_pokedex,
+            "pokegear": self.options.randomize_pokegear,
+            "save_button": self.options.randomize_save_button,
+            "options_button": self.options.randomize_options_button,
+            "bicycle": self.options.randomize_bicycle,
+        }
+        return frozenset(key for key, option in option_key_to_option.items() if bool(option.value))
+
     def create_regions(self) -> None:
         self._excluded_region_keys = KANTO_REGION_KEYS if bool(self.options.johto_only.value) else frozenset()
         self.regions = build_region_graph(
@@ -407,7 +436,7 @@ class HeartGoldWorld(World):
             legendarysanity=bool(self.options.legendarysanity.value),
             hidden_items_require_dowsing_machine=bool(self.options.hidden_items_require_dowsing_machine.value),
             excluded_region_keys=self._excluded_region_keys,
-            menu_unlocks=frozenset(self.options.randomize_menu_unlocks.value),
+            menu_unlocks=self._enabled_menu_unlocks(),
         )
 
     def create_items(self) -> None:
@@ -422,7 +451,7 @@ class HeartGoldWorld(World):
         trainersanity = bool(self.options.trainersanity.value)
         dexsanity = bool(self.options.dexsanity.value)
         legendarysanity = bool(self.options.legendarysanity.value)
-        menu_unlocks = frozenset(self.options.randomize_menu_unlocks.value)
+        menu_unlocks = self._enabled_menu_unlocks()
         pool = []
         for key in _ID_ASSIGNABLE_LOCATION_KEYS:
             data = LOCATIONS[key]
@@ -431,6 +460,15 @@ class HeartGoldWorld(World):
                 # location's own Region/Location objects entirely -- must
                 # not contribute a matching item either, or the item pool
                 # would outnumber the created locations.
+                continue
+            if key == "goldenrod_bike_shop_bicycle" and "bicycle" not in menu_unlocks:
+                # randomize_bicycle off (default): create_locations() above
+                # already skipped this location entirely -- must not
+                # contribute its item either, same reasoning as the
+                # excluded_region_keys check above. A plain type =
+                # 'npc_gift' entry otherwise, so without this check it
+                # would fall through to the generic else branch below and
+                # get added unconditionally.
                 continue
             if data["type"] == "trainer":
                 if not trainersanity:
@@ -562,7 +600,7 @@ class HeartGoldWorld(World):
             "dexsanity_trigger": self.options.dexsanity_trigger.current_key,
             "starting_money": self.options.starting_money.value,
             "randomize_start_location": bool(self.options.randomize_start_location.value),
-            "randomize_menu_unlocks": sorted(self.options.randomize_menu_unlocks.value),
+            "randomize_menu_unlocks": sorted(self._enabled_menu_unlocks()),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
 

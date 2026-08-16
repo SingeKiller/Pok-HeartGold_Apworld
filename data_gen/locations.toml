@@ -4557,6 +4557,26 @@ id = 5
 original_item = 'menu_unlock_pokedex'
 label = "Route 30 - Mr. Pokemon's House (Pokedex)"
 
+# --- Bicycle (randomize_bicycle, 2026-08-17) --------------------------------
+#
+# The 7th member of the same "per-item on/off" family as the menu_unlock_*
+# locations above, but a genuinely different mechanism underneath: unlike
+# those 6 (a synthetic item gating a pause-menu icon flag), the Bicycle is
+# already a real vanilla Bag item (id 450) with a real vanilla grant --
+# just never previously tracked as a location by this project at all (a
+# real, documented gap, see docs/scope.md). A plain type = 'npc_gift'
+# entry, gated per-key the same way menu_unlock entries are gated
+# per-key (locations.py's create_locations), needing none of
+# menu_unlock's own special client.py gating machinery: check detection
+# and item delivery both go through the exact same generic mechanisms
+# every other npc_gift location already uses.
+[goldenrod_bike_shop_bicycle]
+region = 'goldenrod_bike_shop'
+type = 'npc_gift'
+original_item = 'bicycle'
+id = 9032
+label = 'Goldenrod Bike Shop - Bicycle'
+
 [pewter_gym_tm80]
 region = 'pewter_gym'
 type = 'hm_tm'
