@@ -165,12 +165,15 @@ Pokemon HGSS:
     'true': 0
 
   randomize_start_location:
-    # Spawn straight in Elm's Lab instead of New Bark Town.
-    # 
-    # You still choose your starter the normal way. Once chosen, the lab's
-    # exit door sends you to a random Johto town (pick which one with
-    # `starting_town`) instead of back outside in New Bark.
-    # 
+    # Skip most of the walk around New Bark Town.
+    #
+    # You still wake up at home and talk to Mom the normal way (Bag,
+    # Trainer Card, and Options menu unlock for real, exactly like
+    # vanilla). But leaving your house sends you straight into Elm's Lab
+    # instead of outside. You still choose your starter the normal way.
+    # Once chosen, the lab's exit door sends you to a random Johto town
+    # (pick which one with `starting_town`).
+    #
     # Off by default. The game logic fully accounts for your new starting
     # town, this is not just cosmetic.
     'false': 50
@@ -191,45 +194,6 @@ Pokemon HGSS:
     mahogany: 0
     lake_of_rage: 0
     blackthorn: 0
-
-  randomize_bag:
-    # Turn the Bag into a real item you must find, instead of getting it
-    # for free. Off by default.
-    'false': 50
-    'true': 0
-
-  randomize_trainer_card:
-    # Turn the Trainer Card into a real item you must find, instead of
-    # getting it for free. Off by default.
-    'false': 50
-    'true': 0
-
-  randomize_pokedex:
-    # Turn the Pokedex into a real item you must find, instead of
-    # getting it for free. Off by default.
-    # 
-    # Note: catching Pokemon still counts for Dexsanity right away even
-    # before you have this. Only the pause menu icon is locked.
-    'false': 50
-    'true': 0
-
-  randomize_pokegear:
-    # Turn the Pokegear into a real item you must find, instead of
-    # getting it for free. Off by default.
-    'false': 50
-    'true': 0
-
-  randomize_save_button:
-    # Turn the Save menu button into a real item you must find, instead
-    # of getting it for free. Off by default.
-    'false': 50
-    'true': 0
-
-  randomize_options_button:
-    # Turn the Options menu button into a real item you must find,
-    # instead of getting it for free. Off by default.
-    'false': 50
-    'true': 0
 
   randomize_bicycle:
     # Turn the Bicycle into a real item you must find, instead of
@@ -424,6 +388,18 @@ Pokemon HGSS:
     # already-known hidden item (it's purely a detection aid, not a real
     # gate), matching this world's own accessibility assumptions everywhere
     # else.
+    'false': 50
+    'true': 0
+
+  remote_items:
+    # Never write your own items directly into the game -- always
+    # receive them from the server instead, the same way you already
+    # receive items from other players.
+    #
+    # Off by default. Turn this on if you want to share your save file
+    # between multiple people, or if you want to restart a corrupted save
+    # without losing progress: the server just resends everything you
+    # already found.
     'false': 50
     'true': 0
 

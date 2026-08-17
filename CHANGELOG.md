@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-08-17
+
+### Fixed
+Emergency patch, same day as 0.6.2, following a real live playtest of
+`randomize_start_location`.
+- **Save button not working at all, and Bag/Save/Options disappearing
+  entirely after quitting and relaunching**, on a `randomize_start_location`
+  save. Root cause: the previous design spawned the player directly inside
+  Elm's Lab (a `sLocation_PlayerRoom` patch) and faked Bag/Trainer Card/
+  Save/Options by poking their pause-menu flags directly -- but the real
+  save-execution path checks something else entirely, not that flag, so
+  Save silently did nothing, and nothing was ever really saved to persist
+  those poked flags across a relaunch. Redesigned: the player now wakes up
+  and talks to Mom the ordinary way (her real vanilla scene grants Bag/
+  Trainer Card/Save/Options for real, exactly like a normal playthrough) --
+  only the house's own front door is redirected straight to Elm's Lab
+  afterward, reusing the same door-redirect mechanism already proven safe
+  for the lab's own exit.
+- **Black screen after using the redirected door**, introduced by the fix
+  above: the door's warp record encodes both a destination map and an
+  entrance-point index into that map's own table; only the map was being
+  patched, leaving a stale entrance index that made no sense inside Elm's
+  Lab. Both fields are now patched together.
+- **Walking straight back out through the door immediately after
+  arriving**, if a movement key was still held during the transition: Elm's
+  Lab's own entrance data doubled as its exit-approach position, landing
+  the player right at the door. Moved to a safer position inside the room.
+
+### Removed
+- **`randomize_bag`/`randomize_trainer_card`/`randomize_pokedex`/
+  `randomize_options_button`** (all four, added just yesterday in 0.6.2):
+  a live playtest found the compiled Start Menu's own icon-confirm
+  dispatch breaks whenever any pause-menu icon is unavailable while icons
+  after it in the menu's own ring order (Save, Options) are visible --
+  selecting one icon could fire a completely different one's action (e.g.
+  Options opening Save). This invariant only ever holds in vanilla, where
+  every one of these flags is granted together in one uninterrupted scene;
+  a randomized, possibly long-delayed unlock necessarily breaks it. No
+  client-side fix exists without an ASM hook, which this project avoids on
+  principle. Bag/Trainer Card/Pokedex/Save/Options are all once again
+  always unconditionally granted by their own real vanilla trigger, like
+  before 0.6.2. `randomize_bicycle` is unaffected (a real Bag item, not a
+  pause-menu icon) and remains a working toggle.
+
+### Added
+- **`remote_items`**: off by default. When on, your own items are never
+  written directly into the ROM -- you always receive them from the
+  server instead, the same way you already receive other players' items.
+  Lets you restart a corrupted save without losing progress (the server
+  just resends everything you already found), or share a save file
+  between multiple people.
+
 ## [0.6.2] - 2026-08-17
 
 ### Changed

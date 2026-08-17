@@ -95,11 +95,14 @@ class RandomizeStarters(Toggle):
 
 
 class RandomizeStartLocation(Toggle):
-    """Spawn straight in Elm's Lab instead of New Bark Town.
+    """Skip most of the walk around New Bark Town.
 
-    You still choose your starter the normal way. Once chosen, the lab's
-    exit door sends you to a random Johto town (pick which one with
-    `starting_town`) instead of back outside in New Bark.
+    You still wake up at home and talk to Mom the normal way (Bag,
+    Trainer Card, and Options menu unlock for real, exactly like
+    vanilla). But leaving your house sends you straight into Elm's Lab
+    instead of outside. You still choose your starter the normal way.
+    Once chosen, the lab's exit door sends you to a random Johto town
+    (pick which one with `starting_town`).
 
     Off by default. The game logic fully accounts for your new starting
     town, this is not just cosmetic."""
@@ -125,51 +128,6 @@ class StartingTown(Choice):
     option_lake_of_rage = 9
     option_blackthorn = 10
     default = 1
-
-
-class RandomizeBag(Toggle):
-    """Turn the Bag into a real item you must find, instead of getting it
-    for free. Off by default."""
-
-    display_name = "Randomize Bag"
-
-
-class RandomizeTrainerCard(Toggle):
-    """Turn the Trainer Card into a real item you must find, instead of
-    getting it for free. Off by default."""
-
-    display_name = "Randomize Trainer Card"
-
-
-class RandomizePokedex(Toggle):
-    """Turn the Pokedex into a real item you must find, instead of
-    getting it for free. Off by default.
-
-    Note: catching Pokemon still counts for Dexsanity right away even
-    before you have this. Only the pause menu icon is locked."""
-
-    display_name = "Randomize Pokedex"
-
-
-class RandomizePokegear(Toggle):
-    """Turn the Pokegear into a real item you must find, instead of
-    getting it for free. Off by default."""
-
-    display_name = "Randomize Pokegear"
-
-
-class RandomizeSaveButton(Toggle):
-    """Turn the Save menu button into a real item you must find, instead
-    of getting it for free. Off by default."""
-
-    display_name = "Randomize Save Button"
-
-
-class RandomizeOptionsButton(Toggle):
-    """Turn the Options menu button into a real item you must find,
-    instead of getting it for free. Off by default."""
-
-    display_name = "Randomize Options Button"
 
 
 class RandomizeBicycle(Toggle):
@@ -428,6 +386,19 @@ class HiddenItemsRequireDowsingMachine(Toggle):
     display_name = "Hidden Items Require Dowsing Machine"
 
 
+class RemoteItems(Toggle):
+    """Never write your own items directly into the game -- always
+    receive them from the server instead, the same way you already
+    receive items from other players.
+
+    Off by default. Turn this on if you want to share your save file
+    between multiple people, or if you want to restart a corrupted save
+    without losing progress: the server just resends everything you
+    already found."""
+
+    display_name = "Remote Items"
+
+
 class Trainersanity(Toggle):
     """Add a check for every trainer battle won.
 
@@ -613,12 +584,6 @@ class HeartGoldOptions(PerGameCommonOptions):
     randomize_starters: RandomizeStarters
     randomize_start_location: RandomizeStartLocation
     starting_town: StartingTown
-    randomize_bag: RandomizeBag
-    randomize_trainer_card: RandomizeTrainerCard
-    randomize_pokedex: RandomizePokedex
-    randomize_pokegear: RandomizePokegear
-    randomize_save_button: RandomizeSaveButton
-    randomize_options_button: RandomizeOptionsButton
     randomize_bicycle: RandomizeBicycle
     randomize_trainers: RandomizeTrainers
     exclude_legendaries: ExcludeLegendaries
@@ -637,6 +602,7 @@ class HeartGoldOptions(PerGameCommonOptions):
     sphere_based_trainer_leveling_bonus: SphereBasedTrainerLevelingBonus
 
     hidden_items_require_dowsing_machine: HiddenItemsRequireDowsingMachine
+    remote_items: RemoteItems
 
     disable_ohko_moves: DisableOhkoMoves
     disable_trapping_abilities: DisableTrappingAbilities
@@ -674,12 +640,6 @@ OPTION_GROUPS = [
             RandomizeStarters,
             RandomizeStartLocation,
             StartingTown,
-            RandomizeBag,
-            RandomizeTrainerCard,
-            RandomizePokedex,
-            RandomizePokegear,
-            RandomizeSaveButton,
-            RandomizeOptionsButton,
             RandomizeBicycle,
             ExcludeLegendaries,
             RandomizeTrainers,
@@ -697,6 +657,7 @@ OPTION_GROUPS = [
             SphereBasedTrainerLeveling,
             SphereBasedTrainerLevelingBonus,
             HiddenItemsRequireDowsingMachine,
+            RemoteItems,
         ],
     ),
     OptionGroup(

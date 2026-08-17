@@ -24,7 +24,6 @@ _VALID_TYPES = {
     "trainer",
     "dexsanity",
     "static_pokemon",
-    "menu_unlock",
 }
 
 

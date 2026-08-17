@@ -145,7 +145,7 @@ def create_locations(
     legendarysanity: bool = False,
     hidden_items_require_dowsing_machine: bool = False,
     excluded_region_keys: frozenset[str] = frozenset(),
-    menu_unlocks: frozenset[str] = frozenset(),
+    bicycle_enabled: bool = False,
 ) -> None:
     """Create a `HeartGoldLocation` for every `data/locations.py` entry and
     attach it to its parent `Region` (as built by
@@ -174,21 +174,24 @@ def create_locations(
     `region` is excluded -- must be the exact same region set passed to
     `regions.create_regions`, or `regions[data["region"]]` below raises
     KeyError for a location whose parent Region was never created.
-    `type = 'menu_unlock'` locations (task "randomize_menu_unlocks",
-    2026-08-17) are gated per-entry, not per-type: `menu_unlocks` is the
-    combined set of enabled `randomize_bag`/`randomize_trainer_card`/
-    `randomize_pokedex`/`randomize_pokegear`/`randomize_save_button`/
-    `randomize_options_button`/`randomize_bicycle` option keys (e.g.
-    {"bag", "pokedex"} -- see `HeartGoldWorld._enabled_menu_unlocks`),
-    and a `menu_unlock_<key>` location is only created when `<key>` is in
-    that set -- every data/locations.py `menu_unlock_*` key is exactly
-    "menu_unlock_" + its own option key by construction (data_gen/
-    locations.toml), so no separate mapping table is needed.
-    `goldenrod_bike_shop_bicycle` (the 7th, differently-shaped member of
-    the same option family -- a plain `type = 'npc_gift'` entry, not
-    `menu_unlock`, since the Bicycle is a real vanilla item rather than a
-    synthetic pause-menu-icon flag) is gated the same way, just checked
-    by its own specific key instead of a type."""
+    `goldenrod_bike_shop_bicycle` (a plain `type = 'npc_gift'` entry) is
+    only created when `bicycle_enabled` (`randomize_bicycle`) is set --
+    same reasoning as `trainersanity`/`legendarysanity` above, just keyed
+    by a specific location rather than a whole type. The `randomize_bag`/
+    `randomize_trainer_card`/`randomize_pokedex`/`randomize_options_
+    button`/`randomize_save_button`/`randomize_pokegear` per-icon toggles
+    this project briefly had (task "randomize_menu_unlocks", 2026-08-17)
+    were all removed the same day: a live playtest found the compiled
+    Start Menu's own icon-confirm dispatch breaks whenever any icon
+    *before* Save/Options in ring order is unavailable while later ones
+    are visible -- an invariant only ever true in vanilla (every one of
+    these flags is set together, in one uninterrupted scene), which a
+    randomized, possibly-long-delayed unlock necessarily violates. No
+    client-side-only fix exists (the dispatch logic is compiled, and this
+    project avoids ASM hooks after 2 real hook crashes earlier in its own
+    history) -- so Bag/Trainer Card/Pokedex/Save/Options/Pokegear are all
+    once again always unconditionally granted by their own real vanilla
+    trigger, like before this feature existed."""
     id_map = create_location_label_to_code_map()
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
@@ -199,9 +202,7 @@ def create_locations(
             continue
         if data["type"] == "static_pokemon" and not legendarysanity:
             continue
-        if data["type"] == "menu_unlock" and key.removeprefix("menu_unlock_") not in menu_unlocks:
-            continue
-        if key == "goldenrod_bike_shop_bicycle" and "bicycle" not in menu_unlocks:
+        if key == "goldenrod_bike_shop_bicycle" and not bicycle_enabled:
             continue
         methods: frozenset[str] | None = None
         if data["type"] == "dexsanity":

@@ -32,7 +32,6 @@ from location_flags import (
     build_dexsanity_flag_to_ap_location_id,
     build_flag_id_to_ap_location_id,
     build_locally_substituted_ap_location_ids,
-    menu_unlock_flag_id_by_item_key,
 )
 from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE
 from save_layout import (
@@ -277,18 +276,21 @@ _START_LOCATION_FLAGS_APPLIED_KEY_TEMPLATE = "pokemon_heartgold_start_location_f
 
 # randomize_start_location: FLAG_GOT_STARTER (include/constants/flags.h,
 # 0x6A) is already set by the vanilla ChooseStarter scene itself (that
-# scene runs completely unmodified -- see rom/startlocation.py) -- these
-# are only the OTHER menu-unlock flags vanilla would normally set via
-# New Bark content this feature skips entirely (Mom, walking through
-# town, meeting the rival), plus advancing the rival's own flag chain so
+# scene runs completely unmodified -- see rom/startlocation.py) --
+# FLAG_GOT_BAG/_TRAINER_CARD/_SAVE_BUTTON/_OPTIONS_BUTTON are no longer
+# poked directly here either (redesign, 2026-08-17, real bug report: the
+# real save-execution path turned out to check something the icon-
+# visibility flag alone doesn't satisfy, silently breaking Save entirely
+# -- see rom/startlocation.py's own "Redesign" note). The player's house
+# door now redirects to Elm's Lab only *after* Mom's own vanilla scene
+# has already granted those four for real. What's left here is only
+# FLAG_GOT_POKEDEX/_POKEGEAR (still skipped content -- Route 30's Mr.
+# Pokemon, and Mom's own later revisit conversation, neither reachable
+# from this redirected path) and advancing the rival's own flag chain so
 # he still eventually appears at his next real checkpoint instead of
 # never again.
 _START_LOCATION_FLAG_GOT_STARTER = 0x6A
 _START_LOCATION_FLAGS_TO_SET = (
-    0x11B,  # FLAG_GOT_BAG
-    0x11C,  # FLAG_GOT_TRAINER_CARD
-    0x11D,  # FLAG_GOT_SAVE_BUTTON
-    0x11E,  # FLAG_GOT_OPTIONS_BUTTON
     0x6B,  # FLAG_GOT_POKEDEX
     0x9C,  # FLAG_GOT_POKEGEAR
     0x190,  # FLAG_HIDE_NEW_BARK_RIVAL
@@ -345,50 +347,7 @@ _AP_ITEM_ID_TO_BADGE_INDEX = _build_ap_item_id_to_badge_index()
 _BADGE_INDEX_TO_TRAINER_FLAG_ID = build_badge_index_to_trainer_flag_id()
 
 
-def _build_menu_unlock_maps() -> tuple[dict[int, int], dict[int, str]]:
-    """(AP item id -> SaveVarsFlags flag id, flag id -> `options.
-    RandomizeMenuUnlocks` option key) for the 6 `menu_unlock_*` synthetic
-    items -- see `_apply_menu_unlock_gating`. The option key is always the
-    item/location key with its `menu_unlock_` prefix stripped, by
-    construction (data_gen/locations.toml)."""
-    flag_id_by_item_key = menu_unlock_flag_id_by_item_key()
-    ap_item_id_to_flag_id: dict[int, int] = {}
-    flag_id_to_option_key: dict[int, str] = {}
-    for key, flag_id in flag_id_by_item_key.items():
-        ap_item_id_to_flag_id[HEARTGOLD_ITEM_ID_BASE + ITEMS[key]["id"]] = flag_id
-        flag_id_to_option_key[flag_id] = key.removeprefix("menu_unlock_")
-    return ap_item_id_to_flag_id, flag_id_to_option_key
-
-
-_AP_ITEM_ID_TO_MENU_UNLOCK_FLAG_ID, _MENU_UNLOCK_FLAG_ID_TO_OPTION_KEY = _build_menu_unlock_maps()
-
-# menu_unlock flag ids are deliberately kept OUT of _FLAG_ID_TO_AP_LOCATION_ID
-# (the generic check-detection map _check_locations polls every tick) --
-# real bug found by code review, 2026-08-17: these 6 flags are the *same*
-# bits _apply_menu_unlock_gating also writes (1 once the matching item is
-# owned, 0 otherwise), so generic detection would report the location as
-# checked the moment the player *received* the item, not when they
-# actually reached the vanilla trigger point -- releasing whatever item
-# was placed there without the corresponding real-game action, and (worse)
-# racing _apply_menu_unlock_gating's own suppression: a vanilla SetFlag
-# landing between _check_locations's read and the gating write later in
-# the same tick would be cleared before ever being observed, silently and
-# permanently losing that location's check (5 of the 6 flags are set by a
-# script that never replays -- see rom/startlocation.py's scr_seq_
-# T20R0201_000/scr_seq_0229_R30R0201.s notes). _apply_menu_unlock_gating
-# now owns detection AND gating together, atomically, from one single read
-# -- see its own docstring.
-_ALL_FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
-_MENU_UNLOCK_FLAG_ID_TO_AP_LOCATION_ID = {
-    flag_id: _ALL_FLAG_ID_TO_AP_LOCATION_ID[flag_id]
-    for flag_id in _MENU_UNLOCK_FLAG_ID_TO_OPTION_KEY
-    if flag_id in _ALL_FLAG_ID_TO_AP_LOCATION_ID
-}
-_FLAG_ID_TO_AP_LOCATION_ID = {
-    flag_id: ap_location_id
-    for flag_id, ap_location_id in _ALL_FLAG_ID_TO_AP_LOCATION_ID.items()
-    if flag_id not in _MENU_UNLOCK_FLAG_ID_TO_OPTION_KEY
-}
+_FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
 
 # Pokedex.caughtSpecies bit -> AP location id (task M3.4, Dexsanity) -- a
 # separate savedata array from SaveVarsFlags.flags[] above, so a separate
@@ -397,8 +356,12 @@ _FLAG_ID_TO_AP_LOCATION_ID = {
 _DEXSANITY_FLAG_ID_TO_AP_LOCATION_ID = build_dexsanity_flag_to_ap_location_id()
 
 # AP location ids already covered by ROM substitution -- see NOTES.md for
-# the double-delivery bug this prevents.
-_LOCALLY_SUBSTITUTED_AP_LOCATION_IDS = build_locally_substituted_ap_location_ids()
+# the double-delivery bug this prevents. Two variants, picked per-connection
+# from ctx.slot_data["remote_items"] (_apply_received_items below) -- see
+# build_locally_substituted_ap_location_ids's own docstring for why
+# remote_items changes this set.
+_LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_NORMAL = build_locally_substituted_ap_location_ids(remote_items=False)
+_LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_REMOTE = build_locally_substituted_ap_location_ids(remote_items=True)
 
 
 class HeartGoldClient(BizHawkClient):
@@ -618,9 +581,12 @@ class HeartGoldClient(BizHawkClient):
         """randomize_start_location: once FLAG_GOT_STARTER is observed
         set (the vanilla ChooseStarter scene, itself untouched, sets it
         the moment the player picks a starter -- see rom/startlocation.
-        py), set the other menu-unlock flags vanilla would otherwise set
-        via New Bark content this feature skips (Bag/Trainer Card/Save
-        button/Options button/Pokedex/Pokegear), and advance the rival's
+        py), fake-grant Pokedex/Pokegear (their own real vanilla trigger
+        -- Route 30's Mr. Pokemon, Mom's later revisit conversation --
+        sits behind New Bark content this feature skips, unlike Bag/
+        Trainer Card/Save/Options, which Mom's own real scene still
+        grants normally regardless of this option, see rom/
+        startlocation.py's module docstring), and advance the rival's
         own flag chain so he still eventually appears at his next real
         checkpoint instead of never again (see docs/scope.md). Exactly
         once ever per slot, guarded by a server-stored flag -- same
@@ -651,16 +617,7 @@ class HeartGoldClient(BizHawkClient):
                 original_bytes[byte_index] = current[0]
             return touched_bytes[byte_index]
 
-        # randomize_menu_unlocks: whichever of Bag/Trainer Card/Save
-        # button/Options button/Pokedex/Pokegear that option turned into a
-        # real, independently-gated item is excluded from this automatic
-        # grant -- _apply_menu_unlock_gating owns those flags instead,
-        # gated on actually receiving the matching menu_unlock_* item.
-        enabled_menu_unlocks = set(ctx.slot_data.get("randomize_menu_unlocks", []))
         for flag_id in _START_LOCATION_FLAGS_TO_SET:
-            option_key = _MENU_UNLOCK_FLAG_ID_TO_OPTION_KEY.get(flag_id)
-            if option_key is not None and option_key in enabled_menu_unlocks:
-                continue
             byte_index, bit_index = flag_byte_and_bit(flag_id)
             touched_bytes[byte_index] = (await _byte_at(byte_index)) | (1 << bit_index)
         for flag_id in _START_LOCATION_FLAGS_TO_CLEAR:
@@ -847,7 +804,6 @@ class HeartGoldClient(BizHawkClient):
             await self._check_locations(ctx)
             await self._apply_received_items(ctx, applied_key)
             await self._apply_pending_badges(ctx)
-            await self._apply_menu_unlock_gating(ctx)
         except bizhawk.RequestFailedError:
             pass  # exit handler, return to main loop to reconnect
 
@@ -900,6 +856,12 @@ class HeartGoldClient(BizHawkClient):
         large backlog trickles in at roughly one item per second. Stops
         early (retried next tick) the moment a real Bag write is needed
         and genuinely can't proceed yet."""
+        locally_substituted = (
+            _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_REMOTE
+            if bool(ctx.slot_data.get("remote_items", False))
+            else _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_NORMAL
+        )
+
         applied_this_tick = 0
         while (
             applied_this_tick < _MAX_ITEMS_APPLIED_PER_TICK
@@ -910,10 +872,12 @@ class HeartGoldClient(BizHawkClient):
             # Archipelago's server sends every item belonging to this
             # player through items_received once its location is checked
             # -- including this player's own locations, which this client
-            # already delivered via ROM substitution. Writing it into the
-            # Bag again would double it -- see NOTES.md.
+            # already delivered via ROM substitution (unless remote_items
+            # is on -- see build_locally_substituted_ap_location_ids's own
+            # docstring). Writing it into the Bag again would double it --
+            # see NOTES.md.
             already_delivered_locally = (
-                next_item.player == ctx.slot and next_item.location in _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS
+                next_item.player == ctx.slot and next_item.location in locally_substituted
             )
 
             # Badges never go through the Bag at all -- receiving one sets
@@ -1036,117 +1000,4 @@ class HeartGoldClient(BizHawkClient):
                 [(badge_byte_address, new_byte, "ARM9 System Bus")],
                 [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
             )
-
-    async def _apply_menu_unlock_gating(self, ctx: BizHawkClientContext) -> None:
-        """randomize_menu_unlocks: for each of Bag/Trainer Card/Save
-        button/Options button/Pokedex/Pokegear the player enabled, force
-        its FLAG_GOT_* bit to match whether they've actually received the
-        matching menu_unlock_* item yet -- 1 if owned, 0 (suppressed) if
-        not, overriding whatever vanilla story progression would
-        otherwise have set it to for free. Also owns that same location's
-        own check detection, atomically, from the exact same read --
-        deliberately NOT delegated to the generic _check_locations/
-        _FLAG_ID_TO_AP_LOCATION_ID polling (menu_unlock flag ids are kept
-        out of that map on purpose, see its own comment).
-
-        Real bug fixed here (code review, 2026-08-17): the old design let
-        _check_locations poll this same bit generically. Since this
-        function also *writes* 1 to that bit the moment the item is
-        owned, receiving the item from anywhere in the multiworld made
-        the player's own location report itself as checked on the very
-        next tick -- with no real in-game action at all. Worse, running
-        after _check_locations (as the old design required, to let
-        detection see a vanilla SetFlag before suppression cleared it)
-        left an intra-tick race: a vanilla SetFlag landing in the gap
-        between _check_locations's read and this function's later
-        read/clear was lost forever (5 of the 6 flags are set by a
-        script with its own no-replay guard, so a missed transition is
-        gone for the rest of the seed, permanently stranding whatever
-        item was placed there).
-
-        Fixed by making this function the *sole* reader of these 6 bits,
-        and by keying "did the check fire" off `currently_set and not
-        owned` -- since gating only ever writes 1 when owned, a bit
-        observed as 1 while *not yet* owned can only mean vanilla set it,
-        never this function. That is deliberately still true when
-        randomize_start_location is also on, in which case vanilla can
-        never set these bits at all (New Bark's own scripts never run,
-        see rom/startlocation.py) -- FLAG_GOT_STARTER (this project's own
-        established substitute "game has begun" checkpoint, already used
-        by _apply_start_location_flags for the *other* menu-unlock flags)
-        is used as the check-fire signal instead in that case, exactly
-        once the location is still missing.
-
-        Same real, documented gap as _apply_start_location_flags's own
-        grant: this only gates the pause-menu icon (src/sys_flags.c's
-        CheckGotMenuIconI), not whatever else the vanilla scene also does
-        alongside it (e.g. GivePokedex's own separate struct bit) -- see
-        options.RandomizeBag's own docstring (shared by all 6 of the
-        per-icon toggles)."""
-        if self.flags_array_address is None:
-            return
-
-        enabled_menu_unlocks = set(ctx.slot_data.get("randomize_menu_unlocks", []))
-        if not enabled_menu_unlocks:
-            return
-
-        owned_flag_ids = {
-            flag_id
-            for item in ctx.items_received
-            if (flag_id := _AP_ITEM_ID_TO_MENU_UNLOCK_FLAG_ID.get(item.item)) is not None
-        }
-
-        start_location_on = bool(ctx.slot_data.get("randomize_start_location", False))
-        starter_chosen = False
-        if start_location_on:
-            starter_byte_index, starter_bit_index = flag_byte_and_bit(_START_LOCATION_FLAG_GOT_STARTER)
-            starter_byte = (
-                await bizhawk.read(ctx.bizhawk_ctx, [(self.flags_array_address + starter_byte_index, 1, "ARM9 System Bus")])
-            )[0]
-            starter_chosen = bool(starter_byte[0] & (1 << starter_bit_index))
-
-        touched_bytes: dict[int, int] = {}
-        original_bytes: dict[int, int] = {}
-        to_check: set[int] = set()
-
-        async def _byte_at(byte_index: int) -> int:
-            if byte_index not in touched_bytes:
-                address = self.flags_array_address + byte_index
-                current = (await bizhawk.read(ctx.bizhawk_ctx, [(address, 1, "ARM9 System Bus")]))[0]
-                touched_bytes[byte_index] = current[0]
-                original_bytes[byte_index] = current[0]
-            return touched_bytes[byte_index]
-
-        for flag_id, option_key in _MENU_UNLOCK_FLAG_ID_TO_OPTION_KEY.items():
-            if option_key not in enabled_menu_unlocks:
-                continue
-            byte_index, bit_index = flag_byte_and_bit(flag_id)
-            current_value = await _byte_at(byte_index)
-            currently_set = bool(current_value & (1 << bit_index))
-            owned = flag_id in owned_flag_ids
-
-            ap_location_id = _MENU_UNLOCK_FLAG_ID_TO_AP_LOCATION_ID.get(flag_id)
-            if ap_location_id is not None and ap_location_id in ctx.missing_locations:
-                if (currently_set and not owned) or (start_location_on and starter_chosen):
-                    to_check.add(ap_location_id)
-
-            desired_value = current_value | (1 << bit_index) if owned else current_value & ~(1 << bit_index)
-            touched_bytes[byte_index] = desired_value
-
-        if to_check:
-            await ctx.check_locations(to_check)
-
-        writes = [
-            (self.flags_array_address + byte_index, bytes([new_value]), "ARM9 System Bus")
-            for byte_index, new_value in touched_bytes.items()
-            if new_value != original_bytes[byte_index]
-        ]
-        if not writes:
-            return
-        guards = [
-            (self.flags_array_address + byte_index, bytes([original_bytes[byte_index]]), "ARM9 System Bus")
-            for byte_index in touched_bytes
-            if touched_bytes[byte_index] != original_bytes[byte_index]
-        ]
-        await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
 

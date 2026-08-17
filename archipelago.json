@@ -1,6 +1,6 @@
 {
   "game": "Pokemon HGSS",
-  "world_version": "0.6.2",
+  "world_version": "0.6.3",
   "authors": ["Olivier"],
   "minimum_ap_version": "0.6.7"
 }

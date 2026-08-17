@@ -181,12 +181,27 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
     real, unearned item (found via a real playtest, see NOTES.md).
     `patch_gen.apply_local_item_substitutions` writes the "empty"
     substitution for None -- the location still fires check-detection,
-    grants nothing physically."""
+    grants nothing physically.
+
+    `remote_items` (options.RemoteItems, off by default, 2026-08-17): when
+    on, this player's own items get None too (same as another player's),
+    routing delivery through the normal network path
+    (client.py's _apply_received_items) instead of embedding them in the
+    ROM -- lets a corrupted/reset save recover everything on reconnect,
+    or a slot be shared between multiple players. The 30 undetectable
+    locations above are the one exception: ROM substitution is their
+    *only* possible delivery path regardless of remote_items, so they
+    keep their real item_key even then -- see location_flags.
+    build_locally_substituted_ap_location_ids's own docstring, which
+    client.py uses to recognize this same exception on the receiving end."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
+    from location_flags import unsupported_location_keys
 
     label_to_key = {data["label"]: key for key, data in ITEMS.items()}
     local_players = {world.player} | world.multiworld.get_player_groups(world.player)
+    remote_items = bool(world.options.remote_items.value)
+    always_local_keys = frozenset(unsupported_location_keys()) if remote_items else frozenset()
 
     substitutions: dict[str, str | None] = {}
     for location in world.multiworld.get_locations(world.player):
@@ -196,6 +211,9 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
         if location_data is None or location_data["type"] not in _SUBSTITUTABLE_LOCATION_TYPES:
             continue
         if location.item.player not in local_players:
+            substitutions[location.name] = None
+            continue
+        if remote_items and location.name not in always_local_keys:
             substitutions[location.name] = None
             continue
         item_key = label_to_key.get(location.item.name)
