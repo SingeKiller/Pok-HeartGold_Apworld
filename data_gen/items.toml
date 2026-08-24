@@ -60,7 +60,12 @@
 #     Bicycle, the 3 fishing rods, Secretpotion (Red Gyarados/Team Rocket
 #     questline), Squirtbottle (Route 36 tree), Card Key + Basement Key
 #     (Team Rocket hideout), Mystery Egg (Elm's starting fetch quest) and
-#     the S.S. Ticket (boat to Kanto).
+#     the S.S. Ticket (boat to Kanto). Extended 2026-08-23 by the decomp
+#     verrou census with the 3 Key Items whose [[exit_rule]] entries were
+#     added the same day (data_gen/rules.toml): the Magnet Train Pass, the
+#     Rainbow Wing (Bell Tower) and the Silver Wing (Lugia's chamber). An
+#     item an access rule depends on MUST be progression, or the fill is
+#     free to place it behind its own gate.
 #   - filler: berries, medicine, battle items, mail, TM-adjacent commons,
 #     the non-Master balls, and a set of Key Item constants
 #     (e.g. ITEM_GALACTIC_KEY, ITEM_POFFIN_CASE, ITEM_SEAL_CASE/BAG,
@@ -2701,7 +2706,14 @@ id = 397
 label = "TM70"
 price = 1000
 pocket = "tm_hm"
-classification = "useful"
+# progression, not useful (user request, 2026-08-18): TM70 always
+# teaches Flash now (species.randomize_tm_hm_moves pins it, same as
+# HM01-08), a genuinely useful field tool for dark caves. No region-
+# access rule anywhere actually requires it (see data_gen/rules.toml's
+# own [hm_badges] header -- Flash never gates an exit), but marking it
+# progression biases the fill algorithm toward placing it earlier/more
+# accessibly rather than as arbitrary late-game filler.
+classification = "progression"
 
 [tm71]
 id = 398
@@ -3275,7 +3287,7 @@ id = 480
 label = "PASS"
 price = 0
 pocket = "key_items"
-classification = "useful"
+classification = "progression"
 
 [machine_part]
 id = 481
@@ -3289,14 +3301,14 @@ id = 482
 label = "SILVER_WING"
 price = 0
 pocket = "key_items"
-classification = "useful"
+classification = "progression"
 
 [rainbow_wing]
 id = 483
 label = "RAINBOW_WING"
 price = 0
 pocket = "key_items"
-classification = "useful"
+classification = "progression"
 
 [mystery_egg]
 id = 484

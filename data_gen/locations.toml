@@ -25,14 +25,18 @@
 #     now has an `original_item` (the matching data_gen/items.toml
 #     `badge_*` synthetic item, id 9000+badge index) like ground_item/
 #     npc_gift, and a `trainer` field (the gym Leader's own data_gen/
-#     trainers.toml key -- check detection reuses TRAINER_FLAG_BASE +
-#     trainer id, the exact same mechanism `type = 'trainer'` locations
-#     already use, since defeating the Leader is itself a std_trainer-class
-#     battle even though it's invoked via a raw TrainerBattle scrcmd inside
-#     a scripted sequence rather than a simple person-event scriptId, so it
-#     was never one of the 390 Trainersanity locations). See rom/
-#     badgedata.py for how the vanilla GiveBadge call at each gym is
-#     neutralized (2 Nop instructions) so it can't also grant the
+#     trainers.toml key). Check detection uses a per-gym sentinel flag,
+#     NOT the engine auto-flag mechanism: every gym Leader is fought through
+#     a bespoke, hand-authored script (never the shared std_trainer engine
+#     script), and a Leader's own win branch never calls SetTrainerFlag on
+#     themselves, so TRAINER_FLAG_BASE + trainer id is never actually set
+#     in-game for any of them (real bug found 2026-08-18, fixing it for 6
+#     of the 16 Leaders via pre-existing sentinel flags in their own win
+#     sequences; the other 10 remain unfixed pending safer candidates). See
+#     location_flags.py's own _SYNTHETIC_ID_FLAG_OVERRIDES dict and
+#     build_badge_index_to_sentinel_flag_id's docstring for the mechanism.
+#     Also see rom/badgedata.py for how the vanilla GiveBadge call at each
+#     gym is neutralized (2 Nop instructions) so it can't also grant the
 #     (possibly wrong, vanilla) badge locally and double up with whatever
 #     item this location's own original_item actually resolves to.
 #     Special case: the Rising Badge (Clair) is granted at a different
@@ -640,7 +644,7 @@ x = 42
 z = 73
 
 [ilex_forest_x_attack]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'ground_item'
 original_item = 'x_attack'
 id = 1084
@@ -648,7 +652,7 @@ x = 27
 z = 42
 
 [ilex_forest_antidote]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'ground_item'
 original_item = 'antidote'
 id = 1085
@@ -656,7 +660,7 @@ x = 20
 z = 30
 
 [ilex_forest_ether]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'ground_item'
 original_item = 'ether'
 id = 1086
@@ -1407,8 +1411,11 @@ id = 1275
 x = 375
 z = 277
 
+# x=393 is inside mapmatrix cell (12,7) of R36, west of the Sudowoodo at
+# x=415, hence `route_36_west` (2026-08-22; see data_gen/regions.toml's
+# [route_36] comment for the split and the cell arithmetic).
 [route_36_hyper_potion]
-region = 'route_36'
+region = 'route_36_west'
 type = 'ground_item'
 original_item = 'hyper_potion'
 id = 1276
@@ -1535,8 +1542,13 @@ id = 1216
 x = 645
 z = 302
 
+# North of Route 46's internal ledge, so `route_46_north` and not
+# `route_46` since the 2026-08-22 split of that map (user verification on
+# an interactive in-game map; see data_gen/regions.toml's own comment on
+# [route_46_north]). Reachable from Route 45 or through Dark Cave, never
+# from Route 29 below.
 [route_46_x_speed]
-region = 'route_46'
+region = 'route_46_north'
 type = 'ground_item'
 original_item = 'x_speed'
 id = 1217
@@ -1615,8 +1627,16 @@ id = 1310
 x = 309
 z = 250
 
+# The three Lake of Rage item balls all sit across the water from the
+# Route 43 shore, each on its own small patch, so they moved to
+# `lake_of_rage_north` with the 2026-08-23 split. Each `x`/`z` below was
+# checked against the real ROM's own land_data collision (see
+# data_gen/regions.toml's comment on the split): TM43's patch is x 504-507
+# / z 34-35, the Choice Specs' is x 538-543 / z 36-38 (it holds the hidden
+# Max Potion too), the Red Flute's is x 486-491 / z 72-74, and none of the
+# three touches another walkable patch except by swimming.
 [lake_of_rage_tm43]
-region = 'lake_of_rage'
+region = 'lake_of_rage_north'
 type = 'hm_tm'
 original_item = 'tm43'
 id = 1288
@@ -1624,7 +1644,7 @@ x = 506
 z = 34
 
 [lake_of_rage_red_flute]
-region = 'lake_of_rage'
+region = 'lake_of_rage_north'
 type = 'ground_item'
 original_item = 'red_flute'
 id = 1290
@@ -1632,7 +1652,7 @@ x = 489
 z = 73
 
 [lake_of_rage_choice_specs]
-region = 'lake_of_rage'
+region = 'lake_of_rage_north'
 type = 'ground_item'
 original_item = 'choice_specs'
 id = 1289
@@ -1920,7 +1940,7 @@ x = 48
 z = 14
 
 [ilex_forest_antidote_2]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'antidote'
 id = 30
@@ -1928,7 +1948,7 @@ x = 15
 z = 37
 
 [ilex_forest_super_potion]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'super_potion'
 id = 31
@@ -1936,7 +1956,7 @@ x = 36
 z = 26
 
 [ilex_forest_full_heal]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'full_heal'
 id = 32
@@ -1944,7 +1964,7 @@ x = 39
 z = 12
 
 [ilex_forest_ether_2]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'ether'
 id = 33
@@ -1952,7 +1972,7 @@ x = 33
 z = 14
 
 [ilex_forest_tinymushroom]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'tinymushroom'
 id = 211
@@ -1960,7 +1980,7 @@ x = 50
 z = 30
 
 [ilex_forest_repel]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'repel'
 id = 212
@@ -1968,7 +1988,7 @@ x = 28
 z = 26
 
 [ilex_forest_big_mushroom]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'big_mushroom'
 id = 213
@@ -1976,7 +1996,7 @@ x = 10
 z = 32
 
 [ilex_forest_tinymushroom_2]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'tinymushroom'
 id = 214
@@ -1984,7 +2004,7 @@ x = 53
 z = 48
 
 [ilex_forest_tinymushroom_3]
-region = 'ilex_forest'
+region = 'ilex_forest_north'
 type = 'hidden_item'
 original_item = 'tinymushroom'
 id = 215
@@ -2495,8 +2515,9 @@ id = 10
 x = 357
 z = 278
 
+# x=391, same cell (12,7) and same reasoning as route_36_hyper_potion above.
 [route_36_awakening]
-region = 'route_36'
+region = 'route_36_west'
 type = 'hidden_item'
 original_item = 'awakening'
 id = 11
@@ -2703,8 +2724,13 @@ id = 37
 x = 547
 z = 79
 
+# On the Choice Specs' patch (x 538-543 / z 36-38), across the water: moved
+# to `lake_of_rage_north` on 2026-08-23, same census as the item balls
+# above. The other two Lake of Rage hidden items stay put: the Full Restore
+# at (511, 82) and the Rare Candy at (547, 79) are both on southern shore
+# patches.
 [lake_of_rage_max_potion]
-region = 'lake_of_rage'
+region = 'lake_of_rage_north'
 type = 'hidden_item'
 original_item = 'max_potion'
 id = 102
@@ -2935,8 +2961,15 @@ original_item = 'tm10'
 id = 199
 label = 'Lake of Rage Hidden Power House - TM10'
 
+# The Red Scale is the red Gyarados' own drop, not an NPC gift on the bank:
+# scr_seq_0938_T29.s's scr_seq_T29_001 (the script attached to
+# obj_T29_rgyaradosu) runs the WildBattle and hands ITEM_RED_SCALE out on
+# the way back. That object stands at (525, 71), open water, so this check
+# moved to `lake_of_rage_north` with the 2026-08-23 Lake of Rage split --
+# see data_gen/regions.toml. Not the shore Lance ends up on: he is at
+# (528, 83) and his event location stays in `lake_of_rage`.
 [lake_of_rage_red_scale]
-region = 'lake_of_rage'
+region = 'lake_of_rage_north'
 type = 'npc_gift'
 original_item = 'red_scale'
 id = 201
@@ -3103,8 +3136,13 @@ original_item = 'poke_ball'
 id = 9010
 label = 'Route 29 - 5 Poke Balls'
 
+# The flower shop girl (obj_R36_gsgirl1_2, x=415 z=249, cell (12,7)) hands
+# these over inside the Sudowoodo cutscene itself: `GiveItemNoCheck
+# ITEM_BERRY_POTS` lives in scr_seq_R36_000, the Sudowoodo's own script,
+# after the wild battle. So it is Squirtbottle-locked in vanilla, which
+# `route_36_west` expresses exactly (2026-08-22 split).
 [route_36_berry_pots]
-region = 'route_36'
+region = 'route_36_west'
 type = 'npc_gift'
 original_item = 'berry_pots'
 id = 9011
@@ -4682,8 +4720,15 @@ original_item = 'tm64'
 id = 9023
 label = 'Route 5 Underground Path - TM64 for a Rage Candy Bar'
 
+# Region corrected 2026-08-24 (Kanto story locks pass, verrou D3): this key
+# says "broken" for stability, but the `GiveItemNoCheck ITEM_TM57` call
+# (scr_seq_0196_R10R0202.s:56) runs strictly after `Warp
+# MAP_ROUTE_10_POWER_PLANT_REPAIRED` (l. 48) and `SetFlag FLAG_RESTORED_POWER`
+# (l. 54) -- the manager hands it over on the repaired map, not the broken
+# one. Was wrongly attached to `route_10_power_plant_broken` before this
+# pass, which let it get flagged reachable a full story step early.
 [route_10_power_plant_broken_tm57]
-region = 'route_10_power_plant_broken'
+region = 'route_10_power_plant_repaired'
 type = 'hm_tm'
 original_item = 'tm57'
 id = 9024
@@ -4754,6 +4799,145 @@ type = 'event'
 event = 'elite_four_defeated'
 id = 0
 label = 'Hall of Fame - Elite Four defeated'
+
+# The six Johto story locks of the 2026-08-23 event census (verrous A2, A3,
+# B1, B3, C1, C2). Each one is a vanilla passage physically blocked by an
+# NPC standing on a warp, whose zone_event `eventFlag` is only flipped by a
+# scenario step somewhere else on the map graph -- no bag item and no badge
+# is involved, which is exactly what `type = 'event'` exists for. The rule
+# they feed is in data_gen/rules.toml's own "Johto story locks" section;
+# each entry below cites the decomp script that sets its flag, and sits in
+# the region where that script runs, so that "AP reached this region" and
+# "the player could have run that script" are the same statement.
+
+# Verrou A2. FLAG_UNK_19F hides obj_T23_rocketm, the Rocket standing at
+# (434,461) on Azalea's only path north to the Slowpoke Well warp (433,454)
+# -- "It's unsafe to go in there, so I'm standing guard". He is placed by
+# the coord trigger at (434,466) (scr_seq_0866_T23.s's scr_seq_T23_003,
+# which clears FLAG_UNK_19F and sets VAR_UNK_4080 = 1) and only leaves when
+# talking to Kurt sets the flag again: scr_seq_0874_T23R0501.s:69, in the
+# block where obj_T23R0501_gantetsu runs out of his own house.
+[kurt_left_for_slowpoke_well_event]
+region = 'azalea_kurt_house'
+type = 'event'
+event = 'kurt_left_for_slowpoke_well'
+id = 1
+label = "Kurt's House - Kurt leaves for the Slowpoke Well"
+
+# Verrou A3. FLAG_UNK_1A9 hides obj_T23_rocketm_2, at (405,472), one tile
+# below the Azalea Gym warp at (405,471). Set in scr_seq_0060_D26R0102.s:58,
+# in the `CheckBattleWon` branch of the Proton fight on Slowpoke Well B1F
+# (the same block that hides the four Rockets down there).
+[proton_defeated_event]
+region = 'slowpoke_well_b1f'
+type = 'event'
+event = 'proton_defeated'
+id = 2
+label = 'Slowpoke Well B1F - Proton defeated'
+
+# Verrou B1. The Mahogany souvenir shop's shelf plus three SPRITE_STOP
+# objects sit on the staircase down to the hideout until Lance shoves them
+# aside: scr_seq_0088_D35R0101.s's scr_seq_D35R0101_006, reached from that
+# map's own frame table (`InitScriptGoToIfEqual VAR_UNK_40A8, 1`) and
+# ending on `SetVar VAR_UNK_40A8, 2` (l. 123), the value that makes
+# scr_seq_D35R0101_001 reposition the blockers on every later entry.
+# VAR_UNK_40A8 = 1 is set at Lake of Rage, by talking to Lance
+# (scr_seq_0938_T29.s:361) -- and Lance is only standing there once the red
+# Gyarados has been engaged (scr_seq_T29_002 clears
+# FLAG_HIDE_LAKE_OF_RAGE_LANCE), which is why the matching exit rule keeps
+# Surf on top of this event: the Gyarados is at (525,71), open water in the
+# middle of T29.
+[lake_of_rage_lance_met_event]
+region = 'lake_of_rage'
+type = 'event'
+event = 'lake_of_rage_lance_met'
+id = 3
+label = 'Lake of Rage - Lance asks for help in Mahogany'
+
+# Verrou B3. FLAG_UNK_1F9 hides obj_T28_gsbigman, at (523,184), one tile
+# below the Mahogany Gym warp at (523,183). Set in
+# scr_seq_0090_D35R0103.s:713, the very same uninterrupted block as
+# `SetFlag FLAG_ROCKET_HIDEOUT_CLEARED` (l. 710) -- the scene where Lance
+# hands over HM05 and the hideout's radio jammer goes quiet.
+#
+# That script runs on D35R0103 (team_rocket_headquarters_b2f here), but the
+# event location sits one region deeper, on team_rocket_headquarters_b3f:
+# the scene is gated on VAR_UNK_40AC reaching 9, and that counter is walked
+# up alternately by both floors (D35R0104 sets 1, 3, 4 and 6 -- see
+# scr_seq_0091_D35R0104.s), so the hideout cannot be cleared without having
+# been to B3F. B3F is only reachable through B2F, so this is the strictly
+# conservative of the two placements.
+[rocket_hideout_cleared_event]
+region = 'team_rocket_headquarters_b3f'
+type = 'event'
+event = 'rocket_hideout_cleared'
+id = 4
+label = 'Team Rocket HQ B3F - hideout cleared'
+
+# Verrou C1. FLAG_HIDE_BLACKTHORN_GYM_GUARD_INFRONT hides obj_T30_gsman1,
+# at (668,152), one tile below the Blackthorn Gym warp at (668,151) -- the
+# man who says Clair went into the Dragon's Den behind the gym. Set in
+# scr_seq_0034_D23R0106.s:144 (immediately followed by `ClearFlag
+# FLAG_HIDE_BLACKTHORN_GYM_GUARD_ASIDE`, which puts his stood-aside twin
+# obj_T30_gsman1_2 at (669,152) instead), in the block that follows the
+# Archer battle at the top of the Goldenrod Radio Tower -- the same block
+# that sets FLAG_BEAT_RADIO_TOWER_ROCKETS and frees the director, who hands
+# over the Rainbow Wing 60-odd lines earlier in the same file.
+[radio_tower_rockets_defeated_event]
+region = 'goldenrod_radio_tower_observation_deck'
+type = 'event'
+event = 'radio_tower_rockets_defeated'
+id = 5
+label = 'Goldenrod Radio Tower - Archer defeated'
+
+# Verrou C2. FLAG_HIDE_BLACKTHORN_DEN_GUARD_INFRONT hides
+# obj_T30_gsoldman1, at (672,133), one tile below the Dragon's Den warp at
+# (672,132) -- "Only chosen Trainers may train here". Set in
+# scr_seq_0943_T30GYM0101.s:106, one line after `SetFlag FLAG_UNK_0D1`
+# (l. 105), i.e. in the `CheckBattleWon` branch of the Clair battle itself.
+# Note this is what actually puts the Rising Badge behind the whole chain:
+# the badge is not handed out in the gym at all, its only `GiveBadge
+# BADGE_RISING` is at the Dragon's Den shrine (scr_seq_0112_D44R0103.s:153),
+# which is where dragons_den_shrine_badge already sits.
+[clair_defeated_event]
+region = 'blackthorn_gym'
+type = 'event'
+event = 'clair_defeated'
+id = 6
+label = 'Blackthorn Gym - Clair defeated'
+
+# Two Kanto story locks of the 2026-08-24 event census (verrous D3, D5/D6),
+# same technique as the six Johto ones above. See data_gen/rules.toml's own
+# "Kanto story locks" section for the edges they feed and for why
+# `machine_part` (the vanilla key item that starts the D3 chain) is never
+# modeled as an AP item -- product decision, this event only records that the
+# chain finished.
+
+# Verrou D3. FLAG_RESTORED_POWER, set in scr_seq_0196_R10R0202.s:54, right
+# after `Warp MAP_ROUTE_10_POWER_PLANT_REPAIRED` (l. 48) -- the manager's
+# "thank you" scene, TM57 hand-out (l. 56, see route_10_power_plant_broken_tm57
+# above) and FLAG_UNK_258 (l. 60, verrou D2) all run on the repaired map, not
+# the broken one the script file's own name suggests.
+[power_plant_restored_event]
+region = 'route_10_power_plant_repaired'
+type = 'event'
+event = 'power_plant_restored'
+id = 7
+label = 'Route 10 Power Plant - Power restored'
+
+# Verrou D5/D6. FLAG_GOT_EXPN_CARD, set in scr_seq_0775_T05R0701.s:35, only
+# reachable once FLAG_RESTORED_POWER is already set (l. 22's `GoToIfSet
+# FLAG_RESTORED_POWER, _0047`; without it the director just says the station
+# is still off the air, l. 23). No Pokegear Card AP item exists for this --
+# the EXPN Card only ever unlocks the Pokeflute radio station, which the two
+# Snorlax scripts (scr_seq_0197_R11.s, scr_seq_0199_R12.s) check for
+# directly via `RadioMusicIsPlaying 5`, so the event is the whole payload.
+[expansion_card_obtained_event]
+region = 'lavender_radio_station'
+type = 'event'
+event = 'expansion_card_obtained'
+id = 8
+label = 'Lavender Radio Station - EXPN Card obtained'
 
 # type = 'trainer' (task M3.3, Trainersanity): one real, fillable AP location
 # per std_trainer(...) trainer-battle person-event object found in every
@@ -6413,15 +6597,19 @@ id = 233
 trainer = 'policeman_dirk'
 label = 'Dirk'
 
+# Mark stands at x=380 (cell (11,7)) and Alan at x=401 (cell (12,7)), both
+# west of the Sudowoodo at x=415, hence `route_36_west` (2026-08-22 split).
+# The two NPCs left on `route_36` proper, Arthur (Hard Stone) at x=431 and
+# the HM06 man at x=426, are in cell (13,7) on the Violet side.
 [route_36_psychic_m_mark]
-region = 'route_36'
+region = 'route_36_west'
 type = 'trainer'
 id = 234
 trainer = 'psychic_m_mark'
 label = 'Mark'
 
 [route_36_school_kid_m_alan]
-region = 'route_36'
+region = 'route_36_west'
 type = 'trainer'
 id = 235
 trainer = 'school_kid_m_alan'
@@ -6798,22 +6986,25 @@ id = 288
 trainer = 'hiker_timothy'
 label = 'Timothy'
 
+# Route 46's three trainers all stand north of the map's internal ledge,
+# hence `route_46_north` (2026-08-22 user verification on an interactive
+# in-game map; see data_gen/regions.toml's [route_46_north] comment).
 [route_46_camper_ted]
-region = 'route_46'
+region = 'route_46_north'
 type = 'trainer'
 id = 289
 trainer = 'camper_ted'
 label = 'Ted'
 
 [route_46_hiker_bailey]
-region = 'route_46'
+region = 'route_46_north'
 type = 'trainer'
 id = 290
 trainer = 'hiker_bailey'
 label = 'Bailey'
 
 [route_46_picnicker_erin]
-region = 'route_46'
+region = 'route_46_north'
 type = 'trainer'
 id = 291
 trainer = 'picnicker_erin'
@@ -7512,24 +7703,30 @@ label = 'Elan & Ida'
 # uses). Every species gets an id here (like 'trainer' locations reserve
 # ids for all 390 trainers regardless of trainersanity), but a given
 # location is only actually created for a seed where that species genuinely
-# appears somewhere in world.generated_encounters -- see
-# species.species_encounter_methods and locations.py's create_locations.
-# Static/gift Pokemon (starters, legendaries, in-game gifts) are excluded:
-# they're vanilla/fixed in this project (see data_gen/locations.toml's own
-# header, C4/C5's "excluded from this pass" note), never wild-randomized,
-# so they can never be "seed-aware scoped" the way a wild table entry can.
+# appears somewhere in world.generated_encounters *and* in a table the ROM
+# patcher really writes -- see species.species_encounter_sources,
+# rom/encounterdata.py's "What actually reaches the ROM" section, and
+# locations.py's create_locations. The created count therefore varies from
+# seed to seed, by design. Static/gift Pokemon (starters, legendaries,
+# in-game gifts) are excluded: they're vanilla/fixed in this project (see
+# data_gen/locations.toml's own header, C4/C5's "excluded from this pass"
+# note), never wild-randomized, so they can never be "seed-aware scoped"
+# the way a wild table entry can.
 #
 # region is fixed to 'new_bark' for every entry -- always reachable with no
-# gate of its own, since Dexsanity's real gating is entirely on the
-# location's access_rule (built from species_encounter_methods in
-# locations.py: requires owning an HM+badge for surf/rock_smash, or the
-# matching rod for a fishing-only species; no rule at all if the species is
-# also obtainable from plain grass or headbutt anywhere). Like 'trainer'
-# locations, no original_item field: create_items() contributes a filler
-# item per created location instead (see __init__.py) -- Dexsanity checks
-# never hold a progression item, since the access rule is deliberately
-# looser than this seed's real per-region logic (see options.py's
-# Dexsanity docstring).
+# gate of its own, because a species can live in several places at once and
+# an AP Location has exactly one parent Region, so the real "where" is
+# expressed inside the access_rule instead (locations.py's
+# _dexsanity_access_rule: an OR over every (region, method) pair this seed
+# actually placed the species in, each branch requiring both reaching that
+# region and owning what that method needs -- an HM+badge for
+# surf/rock_smash, the matching rod for fishing, nothing for grass or
+# headbutt). Before 2026-08-22 the rule only tested the method and the
+# 'new_bark' anchor was taken at face value, which put every Dexsanity
+# location in sphere 0 and killed a real seed (Squirtbottle on a Tropius
+# living only in the Burned Tower, behind that same Squirtbottle). Like
+# 'trainer' locations, no original_item field: create_items() contributes a
+# filler item per created location instead (see __init__.py).
 
 [dexsanity_abomasnow]
 region = 'new_bark'

@@ -75,6 +75,29 @@ from rom import HeartGoldRom
 
 NITROFS_PATH = "a/0/2/7"
 ITEM_NAMES_SUBFILE_INDEX = 222
+
+# HGSS has THREE parallel item-name banks, not one, and a script picks
+# between them per sentence (src/message_format.c):
+#   BufferItemName               -> msg_0222, the plain name ("Potion")
+#   BufferItemNameWithIndefArticle -> msg_0223, article-prefixed and
+#                                   color-coded ("a Potion"); the script
+#                                   command is spelled BufferItemNameIndef
+#   BufferItemNamePlural         -> msg_0224, the plural ("Potions")
+# Only msg_0222 entry 0 reads "None" in vanilla; entries 0 of msg_0223 and
+# msg_0224 both read literally "???" (files/msgdata/msg/msg_0223.gmm and
+# msg_0224.gmm, line 5 of each, confirmed identical on a real US ROM).
+#
+# That is where the "???" a player still saw after the 2026-08-15 msg_0222
+# patch was coming from (reported 2026-08-22: the pickup showed "???"
+# first and the patched text second). The real ground-item and hidden-item
+# scripts are scr_seq_0141 and scr_seq_0145 (src/script_manager.c's own
+# sScriptSeqTable maps `_std_item_ball` and `_std_hidden_item` to them),
+# and both open with `BufferItemNameIndef` feeding "{PLAYER} found\n{0}!"
+# -- msg_0199_00003 / msg_0210_00003 -- before ever touching msg_0222 for
+# the follow-up "put the {0} in the {1} Pocket." line.
+ITEM_NAMES_INDEF_SUBFILE_INDEX = 223
+ITEM_NAMES_PLURAL_SUBFILE_INDEX = 224
+
 STARTER_SELECTION_SUBFILE_INDEX = 190
 
 _ENTRY_TERMINATOR = 0xFFFF

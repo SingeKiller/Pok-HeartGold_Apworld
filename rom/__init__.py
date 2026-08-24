@@ -214,6 +214,79 @@ class HeartGoldRom:
         path."""
         self.write_file(nitrofs_path, narc.to_bytes())
 
+    # -- Packed-image byte offsets ---------------------------------------
+    #
+    # Everything else in this class works on the *unpacked* representation
+    # (a dict of NitroFS files, an ARM9 image, an overlay list), which is
+    # all a generation-time patch ever needs: "sub-file 58 of a/0/3/2,
+    # byte 364" fully identifies a write target there.
+    #
+    # The two helpers below answer a different question, and only make
+    # sense against `save_bytes()`'s output: at which *absolute* byte
+    # offset does that same word end up in the finished .nds? That is the
+    # only form of address BizHawk's "ROM" memory domain understands, so
+    # it is what a runtime client has to be handed if it is ever to touch
+    # a NitroFS record (see rom/startlocation.py's revocation record).
+    # They are static and take the packed bytes explicitly rather than
+    # reading `self`, because the answer is a property of one particular
+    # serialization, not of the ROM object: `to_bytes()` re-lays-out every
+    # NitroFS file from scratch, so any later edit invalidates them.
+
+    @staticmethod
+    def nitrofs_file_span(packed: bytes, nitrofs_path: str) -> tuple[int, int]:
+        """`(start, end)` absolute byte offsets of a NitroFS file's
+        contents inside an already-packed ROM image (`save_bytes()`'s
+        output), read straight out of that image's own FNT/FAT -- exactly
+        the two tables the DS cartridge hardware itself resolves a file
+        through."""
+        key = HeartGoldRom._normalize_nitrofs_path(nitrofs_path)
+        header = apnds.rom.Header(packed[: apnds.rom.HeaderField.ENTIRE_HEADER])
+        fntb = header.get_rom_region(
+            packed, apnds.rom.HeaderField.FNTB_ROMOFFSET, apnds.rom.HeaderField.FNTB_BSIZE
+        )
+        file_id = apnds.rom.get_filename_id_map(fntb).get(key)
+        if file_id is None:
+            raise NitroFsFileNotFoundError(
+                f"NitroFS file not found: {nitrofs_path!r}. This path "
+                "either does not exist in this ROM or is misspelled."
+            )
+        fatb = header.get_rom_region(
+            packed, apnds.rom.HeaderField.FATB_ROMOFFSET, apnds.rom.HeaderField.FATB_BSIZE
+        )
+        start, end = struct.unpack_from("<II", fatb, file_id * 8)
+        return start, end
+
+    @staticmethod
+    def narc_subfile_span(narc_data: bytes, index: int) -> tuple[int, int]:
+        """`(start, end)` byte offsets of one NARC sub-file's contents,
+        relative to the start of the NARC itself -- so `nitrofs_file_span`
+        above plus this equals the sub-file's absolute offset in the
+        packed ROM.
+
+        Walks the same BTAF/BTNF/GMIF chunk chain `apnds.narc.Narc.
+        from_bytes` walks, but keeps the offsets instead of the bytes
+        (`Narc.files` is a list of copies, which cannot answer "where did
+        this come from")."""
+        magic, _bom, _version, _size, header_size = struct.unpack_from("<IHHIH", narc_data, 0)
+        if magic != apnds.narc.HEADER_MAGIC:
+            raise RomError("data is not a valid NARC: header magic does not match")
+        fatb_position = header_size
+        if narc_data[fatb_position : fatb_position + 4] != b"BTAF":
+            raise RomError("data is not a valid NARC: FATB magic does not match")
+        fatb_length, entry_count = struct.unpack_from("<2I", narc_data, fatb_position + 4)
+        if not 0 <= index < entry_count:
+            raise ValueError(f"NARC sub-file index {index} out of range (archive has {entry_count} entries)")
+        fntb_position = fatb_position + fatb_length
+        if narc_data[fntb_position : fntb_position + 4] != b"BTNF":
+            raise RomError("data is not a valid NARC: FNTB magic does not match")
+        (fntb_length,) = struct.unpack_from("<I", narc_data, fntb_position + 4)
+        fimg_position = fntb_position + fntb_length
+        if narc_data[fimg_position : fimg_position + 4] != b"GMIF":
+            raise RomError("data is not a valid NARC: FIMG magic does not match")
+        image_base = fimg_position + 8
+        start, end = struct.unpack_from("<2I", narc_data, fatb_position + 12 + index * 8)
+        return image_base + start, image_base + end
+
     # -- ARM9 static binary access ---------------------------------------
     #
     # Narrow, append-only access to the ARM9 executable itself, distinct

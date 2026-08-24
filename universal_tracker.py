@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 #
 # exclude_legendaries and dexsanity (task M3.4) are both load-bearing here,
 # not just round-tripped for completeness: Dexsanity's location set is
-# computed from species.species_encounter_methods(world.generated_
+# computed from species.species_encounter_sources(world.generated_
 # encounters), which a UT re-run recomputes locally by re-seeding
 # randomize_wild_encounters -- if either option's value silently diverged
 # from the real generation, the re-run would produce a different encounter
@@ -50,7 +50,6 @@ TRACKED_OPTION_NAMES = (
     "starting_town",
     "randomize_bicycle",
     "legendarysanity",
-    "extra_route_blockers",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is

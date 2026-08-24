@@ -89,7 +89,7 @@ world).
     -- see `universal_tracker.TRACKED_OPTION_NAMES`, which now also tracks
     `exclude_legendaries`/`dexsanity`, closing a latent UT-desync gap this
     change would otherwise have introduced), so `species.
-    species_encounter_methods(world.generated_encounters)` can determine,
+    species_encounter_sources(world.generated_encounters)` can determine,
     per seed, exactly which species are genuinely obtainable -- only those
     get a `type = "dexsanity"` location (up to 493 reserved ids, one per
     `species.real_species_pool` entry, mirroring how `type = "trainer"`
@@ -123,7 +123,7 @@ world).
     the address it already resolves, no new location-detection machinery.
     `dexsanity_encounter_types` (`OptionSet`, default = every method)
     restricts which encounter methods count at all, filtering each
-    species' allowed-method set (`species.species_encounter_methods()`,
+    species' allowed-source set (`species.species_encounter_sources()`,
     already computed per seed) down to the player's chosen subset at
     generation time; a species left with zero allowed methods after the
     filter simply gets no Dexsanity location that seed, same as one this
@@ -133,6 +133,41 @@ world).
     `catch` (seenSpecies flips on any wild/trainer battle encounter, no
     capture required) -- offered as an explicit opt-in for players who
     want a faster/more casual Dexsanity, not as a replacement default.
+    **Correction (2026-08-22, real dead seed).** The "the rule's
+    intentional looseness can only ever delay a filler pickup, never
+    strand a required item" claim above was simply wrong, and cost a
+    player their run. Contributing a *filler* item to the pool per
+    Dexsanity location says nothing about what the fill eventually
+    *places* there: a progression item can and does land on one. On the
+    reported seed (`zone_method_mapping`), the Squirtbottle landed on
+    Tropius, whose only appearance was `burned_tower_1f` -- inside
+    Ecruteak, which the Squirtbottle itself unlocks. Two independent
+    defects made that invisible to the logic, both fixed:
+    1. *Locations that were not in the ROM at all.* The species -> method
+       map counted every slot of `data/encounters.py`, including the
+       headbutt tables `rom/encounterdata.py` explicitly does not write
+       and the 3 zones with no NARC entry (`azalea`/`pewter`/`route_16`),
+       so 55 to 59 of a seed's ~460 Dexsanity locations were for species
+       written nowhere in the produced ROM (Grovyle on the reported seed:
+       present in no table whatsoever). `rom/encounterdata.py` now owns a
+       single machine-readable statement of what actually reaches the ROM
+       (`WRITTEN_ENCOUNTER_METHODS` / `zone_method_is_written`), consumed
+       both by `patch_gen.apply_encounter_randomization` and by
+       `species.species_encounter_sources`, so the patcher and the logic
+       cannot disagree. Implementing headbutt-table writing would restore
+       those species automatically, by adding one string to that
+       frozenset.
+    2. *Rules with no geography.* `_dexsanity_access_rule` tested only the
+       method (own Surf, own the rod, ...) and every location was anchored
+       on the always-free origin region, so all of them sat in sphere 0.
+       It now takes the `(zone, method)` pairs this seed really produced
+       and requires reaching a region the species actually lives in: an OR
+       over every appearance, each branch being "reach that region AND own
+       what that method needs". The anchor stays `new_bark` because a
+       species can live in several regions at once while an AP Location
+       has exactly one parent Region.
+    The number of Dexsanity locations now varies from seed to seed, which
+    is normal and expected in Archipelago.
 
 ## Shelved (task M4.5, 2026-08-10)
 
@@ -224,47 +259,43 @@ close the existing flag-reading mechanism already gets.
   comme vrais items AP", 2026-08-15):** `type = 'badge'` locations are now
   real, fillable locations like ground_item/npc_gift (`original_item` = a
   new synthetic `badge_*` entry in `data/items.py`, id 9000+badge index,
-  always progression) instead of locked events -- check detection reuses
-  `TRAINER_FLAG_BASE + <gym Leader's trainer id>`, the same mechanism
-  `type = 'trainer'` locations already use, since defeating a Leader is
-  itself a `std_trainer`-class battle even though it was never one of the
-  390 Trainersanity locations (a raw `TrainerBattle` scrcmd inside a
-  scripted sequence, not a simple person-event `scriptId`). `rom/
-  badgedata.py` neutralizes each gym's own vanilla `GiveBadge` call (a
-  flat 4-byte instruction, opcode 295 + badge index -- overwritten with
-  two `Nop` instructions, preserving the script's byte length exactly) so
-  it can no longer also set the (possibly wrong, vanilla) badge locally;
-  `CheckBadge`'s own re-entry guard is deliberately left untouched, since
-  once the local grant stops firing it naturally reflects whether the
-  player has genuinely received that badge_* item yet (re-battle the
-  Leader on revisit until they have, regardless of where the real item
-  ended up). One decomp-confirmed special case, not a bug: the Rising
-  Badge (Clair) is granted at a different script site (Dragon's Den
-  Shrine's own puzzle-completion cutscene) than her real battle
-  (Blackthorn Gym) -- both sites are tracked independently (patch site in
-  `rom/badgedata.py`, detection site via `data_gen/locations.toml`'s own
-  `trainer` field). `goal: n_badges` and the `[hm_badges]`-gated exit
+  always progression) instead of locked events. `rom/badgedata.py`
+  neutralizes each gym's own vanilla `GiveBadge` call (a flat 4-byte
+  instruction, opcode 295 + badge index -- overwritten with two `Nop`
+  instructions, preserving the script's byte length exactly) so it can no
+  longer also set the (possibly wrong, vanilla) badge locally; `CheckBadge`'s
+  own re-entry guard is deliberately left untouched, since once the local
+  grant stops firing it naturally reflects whether the player has genuinely
+  received that badge_* item yet (re-battle the Leader on revisit until they
+  have, regardless of where the real item ended up). One decomp-confirmed
+  special case, not a bug: the Rising Badge (Clair) is granted at a different
+  script site (Dragon's Den Shrine's own puzzle-completion cutscene) than her
+  real battle (Blackthorn Gym) -- both sites are tracked independently (patch
+  site in `rom/badgedata.py`, detection site via `data_gen/locations.toml`'s
+  own `trainer` field). `goal: n_badges` and the `[hm_badges]`-gated exit
   rules (Surf/Rock Smash/etc. needing a badge to use the HM in the field)
   both now check ownership of the real `badge_*` item instead of the old
   locked-event name.
-  **Real bug, reported by a player and fixed 2026-08-17**: receiving a
-  `badge_*` item from anywhere in the multiworld *before* physically
-  reaching that gym set the `PlayerProfile` bit immediately -- but every
-  gym Leader's own field script gates its `TrainerBattle` call behind
-  `CheckBadge`, so the Leader then thought the fight had already
-  happened and skipped it entirely (decomp-confirmed in Violet Gym's own
-  script: `CheckBadge BADGE_ZEPHYR -> GoToIfEq <skip battle>`). This
-  silently broke more than just that one fight: `SetVar
-  VAR_SCENE_ELMS_LAB, 6` (which gates Elm's Lab's egg-pickup phone call)
-  and `SetTrainerFlag TRAINER_BIRD_KEEPER_GS_ROD`/`_ABE` (unlocking two
-  more, Trainersanity-eligible trainers) only happen inside that same
-  battle-won branch -- skipping the fight silently stalled all three.
-  **Fixed client-side, no ROM/script patch needed**: `client.py`'s
-  `_apply_pending_badges` (replacing the old immediate-write logic in
-  `_apply_received_items`) now defers setting the `PlayerProfile` badge
-  bit until `TRAINER_FLAG_BASE + <that Leader's trainer id>` is already
-  set (i.e. the player has genuinely beaten them for real) -- the exact
-  same flag the badge location's own check detection already reads.
+
+  **Real bugs found and fixed 2026-08-18**: (1) **no gym badge location could
+  ever complete** -- check detection incorrectly assumed TRAINER_FLAG_BASE +
+  trainer id was set by the engine (like ordinary Trainersanity battles), but
+  every gym Leader is fought through a bespoke, hand-authored script that
+  never calls SetTrainerFlag on itself, so that flag is never actually set
+  in-game for any of the 16. (2) **gym Leaders were infinitely re-fightable**
+  with the entire win cutscene replaying each time -- `client.py`'s old
+  immediate `_apply_received_items` logic tried to defer on TRAINER_FLAG_BASE,
+  which never fired, so CheckBadge never saw the player as victorious, so
+  `SetVar VAR_SCENE_ELMS_LAB, 6` (egg-pickup unlock) and related
+  `SetTrainerFlag` calls never happened. **Fixed (6 of 16 Leaders so far)**:
+  check detection and `_apply_pending_badges` both now use per-gym sentinel
+  flags found in each Leader's own win sequence (see
+  `location_flags.py`'s `_SYNTHETIC_ID_FLAG_OVERRIDES` dict and
+  `build_badge_index_to_sentinel_flag_id`'s docstring). The other 10 Leaders
+  remain unfixed pending safer flag candidates (see those same docs for why).
+  Defers setting the `PlayerProfile` badge bit until that Leader's own
+  sentinel flag is actually set (i.e. the player has genuinely beaten them for
+  real) -- the exact same flag the badge location's own check detection reads.
   Re-derived fresh from `ctx.items_received` every tick rather than
   tracked in instance state, so a client restart mid-seed can't lose
   track of a badge still waiting on its real fight. Verified this is the
@@ -980,6 +1011,23 @@ working toolchain for -- 2026-08-15)
     rules, so no exclusions were needed beyond the community-feedback
     curation (sparse-check/postgame-only towns) already applied when
     `StartingTown`'s option list was built.
+  - **Down to 9 candidates, 2026-08-24 (breaking change, see CHANGELOG's
+    Unreleased/Removed).** `lake_of_rage` is gone from `StartingTown` and
+    from `rom/startlocation.py`'s `TOWN_MAP_IDS`. Note *why*, because it is
+    a case the completability sweep above structurally cannot catch: the
+    town passed that test and still stranded a real player (2026-08-23).
+    The region graph is right that the Route 43 shore leads everywhere; the
+    problem is one level below it, in the ROM's own warp table. T29 has
+    exactly two warp anchors and, per the ROM's `land_data` collision,
+    both sit on the bank that the Route 43 path does *not* open onto -- the
+    one `data_gen/regions.toml` now models as `lake_of_rage_north`, ringed
+    by water. There is no third anchor to move the arrival point to, so the
+    town was dropped rather than guessed at. Full reading in
+    `rom/startlocation.py`'s `_TOWN_ENTRANCE_ANCHORS` comment. General
+    lesson for any future candidate town: "the graph says this town is a
+    fine origin" and "the map has a door that lands the player somewhere
+    they can walk off" are two independent facts, and only the first is
+    testable from this repo.
 
   **Related, much smaller idea surfaced by this investigation (2026-08-16
   user request)**: since Bag/Pokedex/Pokegear are just flags like badges
@@ -1065,7 +1113,12 @@ working toolchain for -- 2026-08-15)
   blocker), not a same-session task.
 
 - **Extra difficulty option: artificial route/passage blockers** (user
-  request 2026-08-16). **Implemented (task "randomize_route_blockers",
+  request 2026-08-16). **Status: implemented 2026-08-17, removed
+  2026-08-19 (0.8.0). Back to unimplemented -- read the resolution at the
+  end of this entry before acting on the account below, which describes
+  an option that no longer exists.**
+
+  **Implemented (task "randomize_route_blockers",
   2026-08-17):** rather than inventing a new synthetic "key" item concept
   (the open question this note originally left unscoped), consulted
   `platinum_archipelago` (a sibling Archipelago Gen4 world, kept locally
@@ -1092,6 +1145,65 @@ working toolchain for -- 2026-08-15)
   when on) and `test_real_generation_with_extra_route_blockers` (the
   project's own "T1" real generation + fill + `can_beat_game()` standard,
   confirming the closure never makes a seed uncompletable).
+
+  **Correction (2026-08-19): the edge this option removes never existed
+  in vanilla, and the option is now inert.** The Route 46 -> Route 45
+  ledge was modeled backwards from the start: Route 45 is the mountain
+  route hanging below Blackthorn, Route 46 sits below it again just above
+  Route 29, so the corniche drops the player DOWN from 45 into 46 and the
+  ledges never let them climb back (community playtest report, krez: the
+  climb is blocked from Route 46's southern section, and entering its
+  northern section through Dark Cave does not help either, Route 45 has
+  ledges of its own; his spoiler log showed a literal
+  `route_29 -> route_46 -> route_45` path). `data_gen/regions.toml` now
+  carries `route_45 -> route_46` instead, which closes the balance gap
+  outright: sphere 0 drops from 197 regions and 7 badges back to 112
+  regions and 3 badges (Violet/Azalea/Goldenrod), with Blackthorn,
+  Mahogany, Ecruteak and Olivine all leaving it.
+
+  **Resolution (2026-08-19, product decision, 0.8.0): the option is
+  removed outright, not deprecated.** It could not do anything for any
+  player, and its own user-facing text ("closes a real shortcut on Route
+  46") had become plainly false: there is no such shortcut. Keeping an
+  inert toggle on the YAML template and the WebHost options page just
+  invites players to set it and expect a harder seed. Removed from
+  `options.py` (class `ExtraRouteBlockers`, the `HeartGoldOptions` field
+  and the "Goal" OptionGroup entry), from `regions.py` (the
+  `_EXTRA_DIFFICULTY_BLOCKED_EXITS` constant, `create_regions`'s
+  keyword-only parameter and its exit-loop branch), from `__init__.py`'s
+  `create_regions`, and from `universal_tracker.TRACKED_OPTION_NAMES`;
+  `docs/Pokemon HGSS.yaml` regenerated. This is a breaking change for any
+  player YAML that named the option (Archipelago rejects unknown option
+  keys), which is why 0.8.0 is a minor bump; old seeds' slot data is
+  unaffected, `load_ut_slot_data` already skips names the running version
+  does not have. The two option-specific tests
+  (`test_real_generation_with_extra_route_blockers` and the 10-town
+  `test_extra_route_blockers_combined_with_every_start_location_town`)
+  went with it, the latter being an exact duplicate of
+  `test_start_location_towns_are_all_completable` once the option stopped
+  changing anything; the structural test survives as
+  `test_route_45_46_corniche_is_one_way_downhill`, now pinning the
+  geography fix alone.
+
+  If artificial blockers are ever wanted again, they need a real
+  chokepoint to close (this entry's premise, "close an existing vanilla
+  shortcut", never had a valid target in HGSS) or the synthetic-key-item
+  design this entry originally set out to avoid.
+
+  **Open, deliberately not acted on: Route 46 is two regions, not one.**
+  The same report notes Route 46 is cut in half by ledges: a southern
+  section reached from Route 29 (wild encounters only) and a northern one
+  reached from Dark Cave (which carries every item and trainer). We model
+  it as a single region, the same shape as the Ilex Forest soft-lock
+  already fixed, so `route_46_x_speed` and the three trainers
+  (`route_46_camper_ted`, `route_46_hiker_bailey`,
+  `route_46_picnicker_erin`) are currently logically reachable straight
+  from Route 29. Splitting it needs each of those four placed on the
+  correct side of the ledge, and the data at hand does not establish that:
+  `data_gen/locations.toml` carries coordinates for the ground item only
+  (x 611, z 344), none for the trainers, and nothing here fixes where the
+  ledge line runs. Left as-is on purpose rather than guessed at -- an
+  invented edge is precisely the class of bug this entry is correcting.
 
 ## Code review fixes (2026-08-17, before first commit of tonight's work)
 

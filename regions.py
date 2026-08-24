@@ -11,18 +11,23 @@ from data.regions import REGIONS
 
 # `johto_only` option support. Derived (not hand-curated) by a graph
 # flood-fill from `new_bark` over data/regions.py's own exits, blocking the
-# 3 real Johto<->Kanto crossing edges: `viridian <-> route_22` (the
+# 4 real Johto<->Kanto crossing edges: `viridian <-> route_22` (the
 # Indigo Plateau/Victory Road approach doubles as the Kanto mainland
 # border -- Route 22 itself and everything beyond it toward Indigo
 # Plateau/Mount Silver stays Johto-side, only Viridian and beyond is
 # Kanto), `cerulean <-> route_24` (the Bill's-house/Nugget-Bridge
-# approach), and the S.S. Aqua ferry's Olivine-side gate (`items =
-# ["s_s_ticket"]` in data_gen/rules.toml). Notably NOT numeric-map-code-
+# approach), the S.S. Aqua ferry's Olivine-side gate (`items =
+# ["s_s_ticket"]` in data_gen/rules.toml), and, since the 2026-08-23
+# Magnet Train fix, `goldenrod_magnet_train_station_2f <->
+# saffron_magnet_train_station_2f` (the rail link, gated on the Magnet
+# Train Pass -- before that fix each city's platform was split across two
+# regions and the link was unreachable from either end, so it crossed
+# nothing). Notably NOT numeric-map-code-
 # based: Kanto/Johto towns and routes are numbered from the same shared
 # T*/R* pools (e.g. indigo_plateau is T10, in the "Kanto" numeric range,
 # but is genuinely Johto's own Elite Four complex) -- only real graph
 # topology reliably separates them. To re-derive after a data_gen/
-# regions.toml change: BFS from "new_bark" blocking the 3 edges above,
+# regions.toml change: BFS from "new_bark" blocking the 4 edges above,
 # the unreached region set is this constant.
 KANTO_REGION_KEYS: frozenset[str] = frozenset(
     {
@@ -37,7 +42,7 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
         "cerulean_pokemart", "cerulean_west_house", "cinnabar_island", "cinnabar_island_pokecenter_1f",
         "cinnabar_island_pokecenter_b1f", "diglett_cave", "fuchsia", "fuchsia_gym",
         "fuchsia_pal_park_entrance", "fuchsia_pokecenter_1f", "fuchsia_pokecenter_b1f", "fuchsia_pokemart",
-        "fuchsia_safari_zone_warden_house", "fuchsia_southwest_house", "goldenrod_magnet_train_station_2f", "lavender",
+        "fuchsia_safari_zone_warden_house", "fuchsia_southwest_house", "lavender",
         "lavender_house_of_memories", "lavender_name_rater", "lavender_pokecenter_1f", "lavender_pokecenter_b1f",
         "lavender_pokemart", "lavender_radio_station", "lavender_southwest_house", "lavender_volunteer_pokemon_house",
         "mount_moon", "mount_moon_square", "mount_moon_square_clefairy_event", "mount_moon_square_entrance",
@@ -60,7 +65,7 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
         "route_6_underground_path_gate", "route_7", "route_7_saffron_gatehouse", "route_8",
         "route_8_saffron_gatehouse", "route_9", "saffron", "saffron_copycat_house_1f",
         "saffron_copycat_house_2f", "saffron_fighting_dojo", "saffron_gym", "saffron_magnet_train_station_1f",
-        "saffron_magnet_train_station_2f", "saffron_magnet_train_station_2f_empty", "saffron_mr_psychic_house", "saffron_pokecenter_1f",
+        "saffron_magnet_train_station_2f", "saffron_mr_psychic_house", "saffron_pokecenter_1f",
         "saffron_pokecenter_2f", "saffron_pokemart", "saffron_silph_co_elevator", "saffron_silph_co_hq",
         "saffron_silph_co_rotom_room", "seafoam_islands_1f", "seafoam_islands_b1f", "seafoam_islands_b2f",
         "seafoam_islands_b3f", "seafoam_islands_b4f", "seafoam_islands_cinnabar_gym", "ss_aqua_1f",
@@ -75,34 +80,11 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
 )
 
 
-# extra_route_blockers (task "randomize_route_blockers", 2026-08-17): the
-# single one-way route_46 -> route_45 ledge (see this module's docstring
-# for its own extraction note, data_gen/regions.toml's matching comment)
-# is the real cause of a documented balance gap -- Tester feedback (task
-# M0, 2026-08-15/16) found it lets a player reach 7 of Johto's 16 badges
-# with effectively zero items, a genuine vanilla shortcut deliberately
-# left in place by default ("rester fidele au vanilla, ne rien ajouter",
-# see docs/scope.md). Modeled the same way Pokemon Platinum's own
-# Archipelago world models its analogous "PastoriaBarriers" option
-# (platinum_archipelago/options.py -- consulted as a reference for how a
-# sibling world handles this same kind of "close an easy vanilla detour"
-# difficulty toggle): a plain edge removal, no new item/location needed,
-# opt-in and off by default. Genuinely redundant, not a chokepoint:
-# Route 45/46's own side of the map is also reachable via the normal
-# Mahogany/Ice Path direction (independently confirmed by
-# tests/test_world_init.py's own randomize_start_location completability
-# sweep, which already reaches Blackthorn from every one of its 10
-# candidate towns without this edge ever being the only path in) --
-# removing it just closes the shortcut, it does not disconnect anything.
-_EXTRA_DIFFICULTY_BLOCKED_EXITS: frozenset[tuple[str, str]] = frozenset({("route_46", "route_45")})
-
-
 def create_regions(
     player: int,
     multiworld: MultiWorld,
     *,
     excluded_region_keys: frozenset[str] = frozenset(),
-    extra_route_blockers: bool = False,
 ) -> dict[str, Region]:
     """Create one Region per data/regions.py entry not in
     `excluded_region_keys` (`johto_only`'s KANTO_REGION_KEYS, or empty)
@@ -110,8 +92,7 @@ def create_regions(
     key outside v1 scope (Pokeathlon Dome, Safari Zone gate, Battle
     Frontier, Union Room -- see docs/scope.md) or excluded this way is
     skipped: no Entrance is created, exactly as a real player would find a
-    dead end there. `extra_route_blockers` additionally skips every
-    (source, exit) pair in `_EXTRA_DIFFICULTY_BLOCKED_EXITS`."""
+    dead end there."""
     regions: dict[str, Region] = {
         name: Region(name, player, multiworld) for name in REGIONS if name not in excluded_region_keys
     }
@@ -123,8 +104,6 @@ def create_regions(
         source = regions[name]
         for exit_name in data["exits"]:
             if exit_name not in regions:
-                continue
-            if extra_route_blockers and (name, exit_name) in _EXTRA_DIFFICULTY_BLOCKED_EXITS:
                 continue
             source.connect(regions[exit_name], f"{name} -> {exit_name}")
 

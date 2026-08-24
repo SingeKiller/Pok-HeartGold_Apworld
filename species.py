@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from random import Random
 
 from data.encounters import ENCOUNTERS
@@ -49,10 +50,11 @@ BASE_STATS_SHUFFLE = 1
 BASE_STATS_FULL_RANDOM = 2
 
 # Mirrors options.RandomizeMoves's option_off/option_shuffle/
-# option_full_random values.
+# option_full_random/option_balanced values.
 MOVES_OFF = 0
 MOVES_SHUFFLE = 1
 MOVES_FULL_RANDOM = 2
+MOVES_BALANCED = 3
 
 _BASE_STAT_FIELDS = ("hp", "atk", "def", "spatk", "spdef", "speed")
 _MOVE_COMBAT_FIELDS = ("power", "accuracy", "pp")
@@ -306,36 +308,71 @@ def randomize_wild_encounters(
 _UNGATED_ENCOUNTER_METHODS = frozenset({"land", "headbutt"})
 
 
-def species_encounter_methods(encounters: dict) -> dict[str, frozenset[str]]:
+def species_encounter_sources(
+    encounters: dict, *, source_filter: Callable[[str, str], bool] | None = None
+) -> dict[str, frozenset[tuple[str, str]]]:
     """Map every species appearing anywhere in `encounters` (normally
     world.generated_encounters, i.e. already through
-    randomize_wild_encounters for this seed) to the set of encounter
-    methods it's obtainable through -- 'land', 'surf', 'rock_smash',
-    'old_rod', 'good_rod', 'super_rod', 'headbutt'. Used by Dexsanity
-    (task M3.4) to scope its locations to species genuinely catchable in
-    this seed, and to size each one's access rule to the cheapest method
-    that actually works."""
-    result: dict[str, set[str]] = {}
+    randomize_wild_encounters for this seed) to the set of
+    `(zone_key, method)` pairs it actually appears in -- `zone_key` is a
+    data/encounters.py zone key (which is also a data/regions.py region
+    key, for all 137 of them -- checked by tests/test_encounters.py::
+    test_every_zone_key_is_a_known_region), `method` is one of
+    'land'/'surf'/'rock_smash'/'old_rod'/'good_rod'/'super_rod'/
+    'headbutt'.
 
-    def add(species: str, method: str) -> None:
-        result.setdefault(species, set()).add(method)
+    `source_filter(zone_key, method)` drops pairs it rejects, and a
+    species left with no pair at all is dropped entirely. Dexsanity (task
+    M3.4) passes rom.encounterdata.zone_method_is_written here so its
+    locations only ever exist for species genuinely written into the
+    produced ROM -- a table this project does not patch (headbutt) or a
+    zone with no NARC entry is not a real place to catch anything. Both
+    halves matter: the pair set is what sizes each Dexsanity location's
+    access rule (which region to reach, through which method), the
+    presence of the species is what decides the location exists.
 
-    for zone in encounters.values():
+    Split out of `species_encounter_methods` below on 2026-08-22, after a
+    real seed died on a Squirtbottle placed on a Tropius that only lived
+    in the Burned Tower, itself behind that very Squirtbottle: the old
+    method-only view had no way to express "where", so every Dexsanity
+    location was implicitly anchored in sphere 0."""
+    result: dict[str, set[tuple[str, str]]] = {}
+
+    def add(species: str, zone_key: str, method: str) -> None:
+        if source_filter is not None and not source_filter(zone_key, method):
+            return
+        result.setdefault(species, set()).add((zone_key, method))
+
+    for zone_key, zone in encounters.items():
         for slot in zone["land"]["slots"]:
             for time_of_day in ("morn", "day", "nite"):
-                add(slot[time_of_day], "land")
+                add(slot[time_of_day], zone_key, "land")
         for slot in zone["surf"]["slots"]:
-            add(slot["species"], "surf")
+            add(slot["species"], zone_key, "surf")
         for slot in zone["rock_smash"]["slots"]:
-            add(slot["species"], "rock_smash")
+            add(slot["species"], zone_key, "rock_smash")
         for rod, table in zone["fishing"].items():
             for slot in table["slots"]:
-                add(slot["species"], rod)
+                add(slot["species"], zone_key, rod)
         for tier_slots in zone.get("headbutt", {}).values():
             for slot in tier_slots:
-                add(slot["species"], "headbutt")
+                add(slot["species"], zone_key, "headbutt")
 
-    return {species: frozenset(methods) for species, methods in result.items()}
+    return {species: frozenset(sources) for species, sources in result.items()}
+
+
+def species_encounter_methods(
+    encounters: dict, *, source_filter: Callable[[str, str], bool] | None = None
+) -> dict[str, frozenset[str]]:
+    """`species_encounter_sources` above with the zone dropped: species ->
+    the set of encounter methods it's obtainable through. Kept as the
+    "which item does this need" view (Dexsanity sizes each access rule to
+    the cheapest method that actually works); anything that also needs to
+    know *where* must use `species_encounter_sources` instead."""
+    return {
+        species: frozenset(method for _zone_key, method in sources)
+        for species, sources in species_encounter_sources(encounters, source_filter=source_filter).items()
+    }
 
 
 # --- 3. Trainer parties ------------------------------------------------------
@@ -640,6 +677,118 @@ def _round_to_multiple(value: float, multiple: int, low: int, high: int) -> int:
     return max(low, min(high, rounded))
 
 
+# --- MOVES_BALANCED tiers -----------------------------------------------------
+#
+# MOVES_FULL_RANDOM rolls Power and Accuracy from two independent ranges,
+# so a 200 power move is exactly as likely to come out at 30 accuracy as
+# at 100; a user report (2026-08-23) called the resulting game a coin
+# flip. MOVES_BALANCED instead draws the (power, accuracy) *pair*
+# together, from one weighted tier, so a big number always comes with a
+# usable accuracy.
+#
+# The bands below are measured on data_gen/moves.toml's own 297 damaging
+# moves, not guessed:
+#   - 179 of them (60%) already sit at 100 accuracy in vanilla, and once
+#     the 4 `one_hit_ko` moves are set aside the real vanilla floor is 70.
+#   - vanilla never charges raw power in accuracy at the top end:
+#     Explosion 250/100, Selfdestruct 200/100, Hyper Beam 150/90,
+#     Eruption 150/100. What a heavy move costs is a side effect (halved
+#     defense, a recharge turn), not a miss risk -- hence a hard 75
+#     accuracy floor here (_BALANCED_ACCURACY_FLOOR) even in the top tier.
+#   - vanilla median power across the 265 damaging moves that carry a real
+#     power value is 70, and 152 of them hit under 80; the tier weights
+#     put this mode's median around 75, deliberately close to vanilla.
+#
+# PP is NOT tier-correlated and is drawn by the exact same one-liner
+# MOVES_FULL_RANDOM uses (rng.choice(_PP_CHOICES)). That is a deliberate
+# choice (user request, 2026-08-23) so all four modes behave identically
+# on that column, not an oversight: only the Power/Accuracy pair is what
+# this mode changes.
+#
+# There is no anchoring on a move's vanilla power either: a vanilla weak
+# move can come out heavy and vice versa. That is the point of a
+# randomizer, and it is what the three older modes already do.
+
+_BALANCED_ACCURACY_FLOOR = 75
+
+# Every vanilla accuracy in moves.toml is a multiple of 5, and so is every
+# vanilla power except the `_MOVE_POWER_SENTINEL` moves and 3 per-hit
+# multi-hit values -- so both stats are drawn on a step of 5 here, keeping
+# the output visually indistinguishable from real move data.
+_BALANCED_STAT_STEP = 5
+
+# (weight, (power_low, power_high), (accuracy_low, accuracy_high)), from
+# the brief: reliable 50% / strong 25% / heavy 20% / devastating 5%. Power
+# bands are non-adjacent on purpose, so a produced power identifies its
+# tier unambiguously (tests rely on that).
+_BALANCED_TIERS = (
+    (50, (55, 95), (100, 100)),
+    (25, (110, 145), (95, 100)),
+    (20, (150, 195), (85, 95)),
+    (5, (210, 250), (75, 85)),
+)
+_BALANCED_TIER_WEIGHTS = tuple(tier[0] for tier in _BALANCED_TIERS)
+
+# Multi-hit moves store *per-hit* power (Bullet Seed's 10 is 10 x 2-5
+# hits), so a tier draw has to be divided by the hit count or a
+# "reliable" 95 power roll would really land ~285 damage a turn. Keyed off
+# moves.toml's `effect` field -- the same identification mechanism
+# disable_ohko_moves uses -- rather than off move names like the older
+# `_MULTI_HIT_MOVES`, which predates that field and misses Bonemerang and
+# Double Hit. MOVES_FULL_RANDOM is deliberately left on the old name-keyed
+# table: fixing it there would change that mode's output, which this
+# change must not do.
+_BALANCED_MULTI_HIT_EFFECT_HITS: dict[str, float] = {
+    "multi_hit": 3.0,  # 2-5 hits, 3 on average in Gen IV
+    "hit_twice": 2.0,  # Double Kick, Bonemerang, Double Hit
+    "hit_three_times": 3.0,  # Triple Kick
+    "poison_multi_hit": 2.0,  # Twineedle
+}
+
+# Moves this mode leaves entirely at their vanilla power/accuracy,
+# identified by moves.toml's `effect` field:
+#   - one_hit_ko (Guillotine/Horn Drill/Fissure/Sheer Cold): their 30
+#     accuracy *is* their balancing, replacing it with a tier accuracy
+#     (75 minimum here) would turn them into reliable instant kills. Same
+#     identification as disable_ohko_moves. They also happen to carry
+#     `_MOVE_POWER_SENTINEL`, so they would be skipped anyway; listing
+#     them here keeps the intent explicit rather than incidental.
+#   - double_power_each_turn / double_power_each_turn_lock_into (Fury
+#     Cutter 10, Rollout/Ice Ball 30): power doubles every turn, up to x16.
+#     A tier draw would take Rollout's 480 ceiling past 3000.
+#   - beat_up: base power is applied once per healthy party member.
+# Struggle is in the same spirit but is matched by its own `struggle`
+# effect: it is the engine's out-of-PP fallback, not a move anyone learns,
+# and buffing it would make running dry a win condition.
+_BALANCED_EXCLUDED_EFFECTS = frozenset(
+    {
+        "one_hit_ko",
+        "double_power_each_turn",
+        "double_power_each_turn_lock_into",
+        "beat_up",
+        "struggle",
+    }
+)
+
+
+def _balanced_power_and_accuracy(rng: Random, effect: str) -> tuple[int, int]:
+    """One joint (power, accuracy) draw for MOVES_BALANCED: pick a tier by
+    weight, then roll both stats inside that single tier's bands so power
+    and accuracy stay correlated. Callers handle status moves, the
+    `accuracy == 0` never-miss sentinel, `_MOVE_POWER_SENTINEL` and
+    `_BALANCED_EXCLUDED_EFFECTS` before getting here."""
+    _, (power_low, power_high), (accuracy_low, accuracy_high) = rng.choices(
+        _BALANCED_TIERS, weights=_BALANCED_TIER_WEIGHTS
+    )[0]
+
+    rolled_power = rng.randrange(power_low, power_high + 1, _BALANCED_STAT_STEP)
+    hits = _BALANCED_MULTI_HIT_EFFECT_HITS.get(effect)
+    power = rolled_power if hits is None else max(_MULTI_HIT_MIN_PER_HIT_POWER, round(rolled_power / hits))
+
+    accuracy = rng.randrange(accuracy_low, accuracy_high + 1, _BALANCED_STAT_STEP)
+    return power, accuracy
+
+
 def _random_power_and_accuracy(rng: Random, move_key: str, category: str, vanilla_power: int) -> tuple[int, int]:
     """One (power, accuracy) draw for MOVES_FULL_RANDOM -- damaging moves
     only, callers handle the accuracy==0 sentinel and status moves
@@ -667,6 +816,10 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
     - `MOVES_SHUFFLE`: power/accuracy/pp each shuffled independently.
     - `MOVES_FULL_RANDOM`: see this file's module comment / NOTES.md for
       the balance design.
+    - `MOVES_BALANCED`: power and accuracy drawn *jointly* from weighted
+      tiers (see the "MOVES_BALANCED tiers" comment block above for the
+      bands and the moves.toml measurements behind them); pp drawn exactly
+      like MOVES_FULL_RANDOM draws it.
 
     `accuracy == 0` is HGSS's own "never misses" sentinel (Swift, Aerial
     Ace, ...) and is kept exactly as-is in every mode."""
@@ -709,6 +862,32 @@ def randomize_move_stats(rng: Random, mode: int, moves: dict = MOVES) -> dict:
             power, accuracy = _random_power_and_accuracy(rng, key, data["category"], data["power"])
             new_combat_stats[key]["power"] = power
             new_combat_stats[key]["accuracy"] = accuracy
+    elif mode == MOVES_BALANCED:
+        for key in keys:
+            new_combat_stats[key]["pp"] = rng.choice(_PP_CHOICES)
+
+        for key in keys:
+            data = moves[key]
+            new_combat_stats[key]["power"] = data["power"]
+            new_combat_stats[key]["accuracy"] = data["accuracy"]
+            if (
+                data["category"] == "status"
+                or data["power"] == _MOVE_POWER_SENTINEL
+                or data["effect"] in _BALANCED_EXCLUDED_EFFECTS
+            ):
+                # Status moves have no power to give (0 is what the engine
+                # reads as "deals no damage"), and the two sentinel/effect
+                # families are special-cased by the battle engine -- all
+                # keep vanilla power *and* accuracy. Their pp is still
+                # randomized above, exactly like every other mode does.
+                continue
+            power, accuracy = _balanced_power_and_accuracy(rng, data["effect"])
+            new_combat_stats[key]["power"] = power
+            if data["accuracy"] != 0:
+                # 0 means "never misses", not "0% to hit" -- writing a real
+                # number there would make Swift/Aerial Ace/Aura Sphere
+                # missable. The tier's power still applies to them.
+                new_combat_stats[key]["accuracy"] = accuracy
     else:
         raise ValueError(f"unknown move-stat randomization mode: {mode!r}")
 
@@ -746,17 +925,27 @@ def randomize_move_categories(rng: Random, enabled: bool, moves: dict = MOVES) -
 
 
 def randomize_tm_hm_moves(rng: Random, enabled: bool, tm_hm_moves: dict = TM_HM_MOVES) -> dict:
-    """Shuffle which move each TM (TM01-TM92) teaches -- a permutation, so
-    the same 92 moves stay available, just reassigned across machine
-    numbers. HM01-HM08 are never touched: this project's region-access
-    rules key off owning the HM item, not off whatever move it currently
-    teaches, so an HM must always teach its vanilla field move or a
-    player with the AP-logic "Surf" item could be left unable to actually
-    Surf. `enabled=False` returns `tm_hm_moves` unchanged."""
+    """Shuffle which move each TM (TM01-TM92, except TM70) teaches -- a
+    permutation, so the same moves stay available, just reassigned across
+    machine numbers. HM01-HM08 are never touched: this project's
+    region-access rules key off owning the HM item, not off whatever move
+    it currently teaches, so an HM must always teach its vanilla field
+    move or a player with the AP-logic "Surf" item could be left unable
+    to actually Surf.
+
+    TM70 (Flash) is pinned the same way, but for a different reason (user
+    request, 2026-08-18): no region-access rule anywhere requires it --
+    FieldMove_CheckFlash needs no badge, and HGSS darkness never blocks
+    movement, only visibility (see data_gen/rules.toml's own [hm_badges]
+    header) -- but it's still a genuinely useful field tool for
+    navigating dark caves, so it's kept off the shuffle entirely rather
+    than risk it landing on a move with no comparable utility.
+
+    `enabled=False` returns `tm_hm_moves` unchanged."""
     if not enabled:
         return tm_hm_moves
 
-    tm_keys = tuple(k for k in tm_hm_moves if k.startswith("tm"))
+    tm_keys = tuple(k for k in tm_hm_moves if k.startswith("tm") and k != "tm70")
     shuffled_moves = [tm_hm_moves[k] for k in tm_keys]
     rng.shuffle(shuffled_moves)
     new_tm_moves = dict(zip(tm_keys, shuffled_moves))

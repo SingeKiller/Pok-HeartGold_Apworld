@@ -27,6 +27,7 @@ from pathlib import Path
 
 from rom import HeartGoldRom
 from rom import badgedata as rom_badgedata
+from rom import badgegatedata as rom_badgegatedata
 from rom import encounterdata as rom_encounterdata
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
@@ -35,6 +36,7 @@ from rom import hiddenitemdata as rom_hiddenitemdata
 from rom import learnsetdata as rom_learnsetdata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
+from rom import npcgiftgatedata as rom_npcgiftgatedata
 from rom import speciesdata as rom_speciesdata
 from rom import startlocation as rom_startlocation
 from rom import starterdata as rom_starterdata
@@ -202,9 +204,26 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
 
 def apply_badge_neutralization(rom: HeartGoldRom) -> None:
     """Neutralize every gym script's own vanilla `GiveBadge` call (see
-    rom/badgedata.py). Unconditional -- always applied regardless of this
-    seed's fill result, unlike apply_local_item_substitutions above."""
+    rom/badgedata.py) -- for 10 of the 16, this also injects a brand-new
+    per-gym sentinel flag at that same site (rom.badgedata.
+    BADGE_SENTINEL_INJECTIONS). Unconditional -- always applied regardless
+    of this seed's fill result, unlike apply_local_item_substitutions
+    above."""
     rom_badgedata.write_all_badges_neutralized(rom)
+
+
+def apply_badge_gate_regating(rom: HeartGoldRom) -> None:
+    """Re-gate every gym Leader's own battle guard from `CheckBadge` onto
+    that Leader's per-gym sentinel flag (see rom/badgegatedata.py), so
+    holding a badge item no longer skips the fight and beating the Leader
+    no longer has to double as the HM-move unlock.
+
+    MUST be called immediately after apply_badge_neutralization above and
+    never on its own: 10 of the 15 regated gates depend on a sentinel flag
+    that only write_all_badges_neutralized injects (rom/badgegatedata.py's
+    own VERSION COUPLING note). Unconditional, same as badge
+    neutralization: never seed-dependent."""
+    rom_badgegatedata.write_all_badge_gates_regated(rom)
 
 
 # Item id 0 ("None") is what write_npc_gift_empty/write_ground_item_empty/
@@ -216,16 +235,58 @@ def apply_badge_neutralization(rom: HeartGoldRom) -> None:
 # item id 0 shows in that specific dialogue context, not a missing/corrupt
 # string this project introduced). Unconditional, like badge neutralization
 # above: always applied regardless of this seed's fill result.
+#
+# Three banks, not one (real player report, 2026-08-22: a pickup still
+# showed "???" as its FIRST message and the patched text only as its
+# second). See rom/msgdata.py's ITEM_NAMES_INDEF_SUBFILE_INDEX comment for
+# which script command reaches which bank; the wording differs per bank
+# because the sentences that consume them differ grammatically:
+#
+#   222 (plain)  "Obtained the {0}!"                    scr_seq_0003
+#                "{PLAYER} put the {0} in the {1} Pocket."
+#   223 (indef)  "{PLAYER} found\n{0}!"                 scr_seq_0141/0145
+#                "{0} was in the rubble!" (capitalized) scr_seq_0146
+#   224 (plural) "Obtained the {0}!" / "put the {0}..." scr_seq_0003,
+#                reached only when the substituted site's own quantity
+#                field is greater than 1 (that field is never rewritten --
+#                see rom/eventscriptdata.py)
+#
+# 222's text keeps its trailing "!" (unchanged, live-confirmed reading
+# correctly in game). 223's and 224's deliberately do not: they land
+# mid-sentence in every one of their call sites, where a "!" would either
+# duplicate the sentence's own or cut it in half.
 PLACEHOLDER_ITEM_MSG_NO = 0
 PLACEHOLDER_ITEM_TEXT = "Item sent to another player!"
+PLACEHOLDER_ITEM_INDEF_TEXT = "an Item sent to another player"
+PLACEHOLDER_ITEM_PLURAL_TEXT = "Items sent to another player"
+
+
+def apply_npc_gift_duplication_gate_fix(rom: HeartGoldRom) -> None:
+    """Patch the 8 known npc_gift locations whose own vanilla script gates
+    the give branch on possessing the original, pre-substitution item (see
+    rom/npcgiftgatedata.py) -- unconditional, like apply_badge_
+    neutralization above: always applied regardless of this seed's fill
+    result, since the bug is in the gate itself, not in what item ends up
+    placed there."""
+    rom_npcgiftgatedata.write_all_npc_gift_duplication_gates(rom)
 
 
 def apply_placeholder_text_fix(rom: HeartGoldRom) -> None:
-    """Replace msg_0222's item-name entry for id 0 with a clearer message
-    than the vanilla default (see rom/msgdata.py for the binary format)."""
-    rom_msgdata.write_message_text(
-        rom, rom_msgdata.ITEM_NAMES_SUBFILE_INDEX, PLACEHOLDER_ITEM_MSG_NO, PLACEHOLDER_ITEM_TEXT
-    )
+    """Replace all three item-name banks' entry for id 0 with a clearer
+    message than the vanilla default (see rom/msgdata.py for the binary
+    format, and the comment above for why one bank was not enough).
+
+    Each write is an independent append-to-a-different-sub-file: rom/
+    msgdata.write_message_text re-reads the narc from the ROM every call
+    and writes it straight back, so the three stack without interfering
+    (nothing is cached between calls, and no two of them touch the same
+    sub-file)."""
+    for subfile_index, text in (
+        (rom_msgdata.ITEM_NAMES_SUBFILE_INDEX, PLACEHOLDER_ITEM_TEXT),
+        (rom_msgdata.ITEM_NAMES_INDEF_SUBFILE_INDEX, PLACEHOLDER_ITEM_INDEF_TEXT),
+        (rom_msgdata.ITEM_NAMES_PLURAL_SUBFILE_INDEX, PLACEHOLDER_ITEM_PLURAL_TEXT),
+    ):
+        rom_msgdata.write_message_text(rom, subfile_index, PLACEHOLDER_ITEM_MSG_NO, text)
 
 
 # -- Species/move/trainer/encounter randomization ----------------------------
@@ -393,13 +454,15 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
     """Apply species.py's randomize_wild_encounters output (already
     resolved to rom's declared version's own vanilla base data by
     __init__.py's set_rules). Zones with no raw NARC entry (the 3
-    headbutt-only zones) are skipped. rom_encounterdata.write_zone_
-    encounters picks g_enc_data.narc vs s_enc_data.narc based on
-    rom.version -- see that module's own notes for why."""
-    from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
-
+    headbutt-only zones) are skipped, via the same
+    rom_encounterdata.zone_is_written predicate Dexsanity's own location
+    set is derived from -- the two must never disagree about what reaches
+    the ROM (see that module's "What actually reaches the ROM" section).
+    rom_encounterdata.write_zone_encounters picks g_enc_data.narc vs
+    s_enc_data.narc based on rom.version -- see that module's own notes
+    for why."""
     for zone_key, zone in encounters.items():
-        if zone_key not in ENCOUNTER_ZONE_KEY_TO_RAW_INDEX:
+        if not rom_encounterdata.zone_is_written(zone_key):
             continue
         rom_encounterdata.write_zone_encounters(rom, zone_key, zone)
 
@@ -505,10 +568,26 @@ def apply_type_chart_randomization(rom: HeartGoldRom, type_chart: list) -> None:
 
 def apply_start_location(rom: HeartGoldRom, town_key: str) -> None:
     """Apply randomize_start_location's chosen destination town (a
-    rom/startlocation.py TOWN_MAP_IDS key): spawn point + Elm's Lab exit
-    door, both live-verified this project (see that module's own
-    docstring)."""
+    rom/startlocation.py TOWN_MAP_IDS key): Elm's Lab's own exit door
+    redirected to `town_key`, live-verified this project (see that
+    module's own docstring). Nothing before that door is touched -- the
+    intro plays out exactly as in vanilla."""
     rom_startlocation.write_start_location(rom, town_key)
+
+
+def stamp_start_location_revocation(packed: bytearray) -> int:
+    """Record, in the packed ROM's own cartridge header, where client.py
+    has to write to undo the redirect apply_start_location just made (see
+    rom/startlocation.py section 4). Returns the recorded offset.
+
+    Unlike every other apply_* function here this one takes the *packed*
+    bytes, not a HeartGoldRom: the value it records only exists once the
+    container has been serialized. It must therefore be the last thing
+    done to a ROM, after save_bytes() -- any further edit + re-serialize
+    would move the very word it points at. Call it only when
+    apply_start_location was called too; there is nothing to revoke
+    otherwise."""
+    return rom_startlocation.stamp_revocation_record(packed)
 
 
 def main(argv: list[str] | None = None) -> int:

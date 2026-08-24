@@ -709,8 +709,15 @@ BizHawk, no emulator, no live game process available here.
   client controls (no `ap.bin`-equivalent, see above), "how many of
   `ctx.items_received` have already been written into the bag" is tracked
   in Archipelago's own server-side data storage (`Set`/`ctx.set_notify`,
-  key `pokemon_heartgold_applied_item_count_{team}_{slot}`) so it survives
-  client restarts. **Known, inherent limitation**: this does *not* survive
+  key `pokemon_heartgold_applied_item_count_{team}_{slot}_{trainer_id}`) so
+  it survives client restarts. That counter can only describe a contiguous
+  prefix, so a second key
+  (`pokemon_heartgold_delivered_ahead_{team}_{slot}_{trainer_id}`, a
+  bitmask of `items_received` indices) records the items delivered *past*
+  one whose Bag pocket is full: a saturated pocket holds back only the
+  items bound for that same pocket, never the whole queue (0.6.9), and
+  neither half of that resume point can lose or double an item across a
+  restart. **Known, inherent limitation**: this does *not* survive
   the player reloading an in-game save state/file from before some
   already-applied items were written -- those items will not be
   re-granted, since nothing about their delivery lives in the save file
@@ -1581,8 +1588,8 @@ platinum_archipelago`): never embed/transmit the vanilla ROM's own bytes
 anywhere in a generated file -- only a small JSON *description* of the
 changes goes in the patch file; `.patch()` re-reads the player's own local
 ROM copy (from a `settings.Group`, `host.yaml`'s `pokemon_heartgold_
-settings.rom_file`) fresh every time it actually runs, possibly on a
-different machine than the one that generated the seed.
+rom_file` / `soulsilver_rom_file`) fresh every time it actually runs,
+possibly on a different machine than the one that generated the seed.
 
 - New file `output_patch.py`: `HeartGoldProcedurePatch(APAutoPatchInterface)`
   stores 5 JSON blobs (`trainers.json`/`encounters.json`/`species.json`/

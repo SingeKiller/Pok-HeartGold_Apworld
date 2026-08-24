@@ -51,3 +51,18 @@ def write_entry(rom: HeartGoldRom, index: int, data: bytes) -> None:
     narc = rom.read_narc(NITROFS_PATH)
     narc.files[index] = data
     rom.write_narc(NITROFS_PATH, narc)
+
+
+def entry_rom_offset(packed: bytes, index: int) -> int:
+    """Absolute byte offset of one map's event data blob inside an
+    already-packed ROM image (`HeartGoldRom.save_bytes()`'s output).
+
+    The read/write helpers above address an entry the way generation-time
+    code wants to (NitroFS path + sub-file index); this addresses the very
+    same bytes the way BizHawk's "ROM" memory domain does, which is the
+    only way a runtime client can reach them. Only valid for the exact
+    image passed in: `apnds.rom.Rom.to_bytes()` re-lays-out every NitroFS
+    file, so re-serializing after any further edit moves this."""
+    narc_start, narc_end = HeartGoldRom.nitrofs_file_span(packed, NITROFS_PATH)
+    entry_start, _entry_end = HeartGoldRom.narc_subfile_span(packed[narc_start:narc_end], index)
+    return narc_start + entry_start

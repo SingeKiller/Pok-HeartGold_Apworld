@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from Options import (
     Choice,
     DeathLink,
+    DefaultOnToggle,
     OptionGroup,
     OptionSet,
     PerGameCommonOptions,
@@ -95,17 +96,22 @@ class RandomizeStarters(Toggle):
 
 
 class RandomizeStartLocation(Toggle):
-    """Skip most of the walk around New Bark Town.
+    """Start your adventure in another Johto town.
 
-    You still wake up at home and talk to Mom the normal way (Bag,
-    Trainer Card, and Options menu unlock for real, exactly like
-    vanilla). But leaving your house sends you straight into Elm's Lab
-    instead of outside. You still choose your starter the normal way.
-    Once chosen, the lab's exit door sends you to a random Johto town
-    (pick which one with `starting_town`).
+    The whole opening plays out exactly like vanilla: you wake up at
+    home, talk to Mom, walk out into New Bark Town, go to Elm's Lab and
+    choose your starter the normal way. Only the lab's exit door changes:
+    instead of putting you back in New Bark, it sends you to a Johto town
+    of your choice (pick which one with `starting_town`).
 
     Off by default. The game logic fully accounts for your new starting
-    town, this is not just cosmetic."""
+    town, this is not just cosmetic.
+
+    The door only stays redirected until you have used it: once you are
+    out in your new town, the client puts it back to normal, so later
+    visits to the lab let you walk out into New Bark like in vanilla. That
+    fix is re-applied automatically every time you relaunch BizHawk, so
+    keep the client connected."""
 
     display_name = "Randomize Start Location"
 
@@ -125,7 +131,13 @@ class StartingTown(Choice):
     option_olivine = 6
     option_ecruteak = 7
     option_mahogany = 8
-    option_lake_of_rage = 9
+    # Value 9 was `lake_of_rage`, dropped 2026-08-24 (breaking change): the
+    # Lake of Rage map (T29) has exactly two warp anchors, and the ROM's own
+    # land_data collision says neither of them lands the player on a shore
+    # they can walk off. See rom/startlocation.py's TOWN_MAP_IDS comment for
+    # the full reading. The gap is left in place on purpose: renumbering
+    # `blackthorn` down to 9 would silently turn any stored numeric 10 into
+    # "no such option" and any stored 9 into Blackthorn.
     option_blackthorn = 10
     default = 1
 
@@ -201,12 +213,26 @@ class RandomizeMoves(Choice):
     - full_random: each of Power/PP/Accuracy is independently replaced by
       a fresh random value, drawn from the range actually used by some
       real move in that same column.
+    - balanced: same idea, but Power and Accuracy are drawn *together*
+      from weighted tiers instead of independently, so a big number never
+      comes with a coin-flip accuracy: reliable 50% (55-95 power, 100
+      accuracy), strong 25% (110-145, 95-100), heavy 20% (150-195, 85-95),
+      devastating 5% (210-250, 75-85). Accuracy never goes below 75. The
+      bands mirror real HGSS move data (60% of damaging moves are already
+      100 accuracy, and vanilla never charges power in accuracy at the top:
+      Explosion 250/100, Hyper Beam 150/90), and the weights put the median
+      power around 75 versus vanilla's 70. PP is drawn exactly like
+      full_random draws it -- deliberately, so all modes treat that column
+      the same way. Status moves keep 0 power, one-hit-KO moves keep their
+      vanilla 30 accuracy, and never-miss moves (Swift, Aerial Ace, Aura
+      Sphere) stay never-miss.
     """
 
     display_name = "Randomize Moves"
     option_off = 0
     option_shuffle = 1
     option_full_random = 2
+    option_balanced = 3
     default = 0
 
 
@@ -262,17 +288,6 @@ class JohtoOnly(Toggle):
     it gets capped to 8 automatically."""
 
     display_name = "Johto Only"
-
-
-class ExtraRouteBlockers(Toggle):
-    """Close a real shortcut on Route 46 that lets you skip most of the
-    game with almost no items.
-
-    Off by default, keeps the shortcut. On, forces the normal route
-    through Mahogany instead. Safe with any other option, nothing
-    becomes unreachable."""
-
-    display_name = "Extra Route Blockers"
 
 
 class RandomizeSpeciesTypes(Toggle):
@@ -386,6 +401,27 @@ class HiddenItemsRequireDowsingMachine(Toggle):
     display_name = "Hidden Items Require Dowsing Machine"
 
 
+class MagnetTrain(DefaultOnToggle):
+    """Count the Goldenrod <-> Saffron Magnet Train as a way into Kanto.
+
+    On by default, which is exactly what the game does: the Magnet Train
+    Pass on its own opens the ride, so Kanto can be visited long before the
+    Pokemon League. The other crossing is no help here -- the S.S. Aqua's
+    sailor refuses to sail until the Elite Four and the Champion are
+    beaten -- which makes the train the one and only early door to Kanto,
+    and the reason this option exists at all.
+
+    Turn it off to keep Kanto as late-game content: the train is then only
+    counted once you have beaten the Elite Four, so nothing you need can be
+    hidden over there before that. You can still board it the moment you
+    find the Pass, the seed simply will not count on it. With this option
+    off the Pass no longer unlocks anything by itself, so it is treated as
+    a merely useful item instead of a progression one.
+    """
+
+    display_name = "Magnet Train"
+
+
 class RemoteItems(Toggle):
     """Never write your own items directly into the game -- always
     receive them from the server instead, the same way you already
@@ -457,6 +493,14 @@ class DexsanityEncounterTypes(OptionSet):
     All methods are on by default (matches the original, unrestricted
     behavior). Turn a method off if you don't want, say, fishing to be
     required to finish the Pokédex.
+
+    "headbutt" currently grants nothing on its own: this randomizer does
+    not write the Headbutt-tree encounter tables into the ROM, so a
+    Headbutt-only species is never actually placed anywhere and gets no
+    check regardless of this setting (fixed 2026-08-22, see docs/scope.md
+    -- those checks used to exist and were impossible). It stays a valid
+    key so that YAMLs keep working and so it starts counting again by
+    itself the day Headbutt tables are patched.
 
     Ignored when `dexsanity` is off.
     """
@@ -578,7 +622,6 @@ class HeartGoldOptions(PerGameCommonOptions):
     goal: Goal
     goal_badge_count: GoalBadgeCount
     johto_only: JohtoOnly
-    extra_route_blockers: ExtraRouteBlockers
 
     randomize_wild_pokemon: RandomizeWildPokemon
     randomize_starters: RandomizeStarters
@@ -602,6 +645,7 @@ class HeartGoldOptions(PerGameCommonOptions):
     sphere_based_trainer_leveling_bonus: SphereBasedTrainerLevelingBonus
 
     hidden_items_require_dowsing_machine: HiddenItemsRequireDowsingMachine
+    magnet_train: MagnetTrain
     remote_items: RemoteItems
 
     disable_ohko_moves: DisableOhkoMoves
@@ -631,7 +675,7 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Goal",
-        [Goal, GoalBadgeCount, JohtoOnly, ExtraRouteBlockers],
+        [Goal, GoalBadgeCount, JohtoOnly],
     ),
     OptionGroup(
         "Randomizers",
@@ -657,6 +701,7 @@ OPTION_GROUPS = [
             SphereBasedTrainerLeveling,
             SphereBasedTrainerLevelingBonus,
             HiddenItemsRequireDowsingMachine,
+            MagnetTrain,
             RemoteItems,
         ],
     ),

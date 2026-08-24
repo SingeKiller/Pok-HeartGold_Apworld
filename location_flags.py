@@ -170,6 +170,129 @@ _SYNTHETIC_ID_FLAG_OVERRIDES: dict[str, int] = {
     # to this flag anywhere in the corpus (task "randomize_bicycle",
     # 2026-08-17).
     "goldenrod_bike_shop_bicycle": 0x89,
+    # --- type = 'badge' overrides (real bug, found and fixed 2026-08-18) --
+    #
+    # Every one of the 16 gym Leaders is fought through a bespoke,
+    # hand-authored `TrainerBattle TRAINER_LEADER_*` call embedded directly
+    # in that gym's own scripted cutscene -- never routed through the
+    # shared std_trainer/std_trainer_2 engine script (scr_seq_0953.s) that
+    # every ordinary (type = 'trainer') Trainersanity trainer uses to
+    # self-flag TRAINER_FLAG_BASE + their own trainer id after every win
+    # (GetTrainerNum -> ScriptNumToTrainerNum -> SetTrainerFlag, decomp-
+    # confirmed, src/script_manager.c). A gym Leader's own win branch never
+    # calls SetTrainerFlag on themselves, so TRAINER_FLAG_BASE + their
+    # trainer id is NEVER actually set in-game for any of them -- the old
+    # `flag_id_for_location` badge branch that assumed otherwise was
+    # simply wrong (found live, 2026-08-18: none of the 16 badge locations
+    # could ever register as checked, and client.py's own
+    # _apply_pending_badges deferred writing the received badge item's
+    # PlayerProfile bit on that same always-false flag, so CheckBadge never
+    # saw the Leader as beaten and the whole win cutscene -- including
+    # Falkner's own `SetVar VAR_SCENE_ELMS_LAB, 6` that gates the Elm's Lab
+    # egg-pickup call -- replayed on every single re-fight, the originally
+    # reported 2026-08-17 player bug). Same fix pattern as every other
+    # entry in this dict: a per-gym sentinel flag that fires unconditionally
+    # in that Leader's own win branch, hand-verified corpus-unique.
+    #
+    # 6 of the 16 gym Leaders reuse a confirmed, safe pre-existing candidate
+    # (see build_badge_index_to_sentinel_flag_id's own docstring for the
+    # full derivation of why the other 10 had none):
+    #
+    # scr_seq_0859_T22GYM0101.s (Violet Gym, Falkner): FLAG_UNK_192 is set
+    # right after `GiveBadge BADGE_ZEPHYR` (now NOP'd) and
+    # `SetTrainerFlag` calls for 2 OTHER trainers' phone rematches, still
+    # unconditional/unbranched. Only SetFlag reference to this flag
+    # anywhere in the corpus.
+    "violet_gym_badge": 0x192,
+    # scr_seq_0886_T25GYM0101.s (Goldenrod Gym, Whitney): unlike every
+    # other Leader, Whitney's own script gives the badge on a *separate*,
+    # later revisit (`GoToIfSet FLAG_UNK_0B7, _01A0` at the very top routes
+    # straight to the GiveBadge branch once a different, unrelated GS-Ball-
+    # delivery cutscene elsewhere in the same narc file has already set
+    # FLAG_UNK_0B7 -- confirmed NOT part of Whitney's own win branch, so
+    # not usable). Her own win branch (CheckBattleWon -> SetTrainerFlag x4
+    # for other trainers -> FLAG_UNK_084, unconditional) is what gates
+    # entry into that later revisit path (`Compare VAR_UNK_410A, 1` is
+    # only ever 1 after FLAG_UNK_084's own block sets it) -- i.e. FLAG_UNK_
+    # 084 fires exactly once, the moment Whitney is actually beaten, and is
+    # later ClearFlag'd only once the badge itself is finally handed over
+    # (a harmless one-shot re-arm, not a re-trigger risk: client.py's
+    # check-detection only needs to observe it true once while polling,
+    # which is a long window here since the badge hand-over is a real
+    # follow-up visit). Only SetFlag/ClearFlag reference to this flag
+    # anywhere in the corpus.
+    "goldenrod_gym_badge": 0x84,
+    # scr_seq_0778_T06GYM0101.s (Vermilion Gym, Lt. Surge): FLAG_HIDE_
+    # VERMILION_GYM_STOPS is set right after `GiveBadge BADGE_THUNDER` (now
+    # NOP'd), still unconditional/unbranched, and hides the gym's own now-
+    # pointless "bus stop" NPCs. Also used as a `GoToIfSet` re-entry guard
+    # twice earlier in the same file (gym init logic) -- never as a SetFlag
+    # anywhere else, and NOT part of scr_seq_0149.s's new-game mass-init
+    # batch (the "real bug" class documented above), so it is a genuine
+    # one-time "just won" signal, unlike that class of flag.
+    "vermilion_gym_badge": 0x31A,
+    # scr_seq_0943_T30GYM0101.s (Blackthorn Gym, Clair): Clair is the one
+    # Leader whose `GiveBadge` site is NOT in her own TrainerBattle script
+    # at all (she's fought here, but the badge itself is only granted later
+    # by a separate Dragon's Den Shrine puzzle-completion cutscene,
+    # scr_seq_0112_D44R0103.s -- see rom/badgedata.py's own TABLE comment).
+    # FLAG_UNK_0D1 is set immediately after her win (past the other-
+    # trainers' SetTrainerFlag calls), unconditional/unbranched, and is
+    # this exact script's own re-entry guard (`GoToIfSet FLAG_UNK_0D1`,
+    # both here and in the Blackthorn Town overworld script,
+    # scr_seq_0941_T30.s) for "has Clair already been beaten". This is the
+    # more reliable "just won" signal data_gen/locations.toml's own badge-
+    # section header already pointed at (the TrainerBattle-adjacent script,
+    # not the separate shrine cutscene) -- verified 2026-08-18. Only
+    # SetFlag reference to this flag anywhere in the corpus.
+    "dragons_den_shrine_badge": 0xD1,
+    # scr_seq_0015_D11R0106.s (Seafoam Islands / Cinnabar Gym, Blaine):
+    # FLAG_UNK_265 is set right after `GiveBadge BADGE_VOLCANO` (now
+    # NOP'd), still unconditional/unbranched (several other, clearly-
+    # unrelated story flags for Route 19 workmen etc. also fire further
+    # down the same block, but FLAG_UNK_265 itself is the first and is the
+    # only SetFlag reference to this specific flag anywhere in the corpus).
+    "seafoam_islands_cinnabar_gym_badge": 0x265,
+    # scr_seq_0743_T02GYM0101.s (Viridian Gym, Blue): FLAG_UNK_998 fires
+    # right after `GiveBadge BADGE_EARTH` too, but is corpus-wide REUSED by
+    # 11 other, completely unrelated scripts (Whitney/Morty/Sabrina's own
+    # gym win branches among them, 2026-08-18) -- a real collision, not
+    # usable. FLAG_UNK_97F, set right after (following the 4 SetTrainerFlag
+    # calls for other trainers' rematches), is the only SetFlag reference
+    # to this flag anywhere in the corpus and is genuinely unconditional in
+    # this exact win branch.
+    "viridian_gym_badge": 0x97F,
+    #
+    # The remaining 10 gym Leaders (task "Fix the remaining 10 gym badges",
+    # 2026-08-18): unlike the 6 above, none of these 10 win branches has a
+    # safe *pre-existing* flag to reuse -- every candidate found either
+    # collides with another location's own check (e.g. FLAG_UNK_998,
+    # corpus-wide reused by 12 unrelated scripts, including 3 of these
+    # exact 10 gyms' own win branches) or is claimed by another trainer's
+    # own phone-rematch SetTrainerFlag. So these 10 instead get a
+    # brand-new, freshly-injected sentinel flag id (FLAG_UNK_B50 through
+    # FLAG_UNK_B59, the unused tail of the flag array -- NUM_FLAGS = 2912,
+    # confirmed unreferenced anywhere in the decomp source tree and not
+    # claimed by any other id band in this project), written by rom.
+    # badgedata.BADGE_SENTINEL_INJECTIONS/write_all_badges_neutralized
+    # directly into that Leader's own `GiveBadge <badge>` instruction site
+    # (same 4 bytes that instruction already occupies, overwritten with
+    # `SetFlag <flag_id>` instead of NOP+NOP -- see that module's own
+    # docstring for the full mechanism and why it's safe, plain-4-byte-
+    # overwrite instead of an ARM hook). Each of the 10 GiveBadge sites was
+    # hand-spot-checked in that Leader's own win branch (unconditional,
+    # right after CheckBattleWon, same pattern as the 6 above) before being
+    # trusted.
+    "azalea_gym_badge": 0xB50,  # Bugsy (hive)
+    "ecruteak_gym_badge": 0xB51,  # Morty (fog)
+    "cianwood_gym_badge": 0xB52,  # Chuck (storm)
+    "olivine_gym_badge": 0xB53,  # Jasmine (mineral)
+    "mahogany_gym_leader_room_badge": 0xB54,  # Pryce (glacier)
+    "pewter_gym_badge": 0xB55,  # Brock (boulder)
+    "cerulean_gym_badge": 0xB56,  # Misty (cascade)
+    "celadon_gym_badge": 0xB57,  # Erika (rainbow)
+    "fuchsia_gym_badge": 0xB58,  # Janine (soul)
+    "saffron_gym_badge": 0xB59,  # Sabrina (marsh)
 }
 
 # Real bug, found and reverted live (2026-08-15, first live BizHawk test of
@@ -254,14 +377,37 @@ def flag_id_for_location(location_key: str) -> int | None:
         return None if raw_id >= _SYNTHETIC_ID_BASE else raw_id
     if location_type == "hidden_item":
         return HIDDEN_ITEMS_FLAG_BASE + raw_id
-    if location_type in ("trainer", "badge"):
-        # type = 'badge' (task "Badges comme vrais items AP", 2026-08-15):
-        # defeating the gym Leader is itself a std_trainer-class battle
-        # (TrainerBattle scrcmd, engine-auto-flagged the exact same way as
-        # any other trainer -- see data_gen/locations.toml's badge-section
-        # header for why it was never one of the 390 Trainersanity
-        # locations despite using the same underlying flag mechanism).
+    if location_type == "trainer":
+        # Every type = 'trainer' Trainersanity location is fought through
+        # the one shared engine script (std_trainer/std_trainer_2 ->
+        # scr_seq_0953.s), which derives the current trainer's own id at
+        # runtime and unconditionally self-flags TRAINER_FLAG_BASE + that
+        # id after every win (src/script_manager.c's SetTrainerFlag) -- a
+        # real, reliable engine primitive for these ~390 ordinary trainers.
         return TRAINER_FLAG_BASE + TRAINERS[data["trainer"]]["id"]
+    if location_type == "badge":
+        # type = 'badge' (real bug found and fixed 2026-08-18): unlike
+        # ordinary trainers, each of the 16 gym Leaders is fought through a
+        # bespoke, hand-authored `TrainerBattle` call embedded directly in
+        # that gym's own scripted cutscene -- never routed through
+        # scr_seq_0953.s -- and a Leader's own win branch never calls
+        # SetTrainerFlag on themselves. TRAINER_FLAG_BASE + their trainer
+        # id is therefore NEVER actually set in-game for any of them (the
+        # previous version of this branch assumed it was, which meant none
+        # of the 16 badge locations could ever register as checked). The
+        # override lookup above is the only source of truth for badge
+        # locations now: a hand-verified per-gym sentinel flag, same
+        # pattern as _SYNTHETIC_ID_FLAG_OVERRIDES's other entries. All 16
+        # of the 16 now have one (6 reuse a pre-existing flag already set
+        # in that Leader's own win branch; the other 10, which had no safe
+        # pre-existing candidate, get a brand-new sentinel flag injected
+        # directly into that Leader's own GiveBadge instruction site by
+        # rom.badgedata.BADGE_SENTINEL_INJECTIONS -- see that dict's own
+        # badge-section comment and build_badge_index_to_sentinel_flag_id's
+        # docstring for the full derivation) -- so unlike 'trainer',
+        # falling through to here (no override matched) should never
+        # actually happen for a real badge location any more.
+        return None
     if location_type == "static_pokemon":
         return _STATIC_POKEMON_FLAG_IDS[location_key]
     return None
@@ -355,30 +501,83 @@ def build_locally_substituted_ap_location_ids(*, remote_items: bool = False) -> 
     return result
 
 
-def build_badge_index_to_trainer_flag_id() -> dict[int, int]:
-    """badge.h's own BADGE_* index (0-15) -> TRAINER_FLAG_BASE + that
-    gym Leader's own trainer id -- the *real* "have you actually beaten
-    them" flag, as opposed to PlayerProfile's badge bit (which a
-    multiworld can set from receiving the badge item at any location,
-    independent of whether this player has personally fought that
-    Leader yet). Used by client.py to defer applying a received badge_*
-    item's PlayerProfile bit until the Leader is actually beaten --
-    every gym Leader's own field script gates its `TrainerBattle` call
-    behind `CheckBadge`, so setting the bit *before* the real fight
-    would make the Leader think you already beat them and skip the
-    battle entirely (a real bug reported by a player, 2026-08-17):
-    `SetVar VAR_SCENE_ELMS_LAB, 6` and other story-progression writes
-    only happen inside that same battle-won branch, so skipping the
-    fight silently stalls the Elm's Lab egg-pickup call too, not just
-    the fight itself."""
+def build_badge_index_to_sentinel_flag_id() -> dict[int, int]:
+    """badge.h's own BADGE_* index (0-15) -> that gym Leader's own per-gym
+    sentinel savedata flag id (a _SYNTHETIC_ID_FLAG_OVERRIDES entry) -- the
+    *real* "have you actually beaten them" flag, as opposed to
+    PlayerProfile's badge bit (which a multiworld can set from receiving
+    the badge item at any location, independent of whether this player has
+    personally fought that Leader yet).
+
+    Originally (2026-08-17/18) this drove client.py, which deferred writing
+    a received badge_* item's PlayerProfile bit until the Leader was
+    actually beaten, because every gym Leader's own field script gated its
+    `TrainerBattle` call behind `CheckBadge`. That deferral is gone as of
+    2026-08-19: rom/badgegatedata.py rewrites those gates to test these
+    sentinel flags directly, so the bit can be written on receipt and the
+    two meanings stop fighting over one savedata bit. This function now
+    serves as the canonical badge index -> sentinel map that
+    rom.badgegatedata.SENTINEL_FLAGS is cross-checked against (see
+    tests/test_badge_gate_regating.py), on top of the badge locations' own
+    check detection, which reads the same flags through
+    _SYNTHETIC_ID_FLAG_OVERRIDES.
+
+    Replaces build_badge_index_to_trainer_flag_id (removed 2026-08-18):
+    that function's entire premise -- that TRAINER_FLAG_BASE + a gym
+    Leader's own trainer id gets engine-auto-flagged "the exact same way
+    as any other trainer" -- was false. Every gym Leader is fought through
+    a bespoke, hand-authored `TrainerBattle` call embedded directly in that
+    gym's own scripted cutscene, never routed through the shared engine
+    script (scr_seq_0953.s) that actually does the auto-flagging for
+    ordinary Trainersanity trainers, and a Leader's own win branch never
+    calls SetTrainerFlag on themselves -- so that flag was never actually
+    set in-game for any of the 16, and neither this deferred-write
+    mechanism nor the badge location's own check-detection
+    (flag_id_for_location) could ever fire. Same class of fix as
+    _SYNTHETIC_ID_FLAG_OVERRIDES's other entries: a hand-verified,
+    corpus-unique sentinel flag straight from that Leader's own win branch,
+    instead.
+
+    All 16 gym Leaders now have a confirmed sentinel (task "Fix the
+    remaining 10 gym badges", 2026-08-18). 6 reuse a confirmed, safe
+    pre-existing flag (zephyr, plain, thunder, rising, volcano, earth --
+    see _SYNTHETIC_ID_FLAG_OVERRIDES's own badge-section comment for the
+    full per-gym citation). The other 10's own win branches were checked
+    and every *pre-existing* candidate rejected: each only sets (a)
+    SetTrainerFlag calls for *other* trainers' phone rematches (already
+    claimed by those trainers' own Trainersanity locations, reusing one
+    would falsely complete two locations at once), (b) a FLAG_GOT_TM<xx>_
+    FROM_<leader> flag that is itself already claimed by that same gym's
+    own separate hm_tm Trainersanity location for the TM the Leader also
+    hands over (same collision risk, plus it is gated behind a
+    `GoToIfNoItemSpace` bag-space check so it is not even truly
+    unconditional), or (c) FLAG_HIDE_* room/NPC-visibility flags that get
+    set *and cleared* several times through the script for ordinary
+    movement/room-state reasons, not a reliable one-shot "just won"
+    signal. Four of these ten (Whitney/Morty/Sabrina/Blue's own hm_tm-free
+    candidate, FLAG_UNK_998) looked plausible in isolation but is
+    corpus-wide reused by 12 different scripts -- a real collision, ruled
+    out. Rather than force one of these unsafe candidates, these 10 get a
+    brand-new sentinel flag instead (FLAG_UNK_B50..FLAG_UNK_B59, the
+    unused tail of the flag array) injected directly into that Leader's
+    own GiveBadge instruction site by rom.badgedata.
+    BADGE_SENTINEL_INJECTIONS/write_all_badges_neutralized (a plain 4-byte
+    instruction overwrite, `SetFlag <flag_id>` in place of `GiveBadge
+    <badge>` -- see that module's own docstring for the full mechanism and
+    why it's safe compared to an ARM hook). See _SYNTHETIC_ID_FLAG_
+    OVERRIDES's own badge-section comment for the full per-gym citation of
+    these 10 too."""
     from data.rules import BADGES
 
     result: dict[int, int] = {}
-    for data in LOCATIONS.values():
+    for key, data in LOCATIONS.items():
         if data["type"] != "badge":
             continue
+        flag_id = flag_id_for_location(key)
+        if flag_id is None:
+            continue
         badge_name = data["original_item"].removeprefix("badge_")
-        result[BADGES[badge_name]] = TRAINER_FLAG_BASE + TRAINERS[data["trainer"]]["id"]
+        result[BADGES[badge_name]] = flag_id
     return result
 
 
@@ -394,9 +593,13 @@ def unsupported_location_keys() -> list[str]:
     ap_location_id above) rather than flag_id_for_location's SaveVarsFlags.
     flags[]-relative int, which is why flag_id_for_location itself has no
     'dexsanity' branch and would otherwise misreport them as unsupported.
-    `badge` locations need no such exclusion: flag_id_for_location has a
-    real 'badge' branch (TRAINER_FLAG_BASE, same as 'trainer'), so they
-    are never unsupported in the first place."""
+    `badge` locations need no exclusion the way `dexsanity` does (they use
+    the same SaveVarsFlags.flags[]-relative int as everything else here),
+    and unlike the 2026-08-15 state, all 16 are now supported: every gym
+    Leader has a confirmed sentinel flag in _SYNTHETIC_ID_FLAG_OVERRIDES
+    (6 reuse a pre-existing flag, the other 10 get a freshly-injected one
+    -- see that dict's own badge-section comment and build_badge_index_to_
+    sentinel_flag_id's docstring for the full derivation)."""
     return sorted(
         key
         for key in LOCATIONS

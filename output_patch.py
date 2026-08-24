@@ -8,8 +8,9 @@
 # applying everything via patch_gen.py's apply_* functions.
 #
 # Never embeds/transmits the vanilla ROM's own bytes -- patch() reads it
-# fresh from settings.rom_file every time, same convention every other
-# ROM-patching Archipelago world follows.
+# fresh from settings (HeartGoldSettings.heartgold_rom_file/
+# soulsilver_rom_file, see __init__.py) every time, same convention every
+# other ROM-patching Archipelago world follows.
 
 from __future__ import annotations
 
@@ -109,10 +110,21 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         """Called by Archipelago's own Patch.create_rom_file on whichever
         machine has the player's real ROM."""
         self.read()
-        rom_path = get_settings().pokemon_heartgold_settings.rom_file
+        declared_version = json.loads(self.get_file("game_version.json"))
+
+        # Two separate per-version settings (see HeartGoldSettings's own
+        # docstring, __init__.py) -- picks the one this patch was
+        # actually generated for, so a machine can have both a HeartGold
+        # and a SoulSilver ROM configured at once without reconfiguring
+        # host.yaml every time you switch which version you're testing.
+        settings_group = get_settings().pokemon_heartgold_settings
+        rom_path = (
+            settings_group.soulsilver_rom_file
+            if declared_version == "soulsilver"
+            else settings_group.heartgold_rom_file
+        )
         rom = HeartGoldRom.open(rom_path)
 
-        declared_version = json.loads(self.get_file("game_version.json"))
         if rom.version is not None and declared_version != rom.version:
             raise RomError(
                 f"This patch was generated for {declared_version}, but the ROM "
@@ -149,6 +161,13 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
         patch_gen.apply_badge_neutralization(rom)
 
+        # Must stay directly after apply_badge_neutralization: the gates it
+        # installs read the sentinel flags that call injects (see
+        # rom/badgegatedata.py's own VERSION COUPLING note).
+        patch_gen.apply_badge_gate_regating(rom)
+
+        patch_gen.apply_npc_gift_duplication_gate_fix(rom)
+
         patch_gen.apply_placeholder_text_fix(rom)
 
         starters = json.loads(self.get_file("starters.json"))
@@ -156,7 +175,18 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         patch_gen.apply_starter_randomization(rom, starters)
         patch_gen.apply_starter_selection_text_fix(rom, starters)
 
-        rom.save(target)
+        # Serialize once, then stamp the start-location revocation record
+        # into the finished image's own cartridge header before writing it
+        # out. Deliberately not rom.save(target): the record holds the
+        # absolute offset of a word inside a NitroFS file, which only
+        # exists once the container has actually been packed, and the
+        # header is the one region that can be edited afterwards without
+        # moving anything (see rom/startlocation.py section 4).
+        packed = bytearray(rom.save_bytes())
+        if start_location_town is not None:
+            patch_gen.stamp_start_location_revocation(packed)
+        with open(target, "wb") as out_file:
+            out_file.write(packed)
 
 
 def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
@@ -217,8 +247,23 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
             substitutions[location.name] = None
             continue
         item_key = label_to_key.get(location.item.name)
-        if item_key is not None:
-            substitutions[location.name] = item_key
+        if item_key is None:
+            # Never silently skip this location (it used to, until
+            # 2026-08-22): omitting it from the dict makes
+            # patch_gen.apply_local_item_substitutions leave the site
+            # alone, which means the VANILLA item stays in the ROM and the
+            # player is handed a real, unearned item -- with no log, no
+            # raise and no way to notice. The only way to get here is a
+            # data/items.py `label` that no longer matches the AP item name
+            # it is supposed to mirror, i.e. a bug in this world, so fail
+            # generation loudly instead.
+            raise RomError(
+                f"Location {location.name!r} was filled with this player's own item "
+                f"{location.item.name!r}, but no data/items.py entry has that label, so the "
+                "item cannot be written into the ROM. This is an items/locations data "
+                "mismatch in the Pokemon HGSS world itself; please report it."
+            )
+        substitutions[location.name] = item_key
     return substitutions
 
 

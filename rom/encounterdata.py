@@ -129,10 +129,50 @@ def _write_slot_array_species(
         struct.pack_into("<H", entry, offset, species_index[slot["species"]])
 
 
+# --- What actually reaches the ROM (single source of truth) ----------------
+#
+# Dexsanity's location set and its access rules are derived from these two
+# predicates, exactly like patch_gen.apply_encounter_randomization is, so
+# the logic can never claim a species is catchable in a table this module
+# never writes. Before this existed (bug found 2026-08-22 on a real, dead
+# seed), species.species_encounter_methods counted every slot of
+# data/encounters.py -- including the headbutt tables write_zone_encounters
+# below does not touch and the 3 zones with no NARC entry at all -- so 55 to
+# 59 of a `zone_method_mapping` seed's ~460 Dexsanity locations were for
+# species that appear nowhere in the produced ROM. See docs/scope.md.
+#
+# Adding headbutt-table writing to write_zone_encounters below is the only
+# change needed to make headbutt species count again: add "headbutt" here
+# and Dexsanity picks it up with no other edit anywhere.
+WRITTEN_ENCOUNTER_METHODS = frozenset(
+    {"land", "surf", "rock_smash", "old_rod", "good_rod", "super_rod"}
+)
+
+
+def zone_is_written(zone_key: str) -> bool:
+    """Whether `zone_key` (a data/encounters.py key) has a raw NARC entry
+    for write_zone_encounters below to overwrite at all. False for the 3
+    headbutt-only zones (azalea/pewter/route_16), which have no
+    land/surf/rock_smash/fishing entry -- see this module's header."""
+    from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
+
+    return zone_key in ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
+
+
+def zone_method_is_written(zone_key: str, method: str) -> bool:
+    """Whether a species placed in `zone_key`'s `method` table (a
+    species.py encounter-method name) actually ends up in the patched
+    ROM."""
+    return method in WRITTEN_ENCOUNTER_METHODS and zone_is_written(zone_key)
+
+
 def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     """Overwrite one zone's species fields in place (land morn/day/nite,
     surf, rock_smash, and old/good/super rod fishing), leaving every
-    rate/level byte untouched. Headbutt encounters are not covered."""
+    rate/level byte untouched. Headbutt encounters are not covered --
+    WRITTEN_ENCOUNTER_METHODS above is the machine-readable statement of
+    exactly that, and every caller that needs to know must ask it rather
+    than re-deriving the list."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 

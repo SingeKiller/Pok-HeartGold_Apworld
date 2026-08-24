@@ -53,6 +53,7 @@ from locations import (  # noqa: E402
     badge_item_label,
     create_location_label_to_code_map,
     create_locations,
+    dexsanity_sources_within_regions,
 )
 from options import OPTION_GROUPS, GameVersion, Goal, HeartGoldOptions  # noqa: E402
 
@@ -61,6 +62,7 @@ from output_patch import generate_output as write_output_patch  # noqa: E402
 from regions import KANTO_REGION_KEYS  # noqa: E402
 from regions import create_regions as build_region_graph  # noqa: E402
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
+from rules import MAGNET_TRAIN_PASS_ITEM_LABEL  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
 from species import (  # noqa: E402
     convert_trade_and_friendship_evolutions,
@@ -80,8 +82,9 @@ from species import (  # noqa: E402
     randomize_wild_encounters,
     scale_trainer_levels,
     scale_trainer_levels_by_sphere,
-    species_encounter_methods,
+    species_encounter_sources,
 )
+from rom.encounterdata import zone_method_is_written  # noqa: E402
 from universal_tracker import (  # noqa: E402
     SLOT_DATA_OPTIONS_KEY,
     build_ut_slot_data,
@@ -261,15 +264,33 @@ class HeartGoldWebWorld(WebWorld):
 
 class HeartGoldSettings(settings.Group):
     """Per-machine settings -- distinct from HeartGoldOptions (per-player,
-    YAML-configured). rom_file is where this machine's own copy of the
-    ROM lives, read fresh every time .patch() runs."""
+    YAML-configured). Two separate rom_file settings, not one shared
+    between both versions (real player report, 2026-08-17): a single
+    shared `rom_file` made it impossible to configure a HeartGold ROM and
+    a SoulSilver ROM at the same time -- switching which version you were
+    testing/generating for meant deleting/re-pointing the setting (and
+    the copied ROM file, since both versions defaulted to the same
+    "HeartGold" filename) every time. Same two-setting pattern other
+    multi-version worlds already use (e.g. pokemon_bw's black_rom/
+    white_rom, pokemon_frlg's firered_rom_file/leafgreen_rom_file).
+    output_patch.py's own .patch() picks whichever of these two matches
+    this patch's own declared game_version, instead of always reading one
+    shared field. Breaking host.yaml change: an old `rom_file:` entry is
+    simply ignored now: reconfigure with `heartgold_rom_file`/
+    `soulsilver_rom_file` instead."""
 
-    class RomFile(settings.UserFilePath):
-        description = "Pokemon HeartGold or SoulSilver (USA) ROM file"
+    class HeartGoldRomFile(settings.UserFilePath):
+        description = "Pokemon HeartGold (USA) ROM file"
         copy_to = "Pokemon - HeartGold Version (USA).nds"
-        md5s = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
+        md5s = [HEARTGOLD_US_MD5]
 
-    rom_file: RomFile = RomFile(RomFile.copy_to)
+    class SoulSilverRomFile(settings.UserFilePath):
+        description = "Pokemon SoulSilver (USA) ROM file"
+        copy_to = "Pokemon - SoulSilver Version (USA).nds"
+        md5s = [SOULSILVER_US_MD5]
+
+    heartgold_rom_file: HeartGoldRomFile = HeartGoldRomFile(HeartGoldRomFile.copy_to)
+    soulsilver_rom_file: SoulSilverRomFile = SoulSilverRomFile(SoulSilverRomFile.copy_to)
 
 
 # pytest's own Package collector imports this file once as a setup side
@@ -350,18 +371,26 @@ class HeartGoldWorld(World):
             encounters=version_encounters,
             exclude_legendaries=bool(self.options.exclude_legendaries.value),
         )
-        self.dexsanity_species_methods = species_encounter_methods(self.generated_encounters)
         # dexsanity_encounter_types restricts which methods count at all --
-        # a species left with no allowed method after this filter simply
+        # a species left with no allowed source after this filter simply
         # gets no Dexsanity location this seed (same as one this seed's
         # own wild tables never place anywhere). A no-op when every method
         # is still allowed (the option's own default).
+        #
+        # zone_method_is_written is the other, non-optional half (added
+        # 2026-08-22, after a real seed died): it drops every (zone,
+        # method) pair patch_gen never writes into the ROM -- the headbutt
+        # tables and the 3 zones with no NARC entry -- so a Dexsanity
+        # location can never exist for a species the player could not
+        # possibly find. It lives in rom/encounterdata.py next to the code
+        # that does the writing, so the two cannot drift apart.
         allowed_methods = set(self.options.dexsanity_encounter_types.value)
-        self.dexsanity_species_methods = {
-            species: methods & allowed_methods
-            for species, methods in self.dexsanity_species_methods.items()
-            if methods & allowed_methods
-        }
+        self.dexsanity_species_sources = species_encounter_sources(
+            self.generated_encounters,
+            source_filter=lambda zone_key, method: (
+                method in allowed_methods and zone_method_is_written(zone_key, method)
+            ),
+        )
 
         self.generated_start_location_town: str | None = None
         if bool(self.options.randomize_start_location.value):
@@ -396,14 +425,20 @@ class HeartGoldWorld(World):
             self.player,
             self.multiworld,
             excluded_region_keys=self._excluded_region_keys,
-            extra_route_blockers=bool(self.options.extra_route_blockers.value),
+        )
+        # Narrowed to the Regions that actually exist for this player
+        # (johto_only drops Kanto's) *before* create_locations, so
+        # create_items below can use the exact same dict and the item pool
+        # can never outnumber the created Dexsanity locations.
+        self.dexsanity_species_sources = dexsanity_sources_within_regions(
+            self.dexsanity_species_sources, self.regions
         )
         create_locations(
             self.player,
             self.regions,
             trainersanity=bool(self.options.trainersanity.value),
             dexsanity=bool(self.options.dexsanity.value),
-            dexsanity_species_methods=self.dexsanity_species_methods,
+            dexsanity_species_sources=self.dexsanity_species_sources,
             legendarysanity=bool(self.options.legendarysanity.value),
             hidden_items_require_dowsing_machine=bool(self.options.hidden_items_require_dowsing_machine.value),
             excluded_region_keys=self._excluded_region_keys,
@@ -417,8 +452,12 @@ class HeartGoldWorld(World):
         # random filler item to the pool instead, and only for the entries
         # create_regions() above actually created (trainersanity/dexsanity
         # off, or -- dexsanity only -- that species absent from this seed's
-        # own wild tables), so the pool size matches the created, unfilled
-        # location count exactly.
+        # own wild tables, from the tables the ROM patcher writes, or from
+        # every Region that exists this seed), so the pool size matches the
+        # created, unfilled location count exactly. `dexsanity_species_
+        # sources` is the exact dict create_regions() passed to
+        # create_locations, region-narrowed included, so the two agree by
+        # construction rather than by two parallel filters.
         trainersanity = bool(self.options.trainersanity.value)
         dexsanity = bool(self.options.dexsanity.value)
         legendarysanity = bool(self.options.legendarysanity.value)
@@ -447,7 +486,7 @@ class HeartGoldWorld(World):
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
             elif data["type"] == "dexsanity":
-                if not dexsanity or data["species"] not in self.dexsanity_species_methods:
+                if not dexsanity or data["species"] not in self.dexsanity_species_sources:
                     continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
@@ -474,6 +513,33 @@ class HeartGoldWorld(World):
                     item.classification |= ItemClassification.progression
                     break
 
+        if not bool(self.options.magnet_train.value):
+            # Mirror image of the Dowsing Machine case above: with the
+            # Magnet Train no longer counted as an early door to Kanto
+            # (rules.py's set_rules puts `elite_four_defeated` on the ride),
+            # the Magnet Train Pass unlocks nothing on its own -- the only
+            # rule that names it is that one edge, and by then the S.S.
+            # Aqua ferry is open anyway. data/items.py classifies it
+            # progression, which is right for the default; left as-is here
+            # the fill would still reserve a good spot for a dead key item.
+            from BaseClasses import ItemClassification
+
+            for item in pool:
+                if item.name == MAGNET_TRAIN_PASS_ITEM_LABEL:
+                    item.classification = ItemClassification.useful
+                    break
+
+        if not bicycle_enabled:
+            # randomize_bicycle off (default): the Goldenrod Bike Shop is
+            # left vanilla, so the player is handed the Bicycle in-game and
+            # no Bicycle item ever enters the pool (see the skip above).
+            # Both Cycling Road gatehouses now require it in logic (verrou
+            # D8, data_gen/rules.toml), so it has to be precollected or
+            # Route 16's southern half, Route 17 and Route 18 -- and the 16
+            # locations on them -- would be unreachable on the default
+            # settings.
+            self.multiworld.push_precollected(create_item("bicycle", self.player))
+
         self.multiworld.itempool += pool
 
     def create_item(self, name: str) -> Item:
@@ -482,7 +548,12 @@ class HeartGoldWorld(World):
         return create_item(_LABEL_TO_ITEM_KEY[name], self.player)
 
     def set_rules(self) -> None:
-        apply_exit_rules(self.player, self.multiworld, self.regions)
+        apply_exit_rules(
+            self.player,
+            self.multiworld,
+            self.regions,
+            magnet_train=bool(self.options.magnet_train.value),
+        )
         _constrain_undetectable_locations(self.player, self.multiworld, self._excluded_region_keys)
 
         goal_badge_count = self.options.goal_badge_count.value

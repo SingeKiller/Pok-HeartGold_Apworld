@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Container
 
 from BaseClasses import CollectionState, ItemClassification, Location, Region
 
@@ -64,14 +64,25 @@ def scenario_event_item_name(event_name: str) -> str:
     return f"{SCENARIO_EVENT_ITEM_PREFIX}{event_name}"
 
 
-# Dexsanity (task M3.4) access rules: species.species_encounter_methods
-# reports which of these method names a species is obtainable through in
-# this seed; _UNGATED_DEXSANITY_METHODS need no item at all (present
-# anywhere in vanilla grass or a headbutt tree), the rest each need a
-# specific bag item -- an HM+badge pair for surf/rock_smash (same
-# data/rules.py BADGES this module already uses for badge locations), or
-# just the matching rod for fishing (data_gen/rules.toml's own header: rods
-# are ungated key items, no badge needed to use one already in the bag).
+# Dexsanity (task M3.4) access rules: species.species_encounter_sources
+# reports the (zone_key, method) pairs a species actually appears in in
+# this seed. `method` decides which bag item is needed:
+# _UNGATED_DEXSANITY_METHODS need none at all (walk into the grass, or
+# Headbutt a tree -- a Gen4 tutor move, not an HM, see data_gen/rules.toml's
+# header), the rest each need a specific one -- an HM+badge pair for
+# surf/rock_smash (same data/rules.py BADGES this module already uses for
+# badge locations), or just the matching rod for fishing (rods are ungated
+# key items, no badge needed to use one already in the bag).
+#
+# `zone_key` decides *where*, and is the half this used to be missing
+# (fixed 2026-08-22): a data/encounters.py zone key is also a
+# data/regions.py region key (all 137 of them, asserted by
+# tests/test_encounters.py::test_every_zone_key_is_a_known_region), so the
+# species' own region is directly usable in the rule. Without it, a
+# species living only behind a gate (the real dead seed: Tropius in the
+# Burned Tower, holding the Squirtbottle that unlocks Ecruteak, which is
+# the only way into that tower) counted as sphere-0 free and the fill
+# happily built a circular dependency.
 _UNGATED_DEXSANITY_METHODS = frozenset({"land", "headbutt"})
 _DEXSANITY_HM_METHOD_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "surf": ("hm03", "fog"),
@@ -84,31 +95,78 @@ _DEXSANITY_ROD_METHOD_REQUIREMENTS: dict[str, str] = {
 }
 
 
-def _dexsanity_access_rule(player: int, methods: frozenset[str]) -> Callable[[CollectionState], bool] | None:
-    """None means unconditionally accessible (methods includes land or
-    headbutt); otherwise an OR across every gated method the species is
-    obtainable through in this seed -- the cheapest one is enough, even if
-    the same species also needs something harder somewhere else."""
-    if methods & _UNGATED_DEXSANITY_METHODS:
-        return None
+def dexsanity_sources_within_regions(
+    species_sources: dict[str, frozenset[tuple[str, str]]], region_keys: Container[str]
+) -> dict[str, frozenset[tuple[str, str]]]:
+    """`species_sources` (species.species_encounter_sources output) with
+    every pair whose zone has no Region in `region_keys` dropped, and every
+    species left with no pair at all dropped too. `johto_only` is the only
+    caller-visible case: a species this seed only placed in Kanto has no
+    catchable location once Kanto's regions are never created, so it must
+    get no Dexsanity Location -- and, just as importantly, no filler item
+    in the pool either. Shared by create_locations below and __init__.py's
+    create_items precisely so the two can never disagree on the count."""
+    filtered = {
+        species: frozenset(source for source in sources if source[0] in region_keys)
+        for species, sources in species_sources.items()
+    }
+    return {species: sources for species, sources in filtered.items() if sources}
 
-    sub_rules: list[Callable[[CollectionState], bool]] = []
-    for method in methods:
-        if method in _DEXSANITY_HM_METHOD_REQUIREMENTS:
-            item_key, badge_name = _DEXSANITY_HM_METHOD_REQUIREMENTS[method]
-            item_label = ITEMS[item_key]["label"]
-            badge_label = badge_item_label(badge_name)
-            sub_rules.append(
-                lambda state, item_label=item_label, badge_label=badge_label: (
-                    state.has(item_label, player) and state.has(badge_label, player)
-                )
-            )
-        elif method in _DEXSANITY_ROD_METHOD_REQUIREMENTS:
-            item_label = ITEMS[_DEXSANITY_ROD_METHOD_REQUIREMENTS[method]]["label"]
-            sub_rules.append(lambda state, item_label=item_label: state.has(item_label, player))
+
+def _dexsanity_method_requirement(player: int, method: str) -> Callable[[CollectionState], bool] | None:
+    """The bag-item check for one encounter method, or None when the
+    method needs nothing at all."""
+    if method in _UNGATED_DEXSANITY_METHODS:
+        return None
+    if method in _DEXSANITY_HM_METHOD_REQUIREMENTS:
+        item_key, badge_name = _DEXSANITY_HM_METHOD_REQUIREMENTS[method]
+        item_label = ITEMS[item_key]["label"]
+        badge_label = badge_item_label(badge_name)
+        return lambda state: state.has(item_label, player) and state.has(badge_label, player)
+    if method in _DEXSANITY_ROD_METHOD_REQUIREMENTS:
+        item_label = ITEMS[_DEXSANITY_ROD_METHOD_REQUIREMENTS[method]]["label"]
+        return lambda state: state.has(item_label, player)
+    raise ValueError(f"unknown Dexsanity encounter method: {method!r}")
+
+
+def _dexsanity_access_rule(
+    player: int, sources: frozenset[tuple[str, str]], regions: dict[str, Region]
+) -> Callable[[CollectionState], bool]:
+    """An OR across every place this seed actually put the species: each
+    branch is "reach that region AND own what that method needs", and the
+    cheapest branch is enough even when the same species also lives
+    somewhere much deeper. `sources` must already be filtered to zones
+    that have a Region (dexsanity_sources_within_regions above).
+
+    Region objects are captured directly rather than looked up through
+    `state.can_reach_region(name, player)` on every call: `Region.can_reach`
+    is a cached set membership, so this reduces each branch to that lookup
+    plus at most two `state.has` calls -- worth doing on a rule the fill
+    re-evaluates for up to ~460 locations on every sweep.
+
+    Branches are collapsed per region and the ungated ones sorted first, so
+    a species in one region through both grass and Surf costs a single
+    membership test in the common case."""
+    per_region: dict[str, set[str]] = {}
+    for zone_key, method in sources:
+        per_region.setdefault(zone_key, set()).add(method)
+
+    branches: list[tuple[Region, Callable[[CollectionState], bool] | None]] = []
+    for zone_key in sorted(per_region):
+        methods = per_region[zone_key]
+        region = regions[zone_key]
+        if methods & _UNGATED_DEXSANITY_METHODS:
+            branches.append((region, None))
+            continue
+        for method in sorted(methods):
+            branches.append((region, _dexsanity_method_requirement(player, method)))
+    branches.sort(key=lambda branch: branch[1] is not None)
 
     def rule(state: CollectionState) -> bool:
-        return any(sub_rule(state) for sub_rule in sub_rules)
+        return any(
+            region.can_reach(state) and (requirement is None or requirement(state))
+            for region, requirement in branches
+        )
 
     return rule
 
@@ -135,13 +193,40 @@ def _hidden_item_access_rule(player: int) -> Callable[[CollectionState], bool]:
     return lambda state: state.has(DOWSING_MACHINE_ITEM_LABEL, player)
 
 
+# Vanilla gates that block a single *location* rather than a region exit, so
+# they cannot live in data_gen/rules.toml's [[exit_rule]] table (that one
+# only ever restricts an edge of the region graph): the room is reachable,
+# the check inside it is not yet available. Each entry maps a
+# data/locations.py key to the data/items.py keys its own vanilla story flag
+# depends on.
+#
+# - olivine_gym_badge (verrou A8, 2026-08-23): Jasmine is not in her gym at
+#   all until the Secret Potion has been delivered to Amphy.
+#   FLAG_HIDE_JASMINE_IN_GYM is set at new game (scr_seq_0149.s:32) and only
+#   cleared by the Olivine Lighthouse light-room script, right after its
+#   `TakeItem ITEM_SECRETPOTION` (scr_seq_0066_D27R0107.s:69). The gym
+#   region itself stays freely enterable, which is why this is not an exit
+#   rule -- but the Mineral Badge inside it is not obtainable, and it is one
+#   of the 8 badges the Elite Four gate asks for.
+_ITEM_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
+    "olivine_gym_badge": ("secretpotion",),
+}
+
+
+def _item_gated_access_rule(player: int, item_keys: tuple[str, ...]) -> Callable[[CollectionState], bool]:
+    """Own every one of `item_keys` (data/items.py keys). Same shape as
+    `_hidden_item_access_rule`, generalized over several items."""
+    item_labels = tuple(ITEMS[key]["label"] for key in item_keys)
+    return lambda state: all(state.has(label, player) for label in item_labels)
+
+
 def create_locations(
     player: int,
     regions: dict[str, Region],
     *,
     trainersanity: bool = False,
     dexsanity: bool = False,
-    dexsanity_species_methods: dict[str, frozenset[str]] | None = None,
+    dexsanity_species_sources: dict[str, frozenset[tuple[str, str]]] | None = None,
     legendarysanity: bool = False,
     hidden_items_require_dowsing_machine: bool = False,
     excluded_region_keys: frozenset[str] = frozenset(),
@@ -158,10 +243,14 @@ def create_locations(
     by this player's own `trainersanity` option, not a global toggle.
     `type = 'dexsanity'` locations (task M3.4) work the same way, gated on
     `dexsanity`, but additionally only created per-entry when that entry's
-    `species` key is present in `dexsanity_species_methods` (i.e. this
+    `species` key is present in `dexsanity_species_sources` (i.e. this
     seed's own randomized wild-encounter tables actually place that species
-    somewhere) -- caller passes species.species_encounter_methods(world.
-    generated_encounters) here. `type = 'static_pokemon'` locations
+    somewhere the ROM patcher genuinely writes) -- caller passes
+    species.species_encounter_sources(world.generated_encounters,
+    source_filter=rom.encounterdata.zone_method_is_written) here, so the
+    location count legitimately varies from seed to seed. Each one gets
+    `_dexsanity_access_rule`, which requires reaching a region the species
+    actually lives in. `type = 'static_pokemon'` locations
     (Ho-Oh/Lugia) work the same way, gated on `legendarysanity` -- off by
     default, matching every other Pokemon Archipelago world, which leaves
     static legendary encounters entirely vanilla rather than tracking
@@ -169,7 +258,9 @@ def create_locations(
     requiring the Dowsing Machine when `hidden_items_require_dowsing_
     machine` is set -- off by default, since vanilla never actually
     requires it to pick up an already-known hidden item (it's purely a
-    detection aid). `excluded_region_keys` (`johto_only`'s
+    detection aid). Locations listed in `_ITEM_GATED_LOCATIONS` get an
+    access_rule of their own for a vanilla story gate that blocks the check
+    itself rather than the way to its region (see that constant). `excluded_region_keys` (`johto_only`'s
     regions.KANTO_REGION_KEYS, or empty) skips any location whose own
     `region` is excluded -- must be the exact same region set passed to
     `regions.create_regions`, or `regions[data["region"]]` below raises
@@ -193,6 +284,9 @@ def create_locations(
     once again always unconditionally granted by their own real vanilla
     trigger, like before this feature existed."""
     id_map = create_location_label_to_code_map()
+    # Pre-filtered once, not per location: `regions` is the authoritative
+    # set of Regions that exist for this player (johto_only drops Kanto's).
+    reachable_sources = dexsanity_sources_within_regions(dexsanity_species_sources or {}, regions)
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
             continue
@@ -204,12 +298,12 @@ def create_locations(
             continue
         if key == "goldenrod_bike_shop_bicycle" and not bicycle_enabled:
             continue
-        methods: frozenset[str] | None = None
+        sources: frozenset[tuple[str, str]] | None = None
         if data["type"] == "dexsanity":
             if not dexsanity:
                 continue
-            methods = (dexsanity_species_methods or {}).get(data["species"])
-            if methods is None:
+            sources = reachable_sources.get(data["species"])
+            if sources is None:
                 continue
         region = regions[data["region"]]
         if data["type"] == "event":
@@ -220,10 +314,10 @@ def create_locations(
         else:
             location = HeartGoldLocation(player, key, id_map[key], region)
             if data["type"] == "dexsanity":
-                assert methods is not None
-                rule = _dexsanity_access_rule(player, methods)
-                if rule is not None:
-                    location.access_rule = rule
+                assert sources is not None
+                location.access_rule = _dexsanity_access_rule(player, sources, regions)
             elif data["type"] == "hidden_item" and hidden_items_require_dowsing_machine:
                 location.access_rule = _hidden_item_access_rule(player)
+            elif key in _ITEM_GATED_LOCATIONS:
+                location.access_rule = _item_gated_access_rule(player, _ITEM_GATED_LOCATIONS[key])
         region.locations.append(location)
