@@ -22,6 +22,7 @@ import struct
 from typing import TYPE_CHECKING
 
 import worlds._bizhawk as bizhawk
+from NetUtils import ClientStatus
 from worlds._bizhawk.client import BizHawkClient
 
 from data.items import ITEMS
@@ -51,6 +52,7 @@ from save_layout import (
     plan_bag_item_write,
     stack_cap_for_pocket,
 )
+from universal_tracker import SLOT_DATA_OPTIONS_KEY
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -449,6 +451,163 @@ _START_LOCATION_HOME_MAP_IDS = (_START_LOCATION_MAP_NEW_BARK, _START_LOCATION_MA
 _LOCAL_FIELD_DATA_CHUNK_ID = 5  # SAVE_LOCAL_FIELD_DATA (src/save_arrays.c)
 _LOCAL_FIELD_DATA_CURRENT_MAP_ID_OFFSET = 0
 
+# randomize_start_location, blackout spawn repair (real player report: a
+# Goldenrod start, a whiteout before any Pokemon Center visit, and the
+# player woke up in New Bark with no way back without Cut or the
+# Squirtbottle).
+#
+# The whiteout destination is `LocalFieldData.lastSpawn`
+# (src/save_local_field_data.c:21), resolved by src/blackout.c:199-201
+# through sSpawnMaps (asm/unk_0203BA5C.s). It starts at GetMomSpawnId() == 1
+# (Save_LocalFieldData_Init, :49) and is only rewritten on a non-connection
+# map load into a map that is some entry's death-warp map
+# (src/field_warp_tasks.c:268-271, MapHeader_GetSpawnIdForDeathWarp), i.e.
+# a Pokemon Center 1F or the player's own house. The redirected Lab door
+# lands on the town's outdoor map, which is no such map, so the value stays
+# at New Bark's until the first Center.
+#
+# Offset: five `Location` (include/field_types_def.h: five `int`, 20 bytes
+# each) = 100, then `u16 musicId` (100), `u16 weather` (102), `u16
+# lastSpawn` (104).
+_LOCAL_FIELD_DATA_LAST_SPAWN_OFFSET = 104
+_SPAWN_ID_NEW_BARK = 1  # GetMomSpawnId(), sSpawnMaps[0] (player's house 1F)
+# Spawn id = sSpawnMaps index + 1 (SpawnIdToTableIndex subtracts 1); each of
+# these entries' death-warp map is that town's own Pokemon Center 1F.
+_START_LOCATION_TOWN_SPAWN_IDS: dict[str, int] = {
+    "cherrygrove": 2,
+    "violet": 3,
+    "azalea": 4,
+    "cianwood": 5,
+    "goldenrod": 6,
+    "olivine": 7,
+    "ecruteak": 8,
+    "mahogany": 9,
+    "blackthorn": 11,  # 10 is Lake of Rage, not a blackout spawn
+}
+# "Already handled on this save" latch. lastSpawn legitimately goes back to
+# 1 whenever the player later walks into their own house, so the value alone
+# cannot say whether the client may still write. The latch lives in the
+# savedata itself, written in the same guarded write as lastSpawn, so it
+# follows the save file exactly (reloading an older save restores both).
+# FLAG_UNK_B5A is referenced nowhere in the decomp (scripts, C or asm) nor
+# claimed anywhere else in this project (rom/npcgiftgatedata.py holds
+# 0xB48-0xB4F, rom/badgedata.py 0xB50-0xB59).
+_BLACKOUT_SPAWN_LATCH_FLAG = 0xB5A
+
+# magnet_train on: the Power Plant counts as repaired from the start.
+#
+# A policeman blocks both Magnet Train stations until FLAG_RESTORED_POWER is
+# set, and that flag is the only thing the three station-side branches
+# test (scr_seq_0893_T25R0501.s:20/28/39, scr_seq_0834_T11R0601.s:21/40/51):
+# OnResume moves him aside, OnTransition resets VAR_UNK_410B/411D to 0 so
+# the Pass-check coord event stays armed, and talking to him no longer
+# refuses. The platform map is not chosen by the flag at all: both 1F warp
+# tables always lead to the *_2F_EMPTY map, and the ride itself is the
+# frame script fired by VAR_UNK_411E/411F, which only the Pass check sets.
+# So setting the flag is enough for the train, with no script patch.
+#
+# The rest reproduces the side effects of the vanilla repair block
+# (scr_seq_0196_R10R0202.s:54-64) minus the TM57 hand-out, which
+# locations.POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS removes from the
+# pool instead: FLAG_UNK_258 opens the Route 5/6 Underground Path gates,
+# the Lavender radio director appears (EXPN Card), and the Copycat / Fan
+# Club lost-doll chain is armed, which is also the one that gives the Pass.
+_FLAG_RESTORED_POWER = 0x118
+_POWER_PLANT_FLAGS_TO_SET = (
+    _FLAG_RESTORED_POWER,
+    0x258,  # FLAG_UNK_258, Underground Path gates
+)
+_POWER_PLANT_FLAGS_TO_CLEAR = (0x259,)  # FLAG_HIDE_LAVENDER_RADIO_TOWER_DIRECTOR
+# Only while the Copycat's own chain has not moved yet (VAR_UNK_40FF == 0):
+# she sets the doll flag back and the var to 2 herself later
+# (scr_seq_0841_T11R0802.s:77/86).
+_COPYCAT_CHAIN_VAR = 0x40FF  # VAR_UNK_40FF
+_COPYCAT_CHAIN_FLAGS_TO_SET = (0x2FB,)  # FLAG_HIDE_SAFFRON_CITY_COPYCAT_HOUSE_CLEFAIRY_DOLL
+_COPYCAT_CHAIN_FLAGS_TO_CLEAR = (0x2FC,)  # FLAG_HIDE_VERMILION_FAN_CLUB_LOST_ITEM
+# Once FLAG_RESTORED_POWER is set, Route 10's door always loads the
+# REPAIRED map (scr_seq_0191_R10.s:135), so the broken map's own
+# first-visit scene (scr_seq_0196_R10R0202.s:93-120) can never run. That
+# scene is what arms the Cerulean Gym Rocket (VAR_UNK_411C = 1, clears
+# FLAG_HIDE_CERULEAN_GYM_ROCKET), whose escape is the only thing that sends
+# Misty on her Route 25 date (scr_seq_0760_T04GYM0101.s:123-127), and
+# Misty plus her whole gym stay hidden (FLAG_HIDE_CERULEAN_GYM_POPULATION)
+# until that date is over (scr_seq_0216_R25.s:170). Without this, the
+# Cascade Badge, TM03 and every Cerulean Gym trainer would be lost. Only
+# written while VAR_UNK_411C is still 0.
+_CERULEAN_CHAIN_VAR = 0x411C  # VAR_UNK_411C
+_CERULEAN_CHAIN_VAR_VALUE = 1
+_CERULEAN_CHAIN_FLAGS_TO_CLEAR = (0x254,)  # FLAG_HIDE_CERULEAN_GYM_ROCKET
+_VAR_BASE = 0x4000  # include/constants/vars.h
+
+# Vermilion Gym: withhold the Thunder Badge bit around Lt. Surge's gym until
+# he is actually beaten (real player report: all 15 trash cans empty and an
+# invisible wall, a permanent softlock).
+#
+# src/gymmick_init.c:56 InitVermilionGym, run by `VermilionGymInit` from the
+# gym's OnTransition script (scr_seq_0778_T06GYM0101.s, script _021), reads
+# `PlayerProfile_TestBadgeFlag(BADGE_THUNDER)` as "puzzle already solved":
+# it then zeroes both switch positions and opens both gates, and never calls
+# PlaceVermilionGymSwitches. But the six obj_T06GYM0101_stop objects are
+# only hidden by FLAG_HIDE_VERMILION_GYM_STOPS (0x31A), set solely in
+# Surge's own win branch (script _023). With badges delivered on receipt
+# (see _apply_pending_badges), the bit can predate that win, and the gym
+# loads with no switches and blocking stops: unsolvable.
+#
+# InitVermilionGym is the ONLY Init*Gym that tests a badge (gymmick_init.c),
+# and BADGE_THUNDER gates no field move (src/field_move.c tests Hive, Storm,
+# Fog, Plain, Zephyr, Rising, Earth and Glacier only; field_control.c's
+# surf prompt tests Fog), so clearing the bit locally costs no capability.
+# The gym's other two `CheckBadge BADGE_THUNDER` (scripts _024, _025) only
+# pick NPC dialogue, and Surge's own battle gate is regated onto 0x31A by
+# rom/badgegatedata.py. Transient side effects while withheld, all reverting
+# as soon as the player leaves: PlayerProfile_CountBadges is one lower, so
+# the trainer card, the continue screen, the whiteout money penalty
+# (src/battle/battle_system.c CalcMoneyLoss) and, for a player at exactly 8
+# badges, the obedience cap (src/battle/battle_controller_player.c) see one
+# badge fewer. The n_badges goal is unaffected: it counts received AP items
+# (__init__.py _goal_rule), never this bit.
+#
+# The bit is withheld in the city as well as in the gym because the gym's
+# OnTransition runs on the warp INTO the gym: it must already read clear
+# while the player is still outside. A player already stuck inside only has
+# to walk out and back in. 0x31A doubles as the stop condition: nothing in
+# the game ever clears it, and the badge location reads the same flag.
+# Needs no slot_data key, so it also covers seeds generated before it.
+_BADGE_THUNDER_INDEX = 10  # include/constants/badge.h: BADGE_THUNDER
+_FLAG_HIDE_VERMILION_GYM_STOPS = 0x31A
+_MAP_VERMILION = 54  # include/constants/maps.h: MAP_VERMILION (MAP_T06)
+_MAP_VERMILION_GYM = 365  # MAP_VERMILION_GYM (MAP_T06GYM0101)
+_THUNDER_BADGE_WITHHELD_MAP_IDS = (_MAP_VERMILION, _MAP_VERMILION_GYM)
+
+# Goal reporting (real organizer report: "release on goal" never fired,
+# because this client never sent CLIENT_GOAL at all). Values mirror
+# options.Goal; slot_data has carried `goal` and `goal_badge_count` since
+# before this fix, so running seeds are covered by an apworld update alone.
+#
+# elite_four: FLAG_GAME_CLEAR (include/constants/flags.h), set by
+# CallTask_GameClear (src/game_clear.c:293) on entering the Hall of Fame.
+#
+# champion_red: Red's own win branch (scr_seq_0107_D41R0108.s) runs
+# `SetFlag FLAG_UNK_25F` (his object's hide flag, zone_event/
+# 419_D41R0108.json) and `SetVar VAR_UNK_40FD, 1`. FLAG_GAME_CLEAR cannot
+# serve here: it is already set by the Elite Four win, and HOFCredits after
+# Red sets it again. FLAG_UNK_25F alone is not enough either, since Oak's
+# Mt. Silver scene clears it (scr_seq_0825_T10R0701.s:115): both are
+# required, and VAR_UNK_40FD is written nowhere else in the decomp.
+#
+# n_badges: received badge_* AP items, the exact count __init__.py's
+# _goal_rule uses. Never the PlayerProfile bits (the Thunder bit is
+# withheld locally in Vermilion, see _BADGE_THUNDER_INDEX).
+_GOAL_ELITE_FOUR = 0
+_GOAL_CHAMPION_RED = 1
+_GOAL_N_BADGES = 2
+# johto_only caps the n_badges goal at Johto's 8 (__init__.py, set_rules).
+# The flag reaches the client through the nested UT options snapshot only.
+_JOHTO_BADGE_COUNT = 8
+_FLAG_GAME_CLEAR = 0x964
+_FLAG_RED_DEFEATED = 0x25F  # FLAG_UNK_25F
+_VAR_RED_DEFEATED = 0x40FD  # VAR_UNK_40FD
+
 # task M1.5: cap on how many pending items _apply_received_items will write
 # in a single game_watcher tick -- batches a large backlog (e.g. right
 # after connecting, or catching up after a big multiworld fill) down to a
@@ -668,6 +827,7 @@ class HeartGoldClient(BizHawkClient):
     _pending_trainer_id: int | None
     _start_location_revocation_target: tuple[int, int] | None
     _start_location_revocation_probed: bool
+    _goal_pending: bool
 
     def __init__(self) -> None:
         super().__init__()
@@ -776,6 +936,7 @@ class HeartGoldClient(BizHawkClient):
         self._qol_applied = False
         self._known_tm_quantities = None
         self._known_player_mon_fainted = None
+        self._goal_pending = False
 
     async def _ensure_addresses_located(self, ctx: BizHawkClientContext) -> bool:
         """Make sure bag_base_address/flags_array_address are current,
@@ -1113,6 +1274,142 @@ class HeartGoldClient(BizHawkClient):
         except bizhawk.RequestFailedError:
             pass  # read-only ROM domain on this setup -- retried next tick
 
+    async def _apply_start_location_blackout_spawn(self, ctx: BizHawkClientContext) -> None:
+        """randomize_start_location: point `LocalFieldData.lastSpawn` at the
+        starting town's Pokemon Center, once per save, so a whiteout before
+        the first Center visit does not send the player back to New Bark.
+        See _LOCAL_FIELD_DATA_LAST_SPAWN_OFFSET for the decomp side.
+
+        Same trigger as _revoke_start_location_redirect (FLAG_GOT_STARTER
+        set and the player standing on a third map, i.e. through the
+        redirected door already). Then, unless _BLACKOUT_SPAWN_LATCH_FLAG
+        is already set: if lastSpawn still reads New Bark's id, write the
+        town's id and the latch together; otherwise the game has already
+        moved it (a Center was entered), so only the latch is written and
+        the value is never touched again. One guarded write each time, so
+        a value the game changes in between is never clobbered; any failure
+        is simply retried next tick."""
+        if not bool(ctx.slot_data.get("randomize_start_location", False)):
+            return
+        spawn_id = _START_LOCATION_TOWN_SPAWN_IDS.get(ctx.slot_data.get("starting_town"))
+        if spawn_id is None or self.flags_array_address is None or self._array_headers_address is None:
+            return
+
+        starter_byte_index, starter_bit_index = flag_byte_and_bit(_START_LOCATION_FLAG_GOT_STARTER)
+        latch_byte_index, latch_bit_index = flag_byte_and_bit(_BLACKOUT_SPAWN_LATCH_FLAG)
+        latch_address = self.flags_array_address + latch_byte_index
+        starter_byte, latch_byte = (
+            await bizhawk.read(
+                ctx.bizhawk_ctx,
+                [
+                    (self.flags_array_address + starter_byte_index, 1, "ARM9 System Bus"),
+                    (latch_address, 1, "ARM9 System Bus"),
+                ],
+            )
+        )
+        if latch_byte[0] & (1 << latch_bit_index):
+            return  # already handled on this save
+        if not (starter_byte[0] & (1 << starter_bit_index)):
+            return  # hasn't picked a starter yet on this save
+
+        map_id = await self._current_map_id(ctx)
+        if map_id is None or map_id in _START_LOCATION_HOME_MAP_IDS:
+            return  # not through the redirected door yet
+
+        dynamic_region_base = self._array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
+        chunk_offset = await _chunk_offset(ctx, self._array_headers_address, _LOCAL_FIELD_DATA_CHUNK_ID)
+        spawn_address = dynamic_region_base + chunk_offset + _LOCAL_FIELD_DATA_LAST_SPAWN_OFFSET
+        current_spawn = (await bizhawk.read(ctx.bizhawk_ctx, [(spawn_address, 2, "ARM9 System Bus")]))[0]
+
+        latched = latch_byte[0] | (1 << latch_bit_index)
+        writes = [(latch_address, bytes([latched]), "ARM9 System Bus")]
+        guards = [
+            (latch_address, bytes(latch_byte), "ARM9 System Bus"),
+            (spawn_address, bytes(current_spawn), "ARM9 System Bus"),
+        ]
+        if struct.unpack("<H", bytes(current_spawn))[0] == _SPAWN_ID_NEW_BARK:
+            writes.append((spawn_address, struct.pack("<H", spawn_id), "ARM9 System Bus"))
+        await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+
+    async def _apply_power_plant_prerestored(self, ctx: BizHawkClientContext) -> None:
+        """magnet_train on: make the game believe the Kanto Power Plant is
+        already repaired, so the Magnet Train runs as soon as the player
+        holds the Pass. See _FLAG_RESTORED_POWER's block for what is written
+        and why each piece is needed.
+
+        Waits for FLAG_GOT_STARTER: the save must exist (game_watcher
+        already refuses trainer_id 0) and _std_init (scr_seq_0149.s, run
+        once by CallFieldTask_NewGame, src/field_warp_tasks.c:417) must
+        have run, or its own `SetFlag FLAG_HIDE_*` lines would undo part of
+        this write. State-driven, no bookkeeping: FLAG_RESTORED_POWER is
+        both the goal and the sentinel (nothing in the game ever clears it),
+        so once it reads set, whether from this write or from a real
+        repair, the method stops at its first read. The two chain vars are
+        each checked for 0 so a save that already progressed is left
+        alone. One guarded write, retried next tick on any mismatch."""
+        if not bool(ctx.slot_data.get("magnet_train", False)):
+            return
+        if self.flags_array_address is None:
+            return
+
+        flags_address = self.flags_array_address
+        starter_byte_index, starter_bit_index = flag_byte_and_bit(_START_LOCATION_FLAG_GOT_STARTER)
+        power_byte_index, power_bit_index = flag_byte_and_bit(_FLAG_RESTORED_POWER)
+        starter_byte, power_byte = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (flags_address + starter_byte_index, 1, "ARM9 System Bus"),
+                (flags_address + power_byte_index, 1, "ARM9 System Bus"),
+            ],
+        )
+        if power_byte[0] & (1 << power_bit_index):
+            return  # already restored, by this client or by the real scene
+        if not (starter_byte[0] & (1 << starter_bit_index)):
+            return  # no game in progress yet
+
+        vars_address = flags_address - FLAGS_ARRAY_OFFSET
+        copycat_address = vars_address + (_COPYCAT_CHAIN_VAR - _VAR_BASE) * 2
+        cerulean_address = vars_address + (_CERULEAN_CHAIN_VAR - _VAR_BASE) * 2
+        flags, copycat_raw, cerulean_raw = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (flags_address, FLAGS_ARRAY_SIZE, "ARM9 System Bus"),
+                (copycat_address, 2, "ARM9 System Bus"),
+                (cerulean_address, 2, "ARM9 System Bus"),
+            ],
+        )
+        flags = bytes(flags)
+
+        to_set = list(_POWER_PLANT_FLAGS_TO_SET)
+        to_clear = list(_POWER_PLANT_FLAGS_TO_CLEAR)
+        writes: list[tuple[int, bytes, str]] = []
+        guards: list[tuple[int, bytes, str]] = []
+        if struct.unpack("<H", bytes(copycat_raw))[0] == 0:
+            to_set += _COPYCAT_CHAIN_FLAGS_TO_SET
+            to_clear += _COPYCAT_CHAIN_FLAGS_TO_CLEAR
+            writes.append((copycat_address, struct.pack("<H", 1), "ARM9 System Bus"))
+            guards.append((copycat_address, bytes(copycat_raw), "ARM9 System Bus"))
+        if struct.unpack("<H", bytes(cerulean_raw))[0] == 0:
+            to_clear += _CERULEAN_CHAIN_FLAGS_TO_CLEAR
+            writes.append(
+                (cerulean_address, struct.pack("<H", _CERULEAN_CHAIN_VAR_VALUE), "ARM9 System Bus")
+            )
+            guards.append((cerulean_address, bytes(cerulean_raw), "ARM9 System Bus"))
+
+        new_flags = bytearray(flags)
+        for flag_id in to_set:
+            byte_index, bit_index = flag_byte_and_bit(flag_id)
+            new_flags[byte_index] |= 1 << bit_index
+        for flag_id in to_clear:
+            byte_index, bit_index = flag_byte_and_bit(flag_id)
+            new_flags[byte_index] &= ~(1 << bit_index) & 0xFF
+        for byte_index, (old, new) in enumerate(zip(flags, new_flags)):
+            if old != new:
+                writes.append((flags_address + byte_index, bytes([new]), "ARM9 System Bus"))
+                guards.append((flags_address + byte_index, bytes([old]), "ARM9 System Bus"))
+
+        await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+
     async def _restore_reusable_tms(self, ctx: BizHawkClientContext) -> None:
         """Reusable TMs: no ROM patch (see NOTES.md for why the ARM hook
         approach was abandoned). Every tick, compare each TM/HM pocket
@@ -1333,6 +1630,8 @@ class HeartGoldClient(BizHawkClient):
             await self._apply_starting_money(ctx, money_applied_key)
             await self._apply_start_location_flags(ctx)
             await self._revoke_start_location_redirect(ctx)
+            await self._apply_start_location_blackout_spawn(ctx)
+            await self._apply_power_plant_prerestored(ctx)
             await self._restore_reusable_tms(ctx)
             await self._update_death_link_tag(ctx)
             await self._send_death_link_on_faint(ctx)
@@ -1404,7 +1703,13 @@ class HeartGoldClient(BizHawkClient):
         _MAX_IMMEDIATE_CHECK_BATCH. Every rejection path clears
         `_pending_check_batch` on the way out, so a batch is only ever sent
         after two *consecutive* fully-trusted reads agreed on it -- a
-        rejected read can never serve as one of the two confirmations."""
+        rejected read can never serve as one of the two confirmations.
+
+        Goal detection (_report_goal) rides on the same trusted read, with
+        the same rule: `_goal_pending` is consumed here and only re-armed
+        by a trusted read, so every rejection path also drops it."""
+        goal_seen_last_tick = self._goal_pending
+        self._goal_pending = False
         if not await self._save_block_signature_valid(ctx):
             self._pending_check_batch = None
             return
@@ -1461,6 +1766,8 @@ class HeartGoldClient(BizHawkClient):
                 if ap_location_id in ctx.missing_locations and is_flag_set(bytes(pokedex_bytes), bit)
             }
 
+        await self._report_goal(ctx, flags_bytes, goal_seen_last_tick)
+
         if not newly_checked:
             self._pending_check_batch = None
             return
@@ -1478,6 +1785,51 @@ class HeartGoldClient(BizHawkClient):
         if newly_checked != self.local_checked_locations:
             self.local_checked_locations = newly_checked
             await ctx.check_locations(newly_checked)
+
+    async def _report_goal(self, ctx: BizHawkClientContext, flags_bytes: bytes, goal_seen_last_tick: bool) -> None:
+        """Send CLIENT_GOAL once this slot's goal (slot_data "goal") is met.
+        See _GOAL_ELITE_FOUR's block for what each goal reads and why.
+
+        A false goal is irreversible (under "release on goal" it hands out
+        every remaining item at once), so this is only ever called by
+        _check_locations with a flags read that already passed layers 1
+        and 2, which itself only runs once game_watcher has accepted a real
+        save (_accept_trainer_id, trainer_id != 0). The memory-based goals
+        additionally need two consecutive trusted reads (layer 3's rule):
+        the first one only arms `_goal_pending`. n_badges reads no memory,
+        so it needs no confirmation."""
+        if ctx.finished_game:
+            return
+
+        goal = int(ctx.slot_data.get("goal", _GOAL_ELITE_FOUR))
+        if goal == _GOAL_N_BADGES:
+            required = int(ctx.slot_data.get("goal_badge_count", 16))
+            if ctx.slot_data.get(SLOT_DATA_OPTIONS_KEY, {}).get("johto_only"):
+                required = min(required, _JOHTO_BADGE_COUNT)  # same cap as __init__.py's set_rules
+            received = {item.item for item in ctx.items_received if item.item in _AP_ITEM_ID_TO_BADGE_INDEX}
+            reached = len(received) >= required
+        elif goal == _GOAL_CHAMPION_RED:
+            reached = False
+            if is_flag_set(flags_bytes, _FLAG_RED_DEFEATED):
+                vars_address = self.flags_array_address - FLAGS_ARRAY_OFFSET
+                var_address = vars_address + (_VAR_RED_DEFEATED - _VAR_BASE) * 2
+                raw = (await bizhawk.read(ctx.bizhawk_ctx, [(var_address, 2, "ARM9 System Bus")]))[0]
+                reached = struct.unpack("<H", bytes(raw))[0] == 1
+            if reached and not goal_seen_last_tick:
+                self._goal_pending = True
+                return
+        elif goal == _GOAL_ELITE_FOUR:
+            reached = is_flag_set(flags_bytes, _FLAG_GAME_CLEAR)
+            if reached and not goal_seen_last_tick:
+                self._goal_pending = True
+                return
+        else:
+            return  # unknown goal value from a newer apworld: never guess
+
+        if not reached:
+            return
+        ctx.finished_game = True
+        await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
 
     def _restore_item_delivery_progress(
         self, ctx: BizHawkClientContext, applied_key: str, delivered_ahead_key: str
@@ -1699,14 +2051,27 @@ class HeartGoldClient(BizHawkClient):
         savedata and the server's own items_received list. The per-badge
         read is still done every tick because the write must stay
         idempotent: the player may reload an older save state at any time,
-        and the bit has to come back."""
+        and the bit has to come back.
+
+        One exception, owned here so the two writes can never fight each
+        other tick after tick: the Thunder Badge bit is held CLEAR while
+        _thunder_badge_withheld says so (see _BADGE_THUNDER_INDEX's block),
+        and written back on the first tick that condition ends. When that
+        condition cannot be read this tick, the Thunder bit is left exactly
+        as it is, while every other badge is still delivered."""
         if self.playerdata_profile_address is None:
             return
+
+        thunder_withheld = await self._thunder_badge_withheld(ctx)
+        if thunder_withheld:
+            await self._clear_badge_bit(ctx, _BADGE_THUNDER_INDEX)
 
         seen_badge_indices = {
             _AP_ITEM_ID_TO_BADGE_INDEX[item.item] for item in ctx.items_received if item.item in _AP_ITEM_ID_TO_BADGE_INDEX
         }
         for badge_index in seen_badge_indices:
+            if badge_index == _BADGE_THUNDER_INDEX and thunder_withheld is not False:
+                continue  # withheld, or undecidable this tick
             byte_offset = _PROFILE_JOHTO_BADGES_OFFSET if badge_index < 8 else _PROFILE_KANTO_BADGES_OFFSET
             bit = badge_index if badge_index < 8 else badge_index - 8
             badge_byte_address = self.playerdata_profile_address + byte_offset
@@ -1720,4 +2085,53 @@ class HeartGoldClient(BizHawkClient):
                 [(badge_byte_address, new_byte, "ARM9 System Bus")],
                 [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
             )
+
+    async def _thunder_badge_withheld(self, ctx: BizHawkClientContext) -> bool | None:
+        """True while the Thunder Badge bit must read clear: Lt. Surge not
+        beaten yet (_FLAG_HIDE_VERMILION_GYM_STOPS unset) and the player in
+        Vermilion City or its gym. See _BADGE_THUNDER_INDEX's block for the
+        decomp side (src/gymmick_init.c:56).
+
+        False when the feature cannot apply at all (flags array or map id
+        not locatable, e.g. the manual override env vars), so badge
+        delivery keeps its plain behavior there. None when a read failed
+        this tick: the caller then touches neither direction, and the next
+        tick decides again."""
+        if self.flags_array_address is None:
+            return False
+        try:
+            byte_index, bit_index = flag_byte_and_bit(_FLAG_HIDE_VERMILION_GYM_STOPS)
+            stops_byte = (
+                await bizhawk.read(
+                    ctx.bizhawk_ctx, [(self.flags_array_address + byte_index, 1, "ARM9 System Bus")]
+                )
+            )[0]
+            if stops_byte[0] & (1 << bit_index):
+                return False  # Surge beaten: the vanilla meaning of the bit holds again
+            map_id = await self._current_map_id(ctx)
+        except bizhawk.RequestFailedError:
+            return None
+        if map_id is None:
+            return False
+        return map_id in _THUNDER_BADGE_WITHHELD_MAP_IDS
+
+    async def _clear_badge_bit(self, ctx: BizHawkClientContext, badge_index: int) -> None:
+        """Clear one PlayerProfile badge bit (same byte/bit split as
+        PlayerProfile_TestBadgeFlag, src/player_data.c). Idempotent: stops
+        at the read when the bit is already clear. Guarded write, and any
+        bizhawk failure is swallowed so it costs this tick's clear only."""
+        byte_offset = _PROFILE_JOHTO_BADGES_OFFSET if badge_index < 8 else _PROFILE_KANTO_BADGES_OFFSET
+        bit = badge_index if badge_index < 8 else badge_index - 8
+        badge_byte_address = self.playerdata_profile_address + byte_offset
+        try:
+            current_byte = (await bizhawk.read(ctx.bizhawk_ctx, [(badge_byte_address, 1, "ARM9 System Bus")]))[0]
+            if not (current_byte[0] & (1 << bit)):
+                return
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(badge_byte_address, bytes([current_byte[0] & ~(1 << bit) & 0xFF]), "ARM9 System Bus")],
+                [(badge_byte_address, bytes(current_byte), "ARM9 System Bus")],
+            )
+        except bizhawk.RequestFailedError:
+            pass  # retried next tick
 

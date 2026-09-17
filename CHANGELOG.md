@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0-hotfix] - 2026-09-17 (tag v0.2.4-hotfix, same world_version, compatible with existing 0.9.0 seeds)
+
+### Fixed
+- **Cliff Edge Gate no longer requires Rock Climb.** The gate between
+  Cianwood and Route 47 is a plain walk-through (enter, go up the stairs,
+  exit on Route 47); only the Secret Potion is needed, as in vanilla. The
+  logic used to also require HM08 Rock Climb and the Earth Badge, which
+  locked Route 47, Route 48 and their checks behind the late game for no
+  reason.
+- **Dead seeds through the Magnet Train.** The train needs the Kanto Power
+  Plant repaired as well as the Pass (a policeman blocks both stations
+  until then), which the logic ignored: it could expect Kanto to be
+  reachable early when it was not, and put required items there (a real
+  seed placed HM03 Surf on Route 12). The `magnet_train` option now does
+  what it promises:
+  - on (default), the Kanto Power Plant is considered repaired from the
+    very start of your game. The Magnet Train can be used as soon as you
+    have the Pass, the Machine Part quest is skipped (Misty and the
+    Cerulean Gym Rocket still play out as usual), and the Power Plant
+    manager's TM57, only handed over at the end of that quest, is removed
+    from the locations. The Route 5 and 6 Underground Path gates and the
+    Lavender radio station are open from the start too, as after a real
+    repair. Requires the matching client;
+  - off, the train only counts once the Power Plant has really been
+    repaired, which needs you to be in Kanto already.
+- **Whiteout sent you back to New Bark with `randomize_start_location`.**
+  Losing a battle before visiting any Pokemon Center woke you up at home
+  in New Bark, sometimes with no way back. The client now sets your
+  whiteout point to your starting town's Pokemon Center, once per save.
+  After your first Pokemon Center visit the game takes over as usual.
+- **Finishing the game was never reported to the server**, so "release on
+  goal" (and every other goal-based server setting) never triggered for
+  HeartGold/SoulSilver players. The client now sends the goal once it is
+  reached: Hall of Fame entry for `elite_four`, Red beaten for
+  `champion_red`, and the required number of received badges for
+  `n_badges`. Client-side fix: it applies to games already in progress
+  after simply updating the apworld, no new patch needed.
+- **Vermilion Gym could become impossible.** Receiving the Thunder Badge
+  before beating Lt. Surge made the game treat the trash can puzzle as
+  already solved: every can was empty and an invisible wall blocked the
+  way to Surge. The client now hides the Thunder Badge while you are in
+  Vermilion City or its gym and Surge is not beaten yet, and gives it back
+  as soon as you leave or win. Client-side fix: it applies to games already
+  in progress after simply updating the apworld. If you are already stuck
+  inside the gym, walk out and back in.
+- **The Pass trade chain could break.** The Pokemon Fan Club chairman
+  refused to hand over the Lost Item if you already held a Pass (which can
+  arrive from the multiworld at any time), and the Copycat in Saffron could
+  stop offering her trade after your first talk with her. Both now only
+  check whether the trade has already happened. ROM fix: games in progress
+  get it by re-opening their .apheartgold file with this version (your save
+  is kept).
+- **The Copycat's Pass could be expected too early with `magnet_train`
+  off.** The Lost Item she wants only appears once the Kanto Power Plant is
+  repaired; the logic now requires that repair for her location.
+- **The Bell Tower and Lugia monks could block you with the wing in your
+  bag.** Neither monk checks your bag: each one only steps aside once the
+  NPC who hands that wing over in the game has done so. A Rainbow Wing or
+  Silver Wing received from the multiworld therefore opened nothing, while
+  the logic counted on it. The logic now requires talking to that NPC
+  instead, and knows where he stands in each version: in HeartGold, the
+  Radio Tower director (Goldenrod, observation deck) gives the Rainbow Wing
+  and the old man in Pewter City gives the Silver Wing; in SoulSilver it is
+  the other way round. Both wings are now merely useful items. With
+  `johto_only`, whatever the Pewter-side wing opens (Bell Tower 2F and up
+  in SoulSilver, Lugia's chamber in HeartGold) is removed from the
+  locations. New seeds only.
+  **Games already in progress:** go and talk to the NPC who hands out the
+  wing in your version (listed above), even if you already hold that wing.
+  He gives you his item for the multiworld, and the monk lets you through
+  afterwards.
+- **HeartGold: the Pewter City old man always gave a real Silver Wing.**
+  His script was never patched, so whatever the seed had placed on that
+  location was never handed over there. ROM fix: games in progress get it
+  by re-opening their .apheartgold file with this version.
+
 ## [0.9.0] - 2026-08-24
 
 ### Added

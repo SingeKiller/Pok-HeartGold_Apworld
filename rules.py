@@ -14,21 +14,18 @@ from data.rules import EXIT_RULES
 
 from locations import badge_item_label, scenario_event_item_name
 
-# The two ends of the Magnet Train ride, as an unordered pair: data/rules.py
-# carries the edge in both directions (the Pass is a permanent key item and
-# both station attendants run the same `HasItem ITEM_PASS` check, see
-# data_gen/rules.toml), and the `magnet_train` option has to reach both.
-MAGNET_TRAIN_REGIONS = frozenset(
-    {"goldenrod_magnet_train_station_2f", "saffron_magnet_train_station_2f"}
-)
 MAGNET_TRAIN_PASS_ITEM_LABEL = ITEMS["pass"]["label"]
 
-# The scenario event the `magnet_train` option adds on top of the ride when
-# the player asks for Kanto to stay late-game. Same event the S.S. Aqua
-# ferry already requires, which is the whole point: with both crossings
-# behind it, nothing in Kanto can be expected of the player before the
-# League.
-_ELITE_FOUR_EVENT = "elite_four_defeated"
+# The scenario event the `magnet_train` option is really about (dead seed
+# fix, 0.9.1). The ride's own vanilla gate is the Pass AND this event: the
+# station policeman only steps aside once FLAG_RESTORED_POWER is set (see
+# data_gen/rules.toml's Magnet Train entry), and the Power Plant sits in
+# Kanto, so off, the train can never be the way in. On, the client sets that
+# flag itself as soon as a game exists (client.py's
+# _apply_power_plant_prerestored), so the event is true from the start and
+# is dropped from every edge that names it: the ride itself, the Route 5/6
+# Underground Path gates and the Lavender radio station.
+POWER_PLANT_EVENT = "power_plant_restored"
 
 
 def set_rule(spot: Entrance, rule: Callable[[CollectionState], bool]) -> None:
@@ -76,13 +73,14 @@ def set_rules(
     (latent bug found by code review, 2026-08-17; not currently triggered,
     every EXIT_RULES pair matches a real exit today).
 
-    `magnet_train` is the player's own option (default on). Off, the ride
-    keeps its Pass requirement and gains `elite_four_defeated` on top: the
-    edge is deliberately *not* removed, so the graph stays exactly the one
-    every other test measures and only the requirement hardens. That is
-    also the safe direction -- logic stricter than the game can never make
-    a seed unbeatable, and the player is still free to take the train as
-    soon as they hold the Pass."""
+    `magnet_train` is the player's own option (default on). Off, every
+    edge keeps its data requirement as is, the ride included: the Pass plus
+    `power_plant_restored`, which is exactly the game's own condition and
+    keeps the train out of logic until Kanto has been reached another way.
+    On, `power_plant_restored` is removed from every edge, because the
+    client pre-sets FLAG_RESTORED_POWER (see POWER_PLANT_EVENT): the ride
+    then needs the Pass alone. The graph itself never changes, only the
+    requirements do."""
     for (src, dest), requirement in EXIT_RULES.items():
         if src not in regions or dest not in regions:
             continue
@@ -91,8 +89,8 @@ def set_rules(
             continue
         entrance = multiworld.get_entrance(entrance_name, player)
         events = tuple(requirement.get("events", ()))
-        if not magnet_train and {src, dest} == MAGNET_TRAIN_REGIONS:
-            events += (_ELITE_FOUR_EVENT,)
+        if magnet_train:
+            events = tuple(event for event in events if event != POWER_PLANT_EVENT)
         rule = _make_access_rule(
             player, tuple(requirement["items"]), tuple(requirement["badges"]), events
         )

@@ -79,6 +79,60 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
     }
 )
 
+# The two wing handover events (data_gen/rules.toml, verrous A7 and D12).
+# In each version one of the two NPCs handing a wing over stands in Pewter
+# City (scr_seq_0750_T03.s: the Silver Wing in HeartGold, the Rainbow Wing in
+# SoulSilver), so under `johto_only` that event can never be granted and
+# whatever sits behind its monk is unreachable in logic.
+_WING_HANDOVER_EVENTS = ("rainbow_wing_handed_over", "silver_wing_handed_over")
+
+
+def _regions_behind(gate_src: str, gate_dst: str) -> set[str]:
+    """Every region reachable from `gate_dst` without walking back through
+    `gate_src`, i.e. what the `gate_src -> gate_dst` edge alone opens."""
+    seen = {gate_dst}
+    stack = [gate_dst]
+    while stack:
+        for exit_name in REGIONS[stack.pop()]["exits"]:
+            if exit_name == gate_src or exit_name in seen or exit_name not in REGIONS:
+                continue
+            seen.add(exit_name)
+            stack.append(exit_name)
+    return seen
+
+
+def johto_only_excluded_region_keys(soulsilver: bool) -> frozenset[str]:
+    """`johto_only`'s full exclusion set: KANTO_REGION_KEYS plus the Johto
+    regions only the Pewter-side wing opens in this version (Bell Tower 2F
+    and up in SoulSilver, the Lugia chamber in HeartGold). Leaving them in
+    would create locations no logic can ever reach. Derived from the event
+    locations and EXIT_RULES rather than hardcoded, so it follows
+    data_gen/rules.toml."""
+    from data.locations import LOCATIONS
+    from data.rules import EXIT_RULES
+
+    from locations import location_region_key
+
+    kanto_events = {
+        data["event"]
+        for data in LOCATIONS.values()
+        if data["type"] == "event"
+        and data["event"] in _WING_HANDOVER_EVENTS
+        and location_region_key(data, soulsilver) in KANTO_REGION_KEYS
+    }
+    excluded = set(KANTO_REGION_KEYS)
+    for (src, dst), requirement in EXIT_RULES.items():
+        if not kanto_events.intersection(requirement.get("events", ())):
+            continue
+        behind = _regions_behind(src, dst)
+        # Rules are bidirectional by default, so EXIT_RULES also holds the
+        # way back out (dst -> src), whose "behind" side is the rest of the
+        # world. Same anchor as KANTO_REGION_KEYS' own derivation.
+        if "new_bark" in behind:
+            continue
+        excluded |= behind
+    return frozenset(excluded)
+
 
 def create_regions(
     player: int,

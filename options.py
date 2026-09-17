@@ -402,21 +402,27 @@ class HiddenItemsRequireDowsingMachine(Toggle):
 
 
 class MagnetTrain(DefaultOnToggle):
-    """Count the Goldenrod <-> Saffron Magnet Train as a way into Kanto.
+    """Open the Goldenrod <-> Saffron Magnet Train as an early way into Kanto.
 
-    On by default, which is exactly what the game does: the Magnet Train
-    Pass on its own opens the ride, so Kanto can be visited long before the
-    Pokemon League. The other crossing is no help here -- the S.S. Aqua's
-    sailor refuses to sail until the Elite Four and the Champion are
-    beaten -- which makes the train the one and only early door to Kanto,
-    and the reason this option exists at all.
+    In the game the train needs two things: the Magnet Train Pass, and the
+    Kanto Power Plant repaired (a policeman blocks both stations until
+    then). The Power Plant is in Kanto, so without help the train can never
+    be the way in, and the S.S. Aqua only sails once the Elite Four and the
+    Champion are beaten.
 
-    Turn it off to keep Kanto as late-game content: the train is then only
-    counted once you have beaten the Elite Four, so nothing you need can be
-    hidden over there before that. You can still board it the moment you
-    find the Pass, the seed simply will not count on it. With this option
-    off the Pass no longer unlocks anything by itself, so it is treated as
-    a merely useful item instead of a progression one.
+    On by default: the Kanto Power Plant is considered repaired from the
+    very start of your game. The Magnet Train can therefore be used as soon
+    as you have the Pass, and Kanto can be visited long before the Pokemon
+    League. The Machine Part quest is skipped: you never have to bring the
+    part back to the Power Plant (Misty and the Cerulean Gym Rocket still
+    play out as usual). The Power Plant manager's TM57, only handed over
+    at the end of that quest, is removed from the locations.
+
+    Turn it off to keep Kanto as late-game content: the train then counts
+    only once the Power Plant has really been repaired, which needs you to
+    be in Kanto already, so nothing you need can be hidden over there
+    before the League. The Pass no longer opens anything a seed needs, so
+    it is placed as a merely useful item instead of a progression one.
     """
 
     display_name = "Magnet Train"

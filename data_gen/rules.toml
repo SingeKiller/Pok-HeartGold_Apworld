@@ -401,6 +401,15 @@ from = "whirl_islands_b2f"
 to = "whirl_islands_b3f"
 hms = ["whirlpool"]
 
+# Corrected again (player report, SoulSilver): the gate is the Silver Wing
+# *handover*, not owning the item. FLAG_UNK_094 is only set by the vanilla
+# handover script (scr_seq_0750_T03.s:65 in HeartGold, Pewter;
+# scr_seq_0034_D23R0106.s:86 in SoulSilver, Radio Tower), never by a wing
+# received from the multiworld, hence `events = ["silver_wing_handed_over"]`
+# (data_gen/locations.toml's silver_wing_handed_over_event, placed where
+# that version's NPC stands) instead of `items = ["silver_wing"]`. The
+# older D12 note below is kept for the history of this edge.
+#
 # The Lugia chamber is gated on the Silver Wing, not on the Hall of Fame
 # (verrou D12, corrected 2026-08-23): the chamber's own script
 # scr_seq_0103_D40R0104.s tests FLAG_UNK_094 twice (lines 40 and 49), and
@@ -423,35 +432,32 @@ hms = ["whirlpool"]
 from = "whirl_islands_b2f"
 to = "whirl_islands_b3f_lugia_cave"
 hms = ["whirlpool"]
-items = ["silver_wing"]
+events = ["silver_wing_handed_over"]
 
-# --- Rock Climb (earth badge) -------------------------------------------
-# The Cliff Cave/Cliff Edge Gate shortcut between Cianwood and Route 47 (a
-# HGSS-remake-added Rock Climb shortcut -- public route-guide knowledge;
-# note data_gen/regions.toml also keeps a direct, ungated cianwood<->route_47
-# exit, so this is a genuinely optional alternate path, not the only way
-# through -- gating it cannot disconnect the graph).
+# --- Cliff Edge Gate (Secret Potion) -------------------------------------
+# The Cliff Edge Gate is the only crossing between Cianwood and Route 47
+# (the direct cianwood <-> route_47 edge was removed on 2026-08-23, see
+# data_gen/regions.toml's [route_47] block). It needs NO HM: the gate is a
+# walk-through (enter from Cianwood, go up the stairs, exit on Route 47),
+# which is how vanilla reaches the Safari Zone long before HM08 Rock Climb
+# (given in Oak's lab, scr_seq_0740_T01R0301.s:201). The receptionist's
+# line msg_0136_D48R0101_00002 says so; Chuck's Rock Climb + Surf line
+# (_00008) is about the Embedded Tower, not the gate. Rock Climb was
+# wrongly required here until 2026-09-17, which pushed Route 47/48, the
+# Safari Zone and their locations behind the Earth Badge.
 #
-# The Secret Potion is required on top of Rock Climb (verrou A9, user map
-# verification 2026-08-23): two workers stand in the gate itself while
-# FLAG_UNK_249 is set, and that flag is cleared in scr_seq_0911_T26.s:39,
-# the Olivine script that runs once Jasmine's Secret Potion errand is done.
-# NOTE (reported, deliberately not acted on): the direct
-# cianwood <-> route_47 exit mentioned above walks around this gate in a
-# single step, so today this requirement is logically inert -- exactly the
-# phantom-edge pattern that cancelled the Ilex Forest and Union Cave gates
-# before 2026-08-22. Whether that direct edge is real geography is for the
-# user to decide; it is left in place until then.
+# The Secret Potion is required (verrou A9, user map verification
+# 2026-08-23): two workers stand in the gate itself while FLAG_UNK_249 is
+# set, and that flag is cleared in scr_seq_0911_T26.s:39, the Olivine
+# script that runs once Jasmine's Secret Potion errand is done.
 [[exit_rule]]
 from = "cliff_edge_gate"
 to = "cianwood"
-hms = ["rock_climb"]
 items = ["secretpotion"]
 
 [[exit_rule]]
 from = "cliff_edge_gate"
 to = "route_47"
-hms = ["rock_climb"]
 items = ["secretpotion"]
 
 # --- Key items (non-HM) --------------------------------------------------
@@ -486,10 +492,24 @@ events = ["elite_four_defeated"]
 # unreachable from either side and this rule would have been dead data).
 # Bidirectional: the Pass is a permanent key item and both attendants run
 # the same check.
+#
+# The Pass is not the whole gate, though (dead seed fix, 0.9.1): a policeman
+# stands in the corridor in front of that attendant until FLAG_RESTORED_POWER
+# is set. Both 1F scripts test the flag before anything else
+# (scr_seq_0893_T25R0501.s:20/28/39 and scr_seq_0834_T11R0601.s:21/40/51):
+# the OnResume script only moves him aside (`MovePersonFacing`) once the
+# power is back, and talking to him before that only yields "The train hasn't
+# come in". The Power Plant is in Kanto, so in vanilla the train is never an
+# early door. `power_plant_restored` is therefore written here as the real
+# condition; rules.py drops it again, from this edge and every other one,
+# when the `magnet_train` option is on, because the client then sets
+# FLAG_RESTORED_POWER itself at the start of the game (client.py's
+# _apply_power_plant_prerestored).
 [[exit_rule]]
 from = "goldenrod_magnet_train_station_2f"
 to = "saffron_magnet_train_station_2f"
 items = ["pass"]
+events = ["power_plant_restored"]
 
 # Route 36's Sudowoodo (`HasItem ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s)
 # blocks the whole crossroads, not just the way north to Route 37: until
@@ -555,10 +575,17 @@ bidirectional = false
 # (scr_seq_0034_D23R0106.s:78-79 in HeartGold, scr_seq_0750_T03.s:74 in
 # SoulSilver). Verrou A7, 2026-08-23: the entire tower above the first
 # floor, Ho-Oh included, used to be free.
+#
+# The requirement is that handover, not owning the Rainbow Wing (player
+# report, SoulSilver: badge and multiworld wing in hand, monk still in the
+# way). The monk never runs HasItem, and a wing received from the
+# multiworld never sets FLAG_UNK_093, so the edge needs
+# `rainbow_wing_handed_over` (data_gen/locations.toml's
+# rainbow_wing_handed_over_event, placed where that version's NPC stands).
 [[exit_rule]]
 from = "bell_tower_1f"
 to = "bell_tower_2f"
-items = ["rainbow_wing"]
+events = ["rainbow_wing_handed_over"]
 
 # The Goldenrod Tunnel's (Team Rocket HQ) way down to B2F: the guard on
 # D37R0102 runs `GetItemQuantity ITEM_BASEMENT_KEY`

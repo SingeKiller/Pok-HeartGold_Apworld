@@ -50,6 +50,10 @@ TRACKED_OPTION_NAMES = (
     "starting_town",
     "randomize_bicycle",
     "legendarysanity",
+    # Decides whether the Power Plant TM57 location exists at all
+    # (locations.POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS) and which
+    # edges need `power_plant_restored`.
+    "magnet_train",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is

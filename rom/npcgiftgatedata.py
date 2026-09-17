@@ -21,9 +21,9 @@
 # NitroFS path: same NARC as rom/eventscriptdata.py/rom/npcgiftdata.py,
 # scr_seq.narc -> a/0/1/2.
 #
-# Two site shapes (asm/macros/script.inc's own macro definitions):
+# Three site shapes (asm/macros/script.inc's own macro definitions):
 #
-# Group A (7 of the 8 sites): the *old* check jumps to `orig_target` when
+# Group A (6 sites since the Copycat moved to Group C): the *old* check jumps to `orig_target` when
 # the player already has the vanilla item (skip-the-give branch); falling
 # through means "don't have it yet, go on to actually give it". The new
 # check preserves that exact shape: `CheckFlag`+`GoToIf(TRUE, orig_target)`
@@ -53,6 +53,32 @@
 # would not re-open this gate. Same class of accepted minor trade-off as
 # rom/startlocation.py's own "walk back out" note -- not solvable without
 # growing the script (out of scope here, no real player report of it yet).
+#
+# Group C (the Pass chain, 2026-09-17): a Pass gate whose fall-through is
+# NOT the give branch, so Group A's "SetFlag on fall-through" is wrong
+# there. Both sites test `GetItemQuantity ITEM_PASS` to mean "the Copycat
+# already traded", and the Pass is an AP item that can arrive at any time:
+#
+#   - Copycat (scr_seq_0841_T11R0802.s:41): the fall-through goes on to the
+#     Lost Item test and to the first-talk dialogue that sets FLAG_UNK_119.
+#     She was in Group A until this fix, which set 0xB4E on that first talk
+#     (always before the Lost Item exists), so every later talk jumped to
+#     `_0125` and the Pass location could never be checked.
+#   - Fan Club chairman (scr_seq_0782_T06R0301.s:72): the fall-through goes
+#     to FLAG_UNK_119 / FLAG_RESTORED_POWER dialogue, and only then to the
+#     Lost Item give. A Pass received early made him refuse the Lost Item
+#     forever. Not an AP location itself, but the only source of the Lost
+#     Item the Copycat needs.
+#
+# The vanilla meaning of "holds the Pass" is exactly FLAG_UNK_087, set
+# once in the Copycat's trade branch right after the give
+# (scr_seq_0841_T11R0802.s:84), referenced nowhere else except a read in
+# phone_scripts_juggler_irwin.c, never cleared, and already the Pass
+# location's own check flag (location_flags.py). So Group C gates on that
+# pre-existing flag with no SetFlag at all, the same shape as
+# rom/badgegatedata.py's regate: `CheckFlag` + `GoToIf(TRUE, orig_target)`
+# + `Noop` padding (4 + 7 + 8 = the old 19 bytes). Offsets verified byte for
+# byte on both real HeartGold and SoulSilver US ROMs.
 
 from __future__ import annotations
 
@@ -89,8 +115,6 @@ GROUP_A: dict[str, tuple[int, int, int, int]] = {
     "route_12_fishing_brother_house_super_rod": (200, 14, 19, 76),
     # scr_seq_0798_T07R0203.s:198 -- GetItemQuantity ITEM_GB_SOUNDS, ...
     "celadon_condominiums_3f_gb_sounds": (798, 630, 19, 679),
-    # scr_seq_0841_T11R0802.s:41 -- GetItemQuantity ITEM_PASS, ...
-    "saffron_copycat_house_2f_pass": (841, 100, 19, 293),
 }
 
 # celadon_game_corner_coin_case (scr_seq_0806_T07SP0101.s:104 -- HasItem
@@ -123,8 +147,22 @@ GATE_FLAGS: dict[str, int] = {
     "goldenrod_flower_shop_squirtbottle": 0xB4B,
     "route_12_fishing_brother_house_super_rod": 0xB4C,
     "celadon_condominiums_3f_gb_sounds": 0xB4D,
-    "saffron_copycat_house_2f_pass": 0xB4E,
+    # 0xB4E belonged to saffron_copycat_house_2f_pass, now in GROUP_C. Left
+    # unassigned rather than reused: ROMs patched before the move already
+    # set it on their saves.
     "celadon_game_corner_coin_case": 0xB4F,
+}
+
+FLAG_UNK_087 = 0x87  # Copycat traded the Lost Item for the Pass
+
+# Group C, see this module's docstring: key -> (narc index, gate block
+# offset, block length, orig_target, pre-existing flag to test). The Fan
+# Club key is not an AP location key (the Lost Item is not randomized).
+GROUP_C: dict[str, tuple[int, int, int, int, int]] = {
+    # scr_seq_0841_T11R0802.s:41 -- GetItemQuantity ITEM_PASS, ... -> _0125
+    "saffron_copycat_house_2f_pass": (841, 100, 19, 293, FLAG_UNK_087),
+    # scr_seq_0782_T06R0301.s:72 -- GetItemQuantity ITEM_PASS, ... -> _0141
+    "vermilion_pokemon_fan_club_lost_item": (782, 215, 19, 321, FLAG_UNK_087),
 }
 
 
@@ -170,6 +208,21 @@ def _build_group_b_patch(block_offset: int, block_size: int, skip_target: int, g
     return patch
 
 
+def _build_group_c_patch(block_offset: int, block_size: int, orig_target: int, flag_id: int) -> bytes:
+    checkflag = struct.pack("<HH", CHECKFLAG_OPCODE, flag_id)
+    goto_word_field_offset = block_offset + 4 + 2 + 1
+    gotoif = struct.pack("<HB", GOTOIF_OPCODE, GOTOIF_TRUE) + struct.pack(
+        "<i", _goto_word(orig_target, goto_word_field_offset)
+    )
+    used = len(checkflag) + len(gotoif)
+    remaining = block_size - used
+    if remaining < 0 or remaining % 2 != 0:
+        raise NpcGiftGateDataError(
+            f"Group C patch does not fit block_size {block_size} (used {used}, remaining {remaining})"
+        )
+    return checkflag + gotoif + struct.pack("<H", NOOP_OPCODE) * (remaining // 2)
+
+
 def read_gate_bytes(rom: HeartGoldRom, narc_index: int, offset: int, size: int) -> bytes:
     """Read `size` raw bytes at (narc_index, offset) -- exposed for
     verification/testing, not used in the normal patch path."""
@@ -180,7 +233,17 @@ def read_gate_bytes(rom: HeartGoldRom, narc_index: int, offset: int, size: int) 
 def write_npc_gift_duplication_gate(rom: HeartGoldRom, location_key: str) -> None:
     """Patch location_key's own broken vanilla-item-possession gate in
     place with a fresh one-time savedata-flag gate -- see this module's own
-    docstring for the two block shapes."""
+    docstring for the three block shapes."""
+    if location_key in GROUP_C:
+        narc_index, block_offset, block_size, orig_target, flag_id = GROUP_C[location_key]
+        patch = _build_group_c_patch(block_offset, block_size, orig_target, flag_id)
+        narc = rom.read_narc(NITROFS_PATH)
+        blob = bytearray(narc.files[narc_index])
+        blob[block_offset : block_offset + block_size] = patch
+        narc.files[narc_index] = bytes(blob)
+        rom.write_narc(NITROFS_PATH, narc)
+        return
+
     flag_id = GATE_FLAGS.get(location_key)
     if flag_id is None:
         raise KeyError(f"unknown npc_gift duplication-gate location key: {location_key!r}")
@@ -200,10 +263,10 @@ def write_npc_gift_duplication_gate(rom: HeartGoldRom, location_key: str) -> Non
 
 
 def write_all_npc_gift_duplication_gates(rom: HeartGoldRom) -> None:
-    """Patch every one of the 8 known broken npc_gift duplication gates
-    (GATE_FLAGS). Unconditional -- like rom/badgedata.py's own
+    """Patch every known broken vanilla-item gate (GATE_FLAGS, then
+    GROUP_C). Unconditional -- like rom/badgedata.py's own
     write_all_badges_neutralized, this does not depend on this seed's fill
     result, so it always runs exactly the same way regardless of what item
-    ends up at any of these 8 locations."""
-    for location_key in GATE_FLAGS:
+    ends up at any of these locations."""
+    for location_key in (*GATE_FLAGS, *GROUP_C):
         write_npc_gift_duplication_gate(rom, location_key)

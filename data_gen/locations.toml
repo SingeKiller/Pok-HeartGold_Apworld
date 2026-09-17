@@ -3080,15 +3080,29 @@ original_item = 'basement_key'
 id = 9002
 label = 'Goldenrod Radio Tower 5F - Basement Key'
 
+# The two wings are handed over by a different NPC depending on the game
+# version, so each one has a `soulsilver_region` override (optional field,
+# read by locations.py's location_region_key; `region` is the HeartGold
+# one). Decomp, merged HG+SS script set, version 7 = HeartGold:
+#   - the Radio Tower director (scr_seq_0034_D23R0106.s:75-86) gives the
+#     Rainbow Wing (FLAG_UNK_093) in HeartGold, the Silver Wing
+#     (FLAG_UNK_094) in SoulSilver;
+#   - the old man in Pewter City (scr_seq_0750_T03.s:48-75) gives the
+#     Silver Wing in HeartGold, the Rainbow Wing in SoulSilver.
+# The flag is the location's check (location_flags.py), whichever NPC sets
+# it. The keys and labels still say "Observation Deck" for save/seed
+# compatibility, even for the version where the NPC is in Pewter.
 [goldenrod_radio_tower_observation_deck_rainbow_wing]
 region = 'goldenrod_radio_tower_observation_deck'
+soulsilver_region = 'pewter'
 type = 'npc_gift'
 original_item = 'rainbow_wing'
 id = 9003
 label = 'Goldenrod Radio Tower Observation Deck - Rainbow Wing'
 
 [goldenrod_radio_tower_observation_deck_silver_wing]
-region = 'goldenrod_radio_tower_observation_deck'
+region = 'pewter'
+soulsilver_region = 'goldenrod_radio_tower_observation_deck'
 type = 'npc_gift'
 original_item = 'silver_wing'
 id = 9004
@@ -4938,6 +4952,31 @@ type = 'event'
 event = 'expansion_card_obtained'
 id = 8
 label = 'Lavender Radio Station - EXPN Card obtained'
+
+# The two wing monks (verrous A7 and D12). Neither one checks the bag: the
+# Bell Tower 1F monk runs `GoToIfSet FLAG_UNK_093`
+# (scr_seq_0019_D17R0101.s:69), the Whirl Islands B2F monk runs
+# `GoToIfSet FLAG_UNK_094` (scr_seq_0103_D40R0104.s:40/49). Those flags are
+# only set by the vanilla handover scripts, so a wing received from the
+# multiworld opens nothing: what the monk needs is the handover itself.
+# Each event therefore sits in the exact same region as the wing location
+# whose flag it mirrors, `soulsilver_region` included (see
+# goldenrod_radio_tower_observation_deck_rainbow_wing above).
+[rainbow_wing_handed_over_event]
+region = 'goldenrod_radio_tower_observation_deck'
+soulsilver_region = 'pewter'
+type = 'event'
+event = 'rainbow_wing_handed_over'
+id = 9
+label = 'Rainbow Wing handed over'
+
+[silver_wing_handed_over_event]
+region = 'pewter'
+soulsilver_region = 'goldenrod_radio_tower_observation_deck'
+type = 'event'
+event = 'silver_wing_handed_over'
+id = 10
+label = 'Silver Wing handed over'
 
 # type = 'trainer' (task M3.3, Trainersanity): one real, fillable AP location
 # per std_trainer(...) trainer-battle person-event object found in every

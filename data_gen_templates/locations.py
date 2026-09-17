@@ -52,6 +52,10 @@ def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
         location["trainer"] = entry["trainer"]
     if "species" in entry:
         location["species"] = entry["species"]
+    # Only present where the NPC granting the check stands somewhere else in
+    # SoulSilver (the two wings, see data_gen/locations.toml).
+    if "soulsilver_region" in entry:
+        location["soulsilver_region"] = entry["soulsilver_region"]
     return location
 
 
@@ -88,6 +92,13 @@ def generate_locations() -> str:
             print(
                 f"warning: data_gen/locations.toml: {key}.region references "
                 f"unknown region {location['region']!r}; keeping as-is.",
+                file=sys.stderr,
+            )
+        soulsilver_region = location.get("soulsilver_region")
+        if soulsilver_region is not None and soulsilver_region not in regions_toml:
+            print(
+                f"warning: data_gen/locations.toml: {key}.soulsilver_region "
+                f"references unknown region {soulsilver_region!r}; keeping as-is.",
                 file=sys.stderr,
             )
         original_item = location.get("original_item")

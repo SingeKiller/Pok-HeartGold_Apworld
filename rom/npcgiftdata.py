@@ -76,7 +76,14 @@ TABLE: dict[str, list[tuple[int, int]]] = {
     # extraction only ever recorded the Goldenrod Radio Tower site in
     # TABLE, leaving this one unsubstituted.
     'goldenrod_radio_tower_observation_deck_rainbow_wing': [(34, 307), (750, 234)],
-    'goldenrod_radio_tower_observation_deck_silver_wing': [(34, 338)],
+    # Same two-site shape as the Rainbow Wing above, mirrored: the Pewter
+    # branch that grants the Silver Wing (scr_seq_0750_T03.s:62, HeartGold
+    # only) is the one that actually runs in HeartGold, the director's
+    # (34, 338) only runs in SoulSilver. (750, 200) was missing, so a
+    # HeartGold seed handed out a vanilla Silver Wing there. Offset read on
+    # the real HeartGold ROM: bytes 29 00 04 80 e2 01 29 00 05 80 01 00,
+    # i.e. SetVar 0x8004, 482 then SetVar 0x8005, 1.
+    'goldenrod_radio_tower_observation_deck_silver_wing': [(34, 338), (750, 200)],
     'goldenrod_tunnel_1f_fashion_case': [(93, 291), (93, 693)],
     'goldenrod_tunnel_warehouse_card_key': [(97, 79)],
     'ilex_forest_hm01': [(92, 4538), (92, 4718)],

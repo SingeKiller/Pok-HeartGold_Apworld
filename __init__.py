@@ -49,18 +49,20 @@ from data.rules import BADGES  # noqa: E402
 from items import create_item, create_item_label_to_code_map  # noqa: E402
 from locations import (  # noqa: E402
     DOWSING_MACHINE_ITEM_LABEL,
+    POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS,
     SHELVED_LOCATION_TYPES,
     badge_item_label,
     create_location_label_to_code_map,
     create_locations,
     dexsanity_sources_within_regions,
+    location_region_key,
 )
 from options import OPTION_GROUPS, GameVersion, Goal, HeartGoldOptions  # noqa: E402
 
 from output_patch import HeartGoldProcedurePatch  # noqa: E402, F401 -- import side effect only
 from output_patch import generate_output as write_output_patch  # noqa: E402
-from regions import KANTO_REGION_KEYS  # noqa: E402
 from regions import create_regions as build_region_graph  # noqa: E402
+from regions import johto_only_excluded_region_keys  # noqa: E402
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5  # noqa: E402
 from rules import MAGNET_TRAIN_PASS_ITEM_LABEL  # noqa: E402
 from rules import set_rules as apply_exit_rules  # noqa: E402
@@ -420,7 +422,10 @@ class HeartGoldWorld(World):
             self.origin_region_name = self.generated_start_location_town
 
     def create_regions(self) -> None:
-        self._excluded_region_keys = KANTO_REGION_KEYS if bool(self.options.johto_only.value) else frozenset()
+        self._soulsilver = self.options.game_version.value == GameVersion.option_soulsilver
+        self._excluded_region_keys = (
+            johto_only_excluded_region_keys(self._soulsilver) if bool(self.options.johto_only.value) else frozenset()
+        )
         self.regions = build_region_graph(
             self.player,
             self.multiworld,
@@ -443,6 +448,8 @@ class HeartGoldWorld(World):
             hidden_items_require_dowsing_machine=bool(self.options.hidden_items_require_dowsing_machine.value),
             excluded_region_keys=self._excluded_region_keys,
             bicycle_enabled=bool(self.options.randomize_bicycle.value),
+            power_plant_prerestored=bool(self.options.magnet_train.value),
+            soulsilver=self._soulsilver,
         )
 
     def create_items(self) -> None:
@@ -462,10 +469,11 @@ class HeartGoldWorld(World):
         dexsanity = bool(self.options.dexsanity.value)
         legendarysanity = bool(self.options.legendarysanity.value)
         bicycle_enabled = bool(self.options.randomize_bicycle.value)
+        power_plant_prerestored = bool(self.options.magnet_train.value)
         pool = []
         for key in _ID_ASSIGNABLE_LOCATION_KEYS:
             data = LOCATIONS[key]
-            if data["region"] in self._excluded_region_keys:
+            if location_region_key(data, self._soulsilver) in self._excluded_region_keys:
                 # johto_only: create_regions() already skipped this
                 # location's own Region/Location objects entirely -- must
                 # not contribute a matching item either, or the item pool
@@ -479,6 +487,10 @@ class HeartGoldWorld(World):
                 # 'npc_gift' entry otherwise, so without this check it
                 # would fall through to the generic else branch below and
                 # get added unconditionally.
+                continue
+            if power_plant_prerestored and key in POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS:
+                # magnet_train on: the TM57 scene never plays, create_
+                # locations() skipped the location, same reasoning as above.
                 continue
             if data["type"] == "trainer":
                 if not trainersanity:
@@ -514,14 +526,16 @@ class HeartGoldWorld(World):
                     break
 
         if not bool(self.options.magnet_train.value):
-            # Mirror image of the Dowsing Machine case above: with the
-            # Magnet Train no longer counted as an early door to Kanto
-            # (rules.py's set_rules puts `elite_four_defeated` on the ride),
-            # the Magnet Train Pass unlocks nothing on its own -- the only
-            # rule that names it is that one edge, and by then the S.S.
-            # Aqua ferry is open anyway. data/items.py classifies it
-            # progression, which is right for the default; left as-is here
-            # the fill would still reserve a good spot for a dead key item.
+            # Mirror image of the Dowsing Machine case above. Off, the ride
+            # needs `power_plant_restored` on top of the Pass (rules.py), and
+            # that event is only ever granted inside Kanto, so the train is
+            # never a way into Kanto any more: at best a shortcut back to
+            # Goldenrod for a player who is already there. The Pass is kept
+            # a real item (the player can still ride with it) but not
+            # progression. Logic then simply never counts the ride, which
+            # is the safe direction (stricter than the game), and the fill
+            # stops reserving a good spot for a key item that opens nothing
+            # a seed needs.
             from BaseClasses import ItemClassification
 
             for item in pool:
@@ -638,6 +652,13 @@ class HeartGoldWorld(World):
             "dexsanity_trigger": self.options.dexsanity_trigger.current_key,
             "starting_money": self.options.starting_money.value,
             "randomize_start_location": bool(self.options.randomize_start_location.value),
+            # None unless randomize_start_location is on. Read by the
+            # client to repair the blackout spawn (client.py's
+            # _apply_start_location_blackout_spawn).
+            "starting_town": self.generated_start_location_town,
+            # Read by the client to pre-set FLAG_RESTORED_POWER (client.py's
+            # _apply_power_plant_prerestored).
+            "magnet_train": bool(self.options.magnet_train.value),
             "remote_items": bool(self.options.remote_items.value),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }

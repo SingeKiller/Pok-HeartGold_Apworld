@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Container
+from collections.abc import Callable, Container, Mapping
+from typing import Any
 
 from BaseClasses import CollectionState, ItemClassification, Location, Region
 
@@ -181,9 +182,23 @@ def create_location_label_to_code_map() -> dict[str, int]:
     return {key: HEARTGOLD_LOCATION_ID_BASE + index for key, index in _LOCATION_INDEX.items()}
 
 
-def get_location_region(key: str) -> str:
+def location_region_key(data: Mapping[str, Any], soulsilver: bool) -> str:
+    """The `data/regions.py` key a `data/locations.py` entry belongs to in
+    the generated version. `region` is the HeartGold one; an entry whose
+    NPC stands elsewhere in SoulSilver carries a `soulsilver_region`
+    override (the two wings: the Radio Tower director and the Pewter old
+    man swap which wing they give, scr_seq_0034_D23R0106.s:75-86 and
+    scr_seq_0750_T03.s:48-75). Every consumer of a location's region must
+    go through this, or a SoulSilver seed places the check in the wrong
+    half of the map."""
+    if soulsilver:
+        return data.get("soulsilver_region", data["region"])
+    return data["region"]
+
+
+def get_location_region(key: str, soulsilver: bool = False) -> str:
     """The `data/regions.py` key of `key`'s parent region."""
-    return LOCATIONS[key]["region"]
+    return location_region_key(LOCATIONS[key], soulsilver)
 
 
 DOWSING_MACHINE_ITEM_LABEL = ITEMS["dowsing_mchn"]["label"]
@@ -212,6 +227,29 @@ _ITEM_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
     "olivine_gym_badge": ("secretpotion",),
 }
 
+# Locations that cannot exist when the `magnet_train` option is on, because
+# the client then pre-sets FLAG_RESTORED_POWER (client.py's
+# _apply_power_plant_prerestored) and the scene that hands them out never
+# plays. The Power Plant manager's TM57 is only given inside the repair
+# block itself (scr_seq_0196_R10R0202.s:40-56, on the BROKEN map's script,
+# behind `HasItem ITEM_MACHINE_PART`), and Route 10's door warps to the
+# broken map only while that flag is clear (scr_seq_0191_R10.s:135 jumps to
+# the `Warp MAP_ROUTE_10_POWER_PLANT_REPAIRED` branch as soon as it is set).
+# The repaired map's manager (scr_seq_0195_R10R0201.s) only talks. Left in
+# the pool, whatever the fill put there would be lost for good.
+POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS = frozenset({"route_10_power_plant_broken_tm57"})
+
+# The reverse case: locations that need the Power Plant repaired while
+# `magnet_train` is OFF. The Copycat only trades the Pass for the Lost Item,
+# and the Fan Club chairman who hands that item out only appears once the
+# repair block runs `ClearFlag FLAG_HIDE_VERMILION_FAN_CLUB_LOST_ITEM`
+# (scr_seq_0196_R10R0202.s:63). On, the client clears that flag itself
+# (client.py's _COPYCAT_CHAIN_FLAGS_TO_CLEAR) and the event is true from the
+# start, so no rule is attached. Value: rules.POWER_PLANT_EVENT, spelled out
+# here because rules.py imports this module.
+POWER_PLANT_GATED_LOCATION_KEYS = frozenset({"saffron_copycat_house_2f_pass"})
+_POWER_PLANT_EVENT = "power_plant_restored"
+
 
 def _item_gated_access_rule(player: int, item_keys: tuple[str, ...]) -> Callable[[CollectionState], bool]:
     """Own every one of `item_keys` (data/items.py keys). Same shape as
@@ -231,6 +269,8 @@ def create_locations(
     hidden_items_require_dowsing_machine: bool = False,
     excluded_region_keys: frozenset[str] = frozenset(),
     bicycle_enabled: bool = False,
+    power_plant_prerestored: bool = False,
+    soulsilver: bool = False,
 ) -> None:
     """Create a `HeartGoldLocation` for every `data/locations.py` entry and
     attach it to its parent `Region` (as built by
@@ -268,7 +308,9 @@ def create_locations(
     `goldenrod_bike_shop_bicycle` (a plain `type = 'npc_gift'` entry) is
     only created when `bicycle_enabled` (`randomize_bicycle`) is set --
     same reasoning as `trainersanity`/`legendarysanity` above, just keyed
-    by a specific location rather than a whole type. The `randomize_bag`/
+    by a specific location rather than a whole type. The same goes for
+    `POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS`, skipped when
+    `power_plant_prerestored` (`magnet_train` on) is set. The `randomize_bag`/
     `randomize_trainer_card`/`randomize_pokedex`/`randomize_options_
     button`/`randomize_save_button`/`randomize_pokegear` per-icon toggles
     this project briefly had (task "randomize_menu_unlocks", 2026-08-17)
@@ -282,7 +324,9 @@ def create_locations(
     project avoids ASM hooks after 2 real hook crashes earlier in its own
     history) -- so Bag/Trainer Card/Pokedex/Save/Options/Pokegear are all
     once again always unconditionally granted by their own real vanilla
-    trigger, like before this feature existed."""
+    trigger, like before this feature existed. `soulsilver` (the
+    `game_version` option) picks each entry's region through
+    `location_region_key`."""
     id_map = create_location_label_to_code_map()
     # Pre-filtered once, not per location: `regions` is the authoritative
     # set of Regions that exist for this player (johto_only drops Kanto's).
@@ -290,13 +334,16 @@ def create_locations(
     for key, data in LOCATIONS.items():
         if data["type"] in SHELVED_LOCATION_TYPES:
             continue
-        if data["region"] in excluded_region_keys:
+        region_key = location_region_key(data, soulsilver)
+        if region_key in excluded_region_keys:
             continue
         if data["type"] == "trainer" and not trainersanity:
             continue
         if data["type"] == "static_pokemon" and not legendarysanity:
             continue
         if key == "goldenrod_bike_shop_bicycle" and not bicycle_enabled:
+            continue
+        if power_plant_prerestored and key in POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS:
             continue
         sources: frozenset[tuple[str, str]] | None = None
         if data["type"] == "dexsanity":
@@ -305,7 +352,7 @@ def create_locations(
             sources = reachable_sources.get(data["species"])
             if sources is None:
                 continue
-        region = regions[data["region"]]
+        region = regions[region_key]
         if data["type"] == "event":
             location = HeartGoldLocation(player, key, None, region)
             location.place_locked_item(
@@ -320,4 +367,7 @@ def create_locations(
                 location.access_rule = _hidden_item_access_rule(player)
             elif key in _ITEM_GATED_LOCATIONS:
                 location.access_rule = _item_gated_access_rule(player, _ITEM_GATED_LOCATIONS[key])
+            elif key in POWER_PLANT_GATED_LOCATION_KEYS and not power_plant_prerestored:
+                event_item = scenario_event_item_name(_POWER_PLANT_EVENT)
+                location.access_rule = lambda state, event_item=event_item: state.has(event_item, player)
         region.locations.append(location)

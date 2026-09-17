@@ -262,9 +262,8 @@ PLACEHOLDER_ITEM_PLURAL_TEXT = "Items sent to another player"
 
 
 def apply_npc_gift_duplication_gate_fix(rom: HeartGoldRom) -> None:
-    """Patch the 8 known npc_gift locations whose own vanilla script gates
-    the give branch on possessing the original, pre-substitution item (see
-    rom/npcgiftgatedata.py) -- unconditional, like apply_badge_
+    """Patch every known NPC script whose own vanilla gate tests possession
+    of the original, pre-substitution item (see rom/npcgiftgatedata.py) -- unconditional, like apply_badge_
     neutralization above: always applied regardless of this seed's fill
     result, since the bug is in the gate itself, not in what item ends up
     placed there."""

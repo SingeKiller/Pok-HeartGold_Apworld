@@ -3296,19 +3296,24 @@ price = 0
 pocket = "key_items"
 classification = "useful"
 
+# Both wings are back to "useful": no logic reads them. The monks test the
+# handover flags (FLAG_UNK_093/094, see data_gen/rules.toml), and neither
+# legendary script (scr_seq_0021_D17R0110.s, scr_seq_0104_D40R0107.s) runs
+# HasItem on a wing. The only HasItem on them is flavor dialogue
+# (scr_seq_0884_T24R0801.s).
 [silver_wing]
 id = 482
 label = "SILVER_WING"
 price = 0
 pocket = "key_items"
-classification = "progression"
+classification = "useful"
 
 [rainbow_wing]
 id = 483
 label = "RAINBOW_WING"
 price = 0
 pocket = "key_items"
-classification = "progression"
+classification = "useful"
 
 [mystery_egg]
 id = 484
