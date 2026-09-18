@@ -2,7 +2,7 @@
 #
 # HeartGoldWorld.generate_output() builds a HeartGoldProcedurePatch storing
 # this player's generated_* randomizer output plus local item substitutions
-# as JSON blobs inside a .apheartgold zip. Archipelago's own
+# as JSON blobs inside a .appokehgss zip. Archipelago's own
 # Patch.create_rom_file later calls .patch(target) on whichever machine
 # actually has the ROM (not necessarily the one that ran generation),
 # applying everything via patch_gen.py's apply_* functions.
@@ -25,6 +25,7 @@ from worlds.Files import APAutoPatchInterface
 import patch_gen
 from options import GameVersion
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom, RomError
+from rom.worldsignature import stamp_slot_auth, stamp_world_signature
 
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
@@ -62,9 +63,11 @@ _VERSION_NAME_BY_OPTION_VALUE = {
 
 
 class HeartGoldProcedurePatch(APAutoPatchInterface):
-    game = "Pokemon HGSS"
+    game = "Pokemon HGSS Singe"
     hashes = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
-    patch_file_ending = ".apheartgold"
+    # Not .apheartgold (v0.2.5): ljtpetersen's hgss_archipelago world
+    # registers that extension too, and AutoPatchRegister keys on it.
+    patch_file_ending = ".appokehgss"
     result_file_ending = ".nds"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -90,7 +93,7 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
             installed_version = _installed_world_version()
             if generated_version != installed_version:
                 raise RomError(
-                    f"This patch was generated with Pokemon HGSS APWorld "
+                    f"This patch was generated with Pokemon HGSS Singe APWorld "
                     f"version {generated_version}, but version "
                     f"{installed_version} is currently installed -- the patch "
                     "data format may not match what this version expects. "
@@ -168,6 +171,11 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
         patch_gen.apply_npc_gift_duplication_gate_fix(rom)
 
+        patch_gen.apply_wing_monk_regate(rom)
+
+        exp_settings = json.loads(self.get_file("exp_settings.json"))
+        patch_gen.apply_exp_settings(rom, exp_settings["global_exp_share"], exp_settings["multiplier"])
+
         patch_gen.apply_placeholder_text_fix(rom)
 
         starters = json.loads(self.get_file("starters.json"))
@@ -185,6 +193,9 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         packed = bytearray(rom.save_bytes())
         if start_location_town is not None:
             patch_gen.stamp_start_location_revocation(packed)
+        # Lets client.py recognize this world's ROMs (rom/worldsignature.py).
+        stamp_world_signature(packed)
+        stamp_slot_auth(packed, bytes.fromhex(json.loads(self.get_file("slot_auth.json"))))
         with open(target, "wb") as out_file:
             out_file.write(packed)
 
@@ -261,7 +272,7 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
                 f"Location {location.name!r} was filled with this player's own item "
                 f"{location.item.name!r}, but no data/items.py entry has that label, so the "
                 "item cannot be written into the ROM. This is an items/locations data "
-                "mismatch in the Pokemon HGSS world itself; please report it."
+                "mismatch in the Pokemon HGSS Singe world itself; please report it."
             )
         substitutions[location.name] = item_key
     return substitutions
@@ -280,6 +291,16 @@ def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
     patch.write_file("tm_hm_moves.json", json.dumps(world.generated_tm_hm_moves).encode())
     patch.write_file("type_chart.json", json.dumps(world.generated_type_chart).encode())
     patch.write_file("start_location_town.json", json.dumps(world.generated_start_location_town).encode())
+    patch.write_file("slot_auth.json", json.dumps(world.slot_auth.hex()).encode())
+    patch.write_file(
+        "exp_settings.json",
+        json.dumps(
+            {
+                "global_exp_share": bool(world.options.global_exp_share.value),
+                "multiplier": int(world.options.exp_multiplier.value),
+            }
+        ).encode(),
+    )
     patch.write_file("item_substitutions.json", json.dumps(build_item_substitutions(world)).encode())
 
     out_file_name = world.multiworld.get_out_file_name_base(world.player)

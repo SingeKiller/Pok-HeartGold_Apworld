@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Container, Mapping
 from typing import Any
 
-from BaseClasses import CollectionState, ItemClassification, Location, Region
+from BaseClasses import CollectionState, ItemClassification, Location, LocationProgressType, Region
 
 from data.items import ITEMS
 from data.locations import LOCATIONS
@@ -68,9 +68,9 @@ def scenario_event_item_name(event_name: str) -> str:
 # Dexsanity (task M3.4) access rules: species.species_encounter_sources
 # reports the (zone_key, method) pairs a species actually appears in in
 # this seed. `method` decides which bag item is needed:
-# _UNGATED_DEXSANITY_METHODS need none at all (walk into the grass, or
-# Headbutt a tree -- a Gen4 tutor move, not an HM, see data_gen/rules.toml's
-# header), the rest each need a specific one -- an HM+badge pair for
+# _UNGATED_DEXSANITY_METHODS need none at all (walk into the grass),
+# headbutt needs the Headbutt tutor (a Gen4 tutor move, not an HM, see
+# _HEADBUTT_TUTOR_REGION), the rest each need a specific one -- an HM+badge pair for
 # surf/rock_smash (same data/rules.py BADGES this module already uses for
 # badge locations), or just the matching rod for fishing (rods are ungated
 # key items, no badge needed to use one already in the bag).
@@ -84,7 +84,22 @@ def scenario_event_item_name(event_name: str) -> str:
 # Burned Tower, holding the Squirtbottle that unlocks Ecruteak, which is
 # the only way into that tower) counted as sphere-0 free and the fill
 # happily built a circular dependency.
-_UNGATED_DEXSANITY_METHODS = frozenset({"land", "headbutt"})
+_UNGATED_DEXSANITY_METHODS = frozenset({"land"})
+# The Headbutt tutor (obj_D36R0101_gsbigman at (36, 37), script
+# scr_seq_0092_D36R0101.s:1149 `SetMonMove ... MOVE_HEADBUTT`) stands past
+# Ilex Forest's Cut tree when coming from Azalea (ROM collision flood fill,
+# 2026-09-17), i.e. in `ilex_forest_north`. HGSS has no Headbutt TM, so
+# reaching him is what the headbutt tables need (headbutt tables are in
+# the ROM since v0.2.5, rom/encounterdata.write_headbutt_tables). Assumes
+# some party member can learn it, which nearly every species can.
+_HEADBUTT_TUTOR_REGION = "ilex_forest_north"
+
+# (zone, method) pairs whose table is only usable from a sub-region of the
+# zone's own region. Route 14's only tall grass sits behind a Cut tree
+# (data_gen/regions.toml's [route_14_grass]).
+DEXSANITY_ZONE_METHOD_REGIONS: dict[tuple[str, str], str] = {
+    ("route_14", "land"): "route_14_grass",
+}
 _DEXSANITY_HM_METHOD_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "surf": ("hm03", "fog"),
     "rock_smash": ("hm06", "zephyr"),
@@ -114,11 +129,16 @@ def dexsanity_sources_within_regions(
     return {species: sources for species, sources in filtered.items() if sources}
 
 
-def _dexsanity_method_requirement(player: int, method: str) -> Callable[[CollectionState], bool] | None:
+def _dexsanity_method_requirement(
+    player: int, method: str, regions: dict[str, Region]
+) -> Callable[[CollectionState], bool] | None:
     """The bag-item check for one encounter method, or None when the
     method needs nothing at all."""
     if method in _UNGATED_DEXSANITY_METHODS:
         return None
+    if method == "headbutt":
+        tutor = regions[_HEADBUTT_TUTOR_REGION]
+        return lambda state: tutor.can_reach(state)
     if method in _DEXSANITY_HM_METHOD_REQUIREMENTS:
         item_key, badge_name = _DEXSANITY_HM_METHOD_REQUIREMENTS[method]
         item_label = ITEMS[item_key]["label"]
@@ -150,7 +170,8 @@ def _dexsanity_access_rule(
     membership test in the common case."""
     per_region: dict[str, set[str]] = {}
     for zone_key, method in sources:
-        per_region.setdefault(zone_key, set()).add(method)
+        region_key = DEXSANITY_ZONE_METHOD_REGIONS.get((zone_key, method), zone_key)
+        per_region.setdefault(region_key, set()).add(method)
 
     branches: list[tuple[Region, Callable[[CollectionState], bool] | None]] = []
     for zone_key in sorted(per_region):
@@ -160,7 +181,7 @@ def _dexsanity_access_rule(
             branches.append((region, None))
             continue
         for method in sorted(methods):
-            branches.append((region, _dexsanity_method_requirement(player, method)))
+            branches.append((region, _dexsanity_method_requirement(player, method, regions)))
     branches.sort(key=lambda branch: branch[1] is not None)
 
     def rule(state: CollectionState) -> bool:
@@ -173,7 +194,7 @@ def _dexsanity_access_rule(
 
 
 class HeartGoldLocation(Location):
-    game: str = "Pokemon HGSS"
+    game: str = "Pokemon HGSS Singe"
 
 
 def create_location_label_to_code_map() -> dict[str, int]:
@@ -225,6 +246,77 @@ def _hidden_item_access_rule(player: int) -> Callable[[CollectionState], bool]:
 #   of the 8 badges the Elite Four gate asks for.
 _ITEM_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
     "olivine_gym_badge": ("secretpotion",),
+    # NPC-gift audit, 2026-09-17: outside the gym scripts (the only ones
+    # rom/badgegatedata.py re-gates), `CheckBadge` reads the profile bit,
+    # i.e. whether the badge *item* has been received.
+    # scr_seq_0896_T25R0601.s:122, the flower shop girl.
+    "goldenrod_flower_shop_squirtbottle": ("badge_plain",),
+    # scr_seq_0798_T07R0203.s:188.
+    "celadon_condominiums_3f_gb_sounds": ("badge_earth",),
+}
+
+# NPC-gift audit, 2026-09-17: gifts that only happen once something
+# elsewhere has been done, expressed as "reach every one of these regions"
+# (the scene that unlocks the gift runs there, with no item involved).
+REGION_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
+    # VAR_SCENE_LIGHTHOUSE_JASMINE == 1 (scr_seq_0881_T24R0501.s:12), set by
+    # talking to Jasmine at the top of the lighthouse (scr_seq_0066:58).
+    "cianwood_pharmacy_secretpotion": ("olivine_lighthouse_light_room",),
+    # FLAG_GOT_RED_SCALE (scr_seq_0229_R30R0201.s:69), the Red Gyarados
+    # check's own flag. The Red Scale item itself is not needed
+    # (TakeItemNoCheck).
+    "route_30_mr_pokemon_house_exp_share": ("lake_of_rage_north",),
+    # FLAG_UNK_0EA (scr_seq_0943_T30GYM0101.s:~100), set by the Dragon's
+    # Den shrine test (scr_seq_0112_D44R0103.s:184).
+    "blackthorn_gym_tm59": ("dragons_den_shrine",),
+    # The Kimono Girls only appear once the Ecruteak rival scene has run,
+    # which fires on VAR_UNK_4079 == 1 (scr_seq_0693_T27_hdr.s), set in
+    # Morty's win branch (scr_seq_0922_T27GYM0101.s:72).
+    "ecruteak_dance_theater_clear_bell": ("ecruteak_gym",),
+    "ecruteak_dance_theater_tidal_bell": ("ecruteak_gym",),
+    # The Fly scene fires on VAR_UNK_4116 == 1 (scr_seq_0648_T24_hdr.s:14),
+    # set in Chuck's win branch (scr_seq_0877_T24GYM0101.s:46).
+    "cianwood_hm02": ("cianwood_gym",),
+}
+
+# NPC-gift audit, 2026-09-17: gifts whose condition the logic cannot
+# express. They stay checks, but only ever hold non-progression items
+# (LocationProgressType.EXCLUDED), so missing one never blocks a seed.
+EXCLUDED_LOCATIONS = frozenset({
+    # A living Chansey in the lead, not on a bike (scr_seq_0202_R14.s:476).
+    "route_14_lucky_punch",
+    # Showing Elm a Togepi hatched from his assistant's egg
+    # (scr_seq_0843_T20R0101.s:304, FLAG_SYS_HATCHED_TOGEPI_EGG).
+    "new_bark_elms_lab_1f_everstone",
+    # After the Embedded Tower legendary event (VAR_SCENE_EMBEDDED_TOWER,
+    # scr_seq_0740_T01R0301.s:~330).
+    "pallet_town_oaks_lab_jade_orb",
+    # Earth Badge item plus an S.S. Aqua voyage counter
+    # (scr_seq_0157_P01R0302.s:40-50), and the plate given rotates.
+    "ss_aqua_captain_room_flame_plate",
+})
+
+
+def _region_gated_access_rule(regions: tuple[Region, ...]) -> Callable[[CollectionState], bool]:
+    return lambda state: all(region.can_reach(state) for region in regions)
+
+# Locations whose NPC only hands the item over after a story event, with no
+# region edge to carry that condition (the NPC stands in a region reachable
+# long before). Value: the `event` name of a data/locations.py event.
+#   - Elm's S.S. Ticket: scr_seq_0843_T20R0101.s:290, `GoToIfSet
+#     FLAG_GAME_CLEAR, _0526` is the only way into the give branch. Found
+#     2026-09-17 while building the tracker demo; until then the logic
+#     counted it as free from the start.
+EVENT_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
+    "new_bark_elms_lab_1f_s_s_ticket": ("elite_four_defeated",),
+    # VAR_UNK_4096 == 2 (scr_seq_0740_T01R0301.s:182): Oak's phone call in
+    # Viridian (scr_seq_0741_T02.s:51) after Blue's win branch set it to 1.
+    "pallet_town_oaks_lab_hm08": ("blue_defeated",),
+    # VAR_UNK_4135 >= 8 (scr_seq_0776_T06.s), one per Kanto Leader beaten.
+    "vermilion_pp_max": (
+        "brock_defeated", "misty_defeated", "lt_surge_defeated", "erika_defeated",
+        "janine_defeated", "sabrina_defeated", "blaine_defeated", "blue_defeated",
+    ),
 }
 
 # Locations that cannot exist when the `magnet_train` option is on, because
@@ -367,7 +459,16 @@ def create_locations(
                 location.access_rule = _hidden_item_access_rule(player)
             elif key in _ITEM_GATED_LOCATIONS:
                 location.access_rule = _item_gated_access_rule(player, _ITEM_GATED_LOCATIONS[key])
+            elif key in REGION_GATED_LOCATIONS:
+                location.access_rule = _region_gated_access_rule(
+                    tuple(regions[name] for name in REGION_GATED_LOCATIONS[key])
+                )
+            elif key in EVENT_GATED_LOCATIONS:
+                event_items = tuple(scenario_event_item_name(name) for name in EVENT_GATED_LOCATIONS[key])
+                location.access_rule = lambda state, event_items=event_items: state.has_all(event_items, player)
             elif key in POWER_PLANT_GATED_LOCATION_KEYS and not power_plant_prerestored:
                 event_item = scenario_event_item_name(_POWER_PLANT_EVENT)
                 location.access_rule = lambda state, event_item=event_item: state.has(event_item, player)
+            if key in EXCLUDED_LOCATIONS:
+                location.progress_type = LocationProgressType.EXCLUDED
         region.locations.append(location)

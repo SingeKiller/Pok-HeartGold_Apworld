@@ -28,13 +28,13 @@
 name: Player{number}
 
 # Used to describe your yaml. Useful if you have multiple files.
-description: Default Pokemon HGSS Template
+description: Default Pokemon HGSS Singe Template
 
-game: Pokemon HGSS
+game: Pokemon HGSS Singe
 requires:
   version: 0.6.8 # Version of Archipelago required for this yaml to work as expected.
 
-Pokemon HGSS:
+Pokemon HGSS Singe:
   ################
   # Game Options #
   ################
@@ -478,6 +478,29 @@ Pokemon HGSS:
     'false': 50
     'true': 0
 
+  global_exp_share:
+    # Every Pokemon in your party gains Exp. after a battle, as in the
+    # modern games: the Pokemon that took part split the full amount as
+    # usual, and every other party member gets half of it. Fainted Pokemon
+    # and Eggs get nothing. A held Exp. Share no longer changes anything.
+    # Off by default (vanilla behavior: only an Exp. Share holder shares).
+    'false': 50
+    'true': 0
+
+  exp_multiplier:
+    # Multiplies all Exp. gained in battle, in percent. 100 is vanilla,
+    # 200 doubles it, 50 halves it. Applied before the Lucky Egg, trainer
+    # battle and traded Pokemon bonuses.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 10
+    # Maximum value is 1000
+    100: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-10-1000: 0 # random value between 10 and 1000
+
   skip_battle_animations:
     # Set Battle Scene to Off as soon as this client connects, skipping
     # move/entry animations in battle. Applied once per connection,
@@ -583,13 +606,9 @@ Pokemon HGSS:
     # behavior). Turn a method off if you don't want, say, fishing to be
     # required to finish the Pokédex.
     # 
-    # "headbutt" currently grants nothing on its own: this randomizer does
-    # not write the Headbutt-tree encounter tables into the ROM, so a
-    # Headbutt-only species is never actually placed anywhere and gets no
-    # check regardless of this setting (fixed 2026-08-22, see docs/scope.md
-    # -- those checks used to exist and were impossible). It stays a valid
-    # key so that YAMLs keep working and so it starts counting again by
-    # itself the day Headbutt tables are patched.
+    # "headbutt" covers the Pokemon found by using Headbutt on trees. The
+    # logic expects you to have reached the Headbutt tutor in Ilex Forest
+    # first, since the move has no TM in this game.
     # 
     # Ignored when `dexsanity` is off.
     ['old_rod', 'land', 'surf', 'rock_smash', 'super_rod', 'good_rod', 'headbutt']

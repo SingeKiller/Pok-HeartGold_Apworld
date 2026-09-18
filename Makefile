@@ -1,6 +1,6 @@
 # Makefile
 #
-# Builds the Pokemon HGSS .apworld. Requires `python` on PATH.
+# Builds the Pokemon HGSS Singe .apworld (poke_hgss.apworld). Requires `python` on PATH.
 # On Windows without `make`, use `python build.py` directly instead (see
 # build.py - same packaging logic, pure Python, no extra tooling required).
 

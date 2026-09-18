@@ -11,7 +11,7 @@
   later
 
 That's it -- the ROM read/write library this world needs (`apnds`, MIT)
-is bundled directly inside `pokemon_hgss.apworld`, so there's no
+is bundled directly inside `poke_hgss.apworld`, so there's no
 separate install step, even on the official portable Windows release.
 
 ### Configuring BizHawk
@@ -30,15 +30,15 @@ tabbed out of EmuHawk.
 
 ## Generating and Patching a Game
 
-1. Add `pokemon_hgss.apworld` to your `custom_worlds` folder in your Archipelago install. It should not be in
+1. Add `poke_hgss.apworld` to your `custom_worlds` folder in your Archipelago install. It should not be in
    `lib/worlds`.
 2. Create your options file (YAML). You can make one by choosing `Generate Templates`
    from the Archipelago Launcher. From there, you can edit the `.yaml` in any text editor.
    If you'd rather not generate one yourself, a ready-to-edit default is provided at
-   [`docs/Pokemon HGSS.yaml`](Pokemon%20HGSS.yaml) in this repository.
+   [`docs/Poke_HGSS.yaml`](Poke_HGSS.yaml) in this repository.
 3. Follow the general Archipelago instructions
    for [generating a game on your local installation](https://archipelago.gg/tutorial/Archipelago/setup/en#on-your-local-installation).
-   This will generate an output file for you. Your patch file will have the `.apheartgold` file extension and will be
+   This will generate an output file for you. Your patch file will have the `.appokehgss` file extension and will be
    inside the output file.
 4. Open `ArchipelagoLauncher.exe`
 5. Select "Open Patch" on the left side and select your patch file.
@@ -65,12 +65,48 @@ game, you can re-open it from the launcher.
 6. The emulator and client will eventually connect to each other. The BizHawk Client window should indicate that it
 connected and recognized Pokémon HeartGold.
 7. To connect the client to the server, enter your room's address and port (e.g. `archipelago.gg:38281`) into the
-top text field of the client and click Connect.
+top text field of the client and click Connect. You don't need to type your slot name: the client reads it from
+your patched ROM. Check that the client shows "(your name) playing Pokemon HGSS Singe has joined".
 
 You should now be able to receive and send items. You'll need to do these steps every time you want to reconnect. It is
 perfectly safe to make progress offline; everything will re-sync when you reconnect.
 
+### Client commands
+
+- `/pending`: lists the items the server sent you that are not in your game yet. Compare with `/received` (the
+  full list from the server). An item stays pending while its Bag pocket is full; the client also says so in its
+  log.
+- `/restore_power`: repairs the Kanto Power Plant in your save, so the Magnet Train runs as soon as you hold the
+  Pass. With `magnet_train` on this already happens automatically; use it only if you are stuck with the option
+  off. Save in-game afterwards. With `magnet_train` off, the Power Plant manager's TM57 check can no longer be
+  collected: ask the host to `/send_location` it.
+
 ## Tracking
+
+### PopTracker
+
+A PopTracker pack is attached to each release (`poke_hgss_poptracker.zip`). Put the zip in PopTracker's `packs`
+folder, open it, choose "English" or "Français", then connect to your room with the AP button (server address, slot
+name). Received HMs, badges and key items light up on their own, a gym leader lights up once its badge check is
+done, checked locations are cleared, and each pin shows what you can currently reach with your items. The seed's
+goal and options (Johto only, Magnet Train, Trainersanity, Dexsanity...) are read from the server. Dexsanity checks
+are listed in the "Pokedex" tab without logic. PopTracker 0.26.2 or later is needed.
+
+Every check has a "?" icon. Click it to see what is there (and whose item it is), click again to hide it. The
+tracker asks the server without creating hints, so nobody else is told anything.
+
+### Web tracker
+
+`poke_hgss_tracker.html`, also attached to each release, is the same tracker as a single web page: open it in your
+browser (double-click), enter the server address and your slot name, and click Connect. It works offline too
+(click tiles and checks to mark them by hand). The Map tab colours every town, route and cave by what you can
+reach; click one to see its checks. Places fold out region by region (Johto, Kanto), then towns, caves
+and towers, and routes, down to each check and its "?". French and English, switched with the FR/EN button.
+
+Maintainers: `python tracker_gen.py` builds the pack and the web page (needs an Archipelago checkout; the web map
+also needs `HEARTGOLD_ROM_PATH` and the decomp in `ressources/`).
+
+### Universal Tracker
 
 Pokémon HeartGold supports the Universal Tracker (`tracker.apworld`, dropped
 into your `custom_worlds` folder next to this world). Connect it to your slot
@@ -80,10 +116,13 @@ need the slot's YAML.
 ## Common Issues
 
 1. **Problem**: "No handler was found for this game." in the client. **Solution**: Update to at least BizHawk version 2.10.
-2. **Problem**: The client says my ROM doesn't match. **Solution**: Make sure you're patching a US Pokémon HeartGold
+2. **Problem**: The BizHawk Client never recognizes the game. **Solution**: load the `.nds` produced by
+   opening your `.appokehgss` file with this version. The client ignores unpatched ROMs, and ROMs patched by
+   another HGSS world or by an older version of this one (anything before v0.2.5).
+3. **Problem**: The client says my ROM doesn't match. **Solution**: Make sure you're patching a US Pokémon HeartGold
    or SoulSilver ROM, not another region or another revision.
-3. **Problem**: Pokémon HGSS never shows up in `Generate Template Options` / `Option Creator`, even after
+4. **Problem**: Pokémon HGSS never shows up in `Generate Template Options` / `Option Creator`, even after
    installing the `.apworld`. **Solution**: check your `logs/Launcher_*.txt` for a traceback naming this world --
-   it'll say exactly what failed to import. If you replaced an existing `pokemon_hgss.apworld`, make sure
+   it'll say exactly what failed to import. If you replaced an existing `poke_hgss.apworld`, make sure
    the old copy was actually removed from `custom_worlds` first; the Launcher's "Install APWorld" refuses to
    overwrite an existing file with the same name.

@@ -5,6 +5,110 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-09-18 (tag v0.2.5)
+
+**Breaking release.** Seeds generated with v0.2.4 or earlier cannot be
+played with this version: finish them with the v0.2.4-hotfix apworld.
+
+### Changed
+- **Renamed so it can be installed next to the other HGSS world.** The
+  game is now called `Pokemon HGSS Singe`, the file is `poke_hgss.apworld`
+  and the default YAML is `docs/Poke_HGSS.yaml`. Update your YAML: both the
+  `game:` line and the options section header become `Pokemon HGSS Singe`.
+  Patch files now end in `.appokehgss` (the other world also uses
+  `.apheartgold`). Your `host.yaml` ROM paths do not change.
+- **No more slot name to type.** The patched ROM now carries an
+  identifier of your slot, and the BizHawk Client logs in with it on its
+  own. Until now the client waited for you to type your slot name, and
+  nothing was sent or received until you did.
+- **The BizHawk Client only attaches to ROMs patched by this world.**
+  Patching now stamps a signature into the ROM header, and the client
+  ignores unpatched ROMs and ROMs from other HGSS worlds.
+
+- **The Bell Tower and Whirl Islands monks now let you through with the
+  wing in your Bag**, wherever it came from (the Rainbow Wing for the Bell
+  Tower, the Silver Wing for Lugia's chamber). Until now they only moved
+  once the NPC who hands the wing out in the unrandomized game had done so.
+  The wing that game's Pewter City old man gives also makes the other
+  version's legendary appear, as that handover does. Both wings are
+  progression items again.
+
+### Added
+- **New option `global_exp_share`** (off by default). Every party member
+  gains Exp. after a battle, as in the modern games: the Pokemon that took
+  part split the full amount, every other party member gets half of it.
+  Fainted Pokemon and Eggs get nothing.
+- **New option `exp_multiplier`** (10 to 1000 %, 100 by default).
+  Multiplies all Exp. gained in battle.
+- **Headbutt trees are randomized.** With `randomize_wild_pokemon`, the
+  Pokemon you get by using Headbutt on trees are shuffled too (they stayed
+  vanilla until now), including in Azalea Town, Pewter City and Route 16,
+  which only have trees. With `dexsanity`, those species count again
+  (`dexsanity_encounter_types: headbutt`), and the logic expects you to have
+  reached the Headbutt tutor in Ilex Forest first.
+- **Web tracker** (`poke_hgss_tracker.html`): a single page you open in
+  your browser, connected to the room like PopTracker. A Pokegear-style
+  map of Johto and Kanto (laid out from the game's own overworld) colours
+  every town, route and cave by what you can reach, and a click opens its
+  checks. Lists by region, then
+  towns, caves and towers, or routes, then place, then checks, each level
+  folding out with its own "done / total" count; header with the goal,
+  key items, badges, gym leaders beaten and HMs; Pokedex and Trainers
+  tabs; a "?" per check; French or English at the click of a button. Same
+  logic as the world (verified by tests).
+- **PopTracker pack** (`poke_hgss_poptracker.zip`), in French or English
+  (one variant each), for HeartGold and SoulSilver. One page per region
+  (Johto, Kanto) listing its towns, caves and towers, and routes; click
+  a place to open its list of checks, plus Pokedex (Dexsanity) and Trainers
+  (Trainersanity) tabs. The header shows the
+  seed's goal, key items, badges, the gym leaders beaten and the HMs.
+  Autotracking of items and checks, and the world's own logic (same
+  results as the generator, verified by tests). Every check has a "?" icon
+  that shows what it holds, without creating hints.
+- **`/pending` client command**, listing the items the server sent you
+  that are not in your game yet.
+- **`/restore_power` client command.** Repairs the Kanto Power Plant in
+  your save when the Magnet Train is out of reach with `magnet_train` off.
+  With the option off, the Power Plant manager's TM57 check is lost
+  afterwards.
+
+### Fixed
+- **NPC gifts expected before the NPC actually gives them** (audit of all
+  92 NPC gifts against the game's scripts). Each of these could hold a
+  required item the player could not get yet, and block the seed:
+  - Elm's S.S. Ticket: only after the Elite Four.
+  - Goldenrod flower shop Squirtbottle: only while you hold the Plain
+    Badge. Celadon GB Sounds: only with the Earth Badge.
+  - Cianwood SecretPotion: only after talking to Jasmine at the top of the
+    Olivine Lighthouse.
+  - Mr. Pokemon's Exp. Share: only after the Red Gyarados.
+  - Clair's TM59: only after the Dragon's Den test.
+  - Clear Bell / Tidal Bell: only after beating Morty.
+  - Cianwood HM02 Fly: only after beating Chuck.
+  - Oak's HM08 Rock Climb: only after beating Blue.
+  - Vermilion PP Max: only after beating all eight Kanto Leaders.
+  - The Lucky Punch (needs a Chansey), Elm's Everstone (needs the Togepi
+    from his assistant's egg), Oak's Jade Orb and the S.S. Aqua captain's
+    plate (post-game events) can no longer hold progression items.
+- **Bag items could stop arriving while badges still did** (player
+  report), until the game was reset. The client now notices when its Bag
+  writes keep failing or when what it reads is not a Bag, and searches for
+  your save data again on its own. It also tells you when an item is held
+  back because its pocket is full.
+- **Viridian Gym and Cerulean Cave followed badge items instead of wins.**
+  Blue only opens his gym once seven Kanto Leaders have been beaten (and
+  you have met him on Cinnabar Island), and the Cerulean Cave guard only
+  leaves once Blue is beaten. The logic used to count the badge items,
+  which can arrive from anywhere without the matching gym being reachable.
+- **Route 14 logic.** Its only tall grass, with the Lucky Punch woman, is
+  behind a Cut tree: Route 14's wild Pokemon now need Cut.
+- **Route 12 logic.** The pier runs from Lavender Town to Route 13 and the
+  Route 11 gatehouse without any Snorlax in the way, so neither needs the
+  Expansion Card any more. Three items were considered reachable too early:
+  the Calcium now needs Cut, the Yellow Flute Surf and Cut, and the hidden
+  Elixir Surf (read from the game's collision data, same in both
+  versions).
+
 ## [0.9.0-hotfix] - 2026-09-17 (tag v0.2.4-hotfix, same world_version, compatible with existing 0.9.0 seeds)
 
 ### Fixed

@@ -1,6 +1,6 @@
 # __init__.py
 #
-# Registers the "Pokemon HGSS" Archipelago World: wires together
+# Registers the "Pokemon HGSS Singe" Archipelago World: wires together
 # items.py/locations.py/regions.py/rules.py/options.py/species.py into
 # the World subclass Archipelago's worlds.AutoWorld plugin loader
 # instantiates.
@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 import sys
 from typing import Any, ClassVar
@@ -21,7 +23,7 @@ from typing import Any, ClassVar
 # Every sibling module uses plain, absolute imports so they stay
 # importable as flat top-level modules for their own standalone unit
 # tests. Once this file is loaded by Archipelago as
-# worlds.pokemon_hgss, those absolute imports would otherwise raise
+# worlds.poke_hgss, those absolute imports would otherwise raise
 # ImportError -- bootstrapping this directory onto sys.path first fixes
 # that. Regenerating data/ here (if missing, dev checkout only) avoids a
 # pytest collection race; see NOTES.md for the two fix attempts that
@@ -299,16 +301,18 @@ class HeartGoldSettings(settings.Group):
 # effect before test fixtures get a chance to; AutoWorldRegister.__new__
 # refuses a second registration of the same game name. Drop any prior
 # registration first -- a no-op for a real Archipelago load. See NOTES.md.
-AutoWorldRegister.world_types.pop("Pokemon HGSS", None)
+AutoWorldRegister.world_types.pop("Pokemon HGSS Singe", None)
 
 
 class HeartGoldWorld(World):
     """Pokemon HeartGold & SoulSilver -- registered game name "Pokemon
-    HGSS" (renamed 2026-08-15 from "Pokemon HeartGold" now that both
-    versions are equally first-class; see docs/architecture.md's
-    "SoulSilver support" entry)."""
+    HGSS Singe" (renamed 2026-08-15 from "Pokemon HeartGold" now that both
+    versions are equally first-class, see docs/architecture.md's
+    "SoulSilver support" entry; renamed again for v0.2.5 because another
+    HGSS apworld already registers "Pokemon HGSS", and Archipelago refuses
+    two worlds with the same game name)."""
 
-    game = "Pokemon HGSS"
+    game = "Pokemon HGSS Singe"
     web = HeartGoldWebWorld()
     topology_present = True
 
@@ -334,6 +338,22 @@ class HeartGoldWorld(World):
         super().__init__(*args, **kwargs)
         # Set by UT on the MultiWorld it re-generates with; absent otherwise.
         self.is_universal_tracker = getattr(self.multiworld, "generation_is_fake", False)
+
+    @property
+    def slot_auth(self) -> bytes:
+        """16 bytes stamped into this slot's ROM so the client logs in on
+        its own (rom/worldsignature.py). Derived from the seed name and the
+        slot number rather than drawn from self.random, so it consumes no
+        randomness and is ready before generate_output and the multidata
+        writer, which Archipelago runs concurrently."""
+        digest = hashlib.sha256(f"poke_hgss:{self.multiworld.seed_name}:{self.player}".encode()).digest()
+        return digest[:16]
+
+    def modify_multidata(self, multidata: dict[str, Any]) -> None:
+        # base64 of 16 bytes is 24 characters, longer than any slot name
+        # (16 max), so it can never collide with a real one.
+        connect_names = multidata["connect_names"]
+        connect_names[base64.b64encode(self.slot_auth).decode("ascii")] = connect_names[self.player_name]
 
     @property
     def ut_slot_data(self) -> dict[str, Any]:

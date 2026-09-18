@@ -3512,7 +3512,7 @@ x = 1393
 z = 292
 
 [route_12_calcium]
-region = 'route_12'
+region = 'route_12_cut_pocket'
 type = 'ground_item'
 original_item = 'calcium'
 id = 1228
@@ -3520,7 +3520,7 @@ x = 1410
 z = 332
 
 [route_12_yellow_flute]
-region = 'route_12'
+region = 'route_12_flute_pocket'
 type = 'ground_item'
 original_item = 'yellow_flute'
 id = 1229
@@ -4064,7 +4064,7 @@ x = 1371
 z = 292
 
 [route_12_elixir]
-region = 'route_12'
+region = 'route_12_elixir_islet'
 type = 'hidden_item'
 original_item = 'elixir'
 id = 112
@@ -4651,7 +4651,7 @@ id = 305
 label = 'Route 5 House - Cleanse Tag from Grandma'
 
 [route_14_lucky_punch]
-region = 'route_14'
+region = 'route_14_grass'
 type = 'npc_gift'
 original_item = 'lucky_punch'
 id = 348
@@ -4953,30 +4953,85 @@ event = 'expansion_card_obtained'
 id = 8
 label = 'Lavender Radio Station - EXPN Card obtained'
 
-# The two wing monks (verrous A7 and D12). Neither one checks the bag: the
-# Bell Tower 1F monk runs `GoToIfSet FLAG_UNK_093`
-# (scr_seq_0019_D17R0101.s:69), the Whirl Islands B2F monk runs
-# `GoToIfSet FLAG_UNK_094` (scr_seq_0103_D40R0104.s:40/49). Those flags are
-# only set by the vanilla handover scripts, so a wing received from the
-# multiworld opens nothing: what the monk needs is the handover itself.
-# Each event therefore sits in the exact same region as the wing location
-# whose flag it mirrors, `soulsilver_region` included (see
-# goldenrod_radio_tower_observation_deck_rainbow_wing above).
-[rainbow_wing_handed_over_event]
-region = 'goldenrod_radio_tower_observation_deck'
-soulsilver_region = 'pewter'
-type = 'event'
-event = 'rainbow_wing_handed_over'
-id = 9
-label = 'Rainbow Wing handed over'
+# The two wing monks (verrous A7 and D12) used to be gated on the wing
+# handover events that stood here. Since v0.2.5 each monk tests a flag the
+# client sets once the wing ITEM is received (rom/wingmonkdata.py), so
+# data_gen/rules.toml requires the items and those two events are gone.
 
-[silver_wing_handed_over_event]
-region = 'pewter'
-soulsilver_region = 'goldenrod_radio_tower_observation_deck'
+# Kanto Leaders (2026-09-17). Every Kanto Leader's win branch runs
+# `AddVar VAR_UNK_4135, 1` next to the `GiveBadge` that
+# rom/badgedata.py neutralizes (8 sites in scr_seq/*.s), so that counter
+# counts Leaders beaten, not badge items held. Blue's Cinnabar scene
+# (verrou D9), the Vermilion PP Max and Oak's HM08 all read it or a var set
+# in the same branch, hence one event per Leader, in the Leader's own gym
+# region.
+
+[brock_defeated_event]
+region = 'pewter_gym'
 type = 'event'
-event = 'silver_wing_handed_over'
-id = 10
-label = 'Silver Wing handed over'
+event = 'brock_defeated'
+id = 11
+label = 'Pewter Gym - Brock defeated'
+
+[misty_defeated_event]
+region = 'cerulean_gym'
+type = 'event'
+event = 'misty_defeated'
+id = 12
+label = 'Cerulean Gym - Misty defeated'
+
+[lt_surge_defeated_event]
+region = 'vermilion_gym'
+type = 'event'
+event = 'lt_surge_defeated'
+id = 13
+label = 'Vermilion Gym - Lt. Surge defeated'
+
+[erika_defeated_event]
+region = 'celadon_gym'
+type = 'event'
+event = 'erika_defeated'
+id = 14
+label = 'Celadon Gym - Erika defeated'
+
+[janine_defeated_event]
+region = 'fuchsia_gym'
+type = 'event'
+event = 'janine_defeated'
+id = 15
+label = 'Fuchsia Gym - Janine defeated'
+
+[sabrina_defeated_event]
+region = 'saffron_gym'
+type = 'event'
+event = 'sabrina_defeated'
+id = 16
+label = 'Saffron Gym - Sabrina defeated'
+
+[blaine_defeated_event]
+region = 'seafoam_islands_cinnabar_gym'
+type = 'event'
+event = 'blaine_defeated'
+id = 17
+label = 'Seafoam Gym - Blaine defeated'
+
+[blue_defeated_event]
+region = 'viridian_gym'
+type = 'event'
+event = 'blue_defeated'
+id = 18
+label = 'Viridian Gym - Blue defeated'
+
+
+# Blue waits on Cinnabar Island and only opens the Viridian Gym when talked
+# to there with VAR_UNK_4135 >= 7 (scr_seq_0815_T09.s:109-110). Reaching
+# the island is modeled by this event; the Leader count by the eight above.
+[cinnabar_blue_met_event]
+region = 'cinnabar_island'
+type = 'event'
+event = 'cinnabar_blue_met'
+id = 19
+label = 'Cinnabar Island - Blue met'
 
 # type = 'trainer' (task M3.3, Trainersanity): one real, fillable AP location
 # per std_trainer(...) trainer-battle person-event object found in every

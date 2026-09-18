@@ -500,13 +500,9 @@ class DexsanityEncounterTypes(OptionSet):
     behavior). Turn a method off if you don't want, say, fishing to be
     required to finish the Pokédex.
 
-    "headbutt" currently grants nothing on its own: this randomizer does
-    not write the Headbutt-tree encounter tables into the ROM, so a
-    Headbutt-only species is never actually placed anywhere and gets no
-    check regardless of this setting (fixed 2026-08-22, see docs/scope.md
-    -- those checks used to exist and were impossible). It stays a valid
-    key so that YAMLs keep working and so it starts counting again by
-    itself the day Headbutt tables are patched.
+    "headbutt" covers the Pokemon found by using Headbutt on trees. The
+    logic expects you to have reached the Headbutt tutor in Ilex Forest
+    first, since the move has no TM in this game.
 
     Ignored when `dexsanity` is off.
     """
@@ -567,6 +563,27 @@ class FastTextSpeed(Toggle):
     other setting. Off by default (vanilla behavior unchanged)."""
 
     display_name = "Fast Text Speed"
+
+
+class GlobalExpShare(Toggle):
+    """Every Pokemon in your party gains Exp. after a battle, as in the
+    modern games: the Pokemon that took part split the full amount as
+    usual, and every other party member gets half of it. Fainted Pokemon
+    and Eggs get nothing. A held Exp. Share no longer changes anything.
+    Off by default (vanilla behavior: only an Exp. Share holder shares)."""
+
+    display_name = "Global Exp. Share"
+
+
+class ExpMultiplier(Range):
+    """Multiplies all Exp. gained in battle, in percent. 100 is vanilla,
+    200 doubles it, 50 halves it. Applied before the Lucky Egg, trainer
+    battle and traded Pokemon bonuses."""
+
+    display_name = "Exp. Multiplier"
+    range_start = 10
+    range_end = 1000
+    default = 100
 
 
 class SkipBattleAnimations(Toggle):
@@ -658,6 +675,8 @@ class HeartGoldOptions(PerGameCommonOptions):
     disable_trapping_abilities: DisableTrappingAbilities
 
     fast_text_speed: FastTextSpeed
+    global_exp_share: GlobalExpShare
+    exp_multiplier: ExpMultiplier
     skip_battle_animations: SkipBattleAnimations
     reusable_tms: ReusableTms
     convert_trade_evolutions: ConvertTradeEvolutions
@@ -717,7 +736,15 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Quality of Life",
-        [FastTextSpeed, SkipBattleAnimations, ReusableTms, ConvertTradeEvolutions, TradeEvolutionLevel],
+        [
+            FastTextSpeed,
+            GlobalExpShare,
+            ExpMultiplier,
+            SkipBattleAnimations,
+            ReusableTms,
+            ConvertTradeEvolutions,
+            TradeEvolutionLevel,
+        ],
     ),
     OptionGroup(
         "DeathLink",

@@ -29,6 +29,7 @@ from rom import HeartGoldRom
 from rom import badgedata as rom_badgedata
 from rom import badgegatedata as rom_badgegatedata
 from rom import encounterdata as rom_encounterdata
+from rom import expshare as rom_expshare
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
 from rom import evodata as rom_evodata
@@ -43,6 +44,7 @@ from rom import starterdata as rom_starterdata
 from rom import tmhmdata as rom_tmhmdata
 from rom import trainerdata as rom_trainerdata
 from rom import typechart as rom_typechart
+from rom import wingmonkdata as rom_wingmonkdata
 
 ROOT = Path(__file__).resolve().parent
 PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
@@ -261,6 +263,26 @@ PLACEHOLDER_ITEM_INDEF_TEXT = "an Item sent to another player"
 PLACEHOLDER_ITEM_PLURAL_TEXT = "Items sent to another player"
 
 
+def apply_wing_monk_regate(rom: HeartGoldRom) -> None:
+    """The Bell Tower and Whirl Islands monks test a flag client.py sets
+    once the wing item is received (rom/wingmonkdata.py). Unconditional."""
+    rom_wingmonkdata.write_wing_monk_regate(rom)
+
+
+def apply_exp_settings(rom: HeartGoldRom, global_exp_share: bool, multiplier: int) -> None:
+    """global_exp_share / exp_multiplier: patch the battle engine's Exp.
+    code in overlay 12 (see rom/expshare.py and patches/exp_share.s). A
+    no-op for the vanilla settings, so the overlay is only rewritten when
+    something actually changes. Overlay 12 is also where rom/typechart.py
+    writes, so this reads the overlay fresh rather than caching it."""
+    if rom_expshare.is_vanilla_setting(global_exp_share, multiplier):
+        return
+    data = rom.read_overlay(rom_expshare.OVERLAY_ID)
+    rom.write_overlay(
+        rom_expshare.OVERLAY_ID, rom_expshare.patch_overlay_data(data, global_exp_share, multiplier)
+    )
+
+
 def apply_npc_gift_duplication_gate_fix(rom: HeartGoldRom) -> None:
     """Patch every known NPC script whose own vanilla gate tests possession
     of the original, pre-substitution item (see rom/npcgiftgatedata.py) -- unconditional, like apply_badge_
@@ -464,6 +486,7 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
         if not rom_encounterdata.zone_is_written(zone_key):
             continue
         rom_encounterdata.write_zone_encounters(rom, zone_key, zone)
+    rom_encounterdata.write_headbutt_tables(rom, encounters)
 
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:

@@ -141,11 +141,11 @@ def _write_slot_array_species(
 # 59 of a `zone_method_mapping` seed's ~460 Dexsanity locations were for
 # species that appear nowhere in the produced ROM. See docs/scope.md.
 #
-# Adding headbutt-table writing to write_zone_encounters below is the only
-# change needed to make headbutt species count again: add "headbutt" here
-# and Dexsanity picks it up with no other edit anywhere.
+# Headbutt tables are written too since v0.2.5 (write_headbutt_tables
+# below), from their own NARC and keyed by their own index, so the
+# per-method answer lives in zone_method_is_written.
 WRITTEN_ENCOUNTER_METHODS = frozenset(
-    {"land", "surf", "rock_smash", "old_rod", "good_rod", "super_rod"}
+    {"land", "surf", "rock_smash", "old_rod", "good_rod", "super_rod", "headbutt"}
 )
 
 
@@ -163,16 +163,16 @@ def zone_method_is_written(zone_key: str, method: str) -> bool:
     """Whether a species placed in `zone_key`'s `method` table (a
     species.py encounter-method name) actually ends up in the patched
     ROM."""
+    if method == "headbutt":
+        return zone_key in HEADBUTT_ZONE_KEY_TO_MEMBER
     return method in WRITTEN_ENCOUNTER_METHODS and zone_is_written(zone_key)
 
 
 def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     """Overwrite one zone's species fields in place (land morn/day/nite,
     surf, rock_smash, and old/good/super rod fishing), leaving every
-    rate/level byte untouched. Headbutt encounters are not covered --
-    WRITTEN_ENCOUNTER_METHODS above is the machine-readable statement of
-    exactly that, and every caller that needs to know must ask it rather
-    than re-deriving the list."""
+    rate/level byte untouched. Headbutt tables live in their own NARC and
+    are written by write_headbutt_tables below."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
@@ -213,3 +213,94 @@ def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     )
 
     write_entry(rom, raw_index, bytes(entry))
+
+
+# --- Headbutt trees (v0.2.5) -------------------------------------------------
+#
+# NitroFS a/2/5/2 (decomp files/arc/headbutt.json, NARC_arc_headbutt), one
+# member per map id, read by src/field/headbutt.c with the player's current
+# map id. Same file name for both versions: unlike g_enc/s_enc, the version
+# difference is baked into each ROM's own copy (headbutt.json.txt's
+# #ifdef HEARTGOLD), so the path is the same and the contents differ.
+#
+# Member layout (include/field/headbutt.h, HeadbuttEncounterData): u16
+# regular tree count, u16 secret tree count, then three 6-slot tables
+# (common, rare, secret) of HeadbuttSlot {u16 species; u8 min; u8 max;},
+# then the tree coordinates. Only the species words are rewritten.
+#
+# Which table a regular tree uses depends on the last digit of the trainer
+# id (headbutt.c's sRareTreeLUT_*). With a single regular tree some ids get
+# only the common table and others only the rare one, but every map listed
+# here has at least 2 regular trees, and for 2 or more every id reaches
+# both tables, so every slot below is catchable whatever the save's id
+# (asserted against the real ROMs in tests/test_encounters_headbutt.py).
+# Secret trees always use the secret table.
+#
+# Keys are data/encounters.py zone keys, values the member index (= map
+# id). D47 (the one map with trees that data_gen does not extract) is left
+# vanilla.
+HEADBUTT_NITROFS_PATH = "a/2/5/2"
+HEADBUTT_SLOTS_PER_TABLE = 6
+_HEADBUTT_HEADER_SIZE = 4
+_HEADBUTT_SLOT_SIZE = 4
+_HEADBUTT_TIERS = ("common", "rare", "secret")
+
+HEADBUTT_ZONE_KEY_TO_MEMBER: dict[str, int] = {
+    "azalea": 74, "celadon": 55, "cerulean": 52, "cherrygrove": 67,
+    "ecruteak": 78, "fuchsia": 56, "ilex_forest": 117, "lake_of_rage": 88,
+    "mount_silver": 90, "mount_silver_cave_lower_mountainside": 460,
+    "national_park": 96, "new_bark": 60, "pallet": 49, "pewter": 51,
+    "route_1": 9, "route_11": 19, "route_12": 20, "route_13": 21,
+    "route_14": 22, "route_15": 23, "route_16": 24, "route_16_east": 422,
+    "route_18": 26, "route_2": 10, "route_21": 93, "route_22": 27,
+    "route_25": 29, "route_26": 30, "route_27": 31, "route_28": 32,
+    "route_29": 33, "route_2_east": 414, "route_3": 11, "route_30": 34,
+    "route_31": 35, "route_32": 36, "route_33": 37, "route_34": 38,
+    "route_35": 39, "route_36": 40, "route_37": 41, "route_38": 42,
+    "route_39": 43, "route_4": 12, "route_42": 44, "route_43": 45,
+    "route_44": 46, "route_45": 47, "route_46": 48, "route_47": 151,
+    "route_48": 152, "route_5": 13, "route_6": 14, "route_7": 15,
+    "route_8": 16, "vermilion": 54, "violet": 73, "viridian": 50,
+    "viridian_forest": 147,
+}
+
+
+def headbutt_tree_counts(member: bytes) -> tuple[int, int]:
+    """(regular, secret) tree counts of one raw headbutt member."""
+    regular, secret = struct.unpack_from("<HH", member, 0)
+    return regular, secret
+
+
+def _headbutt_species_offset(tier_index: int, slot_index: int) -> int:
+    return _HEADBUTT_HEADER_SIZE + (tier_index * HEADBUTT_SLOTS_PER_TABLE + slot_index) * _HEADBUTT_SLOT_SIZE
+
+
+def write_headbutt_tables(rom: HeartGoldRom, encounters: dict) -> None:
+    """Overwrite the species of every headbutt table in `encounters`
+    (species.py output, zones without a "headbutt" entry skipped), levels
+    and tree coordinates untouched. One NARC read and one write in total."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    narc = rom.read_narc(HEADBUTT_NITROFS_PATH)
+    for zone_key, zone in encounters.items():
+        headbutt = zone.get("headbutt")
+        if headbutt is None or zone_key not in HEADBUTT_ZONE_KEY_TO_MEMBER:
+            continue
+        index = HEADBUTT_ZONE_KEY_TO_MEMBER[zone_key]
+        member = bytearray(narc.files[index])
+        regular, secret = headbutt_tree_counts(member)
+        if regular == 0 and secret == 0:
+            raise ValueError(f"headbutt member {index} ({zone_key}) has no trees, refusing to write it")
+        for tier_index, tier in enumerate(_HEADBUTT_TIERS):
+            slots = headbutt[tier]
+            if len(slots) > HEADBUTT_SLOTS_PER_TABLE:
+                raise ValueError(f"{zone_key} headbutt {tier}: {len(slots)} slots, at most {HEADBUTT_SLOTS_PER_TABLE}")
+            for slot_index, slot in enumerate(slots):
+                struct.pack_into(
+                    "<H",
+                    member,
+                    _headbutt_species_offset(tier_index, slot_index),
+                    SPECIES_KEY_TO_RAW_INDEX[slot["species"]],
+                )
+        narc.files[index] = bytes(member)
+    rom.write_narc(HEADBUTT_NITROFS_PATH, narc)

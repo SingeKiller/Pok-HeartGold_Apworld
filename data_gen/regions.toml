@@ -2764,9 +2764,42 @@ exits = [
 map_code = 'R12'
 exits = [
     'lavender',
+    'route_12_cut_pocket',
+    'route_12_elixir_islet',
     'route_12_fishing_brother_house',
+    'route_12_flute_pocket',
     'route_13',
     'route_19_route_12_gatehouse',
+]
+
+# Three patches of R12 that the pier does not reach on foot (2026-09-17,
+# read from the real HeartGold ROM's land_data: terrain attributes at
+# 0x14 + the u16 extra-section length stored at 0x12, which is 0x88 for
+# these blocks, not a fixed 0x14). `route_12` itself is the pier, walkable
+# from Lavender all the way to Route 13 and to the Route 11 gatehouse
+# (user-verified on the map). Crossings are in data_gen/rules.toml.
+#   - cut_pocket (x 1410-1413, z 332-334, Calcium): its only link to the
+#     pier is row 334, closed by the cuttable tree at (1414, 334).
+#   - flute_pocket (x 1410-1417, z 346-348, Yellow Flute): water on the
+#     pier side, and the cuttable tree at (1414, 348) inside it.
+#   - elixir_islet (x 1415-1417, z 302, hidden Elixir): walls on three
+#     sides, water on the fourth.
+[route_12_cut_pocket]
+map_code = 'R12'
+exits = [
+    'route_12',
+]
+
+[route_12_flute_pocket]
+map_code = 'R12'
+exits = [
+    'route_12',
+]
+
+[route_12_elixir_islet]
+map_code = 'R12'
+exits = [
+    'route_12',
 ]
 
 [route_12_fishing_brother_house]
@@ -2786,7 +2819,21 @@ exits = [
 map_code = 'R14'
 exits = [
     'route_13',
+    'route_14_grass',
     'route_15',
+]
+
+# Route 14's only tall grass (x 1345-1350, z 385-390), with the Lucky Punch
+# woman in it, is closed off by the cuttable tree at (1345, 391): read from
+# the real HeartGold and SoulSilver ROMs' land_data on 2026-09-17 (same
+# method as [route_12]). The rest of the route, west strip included, is
+# walkable from both Route 13 and Route 15. Route 14's wild land encounters
+# are therefore behind Cut too (locations.py's
+# DEXSANITY_ZONE_METHOD_REGIONS).
+[route_14_grass]
+map_code = 'R14'
+exits = [
+    'route_14',
 ]
 
 # Route 15's half of the fourteen-pair gatehouse sweep (see

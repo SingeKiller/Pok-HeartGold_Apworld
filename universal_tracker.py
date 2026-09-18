@@ -54,6 +54,8 @@ TRACKED_OPTION_NAMES = (
     # (locations.POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS) and which
     # edges need `power_plant_restored`.
     "magnet_train",
+    # Location rules the PopTracker pack reproduces (tracker/, v0.2.5).
+    "hidden_items_require_dowsing_machine",
 )
 
 # Nested rather than written flat: slot data's top-level "game_version" is

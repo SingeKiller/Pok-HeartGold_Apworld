@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """build.py
 
-Pure-Python fallback to build the Pokemon HGSS `.apworld` on platforms
+Pure-Python fallback to build the Pokemon HGSS Singe `.apworld` on platforms
 without `make` (e.g. plain Windows). Produces a `<module>.apworld` zip at
 the repository root, packaged from the paths whitelisted in `.apignore`,
 plus `archipelago.json` as the manifest.
@@ -29,10 +29,15 @@ APIGNORE_PATH = ROOT / ".apignore"
 MANIFEST_PATH = ROOT / "archipelago.json"
 
 
+# Fixed rather than derived from archipelago.json's "game" (v0.2.5): the
+# game name is "Pokemon HGSS Singe" but the package is published as
+# poke_hgss.apworld. Must match the CI's WORLD_MODULE.
+MODULE_NAME = "poke_hgss"
+
+
 def module_name() -> str:
-    """Derive the apworld module/folder name from archipelago.json's "game"."""
-    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    return manifest["game"].lower().replace(" ", "_").replace("&", "and")
+    """The apworld module/folder name (see MODULE_NAME)."""
+    return MODULE_NAME
 
 
 def whitelisted_paths() -> list[Path]:

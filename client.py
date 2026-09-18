@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import base64
+import logging
 import os
 import struct
 from typing import TYPE_CHECKING
@@ -38,6 +40,13 @@ from rom.startlocation import (
     REVOCATION_RECORD_ROM_OFFSET,
     REVOCATION_RECORD_SIZE,
     parse_revocation_record,
+)
+from rom.worldsignature import (
+    SLOT_AUTH_ROM_OFFSET,
+    SLOT_AUTH_SIZE,
+    WORLD_SIGNATURE_ROM_OFFSET,
+    WORLD_SIGNATURE_SIZE,
+    has_world_signature,
 )
 from save_layout import (
     BAG_POCKET_OFFSETS,
@@ -616,6 +625,37 @@ _VAR_RED_DEFEATED = 0x40FD  # VAR_UNK_40FD
 # run of Bag read/write RPC round trips can take.
 _MAX_ITEMS_APPLIED_PER_TICK = 20
 
+# Consecutive failed Bag writes before the save data addresses are
+# re-located from scratch (v0.2.5). A player report (k0p1, 2026-09-17):
+# badges kept arriving but Bag items did not until a reset, which is what a
+# stale Bag address looks like -- the reset forced a fresh scan. A failed
+# guarded write is otherwise treated as transient and retried forever.
+_BAG_WRITE_FAILURES_BEFORE_RELOCATE = 3
+
+# Wing item -> the flag its monk tests since v0.2.5 (rom/wingmonkdata.py).
+_WING_PASS_FLAGS = {"rainbow_wing": 0xB5B, "silver_wing": 0xB5C}
+# Per version: (the wing the Pewter old man hands over, the hide flag of
+# the legendary that handover reveals, that legendary's caught flag).
+# include/constants/flags.h: FLAG_HIDE_BELL_TOWER_HO_OH 0x242,
+# FLAG_HIDE_WHIRL_ISLAND_LUGIA 0x243, FLAG_CAUGHT_HO_OH 0x116,
+# FLAG_CAUGHT_LUGIA 0x117.
+_PEWTER_WING_LEGENDARY = {
+    "heartgold": ("silver_wing", 0x243, 0x117),
+    "soulsilver": ("rainbow_wing", 0x242, 0x116),
+}
+
+
+def _pocket_looks_plausible(pocket_bytes: bytes) -> bool:
+    """Every slot is empty or a real item id with a sane quantity. A pocket
+    read that fails this is not a full pocket, it is the wrong address."""
+    for offset in range(0, len(pocket_bytes), 4):
+        item_id, quantity = struct.unpack_from("<HH", pocket_bytes, offset)
+        if item_id == 0:
+            continue
+        if not (1 <= item_id <= _MAX_PLAUSIBLE_ITEM_ID and quantity <= _MAX_PLAUSIBLE_ITEM_QUANTITY):
+            return False
+    return True
+
 
 # -- Item id <-> Bag pocket mapping ------------------------------------------
 
@@ -795,13 +835,72 @@ _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_NORMAL = build_locally_substituted_ap_locat
 _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_REMOTE = build_locally_substituted_ap_location_ids(remote_items=True)
 
 
+logger = logging.getLogger("Client")
+
+
+def _item_display_name(ctx, item_id: int) -> str:
+    try:
+        return ctx.item_names.lookup_in_game(item_id)
+    except Exception:  # noqa: BLE001 -- only used for log text
+        return f"item {item_id}"
+
+
+def cmd_pending(self) -> None:
+    """List the items the server sent that are not in your game yet."""
+    ctx = self.ctx
+    handler = ctx.client_handler
+    if ctx.game != HeartGoldClient.game or not isinstance(handler, HeartGoldClient):
+        logger.warning("This command only works while playing Pokemon HGSS Singe.")
+        return
+    if not ctx.server or not ctx.slot:
+        logger.warning("Connect to the server first.")
+        return
+    pending = handler.pending_item_indices(ctx)
+    if not pending:
+        logger.info(f"All {len(ctx.items_received)} received items are in your game.")
+        return
+    names = [_item_display_name(ctx, ctx.items_received[index].item) for index in pending]
+    logger.info(f"{len(pending)} received item(s) not in your game yet: " + ", ".join(names))
+    logger.info(
+        "If this list does not shrink within a few seconds, close any open menu. "
+        "A full Bag pocket also holds its items back until you make room."
+    )
+
+
+def cmd_restore_power(self) -> None:
+    """Repair the Kanto Power Plant in your save (Magnet Train fallback)."""
+    ctx = self.ctx
+    if ctx.game != HeartGoldClient.game or not isinstance(ctx.client_handler, HeartGoldClient):
+        logger.warning("This command only works while playing Pokemon HGSS Singe.")
+        return
+    if not ctx.server or not ctx.slot:
+        logger.warning("Connect to the server first.")
+        return
+    ctx.client_handler._power_restore_requested = True
+    logger.info(
+        "Restoring the Kanto Power Plant: the Magnet Train will run once you hold the Pass. "
+        "Save in-game afterwards to keep it."
+    )
+    if not bool(ctx.slot_data.get("magnet_train", False)):
+        # The broken-plant scene is what hands over TM57 (see
+        # locations.POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS).
+        logger.warning(
+            "magnet_train is off in this seed: the Power Plant manager's TM57 check can no longer "
+            "be collected. Ask the host to /send_location it if needed."
+        )
+
+
+# game_watcher ticks (watcher_timeout 1 s) without a server before warning.
+_OFFLINE_WARNING_TICKS = 5
+
+
 class HeartGoldClient(BizHawkClient):
-    game = "Pokemon HGSS"
+    game = "Pokemon HGSS Singe"
     system = "NDS"
     # Must match output_patch.HeartGoldProcedurePatch.patch_file_ending --
     # this is what makes the Launcher's "Open Patch" dialog recognize a
-    # real .apheartgold file.
-    patch_suffix = ".apheartgold"
+    # real .appokehgss file.
+    patch_suffix = ".appokehgss"
 
     local_checked_locations: set[int]
     _pending_check_batch: set[int] | None
@@ -849,16 +948,54 @@ class HeartGoldClient(BizHawkClient):
         self._pending_trainer_id = None
         self._start_location_revocation_target = None
         self._start_location_revocation_probed = False
+        self._offline_ticks = 0
         self._reset_save_scoped_progress()
+
+    def _warn_if_offline(self, ctx: BizHawkClientContext) -> None:
+        """The slot name comes from the ROM, but the server address cannot
+        (it is not known when the ROM is generated): a player who never
+        types it plays with no check ever reaching the server. Say so once,
+        a few seconds after the emulator link is up without a server."""
+        self._offline_ticks += 1
+        if self._offline_ticks == _OFFLINE_WARNING_TICKS:
+            logger.warning(
+                "Connected to the emulator, but not to an Archipelago server: your checks are not being sent. "
+                "Enter the server address at the top of this window (or /connect <address>). "
+                "The slot name is read from your ROM."
+            )
+
+    async def set_auth(self, ctx: BizHawkClientContext) -> None:
+        """Log in with the slot auth the patcher stamped into the ROM
+        (rom/worldsignature.py), so the player never has to type a slot
+        name. Left unset (the framework then asks) if the read fails or the
+        field is empty."""
+        try:
+            raw = (await bizhawk.read(ctx.bizhawk_ctx, [(SLOT_AUTH_ROM_OFFSET, SLOT_AUTH_SIZE, "ROM")]))[0]
+        except bizhawk.RequestFailedError:
+            return
+        if any(raw):
+            ctx.auth = base64.b64encode(bytes(raw)).decode("ascii")
 
     async def validate_rom(self, ctx: BizHawkClientContext) -> bool:
         try:
-            id_code = (await bizhawk.read(ctx.bizhawk_ctx, [(0x0C, 4, "ROM")]))[0]
+            id_code, signature = await bizhawk.read(
+                ctx.bizhawk_ctx,
+                [(0x0C, 4, "ROM"), (WORLD_SIGNATURE_ROM_OFFSET, WORLD_SIGNATURE_SIZE, "ROM")],
+            )
         except bizhawk.RequestFailedError:
             return False
 
         if bytes(id_code) not in (HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE):
             return False
+        if not has_world_signature(bytes(signature)):
+            # An unpatched ROM, or one patched by another HGSS world (see
+            # rom/worldsignature.py): leave it to whichever handler owns it.
+            return False
+
+        if "restore_power" not in ctx.command_processor.commands:
+            ctx.command_processor.commands["restore_power"] = cmd_restore_power
+        if "pending" not in ctx.command_processor.commands:
+            ctx.command_processor.commands["pending"] = cmd_pending
 
         ctx.game = self.game
         ctx.items_handling = 0b111  # locations + remote items + start inventory
@@ -886,6 +1023,7 @@ class HeartGoldClient(BizHawkClient):
         # this method has just (re-)identified.
         self._start_location_revocation_target = None
         self._start_location_revocation_probed = False
+        self._offline_ticks = 0
         self._reset_save_scoped_progress()
 
         return True
@@ -932,6 +1070,9 @@ class HeartGoldClient(BizHawkClient):
         to the *connection*, not to the save file."""
         self._applied_item_count = 0
         self._delivered_ahead = set()
+        self._reported_stuck_items: set[int] = set()
+        self._bag_write_failures = 0
+        self._power_restore_requested = False
         self._starting_money_applied = False
         self._qol_applied = False
         self._known_tm_quantities = None
@@ -1346,8 +1487,14 @@ class HeartGoldClient(BizHawkClient):
         so once it reads set, whether from this write or from a real
         repair, the method stops at its first read. The two chain vars are
         each checked for 0 so a save that already progressed is left
-        alone. One guarded write, retried next tick on any mismatch."""
-        if not bool(ctx.slot_data.get("magnet_train", False)):
+        alone. One guarded write, retried next tick on any mismatch.
+
+        Also runs with magnet_train off once the player has typed
+        /restore_power (cmd_restore_power): a manual way out for a save
+        where the real repair cannot be reached. The request is save-scoped
+        (_reset_save_scoped_progress drops it) and needs no bookkeeping of
+        its own either, since FLAG_RESTORED_POWER ends it the same way."""
+        if not (bool(ctx.slot_data.get("magnet_train", False)) or self._power_restore_requested):
             return
         if self.flags_array_address is None:
             return
@@ -1409,6 +1556,54 @@ class HeartGoldClient(BizHawkClient):
                 guards.append((flags_address + byte_index, bytes([old]), "ARM9 System Bus"))
 
         await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+
+    async def _apply_wing_passes(self, ctx: BizHawkClientContext) -> None:
+        """The monks test RAINBOW_WING_PASS_FLAG / SILVER_WING_PASS_FLAG
+        (rom/wingmonkdata.py): set each one once its wing item has been
+        received. The Pewter-side wing (Silver in HeartGold, Rainbow in
+        SoulSilver) also makes the other version's legendary appear in
+        vanilla (scr_seq_0750_T03.s:66/:72, `ClearFlag FLAG_HIDE_...`), so
+        that hide flag is cleared in the same write, unless it was caught.
+        State-driven: the pass flag is the latch, so each wing is handled
+        once per save. Waits for FLAG_GOT_STARTER, like
+        _apply_power_plant_prerestored, so the new-game init script cannot
+        set the hide flag back afterwards."""
+        if self.flags_array_address is None:
+            return
+        received = {item.item for item in ctx.items_received}
+        wanted = [
+            (key, flag) for key, flag in _WING_PASS_FLAGS.items()
+            if HEARTGOLD_ITEM_ID_BASE + ITEMS[key]["id"] in received
+        ]
+        if not wanted:
+            return
+        flags_address = self.flags_array_address
+        flags = bytes((await bizhawk.read(ctx.bizhawk_ctx, [(flags_address, FLAGS_ARRAY_SIZE, "ARM9 System Bus")]))[0])
+
+        def is_set(flag_id: int) -> bool:
+            byte_index, bit_index = flag_byte_and_bit(flag_id)
+            return bool(flags[byte_index] & (1 << bit_index))
+
+        if not is_set(_START_LOCATION_FLAG_GOT_STARTER):
+            return
+        soulsilver = (ctx.slot_data.get("options") or {}).get("game_version") == 1
+        pewter_wing, hide_flag, caught_flag = _PEWTER_WING_LEGENDARY["soulsilver" if soulsilver else "heartgold"]
+        new_flags = bytearray(flags)
+        for key, pass_flag in wanted:
+            if is_set(pass_flag):
+                continue
+            byte_index, bit_index = flag_byte_and_bit(pass_flag)
+            new_flags[byte_index] |= 1 << bit_index
+            if key == pewter_wing and not is_set(caught_flag):
+                byte_index, bit_index = flag_byte_and_bit(hide_flag)
+                new_flags[byte_index] &= ~(1 << bit_index) & 0xFF
+        writes, guards = [], []
+        for byte_index, (old, new) in enumerate(zip(flags, new_flags)):
+            if old != new:
+                writes.append((flags_address + byte_index, bytes([new]), "ARM9 System Bus"))
+                guards.append((flags_address + byte_index, bytes([old]), "ARM9 System Bus"))
+        if writes:
+            await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
 
     async def _restore_reusable_tms(self, ctx: BizHawkClientContext) -> None:
         """Reusable TMs: no ROM patch (see NOTES.md for why the ARM hook
@@ -1553,7 +1748,11 @@ class HeartGoldClient(BizHawkClient):
             await bizhawk.write(ctx.bizhawk_ctx, writes)
 
     async def game_watcher(self, ctx: BizHawkClientContext) -> None:
-        if ctx.server is None or ctx.server.socket.closed or ctx.slot_data is None:
+        if ctx.server is None or ctx.server.socket.closed:
+            self._warn_if_offline(ctx)
+            return
+        self._offline_ticks = 0
+        if ctx.slot_data is None:
             return
 
         try:
@@ -1632,6 +1831,7 @@ class HeartGoldClient(BizHawkClient):
             await self._revoke_start_location_redirect(ctx)
             await self._apply_start_location_blackout_spawn(ctx)
             await self._apply_power_plant_prerestored(ctx)
+            await self._apply_wing_passes(ctx)
             await self._restore_reusable_tms(ctx)
             await self._update_death_link_tag(ctx)
             await self._send_death_link_on_faint(ctx)
@@ -1846,6 +2046,17 @@ class HeartGoldClient(BizHawkClient):
         self._delivered_ahead |= _indices_from_mask(int(ctx.stored_data.get(delivered_ahead_key, 0) or 0))
         self._compact_delivery_progress()
 
+    def pending_item_indices(self, ctx: BizHawkClientContext) -> list[int]:
+        """items_received indices not delivered yet, for /pending. Items
+        this client never writes (own-world items the ROM already hands
+        out, unknown ids) are counted as delivered by _apply_received_items
+        on its next tick, so they only show up here briefly."""
+        return [
+            index
+            for index in range(self._applied_item_count, len(ctx.items_received))
+            if index not in self._delivered_ahead
+        ]
+
     def _compact_delivery_progress(self) -> None:
         """Fold every _delivered_ahead index that has become contiguous
         with _applied_item_count back into the counter, and drop the ones
@@ -1947,8 +2158,22 @@ class HeartGoldClient(BizHawkClient):
                 await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_size, "ARM9 System Bus")])
             )[0]
 
+            if not _pocket_looks_plausible(bytes(pocket_bytes)):
+                # Not a Bag at all: the cached address went stale. Force a
+                # fresh scan next tick instead of calling the pocket full.
+                logger.warning("Bag data looks wrong, searching for your save data again.")
+                self._array_headers_address = None
+                break
+
             plan = plan_bag_item_write(bytes(pocket_bytes), native_item_id, 1, stack_cap_for_pocket(bag_field))
             if plan is None:
+                if index not in self._reported_stuck_items:
+                    self._reported_stuck_items.add(index)
+                    name = _item_display_name(ctx, next_item.item)
+                    logger.warning(
+                        f"Could not add {name} to your Bag: that pocket is full (or already holds the "
+                        "maximum). Make room and it will arrive on its own."
+                    )
                 # Pocket genuinely full (or this item's own stack is at its
                 # cap) -- deterministic, so retrying it later in this same
                 # tick would only waste read RPCs. It stays pending until
@@ -1967,11 +2192,18 @@ class HeartGoldClient(BizHawkClient):
             if not write_succeeded:
                 # Pocket contents changed between the read and the write
                 # (e.g. the player used/moved an item at the same time) --
-                # genuinely transient, unlike the full-pocket case above,
+                # normally transient, unlike the full-pocket case above,
                 # so retry the whole tick rather than writing over stale
-                # data.
+                # data. Repeated failures mean a stale address instead.
+                self._bag_write_failures += 1
+                if self._bag_write_failures >= _BAG_WRITE_FAILURES_BEFORE_RELOCATE:
+                    logger.warning("Items could not be written to your Bag, searching for your save data again.")
+                    self._array_headers_address = None
+                    self._bag_write_failures = 0
                 break
 
+            self._bag_write_failures = 0
+            self._reported_stuck_items.discard(index)
             self._delivered_ahead.add(index)
             index += 1
             applied_this_tick += 1

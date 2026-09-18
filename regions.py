@@ -52,8 +52,9 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
         "pewter_pokecenter_1f", "pewter_pokecenter_b1f", "pewter_pokemart", "pewter_southwest_house",
         "rock_tunnel_1f", "rock_tunnel_b1f", "route_1", "route_10",
         "route_10_pokecenter_1f", "route_10_pokecenter_b1f", "route_10_power_plant_broken", "route_10_power_plant_repaired",
-        "route_10_south", "route_11", "route_12", "route_12_fishing_brother_house",
-        "route_13", "route_14", "route_15", "route_15_fuchsia_gatehouse",
+        "route_10_south", "route_11", "route_12", "route_12_cut_pocket", "route_12_elixir_islet",
+        "route_12_fishing_brother_house", "route_12_flute_pocket",
+        "route_13", "route_14", "route_14_grass", "route_15", "route_15_fuchsia_gatehouse",
         "route_16", "route_16_east", "route_16_gatehouse", "route_16_house",
         "route_17", "route_18", "route_18_gatehouse", "route_19",
         "route_19_fuchsia_gatehouse", "route_19_route_12_gatehouse", "route_2", "route_20",
@@ -84,7 +85,7 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
 # City (scr_seq_0750_T03.s: the Silver Wing in HeartGold, the Rainbow Wing in
 # SoulSilver), so under `johto_only` that event can never be granted and
 # whatever sits behind its monk is unreachable in logic.
-_WING_HANDOVER_EVENTS = ("rainbow_wing_handed_over", "silver_wing_handed_over")
+_WING_ITEMS = ("rainbow_wing", "silver_wing")
 
 
 def _regions_behind(gate_src: str, gate_dst: str) -> set[str]:
@@ -104,25 +105,25 @@ def _regions_behind(gate_src: str, gate_dst: str) -> set[str]:
 def johto_only_excluded_region_keys(soulsilver: bool) -> frozenset[str]:
     """`johto_only`'s full exclusion set: KANTO_REGION_KEYS plus the Johto
     regions only the Pewter-side wing opens in this version (Bell Tower 2F
-    and up in SoulSilver, the Lugia chamber in HeartGold). Leaving them in
-    would create locations no logic can ever reach. Derived from the event
-    locations and EXIT_RULES rather than hardcoded, so it follows
-    data_gen/rules.toml."""
+    and up in SoulSilver, the Lugia chamber in HeartGold): that wing's only
+    source is a Kanto location, so without Kanto it is not in the item pool.
+    Leaving them in would create locations no logic can ever reach. Derived
+    from the wing locations and EXIT_RULES rather than hardcoded, so it
+    follows data_gen/rules.toml."""
     from data.locations import LOCATIONS
     from data.rules import EXIT_RULES
 
     from locations import location_region_key
 
-    kanto_events = {
-        data["event"]
+    kanto_wings = {
+        data["original_item"]
         for data in LOCATIONS.values()
-        if data["type"] == "event"
-        and data["event"] in _WING_HANDOVER_EVENTS
+        if data.get("original_item") in _WING_ITEMS
         and location_region_key(data, soulsilver) in KANTO_REGION_KEYS
     }
     excluded = set(KANTO_REGION_KEYS)
     for (src, dst), requirement in EXIT_RULES.items():
-        if not kanto_events.intersection(requirement.get("events", ())):
+        if not kanto_wings.intersection(requirement.get("items", ())):
             continue
         behind = _regions_behind(src, dst)
         # Rules are bidirectional by default, so EXIT_RULES also holds the

@@ -428,11 +428,14 @@ hms = ["whirlpool"]
 # (scr_seq_0825_T10R0701.s:123), so data_gen/locations.toml's catch_lugia
 # stays consistent with this edge. Combined with the Whirlpool requirement
 # above (AND, not a separate blocking gate), which is unchanged.
+# v0.2.5 (user request): the monk now tests a flag the client sets as soon
+# as the Silver Wing ITEM is received (rom/wingmonkdata.py), so the edge
+# needs the item again; the handover notes above describe vanilla.
 [[exit_rule]]
 from = "whirl_islands_b2f"
 to = "whirl_islands_b3f_lugia_cave"
 hms = ["whirlpool"]
-events = ["silver_wing_handed_over"]
+items = ["silver_wing"]
 
 # --- Cliff Edge Gate (Secret Potion) -------------------------------------
 # The Cliff Edge Gate is the only crossing between Cianwood and Route 47
@@ -582,10 +585,13 @@ bidirectional = false
 # multiworld never sets FLAG_UNK_093, so the edge needs
 # `rainbow_wing_handed_over` (data_gen/locations.toml's
 # rainbow_wing_handed_over_event, placed where that version's NPC stands).
+# v0.2.5 (user request): the monk now tests a flag the client sets as soon
+# as the Rainbow Wing ITEM is received (rom/wingmonkdata.py), so the edge
+# needs the item again; the notes above describe vanilla.
 [[exit_rule]]
 from = "bell_tower_1f"
 to = "bell_tower_2f"
-events = ["rainbow_wing_handed_over"]
+items = ["rainbow_wing"]
 
 # The Goldenrod Tunnel's (Team Rocket HQ) way down to B2F: the guard on
 # D37R0102 runs `GetItemQuantity ITEM_BASEMENT_KEY`
@@ -903,31 +909,37 @@ from = "route_11"
 to = "diglett_cave"
 events = ["expansion_card_obtained"]
 
-# Route 12's Snorlax (obj_R12_kabigon) is the same single roadblock in the
-# other direction, but data_gen/regions.toml never splits route_12 into a
-# pre-/post-Snorlax pair the way e.g. route_46 is split for its ledge (no
-# equivalent map-verification pass has been done for this route yet), so
-# there is no one edge that is unambiguously "past the Snorlax" the way
-# route_11 -> diglett_cave is. Both of route_12's own southward exits are
-# gated instead -- route_13 (the coastal Route 13/14/15 chain toward
-# Fuchsia) and route_19_route_12_gatehouse (the crossing to Route 11) --
-# which cannot under-restrict (the Snorlax really does block progress out of
-# route_12 in both directions in vanilla) and at worst over-restricts by
-# treating the two exits as a single chokepoint until this route gets its
-# own split pass. Documented as a compromise, same spirit as the D9 one
-# below.
+# Route 12 has no Snorlax gate (map pass, 2026-09-17). The pier runs from
+# Lavender to Route 13 without passing obj_R12_kabigon, and the Route 11/12
+# gatehouse is usable both ways (user-verified): the only Snorlax that
+# blocks anything is Route 11's, in front of Diglett's Cave, above. The two
+# route_12 -> route_13 / route_19_route_12_gatehouse expansion_card rules
+# that stood here over-restricted and are gone.
+
+# Route 14's grass patch, see data_gen/regions.toml's [route_14_grass].
+[[exit_rule]]
+from = "route_14"
+to = "route_14_grass"
+hms = ["cut"]
+
+# Route 12's off-pier patches, see data_gen/regions.toml's [route_12].
 [[exit_rule]]
 from = "route_12"
-to = "route_13"
-events = ["expansion_card_obtained"]
+to = "route_12_cut_pocket"
+hms = ["cut"]
 
 [[exit_rule]]
 from = "route_12"
-to = "route_19_route_12_gatehouse"
-events = ["expansion_card_obtained"]
+to = "route_12_flute_pocket"
+hms = ["surf", "cut"]
+
+[[exit_rule]]
+from = "route_12"
+to = "route_12_elixir_islet"
+hms = ["surf"]
 
 # Verrou D9: Blue only opens the Viridian Gym once VAR_UNK_4135 (the Kanto
-# gym badge counter) reaches 7 (scr_seq_0815_T09.s:109-110, `Compare
+# Leaders-beaten counter) reaches 7 (scr_seq_0815_T09.s:109-110, `Compare
 # VAR_UNK_4135, 7` / `GoToIfGe`) while he is stood at Cinnabar Island -- the
 # same scene clears FLAG_HIDE_VIRIDIAN_CITY_OLD_MAN_OUTSIDE_GYM_LOCKED
 # (l. 165), the man blocking the Viridian Gym door until then. This is not
@@ -944,10 +956,21 @@ events = ["expansion_card_obtained"]
 # not modeled on top of this: it is implied by the same 7 badges already
 # demanding heavy Kanto progress by this point, and folding it in would only
 # add an event for a region requirement this rule already dominates.
+#
+# Corrected 2026-09-17: the paragraph above is wrong about what the counter
+# counts. It is incremented in each Leader's win branch (`AddVar
+# VAR_UNK_4135, 1`, 8 sites), not by receiving a badge item, so the seven
+# badge items this rule used to require said nothing about the Leaders
+# actually being beaten (a player could hold all seven with one gym still
+# out of reach). The rule now requires the seven Leader events and the
+# Cinnabar meeting (data_gen/locations.toml's Kanto Leaders block).
 [[exit_rule]]
 from = "viridian"
 to = "viridian_gym"
-badges = ["boulder", "cascade", "thunder", "rainbow", "soul", "marsh", "volcano"]
+events = [
+    "brock_defeated", "misty_defeated", "lt_surge_defeated", "erika_defeated",
+    "janine_defeated", "sabrina_defeated", "blaine_defeated", "cinnabar_blue_met",
+]
 
 # --- Badge-only gates (no HM behind them) ---------------------------------
 # Corrected 2026-08-23: this section used to state that "no genuine 'badge
@@ -976,10 +999,12 @@ badges = ["fog"]
 # `GiveBadge BADGE_EARTH` block. Verrou D10. Rock Climb's own earth-badge
 # requirement elsewhere is a coincidence of the same badge, not the same
 # gate: nothing here needs HM08.
+# Corrected 2026-09-17: that block is Blue's win branch, so what opens the
+# cave is beating Blue, not holding the Earth Badge item.
 [[exit_rule]]
 from = "cerulean"
 to = "cerulean_cave_1f"
-badges = ["earth"]
+events = ["blue_defeated"]
 
 #
 # Known remaining gap (task M0.4, not this one): pokemon_league_entrance's

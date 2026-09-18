@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HGSS Singe tracker</title>
+<!-- Template: tracker_gen.py inlines logic.js and the generated data and
+     writes the result to poke_hgss_tracker.html. -->
+<style>
+:root {
+  --bg: #1b1d22; --panel: #23262c; --tile: #2a2d34; --line: #3a3e46; --text: #e8e8e8;
+  --muted: #9a9ca3; --faint: #6c6f76; --accent: #fac775;
+  --ok: #639922; --ok-bg: #1f3a12; --ok-line: #3b6d11; --ok-text: #97c459;
+  --bad: #e24b4a; --part: #ef9f27; --done: #888780; --link: #85b7eb;
+}
+:root[data-theme="light"] {
+  --bg: #f4f3ef; --panel: #ffffff; --tile: #ffffff; --line: #d9d7d0; --text: #1f1f1d;
+  --muted: #5f5e5a; --faint: #a3a29c; --accent: #854f0b;
+  --ok-bg: #eaf3de; --ok-line: #97c459; --ok-text: #27500a; --link: #185fa5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; }
+button { font: inherit; color: inherit; background: var(--tile); border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+input { font: inherit; color: var(--text); background: var(--tile); border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 8px; min-width: 0; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 40px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.top h1 { font-size: 16px; font-weight: 600; margin: 0 8px 0 0; }
+.conn { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; }
+.conn input { width: 170px; }
+.status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.lang { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lang button { border: 0; border-radius: 0; background: transparent; padding: 4px 10px; }
+.lang button.on { background: var(--link); color: #fff; }
+.goal { display: flex; gap: 10px; align-items: center; background: #633806; color: var(--accent);
+  border: 1px solid #ba7517; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-weight: 600; }
+:root[data-theme="light"] .goal { background: #faeeda; border-color: #ef9f27; }
+.goal .prog { margin-left: auto; font-weight: 400; font-size: 13px; }
+.sec { margin-bottom: 8px; }
+.sec-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 0 2px 4px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 4px; }
+.t { height: 42px; border-radius: 7px; border: 1px solid var(--line); background: var(--tile); color: var(--faint);
+  display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; line-height: 1.15;
+  padding: 2px 3px; cursor: pointer; overflow: hidden; user-select: none; }
+.t span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.t.on { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-text); }
+.tabs { display: flex; gap: 6px; margin: 14px 0 8px; flex-wrap: wrap; }
+.tabs button { padding: 6px 16px; }
+.tabs button.on { background: var(--link); border-color: var(--link); color: #fff; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 0 4px 6px; }
+.legend .note { margin-left: auto; }
+.panel { background: var(--panel); border-radius: 10px; padding: 8px; }
+.row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; min-width: 0; }
+.row.click { cursor: pointer; }
+.row.click:hover { background: var(--tile); }
+.nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.d-ok { background: var(--ok); } .d-bad { background: var(--bad); } .d-part { background: var(--part); }
+.d-done { background: var(--done); }
+.chev { width: 14px; flex: none; color: var(--faint); font-size: 11px; transition: transform .12s; }
+.closed > .row .chev { transform: rotate(-90deg); }
+.closed > .kids { display: none; }
+.kids { margin-left: 15px; border-left: 1px solid var(--line); padding-left: 5px; }
+.lvl0 > .row .nm { font-weight: 600; }
+.done > .nm { color: var(--faint); text-decoration: line-through; }
+.q { flex: none; min-width: 22px; height: 20px; border-radius: 5px; border: 1px solid var(--line); background: transparent;
+  font-size: 12px; padding: 0 5px; color: var(--muted); }
+.rv { flex: none; max-width: 45%; font-size: 12px; color: var(--link); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; cursor: pointer; }
+.num { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--faint); width: 38px; flex: none; }
+.chips { display: flex; gap: 6px; margin: 0 4px 8px; flex-wrap: wrap; }
+.chips button { font-size: 12px; padding: 2px 10px; }
+.chips button.on { background: var(--link); border-color: var(--link); color: #fff; }
+.empty { color: var(--muted); padding: 10px; font-size: 13px; }
+.map svg { width: 100%; height: auto; display: block; border-radius: 8px; }
+.map .road { stroke: #f4f4f4; stroke-width: 4.2; stroke-linecap: round; }
+.map .casing { stroke: #4a3b25; stroke-width: 6; stroke-linecap: round; }
+.map .rs { stroke-width: 2.2; stroke-linecap: round; }
+.map .hit { cursor: pointer; }
+.map .town { stroke: #3a1212; stroke-width: 1.2; }
+.map .site { stroke: #1f2a14; stroke-width: 1.1; }
+.map .sel { stroke: #fff36b; stroke-width: 2; }
+.s-ok { fill: var(--ok); stroke: var(--ok); } .s-bad { fill: var(--bad); stroke: var(--bad); }
+.s-part { fill: var(--part); stroke: var(--part); } .s-done { fill: var(--done); stroke: var(--done); }
+.s-none { fill: #f4f4f4; stroke: #f4f4f4; }
+.map-panel { margin-top: 8px; }
+@media (max-width: 600px) { .conn input { width: 120px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Pokemon HGSS Singe</h1>
+    <div class="conn">
+      <input id="server" placeholder="localhost:38281" autocomplete="off">
+      <input id="slot" placeholder="Slot" autocomplete="off">
+      <input id="password" type="password" placeholder="Password" autocomplete="off">
+      <button id="connect"></button>
+      <span class="status"><span class="dot" id="status-dot"></span><span id="status"></span></span>
+    </div>
+    <button id="theme" title="Theme">&#9680;</button>
+    <div class="lang"><button data-lang="fr">FR</button><button data-lang="en">EN</button></div>
+  </div>
+  <div class="goal"><span id="goal"></span><span class="prog" id="goal-prog"></span></div>
+  <div id="header"></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="legend" id="legend"></div>
+  <div class="panel" id="view"></div>
+</div>
+<script>
+/*__LOGIC__*/
+</script>
+<script>
+const DATA = /*__DATA__*/null;
+const GAME = "Pokemon HGSS Singe";
+const TEXT = {
+  fr: { connect: "Connexion", disconnect: "Déconnexion", offline: "Hors ligne (suivi manuel)",
+    connecting: "Connexion...", online: "Connecté", refused: "Refusé : ", lost: "Connexion perdue",
+    accessible: "accessible", partial: "partiel", blocked: "bloqué", done: "fait", note: "? = voir l'objet placé",
+    all: "Tous", left: "Restants", me: "moi", unknown: "inconnu", goalUnknown: "Objectif : connecte-toi",
+    empty: "Rien à afficher", map: "Carte", mapHint: "Clique sur une ville, une route ou une grotte" },
+  en: { connect: "Connect", disconnect: "Disconnect", offline: "Offline (manual tracking)",
+    connecting: "Connecting...", online: "Connected", refused: "Refused: ", lost: "Connection lost",
+    accessible: "accessible", partial: "partial", blocked: "blocked", done: "done", note: "? = show the placed item",
+    all: "All", left: "Remaining", me: "me", unknown: "unknown", goalUnknown: "Goal: connect first",
+    empty: "Nothing to show", map: "Map", mapHint: "Click a town, route or cave" },
+};
+
+const store = {
+  get(key, fallback) { try { const v = localStorage.getItem("hgss_" + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
+  set(key, value) { try { localStorage.setItem("hgss_" + key, JSON.stringify(value)); } catch (e) {} },
+};
+
+const S = {
+  lang: store.get("lang", "fr"), tab: store.get("tab", "johto"), theme: store.get("theme", "dark"),
+  dexFilter: "all", trainerFilter: "all",
+  open: new Set(store.get("open", ["johto", "kanto", "johto/towns", "johto/dungeons", "johto/routes",
+    "kanto/towns", "kanto/dungeons", "kanto/routes", "tr/johto", "tr/kanto"])),
+  manualItems: new Set(store.get("manualItems", [])), manualChecks: new Set(store.get("manualChecks", [])),
+  received: new Set(), checked: new Set(), present: null, slotData: null, slot: null,
+  players: {}, gamesBySlot: {}, itemNames: {}, scouted: {}, revealed: new Set(),
+};
+let socket = null, wantConnected = false;
+
+const T = (key) => TEXT[S.lang][key];
+const UI = (key) => DATA.ui[S.lang][key];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// -- state -------------------------------------------------------------------
+function options() {
+  const o = (S.slotData && S.slotData.options) || {};
+  const flag = (v) => v === 1 || v === true;
+  let origin = "new_bark";
+  if (S.slotData && S.slotData.randomize_start_location && S.slotData.starting_town) origin = S.slotData.starting_town;
+  return {
+    soulsilver: o.game_version === 1, johto_only: flag(o.johto_only),
+    magnet_train: !(o.magnet_train === 0 || o.magnet_train === false),
+    hidden_items_require_dowsing_machine: flag(o.hidden_items_require_dowsing_machine), origin,
+    trainersanity: S.slotData ? flag(o.trainersanity) : true, dexsanity: S.slotData ? flag(o.dexsanity) : true,
+    legendarysanity: S.slotData ? flag(o.legendarysanity) : true, bicycle: S.slotData ? flag(o.randomize_bicycle) : true,
+  };
+}
+// Manual marks are for offline play; once connected the server is the truth.
+const owned = (code) => S.received.has(code) || (!S.slotData && S.manualItems.has(code));
+const isDone = (id) => S.checked.has(id) || (!S.slotData && S.manualChecks.has(id));
+
+function visible(id, opts) {
+  if (S.present) return S.present.has(id);
+  const check = DATA.checks[id];
+  if (!check) return true;
+  return check.vis.every((rule) => ({
+    opt_trainersanity: opts.trainersanity, opt_legendarysanity: opts.legendarysanity, opt_bicycle: opts.bicycle,
+    opt_power_plant_tm: !opts.magnet_train, opt_kanto: !opts.johto_only, opt_dexsanity: opts.dexsanity,
+  })[rule] !== false);
+}
+
+function leaderBeaten(code) {
+  return Object.entries(DATA.leader_locations).some(([id, c]) => c === code && isDone(Number(id)));
+}
+
+// -- rendering -------------------------------------------------------------
+function statusOf(ids, logic) {
+  let left = 0, ok = 0;
+  for (const id of ids) {
+    if (isDone(id)) continue;
+    left++;
+    if (logic(id)) ok++;
+  }
+  if (left === 0) return "d-done";
+  if (ok === left) return "d-ok";
+  return ok === 0 ? "d-bad" : "d-part";
+}
+
+function revealHtml(id) {
+  if (!S.revealed.has(id)) return `<button class="q" data-reveal="${id}">?</button>`;
+  const info = S.scouted[id];
+  const text = info ? `${info.item} (${info.mine ? T("me") : info.owner})` : "...";
+  return `<span class="rv" data-reveal="${id}" title="${esc(text)}">${esc(text)}</span>`;
+}
+
+function checkRow(id, name, logic, extra = "") {
+  const done = isDone(id);
+  const dot = done ? "d-done" : logic(id) ? "d-ok" : "d-bad";
+  return `<div class="row click${done ? " done" : ""}" data-check="${id}">${extra}<span class="dot ${dot}"></span>` +
+    `<span class="nm" title="${esc(name)}">${esc(name)}</span>${revealHtml(id)}</div>`;
+}
+
+function node(key, label, ids, logic, inner, level = 1, count = true) {
+  const done = ids.filter(isDone).length;
+  const open = S.open.has(key);
+  return `<div class="node lvl${level}${open ? "" : " closed"}"><div class="row click" data-toggle="${esc(key)}">` +
+    `<span class="chev">&#9660;</span><span class="dot ${statusOf(ids, logic)}"></span>` +
+    `<span class="nm">${esc(label)}</span>${count ? `<span class="ct">${done} / ${ids.length}</span>` : ""}</div>` +
+    `<div class="kids">${open ? inner() : ""}</div></div>`;
+}
+
+function placeLabel(area) {
+  const name = area.name[S.lang];
+  return S.lang === "fr" && name !== area.en && !/^[RW]/.test(area.code) ? `${name} (${area.en})` : name;
+}
+
+function sortAreas(list) {
+  return list.slice().sort((a, b) => a.order - b.order ||
+    a.name[S.lang].localeCompare(b.name[S.lang], S.lang, { sensitivity: "base" }));
+}
+
+function renderHeader(opts) {
+  const sections = [["key_items", DATA.keys], ["badges", DATA.badges], ["leaders", DATA.leaders], ["hms", DATA.hms]];
+  document.getElementById("header").innerHTML = sections.map(([title, codes]) => {
+    const isLeader = title === "leaders";
+    const on = (code) => isLeader ? leaderBeaten(code) : owned(code);
+    const tiles = codes.map((code) => `<div class="t${on(code) ? " on" : ""}" data-item="${isLeader ? "" : code}"` +
+      ` title="${esc(DATA.labels[S.lang][code])}"><span>${esc(DATA.labels[S.lang][code])}</span></div>`).join("");
+    return `<div class="sec"><div class="sec-head"><span>${esc(UI(title))}</span>` +
+      `<span>${codes.filter(on).length} / ${codes.length}</span></div><div class="grid">${tiles}</div></div>`;
+  }).join("");
+
+  const goal = S.slotData ? S.slotData.goal : null;
+  let text = T("goalUnknown"), prog = "";
+  if (goal === 0) text = `${UI("goal")} : ${UI("e4")}`;
+  if (goal === 1) text = `${UI("goal")} : ${UI("red")}`;
+  if (goal === 2) {
+    const need = Math.min(S.slotData.goal_badge_count || 16, opts.johto_only ? 8 : 16);
+    text = `${UI("goal")} : ${UI("badges_goal").replace("{n}", need)}`;
+    prog = `${DATA.badges.filter(owned).length} / ${need}`;
+  }
+  document.getElementById("goal").textContent = text;
+  document.getElementById("goal-prog").textContent = prog;
+}
+
+function renderRegion(region, logic, opts, trainers) {
+  const areas = DATA.areas.filter((a) => a.region === region);
+  const idsOf = (a) => (trainers ? a.trainers : a.checks).filter((id) => visible(id, opts));
+  const cats = trainers ? [["all", null]] : [["towns", "towns"], ["dungeons", "dungeons"], ["routes", "routes"]];
+  const onlyLeft = trainers && S.trainerFilter === "left";
+  const html = cats.map(([cat, uiKey]) => {
+    const list = sortAreas(areas.filter((a) => (!uiKey || a.cat === cat) && idsOf(a).length &&
+      (!onlyLeft || idsOf(a).some((id) => !isDone(id)))));
+    const places = () => list.map((a) => {
+      const ids = idsOf(a).filter((id) => !onlyLeft || !isDone(id));
+      const key = `${trainers ? "tr/" : ""}${region}/${a.code}`;
+      return node(key, placeLabel(a), ids, logic,
+        () => ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join(""), 2);
+    }).join("");
+    if (!uiKey) return places();
+    const all = list.flatMap(idsOf);
+    return list.length ? node(`${region}/${cat}`, UI(cat), all, logic, places, 0) : "";
+  }).join("");
+  return html || `<div class="empty">${T("empty")}</div>`;
+}
+
+function renderDex(opts) {
+  const chips = ["all", "left"].map((f) => `<button data-dexf="${f}" class="${S.dexFilter === f ? "on" : ""}">${T(f)}</button>`).join("");
+  const rows = DATA.dex.filter((d) => visible(d.id, opts) && (S.dexFilter === "all" || !isDone(d.id)))
+    .map((d) => checkRow(d.id, d.name[S.lang], () => true, `<span class="num">#${String(d.num).padStart(3, "0")}</span>`)).join("");
+  return `<div class="chips">${chips}</div>${rows || `<div class="empty">${T("empty")}</div>`}`;
+}
+
+function renderMap(logic, opts) {
+  const M = DATA.map;
+  const byCode = Object.fromEntries(DATA.areas.map((a) => [a.code, a]));
+  const idsOf = (a) => a.checks.concat(a.trainers).filter((id) => visible(id, opts));
+  const cls = (code) => {
+    const a = byCode[code];
+    const ids = a ? idsOf(a) : [];
+    return ids.length ? "s-" + statusOf(ids, logic).slice(2) : "s-none";
+  };
+  const tip = (code) => {
+    const a = byCode[code];
+    const ids = a ? idsOf(a) : [];
+    return `<title>${esc(placeLabel(a))} ${ids.filter(isDone).length} / ${ids.length}</title>`;
+  };
+  const shapes = Object.entries(M.shapes);
+  const line = (sg, c) => `<line class="${c}" x1="${sg[0]}" y1="${sg[1]}" x2="${sg[2]}" y2="${sg[3]}"/>`;
+  const routes = shapes.filter(([, s]) => s.kind === "route");
+  let svg = `<image href="${M.bg}" width="${M.w}" height="${M.h}" preserveAspectRatio="none"/>`;
+  svg += routes.map(([, s]) => s.segs.map((g) => line(g, "casing")).join("")).join("");
+  svg += routes.map(([, s]) => s.segs.map((g) => line(g, "road")).join("")).join("");
+  svg += routes.map(([code, s]) => `<g class="hit" data-area="${code}">${tip(code)}` +
+    s.segs.map((g) => line(g, "rs " + cls(code) + (S.mapSel === code ? " sel" : ""))).join("") +
+    s.segs.map((g) => `<line x1="${g[0]}" y1="${g[1]}" x2="${g[2]}" y2="${g[3]}" stroke="transparent" stroke-width="9"/>`).join("") +
+    `</g>`).join("");
+  svg += shapes.filter(([, s]) => s.kind === "town").map(([code, s]) =>
+    `<rect class="hit town ${cls(code)}${S.mapSel === code ? " sel" : ""}" data-area="${code}" x="${s.rect[0]}" y="${s.rect[1]}"` +
+    ` width="${s.rect[2]}" height="${s.rect[3]}" rx="2.5">${tip(code)}</rect>`).join("");
+  svg += shapes.filter(([, s]) => s.kind === "site").map(([code, s]) =>
+    `<circle class="hit site ${cls(code)}${S.mapSel === code ? " sel" : ""}" data-area="${code}" cx="${s.at[0]}" cy="${s.at[1]}"` +
+    ` r="3.6">${tip(code)}</circle>`).join("");
+  const map = `<div class="map"><svg viewBox="0 0 ${M.w} ${M.h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg></div>`;
+  const a = byCode[S.mapSel];
+  let panel = `<div class="empty">${T("mapHint")}</div>`;
+  if (a) {
+    const ids = idsOf(a);
+    const key = "map/" + a.code;
+    S.open.add(key);
+    panel = node(key, placeLabel(a), ids, logic,
+      () => ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("") ||
+        `<div class="empty">${T("empty")}</div>`, 0);
+  }
+  return map + `<div class="map-panel">${panel}</div>`;
+}
+
+function render() {
+  document.documentElement.lang = S.lang;
+  document.documentElement.dataset.theme = S.theme;
+  document.querySelectorAll(".lang button").forEach((b) => b.classList.toggle("on", b.dataset.lang === S.lang));
+  const opts = options();
+  const logicState = createLogic(DATA.logic, owned, opts);
+  const logic = (id) => logicState.loc(DATA.checks[id].key);
+  renderHeader(opts);
+
+  const tabs = [["johto", "Johto"], ["kanto", "Kanto"], ["dex", UI("pokedex")], ["trainers", UI("trainers")]];
+  if (DATA.map) tabs.unshift(["map", T("map")]);
+  document.getElementById("tabs").innerHTML = tabs.map(([key, label]) =>
+    `<button data-tab="${key}" class="${S.tab === key ? "on" : ""}">${esc(label)}</button>`).join("");
+  document.getElementById("legend").innerHTML =
+    [["d-ok", "accessible"], ["d-part", "partial"], ["d-bad", "blocked"], ["d-done", "done"]]
+      .map(([c, k]) => `<span><span class="dot ${c}" style="display:inline-block"></span> ${T(k)}</span>`).join("") +
+    `<span class="note">${T("note")}</span>`;
+
+  let html;
+  if (S.tab === "map" && DATA.map) html = renderMap(logic, opts);
+  else if (S.tab === "dex") html = renderDex(opts);
+  else if (S.tab === "trainers") {
+    const chips = ["all", "left"].map((f) => `<button data-trf="${f}" class="${S.trainerFilter === f ? "on" : ""}">${T(f)}</button>`).join("");
+    const regions = ["johto", "kanto"].map((r) => {
+      const ids = DATA.areas.filter((a) => a.region === r).flatMap((a) => a.trainers).filter((id) => visible(id, opts));
+      return ids.length ? node(`tr/${r}`, r === "johto" ? "Johto" : "Kanto", ids, logic,
+        () => renderRegion(r, logic, opts, true), 0) : "";
+    }).join("");
+    html = `<div class="chips">${chips}</div>${regions || `<div class="empty">${T("empty")}</div>`}`;
+  } else html = renderRegion(S.tab, logic, opts, false);
+  document.getElementById("view").innerHTML = html;
+
+  const btn = document.getElementById("connect");
+  btn.textContent = socket ? T("disconnect") : T("connect");
+}
+
+function setStatus(text, cls) {
+  document.getElementById("status").textContent = text;
+  document.getElementById("status-dot").className = "dot " + cls;
+}
+
+// -- Archipelago connection --------------------------------------------------
+function send(packets) { if (socket && socket.readyState === 1) socket.send(JSON.stringify(packets)); }
+
+function uuid() {
+  let id = store.get("uuid", null);
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set("uuid", id); }
+  return id;
+}
+
+function connect() {
+  const raw = document.getElementById("server").value.trim() || "localhost:38281";
+  const slot = document.getElementById("slot").value.trim();
+  store.set("server", raw); store.set("slot", slot);
+  wantConnected = true;
+  const urls = /^wss?:\/\//.test(raw) ? [raw] : ["wss://" + raw, "ws://" + raw];
+  tryUrl(urls, 0, slot);
+}
+
+function tryUrl(urls, index, slot) {
+  if (index >= urls.length) { setStatus(T("lost"), "d-bad"); socket = null; render(); return; }
+  setStatus(T("connecting"), "d-part");
+  let opened = false;
+  const ws = new WebSocket(urls[index]);
+  socket = ws;
+  ws.onopen = () => { opened = true; };
+  ws.onerror = () => { if (!opened) { ws.onclose = null; tryUrl(urls, index + 1, slot); } };
+  ws.onclose = () => {
+    if (socket !== ws) return;
+    socket = null;
+    setStatus(T("lost"), "d-bad");
+    render();
+    if (wantConnected && opened) setTimeout(() => { if (wantConnected && !socket) connect(); }, 5000);
+  };
+  ws.onmessage = (event) => { for (const packet of JSON.parse(event.data)) onPacket(packet, slot); };
+}
+
+function onPacket(p, slot) {
+  if (p.cmd === "RoomInfo") {
+    send([{ cmd: "Connect", password: document.getElementById("password").value, game: GAME, name: slot,
+      uuid: uuid(), version: { major: 0, minor: 6, build: 0, class: "Version" }, items_handling: 7,
+      tags: ["Tracker"], slot_data: true }]);
+  } else if (p.cmd === "ConnectionRefused") {
+    wantConnected = false;
+    setStatus(T("refused") + (p.errors || []).join(", "), "d-bad");
+    socket.close();
+  } else if (p.cmd === "Connected") {
+    S.slot = p.slot; S.slotData = p.slot_data || {};
+    S.checked = new Set(p.checked_locations);
+    S.present = new Set([...p.missing_locations, ...p.checked_locations]);
+    S.players = {}; S.gamesBySlot = {};
+    for (const pl of p.players) if (pl.team === p.team) S.players[pl.slot] = pl.alias || pl.name;
+    for (const [id, info] of Object.entries(p.slot_info || {})) S.gamesBySlot[id] = info.game;
+    setStatus(T("online"), "d-ok");
+    send([{ cmd: "GetDataPackage", games: [...new Set(Object.values(S.gamesBySlot))] },
+      { cmd: "LocationScouts", locations: [...S.present], create_as_hint: 0 }]);
+    render();
+  } else if (p.cmd === "ReceivedItems") {
+    if (p.index === 0) S.received = new Set();
+    for (const item of p.items) {
+      const code = DATA.item_codes[item.item];
+      if (code) S.received.add(code);
+    }
+    render();
+  } else if (p.cmd === "RoomUpdate") {
+    if (p.checked_locations) { p.checked_locations.forEach((id) => S.checked.add(id)); render(); }
+  } else if (p.cmd === "DataPackage") {
+    for (const [game, data] of Object.entries(p.data.games)) {
+      S.itemNames[game] = {};
+      for (const [name, id] of Object.entries(data.item_name_to_id)) S.itemNames[game][id] = name;
+    }
+    for (const id of Object.keys(S.scouted)) S.scouted[id].item = itemName(S.scouted[id].raw, S.scouted[id].player);
+    render();
+  } else if (p.cmd === "LocationInfo") {
+    for (const item of p.locations) {
+      S.scouted[item.location] = { raw: item.item, player: item.player, mine: item.player === S.slot,
+        owner: S.players[item.player] || "P" + item.player, item: itemName(item.item, item.player) };
+    }
+    render();
+  }
+}
+
+function itemName(id, player) {
+  const names = S.itemNames[S.gamesBySlot[player]];
+  return (names && names[id]) || T("unknown");
+}
+
+function disconnect() {
+  wantConnected = false;
+  if (socket) { const ws = socket; socket = null; ws.close(); }
+  S.slotData = null; S.present = null; S.checked = new Set(); S.received = new Set(); S.scouted = {};
+  setStatus(T("offline"), "d-done");
+  render();
+}
+
+// -- events ------------------------------------------------------------------
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area]");
+  if (!el) return;
+  const d = el.dataset;
+  if (d.reveal) {
+    const id = Number(d.reveal);
+    S.revealed.has(id) ? S.revealed.delete(id) : S.revealed.add(id);
+  } else if (d.toggle) {
+    S.open.has(d.toggle) ? S.open.delete(d.toggle) : S.open.add(d.toggle);
+    store.set("open", [...S.open]);
+  } else if (d.check) {
+    const id = Number(d.check);
+    if (S.slotData) return;
+    S.manualChecks.has(id) ? S.manualChecks.delete(id) : S.manualChecks.add(id);
+    store.set("manualChecks", [...S.manualChecks]);
+  } else if (d.item !== undefined) {
+    if (!d.item || S.slotData) return;
+    S.manualItems.has(d.item) ? S.manualItems.delete(d.item) : S.manualItems.add(d.item);
+    store.set("manualItems", [...S.manualItems]);
+  } else if (d.tab) { S.tab = d.tab; store.set("tab", S.tab); }
+  else if (d.lang) { S.lang = d.lang; store.set("lang", S.lang); }
+  else if (d.area) S.mapSel = S.mapSel === d.area ? null : d.area;
+  else if (d.dexf) S.dexFilter = d.dexf;
+  else if (d.trf) S.trainerFilter = d.trf;
+  render();
+});
+document.getElementById("connect").addEventListener("click", () => (socket ? disconnect() : connect()));
+document.getElementById("theme").addEventListener("click", () => {
+  S.theme = S.theme === "dark" ? "light" : "dark"; store.set("theme", S.theme); render();
+});
+document.getElementById("server").value = store.get("server", "localhost:38281");
+document.getElementById("slot").value = store.get("slot", "");
+["server", "slot", "password"].forEach((id) => document.getElementById(id).addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !socket) connect();
+}));
+setStatus(T("offline"), "d-done");
+render();
+</script>
+</body>
+</html>

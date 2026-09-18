@@ -299,15 +299,6 @@ def randomize_wild_encounters(
     return {key: _finalize_zone(zone) for key, zone in new_zones.items()}
 
 
-# Encounter method names as used by species_encounter_methods below. "land"
-# and "headbutt" carry no vanilla HM/badge gate (see data_gen/rules.toml's
-# header -- headbutt is a Gen4 tutor move, not an HM); the other five each
-# need a specific item (an HM+badge pair for surf/rock_smash, a bag key item
-# for the three fishing rods) before the player can actually trigger that
-# encounter table.
-_UNGATED_ENCOUNTER_METHODS = frozenset({"land", "headbutt"})
-
-
 def species_encounter_sources(
     encounters: dict, *, source_filter: Callable[[str, str], bool] | None = None
 ) -> dict[str, frozenset[tuple[str, str]]]:
