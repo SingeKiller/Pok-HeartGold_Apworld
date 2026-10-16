@@ -5,6 +5,218 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**Logic overhaul.** Every map was walked on the ROM's own collision data
+(HeartGold and SoulSilver US, identical results) and every story lock was
+checked against the game's scripts. Seeds generated with v0.2.5 keep
+working with their own apworld; generate new seeds with this one.
+
+### Fixed
+- **Places reachable in logic that the game does not let you reach.**
+  Tohjo Falls needs Surf and Waterfall both ways; Mt. Mortar's inner
+  floors need Surf plus Strength or Waterfall (some spots Rock Climb);
+  Cerulean Cave needs Surf first; Victory Road needs Strength from the
+  gate; Slowpoke Well B2F needs Surf and Strength; Dark Cave, Whirl
+  Islands, Ruins of Alph, Union Cave, Seafoam Islands, Mt. Silver, Routes
+  2, 3, 10, 11, 19, 20, 25, 27, 42, 47 and a few dozen single checks
+  behind a Cut tree, a boulder, a rock or water were split so each check
+  asks for exactly what the map needs.
+- **Story locks that were missing or wrong**: Route 30 blocked until the
+  Mystery Egg is delivered (or Cut), Elm's aide and the Togepi Egg,
+  Goldenrod Gym closed until the Radio Card quiz, Ecruteak Gym until the
+  Burned Tower beasts flee, Mahogany's east exit until the Radio Tower is
+  freed, Route 11's Snorlax also cutting Vermilion off from the rest of
+  the route, the Power Plant door across water, the League gate's west
+  exit (a visit to Viridian) and Mt. Silver exit (Blue beaten, then Oak's
+  lab), Route 19 opened by Blaine, the Cliff Edge Gate and Jasmine both
+  waiting for Amphy to be healed at the top of the lighthouse.
+- **Radio Tower takeover.** Archer only appears once Morty, Chuck, Jasmine
+  and Pryce are all beaten, which the logic now requires. While the
+  takeover runs, Goldenrod's gym, bike shop and flower shop doors are
+  held and a few NPCs and trainers step aside; all of them now need the
+  Card Key in logic, so beating those four Leaders first can never leave
+  you unable to finish the takeover.
+- **Mom no longer stops you at New Bark Town's east shore** between
+  Clair's badge and the box-art legendary (ROM patch): the logic always
+  counted Route 27 as open with Surf.
+- **Dexsanity**: every wild encounter table was checked against the tiles
+  the game rolls it on. Route 2's northern grass, Route 27's grass, and
+  water or grass on Routes 4, 8, 10, 13, 16, 44, 47, Ruins of Alph,
+  Cerulean City, Cliff Edge Gate, Dragon's Den and Mt. Mortar now ask for
+  the right field move or area, and the water tables of Cerulean Cave 2F
+  and four Mt. Silver maps, which have no water at all, no longer count.
+- **Clear Bell and Tidal Bell** (player report): the Kimono Girls give only
+  one of them, the Clear Bell in HeartGold, the Tidal Bell in SoulSilver,
+  yet both are checks in either version. Getting the bell now sends both
+  checks, and whatever was placed on the other one arrives like an item
+  from another world. Works on existing seeds (client update only).
+- **TM78 "Game Corner JP"** (player report): that ball stands in the
+  Japanese Game Corner, which the US games never lead to. Walking into the
+  Goldenrod Game Corner now sends it, with its item delivered the same way.
+  Works on existing seeds (client update only).
+- The MooMoo Farm TM83 and Seal Case (both need the sick Miltank fed
+  seven Oran Berries) only hold non-progression items.
+- **`johto_only`**: nothing is created out of reach any more. Everything
+  that only Kanto can open is left out, not just Kanto itself: Rock Climb
+  spots (HM08 and the Earth Badge are both in Kanto), Mt. Silver and Route
+  22 (they open from Kanto events), the Ruins of Alph chamber whose key
+  comes from Kanto, and Dexsanity catches that need the Super Rod.
+- **Items received but missing from the save** (player report: Squirtbottle,
+  Basement Key). The count of delivered items now lives in the save
+  itself, so reloading a save or closing the game without saving gets the
+  items written again. Key items and HMs already lost on an older save are
+  given back. Client update only.
+- **Items received during a battle were lost** (player report: an Expert
+  Belt and the Apricorn Box never arrived, "most items do"). A battle
+  works on a copy of the Bag and writes it back over the save when it
+  ends, wiping anything delivered meanwhile. The client now notices battles
+  starting and holds Bag deliveries until the battle is over; if a battle
+  lasts very long, items delivered during it are checked afterwards and
+  delivered again if the end of the battle wiped them. Items delivered
+  past a full Bag pocket are now kept in the save too, so a reload no
+  longer loses them. New client command **`/resend <item>`**: one more copy
+  of an item the server really sent you, for anything lost with an older
+  client (key items and HMs come back on their own). Client update only.
+- **Trackers showed every Dexsanity species as catchable** (player report).
+  Dexsanity was always in the logic, but the trackers cannot know where a
+  seed puts each species. Seeds generated with this version send it in the
+  slot data, and both trackers (PopTracker and the web tracker) now show
+  each species as in logic only where it can really be caught; for older
+  seeds they show it as unknown instead of available.
+- **"Bag data looks wrong, searching for your save data again." every
+  second, and no item arriving any more** (player report). One Bag entry
+  outside the usual bounds made the client drop a good save address and
+  search again, forever. The save is now recognized by its Pokedex
+  signature: an odd entry is reported once, with its details, and items
+  keep arriving. Client update only.
+- **Secret Potion in the Bag, but Jasmine ignores it** (player report). The
+  lighthouse only checks the flag the Cianwood pharmacist sets, never the
+  item, so a Secret Potion from the multiworld did nothing. Receiving it
+  now sets that flag (and sends the pharmacy's check, its item delivered
+  through the network). Client update only.
+- **"File hash does not match" with a US ROM** (player reports): trimmed US
+  dumps (the 0xFF padding cut off, as many ROM tools do) are now accepted,
+  and a wrong ROM is named in the error (e.g. "Pokemon SoulSilver (Europe,
+  game code IPGP)") with what to do: Archipelago keeps a copy of the first
+  ROM it was given, which has to be deleted before picking the right one.
+- **Own items found in game never reported** (player report: the Dowsing
+  Machine from the catching tutorial). Seven gifts had no flag the client
+  could read (the catching tutorial, Elm's Potion, the Mystery Egg, the VS
+  Recorder, HM04, the Jade Orb, the S.S. Aqua Metal Coat): a re-patched ROM
+  now sets one, and gifts obtained before are recognized from the story.
+  Needs the ROM re-patched with this apworld (same seed).
+- **Leaders fightable again and gifts handed out twice after a day
+  change.** The flags this project adds sat in the range the game clears
+  every day; they moved to an unused range, and the client keeps them set
+  on older saves. Needs the ROM re-patched.
+- **The Dowsing Machine could land on a check the client cannot see**
+  (its item is both progression and useful, and the old test only caught
+  pure progression).
+- **Umbreon and Espeon** could not be obtained with `convert_trade_
+  evolutions` on: Eevee's friendship evolutions were turned into the same
+  level evolution. They are day and night friendship evolutions again.
+  Takes effect on re-patch.
+- **`sphere_based_trainer_leveling_bonus`** was added once to the team
+  average and then scaled down, so a bonus of 10 barely showed and weak
+  mons stayed under level 10; it is now added to every Pokemon.
+- **Story chains an out-of-order run could break for good**: the Radio
+  Tower takeover counter and the Kimono Girls' bell chain are put back by
+  the client when a Leader is beaten in an unexpected order.
+- **More story locks the logic missed** (2026-09-26 audit of every NPC
+  gift against the game's scripts):
+  - Misty and her gym only appear once her Route 25 date is interrupted,
+    which the Power Plant manager's story sets up (with `magnet_train` on,
+    Route 25 alone);
+  - HM01 and the Charcoal wait for Proton to be beaten in the Slowpoke
+    Well (the Farfetch'd quest only starts then);
+  - the catching tutorial's gift waits for the Mystery Egg delivery;
+  - the Route 43 gate guard's TM36 waits for the Mahogany hideout;
+  - the Radio Tower above 2F needs the takeover to have started; the
+    Basement Key, the Card Key and the Rocket trainers only exist while it
+    runs, TM11 and Mary's BrightPowder only once it is over, and the
+    Fashion Case scene is skipped during it;
+  - the Department Store basement's shutter to the warehouse only opens
+    once the Card Key has been handed over, so the warehouse needs the
+    Basement Key.
+- **Takeover checks missed for good**: once Archer is beaten, the client
+  sends the Basement Key, the Card Key and the takeover trainers you did
+  not get, and delivers their items. Client update only.
+- **The Sudowoodo and the Squirtbottle** (player reports). The tree on
+  Route 36 is a three-way fork: the Violet side, the Route 35 / National
+  Park side and the Route 37 side each need the Squirtbottle to reach the
+  others. Only the Violet side was gated, so Route 37 and Ecruteak were in
+  logic from Goldenrod without it. Checked on both ROMs' own collision
+  data. Also:
+  - the Berry Pots need the Squirtbottle (they are given right after the
+    tree is watered);
+  - the Route 36 Hyper Potion is on the Route 37 side of the tree;
+  - Route 36's grass is on the Route 35 side (Dexsanity);
+  - the National Park's secret headbutt trees need Rock Climb (Dexsanity);
+  - the Flower Shop owner stops giving her check once the tree is gone
+    (she only sells Mulch after that): if a Squirtbottle from another world
+    was used first, the client now sends her check and delivers its item.
+    Client update only.
+- **Whole-world logic audit** (2026-09-27): every NPC and scripted trigger
+  that cuts a path on the ROM's own collision data (the class of bug the
+  Sudowoodo was) was checked against the game's scripts and the logic.
+  Fixed:
+  - the hidden Super Potion in Goldenrod's Bike Shop alley is behind the
+    takeover Rockets (Card Key), not a free Route 34 item;
+  - Lake of Rage's Lois and the two fishermen only appear after the Red
+    Gyarados (Surf);
+  - Lugia's room is empty in SoulSilver until the Kimono Girls' dance or
+    the Hall of Fame: it now needs the Elite Four, like Ho-Oh's roof;
+  - the Elite Four rooms are a corridor, not a hub;
+  - `johto_only` with the `champion_red` goal is refused with a clear
+    message (it crashed generation);
+  - trainers the game hides for good are sent by the client once that
+    happens: the Mahogany hideout (after Ariana), the Olivine Lighthouse 4F
+    pair (after Amphy), the Slowpoke Well grunts (after Proton), and Lake of
+    Rage's Alton, who never appears at all. Client update only.
+- **DeathLink did nothing** (player report). Receiving a death wrote over
+  the wrong party field (Speed, inside an encrypted block), and a death was
+  sent for every single fainted Pokemon. A death is now the game's own
+  whiteout, both ways: whiting out sends one, and a received one whites you
+  out on your next step ("out of usable Pokemon", back to the last Pokemon
+  Center), never during a battle or a Safari Game. Needs the ROM re-patched
+  with this apworld (same seed, the save keeps working); on an older ROM
+  the client says so instead of failing silently.
+- **Stuck at the top of the Olivine Lighthouse** (player report). Only
+  Jasmine's first talk opens the way out; with the Secret Potion already
+  owned, that talk was skipped, Jasmine healed Amphy and left, and the
+  barrier stayed. The first talk now always comes first (re-patched ROM),
+  and the client opens the barrier on any ROM once the potion is owned:
+  a player already stuck saves and reloads.
+- **Randomized trainers kept their old Pokemon's moves** (player report:
+  Bugsy's Koffing with Scyther's U-turn and Focus Energy). Gym Leaders and
+  the other trainers with hand-picked moves now give a replaced Pokemon
+  the moves it knows at its level, from its own (possibly randomized)
+  learnset. Needs the ROM re-patched with this apworld (same seed).
+
+### Added
+- **Web tracker map redrawn after the game's own Town Map**: every town,
+  route and cave sits on the Pokegear's own grid, the north is land and
+  the sea runs along the south coast and through the sea routes, as in
+  the game (it used to show inland lakes and bays that do not exist).
+  Sea routes are drawn in blue.
+- **Web tracker, detailed maps (first example: New Bark Town, the
+  player's house and Prof. Elm's lab and house)**: clicking New Bark on
+  the map opens its plan, drawn from the game's own tiles, with a square
+  on each check where it sits and a circle on each door or staircase;
+  click a circle to go through, the trail above leads back.
+- **Web tracker icons**: key items and HMs show their in-game icon, badges
+  their in-game shape (gold once owned), Gym Leaders their picture, all
+  taken from your ROM when the tracker is built.
+- **Web tracker: Gym Leaders can be ticked and unticked by hand**, connected
+  or not.
+- **New option `require_flash`** (off by default): dark caves need TM70
+  in logic.
+- **New options `trainersanity_count` and `dexsanity_count`**: only that
+  many trainers or species (drawn at random) become checks.
+- Item groups for hints: `HMs`, `Field Moves`, `Johto Badges`, `Kanto
+  Badges`, `Badges`, `Wings`, and one per field move (`Surf`, `Cut`, ...).
+
 ## [0.10.0] - 2026-09-18 (tag v0.2.5)
 
 **Breaking release.** Seeds generated with v0.2.4 or earlier cannot be

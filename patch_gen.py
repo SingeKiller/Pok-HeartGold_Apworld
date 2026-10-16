@@ -28,13 +28,17 @@ from pathlib import Path
 from rom import HeartGoldRom
 from rom import badgedata as rom_badgedata
 from rom import badgegatedata as rom_badgegatedata
+from rom import deathlinkdata as rom_deathlinkdata
 from rom import encounterdata as rom_encounterdata
 from rom import expshare as rom_expshare
+from rom import giftflagdata as rom_giftflagdata
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
+from rom import newbarkexitdata as rom_newbarkexitdata
 from rom import evodata as rom_evodata
 from rom import hiddenitemdata as rom_hiddenitemdata
 from rom import learnsetdata as rom_learnsetdata
+from rom import lighthousedata as rom_lighthousedata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
 from rom import npcgiftgatedata as rom_npcgiftgatedata
@@ -269,6 +273,32 @@ def apply_wing_monk_regate(rom: HeartGoldRom) -> None:
     rom_wingmonkdata.write_wing_monk_regate(rom)
 
 
+def apply_gift_flags(rom: HeartGoldRom) -> None:
+    """A check flag for the 7 NPC gifts that set none the client can read
+    (rom/giftflagdata.py). Unconditional; must run after
+    apply_local_item_substitutions."""
+    rom_giftflagdata.write_gift_flags(rom)
+
+
+def apply_deathlink_scripts(rom: HeartGoldRom) -> None:
+    """DeathLink through the game's own whiteout (rom/deathlinkdata.py).
+    Unconditional: inert unless the client sets the death flag."""
+    rom_deathlinkdata.write_deathlink_scripts(rom)
+
+
+def apply_lighthouse_fix(rom: HeartGoldRom) -> None:
+    """Jasmine's first talk at the top of the lighthouse always comes
+    before the potion scene, so the way out opens (rom/lighthousedata.py).
+    Unconditional."""
+    rom_lighthousedata.write_lighthouse_fix(rom)
+
+
+def apply_new_bark_east_exit_fix(rom: HeartGoldRom) -> None:
+    """Mom no longer walls off New Bark's east water between Clair's badge
+    and the box-art legendary (rom/newbarkexitdata.py). Unconditional."""
+    rom_newbarkexitdata.write_new_bark_east_exit_open(rom)
+
+
 def apply_exp_settings(rom: HeartGoldRom, global_exp_share: bool, multiplier: int) -> None:
     """global_exp_share / exp_multiplier: patch the battle engine's Exp.
     code in overlay 12 (see rom/expshare.py and patches/exp_share.s). A
@@ -471,6 +501,53 @@ def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
         rom_trainerdata.write_party_levels(rom, data["id"], data["party"])
 
 
+def default_moveset(learnset: list[tuple[int, int]], level: int) -> list[int]:
+    """The moves the game gives a mon that has no hand-picked moves
+    (src/pokemon.c, InitBoxMonMoveset): its level-up moves up to `level`, in
+    learnset order, a move already known skipped, the oldest dropped once
+    four are known. `learnset` is (level, raw move id) pairs."""
+    moves: list[int] = []
+    for learn_level, move_id in learnset:
+        if learn_level > level:
+            break
+        if move_id in moves:
+            continue
+        if len(moves) == 4:
+            moves.pop(0)
+        moves.append(move_id)
+    return moves
+
+
+def apply_trainer_movesets(rom: HeartGoldRom, trainers: dict) -> None:
+    """Trainers with hand-picked moves (Gym Leaders and a few others) kept
+    them when their species was replaced, so a randomized mon fought with
+    its predecessor's moves (player report 2026-10-16: Bugsy's Koffing with
+    Scyther's Quick Attack, Leer, U-turn and Focus Energy). Every such slot
+    whose species changed now gets the moves the game gives a mon with no
+    hand-picked moves, from the learnsets as finally written: must run after
+    apply_evolution_and_stat_randomization (randomize_learnsets). A slot
+    that kept its species keeps its vanilla moves."""
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+    from data.trainers import TRAINERS
+
+    learnsets: dict[int, list[tuple[int, int]]] = {}
+    for key, data in trainers.items():
+        vanilla = TRAINERS.get(key)
+        if not data["party"] or vanilla is None or not rom_trainerdata.trainer_has_custom_moves(rom, data["id"]):
+            continue
+        movesets: list[list[int] | None] = []
+        for mon, vanilla_mon in zip(data["party"], vanilla["party"]):
+            if mon["species"] == vanilla_mon["species"]:
+                movesets.append(None)
+                continue
+            raw_index = SPECIES_KEY_TO_RAW_INDEX[mon["species"]]
+            if raw_index not in learnsets:
+                learnsets[raw_index] = rom_learnsetdata.read_species_learnset(rom, raw_index)
+            movesets.append(default_moveset(learnsets[raw_index], mon["level"]))
+        if any(moves is not None for moves in movesets):
+            rom_trainerdata.write_party_moves(rom, data["id"], movesets)
+
+
 def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
     """Apply species.py's randomize_wild_encounters output (already
     resolved to rom's declared version's own vanilla base data by
@@ -519,6 +596,9 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
     from data.moves import MOVES
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
+    from species import restore_shadowed_time_evolutions
+
+    species = restore_shadowed_time_evolutions(species)
     for species_key, data in species.items():
         raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
 

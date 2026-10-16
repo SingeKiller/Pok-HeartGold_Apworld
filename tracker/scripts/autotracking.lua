@@ -28,11 +28,13 @@ local function on_clear(slot_data)
     end
 
     local options = (slot_data and slot_data.options) or {}
+    DEXSANITY_LOGIC = slot_data and slot_data.dexsanity_logic or nil
     OPTIONS.soulsilver = options.game_version == 1
     OPTIONS.johto_only = options.johto_only == 1 or options.johto_only == true
     OPTIONS.magnet_train = not (options.magnet_train == 0 or options.magnet_train == false)
     OPTIONS.hidden_items_require_dowsing_machine = options.hidden_items_require_dowsing_machine == 1
         or options.hidden_items_require_dowsing_machine == true
+    OPTIONS.require_flash = options.require_flash == 1 or options.require_flash == true
     OPTIONS.origin = "new_bark"
     if slot_data and slot_data.randomize_start_location and slot_data.starting_town then
         OPTIONS.origin = slot_data.starting_town
@@ -66,13 +68,15 @@ local function on_clear(slot_data)
         goal.CurrentStage = stage
     end
 
-    -- Dexsanity species this seed does not have: neither missing nor
-    -- checked on the server. Shown as done so they stay out of the way.
+    -- Checks this seed does not have (Dexsanity species absent from its wild
+    -- tables, trainers or species left out by trainersanity_count /
+    -- dexsanity_count): neither missing nor checked on the server. Shown as
+    -- done so they stay out of the way.
     if Archipelago.MissingLocations and Archipelago.CheckedLocations then
         local present = {}
         for _, id in ipairs(Archipelago.MissingLocations) do present[id] = true end
         for _, id in ipairs(Archipelago.CheckedLocations) do present[id] = true end
-        for _, id in ipairs(DATA.dexsanity_ids) do
+        for id, _ in pairs(DATA.location_sections) do
             if not present[id] then
                 local section = Tracker:FindObjectForCode(DATA.location_sections[id])
                 if section ~= nil then

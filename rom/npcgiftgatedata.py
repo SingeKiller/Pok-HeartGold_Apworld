@@ -115,6 +115,8 @@ GROUP_A: dict[str, tuple[int, int, int, int]] = {
     "route_12_fishing_brother_house_super_rod": (200, 14, 19, 76),
     # scr_seq_0798_T07R0203.s:198 -- GetItemQuantity ITEM_GB_SOUNDS, ...
     "celadon_condominiums_3f_gb_sounds": (798, 630, 19, 679),
+    # scr_seq_0243_R36.s:414 -- GetItemQuantity ITEM_HM06, ... -> _0572
+    "route_36_hm06": (243, 1356, 19, 1394),
 }
 
 # celadon_game_corner_coin_case (scr_seq_0806_T07SP0101.s:104 -- HasItem
@@ -140,16 +142,35 @@ GROUP_B: dict[str, tuple[int, int, int, int, int]] = {
 # this project's own code (checked against BADGE_SENTINEL_INJECTIONS,
 # `_SYNTHETIC_ID_FLAG_OVERRIDES`, the TRAINER_FLAG_BASE/HIDDEN_ITEMS_
 # FLAG_BASE reserved bands, and each other -- no overlap).
+#
+# Moved out of 0xB48-0xB4F on 2026-09-24: that band is the game's daily
+# flags, wiped by ClearDailyFlags (src/script_manager.c:410) every time the
+# day changes, which re-opened every gate once a day. Same new band as
+# rom/badgedata.py's sentinels (0x51F-0x54F, unused and never cleared).
+# Each gate flag is set on the give path, so it also serves as that
+# location's check flag (location_flags.py). LEGACY_GATE_FLAGS keeps the
+# old ids: the client keeps both set for ROMs patched before.
 GATE_FLAGS: dict[str, int] = {
+    "goldenrod_radio_tower_2f_blue_card": 0x52A,
+    "goldenrod_radio_tower_5f_basement_key": 0x52B,
+    "goldenrod_tunnel_warehouse_card_key": 0x52C,
+    "goldenrod_flower_shop_squirtbottle": 0x52D,
+    "route_12_fishing_brother_house_super_rod": 0x52E,
+    "celadon_condominiums_3f_gb_sounds": 0x52F,
+    "celadon_game_corner_coin_case": 0x530,
+    # 2026-09-24: the Route 36 HM06 giver re-gave his (substituted) item on
+    # every talk, same `GetItemQuantity` gate as the others.
+    "route_36_hm06": 0x539,
+}
+
+LEGACY_GATE_FLAGS: dict[str, int] = {
     "goldenrod_radio_tower_2f_blue_card": 0xB48,
     "goldenrod_radio_tower_5f_basement_key": 0xB49,
     "goldenrod_tunnel_warehouse_card_key": 0xB4A,
     "goldenrod_flower_shop_squirtbottle": 0xB4B,
     "route_12_fishing_brother_house_super_rod": 0xB4C,
     "celadon_condominiums_3f_gb_sounds": 0xB4D,
-    # 0xB4E belonged to saffron_copycat_house_2f_pass, now in GROUP_C. Left
-    # unassigned rather than reused: ROMs patched before the move already
-    # set it on their saves.
+    # 0xB4E belonged to saffron_copycat_house_2f_pass, now in GROUP_C.
     "celadon_game_corner_coin_case": 0xB4F,
 }
 

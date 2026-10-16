@@ -132,17 +132,39 @@ TABLE: dict[str, tuple[int, int]] = {
 # `_SYNTHETIC_ID_FLAG_OVERRIDES`, `_STATIC_POKEMON_FLAG_IDS`, the full
 # TRAINER_FLAG_BASE..TRAINER_FLAG_BASE+max_trainer_id reserved band, and
 # the HIDDEN_ITEMS_FLAG_BASE band -- and against each other, no overlap).
+# Moved out of 0xB48-0xB5F on 2026-09-24: that band is the game's daily
+# flags (DAILY_FLAG_BASE 0xAA0, NUM_DAILY_FLAGS 192, include/constants/
+# flags.h), wiped by ClearDailyFlags (src/script_manager.c:410) every time
+# the day changes, which made beaten Leaders fightable again. 0x51F-0x54F is
+# an unused FLAG_UNK_ band between the item-ball and trainer flags, never
+# referenced in the decomp and never cleared. The old ids stay listed in
+# LEGACY_* tables: the client keeps both set for ROMs patched before.
 BADGE_SENTINEL_INJECTIONS: dict[str, int] = {
-    "hive": 0xB50,  # azalea_gym_badge (Bugsy)
-    "fog": 0xB51,  # ecruteak_gym_badge (Morty)
-    "storm": 0xB52,  # cianwood_gym_badge (Chuck)
-    "mineral": 0xB53,  # olivine_gym_badge (Jasmine)
-    "glacier": 0xB54,  # mahogany_gym_leader_room_badge (Pryce)
-    "boulder": 0xB55,  # pewter_gym_badge (Brock)
-    "cascade": 0xB56,  # cerulean_gym_badge (Misty)
-    "rainbow": 0xB57,  # celadon_gym_badge (Erika)
-    "soul": 0xB58,  # fuchsia_gym_badge (Janine)
-    "marsh": 0xB59,  # saffron_gym_badge (Sabrina)
+    "hive": 0x520,  # azalea_gym_badge (Bugsy)
+    "fog": 0x521,  # ecruteak_gym_badge (Morty)
+    "storm": 0x522,  # cianwood_gym_badge (Chuck)
+    "mineral": 0x523,  # olivine_gym_badge (Jasmine)
+    "glacier": 0x524,  # mahogany_gym_leader_room_badge (Pryce)
+    "boulder": 0x525,  # pewter_gym_badge (Brock)
+    "cascade": 0x526,  # cerulean_gym_badge (Misty)
+    "rainbow": 0x527,  # celadon_gym_badge (Erika)
+    "soul": 0x528,  # fuchsia_gym_badge (Janine)
+    "marsh": 0x529,  # saffron_gym_badge (Sabrina)
+}
+
+
+# Pre-2026-09-24 ids (daily band), see the note above.
+LEGACY_BADGE_SENTINEL_INJECTIONS: dict[str, int] = {
+    "hive": 0xB50,
+    "fog": 0xB51,
+    "storm": 0xB52,
+    "mineral": 0xB53,
+    "glacier": 0xB54,
+    "boulder": 0xB55,
+    "cascade": 0xB56,
+    "rainbow": 0xB57,
+    "soul": 0xB58,
+    "marsh": 0xB59,
 }
 
 

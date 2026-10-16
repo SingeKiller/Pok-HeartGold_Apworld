@@ -77,62 +77,80 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
         "vermilion_pokemon_fan_club", "vermilion_south_house", "viridian", "viridian_forest",
         "viridian_gym", "viridian_northeast_house", "viridian_pokecenter_1f", "viridian_pokecenter_b1f",
         "viridian_pokemart", "viridian_route_1_gatehouse", "viridian_trainer_house_1f", "viridian_trainer_house_b1f",
+        # Sub-regions carved out of Kanto maps on 2026-09-23 (map walk).
+        "cerulean_cave_1f_rocks", "cerulean_cave_2f_rocks", "cerulean_cave_b1f_cliff", "cerulean_cave_b1f_rocks",
+        "cerulean_gym_surf", "cerulean_river", "cinnabar_island_volcano", "diglett_cave_rock_climb",
+        "pewter_rocks", "rock_tunnel_b1f_rock_climb", "rock_tunnel_b1f_rock_smash", "route_10_south_strength",
+        "route_10_surf", "route_19_rocks", "route_19_sea", "route_20_west",
+        "route_25_cut_pocket", "route_2_north", "route_2_southeast", "route_3_rocks", "route_11_west",
+        "route_9_cut", "seafoam_islands_1f_east", "vermilion_gym_shore", "vermilion_rock_smash",
+        "vermilion_surf",
     }
 )
 
-# The two wing handover events (data_gen/rules.toml, verrous A7 and D12).
-# In each version one of the two NPCs handing a wing over stands in Pewter
-# City (scr_seq_0750_T03.s: the Silver Wing in HeartGold, the Rainbow Wing in
-# SoulSilver), so under `johto_only` that event can never be granted and
-# whatever sits behind its monk is unreachable in logic.
-_WING_ITEMS = ("rainbow_wing", "silver_wing")
-
-
-def _regions_behind(gate_src: str, gate_dst: str) -> set[str]:
-    """Every region reachable from `gate_dst` without walking back through
-    `gate_src`, i.e. what the `gate_src -> gate_dst` edge alone opens."""
-    seen = {gate_dst}
-    stack = [gate_dst]
-    while stack:
-        for exit_name in REGIONS[stack.pop()]["exits"]:
-            if exit_name == gate_src or exit_name in seen or exit_name not in REGIONS:
-                continue
-            seen.add(exit_name)
-            stack.append(exit_name)
-    return seen
-
-
 def johto_only_excluded_region_keys(soulsilver: bool) -> frozenset[str]:
-    """`johto_only`'s full exclusion set: KANTO_REGION_KEYS plus the Johto
-    regions only the Pewter-side wing opens in this version (Bell Tower 2F
-    and up in SoulSilver, the Lugia chamber in HeartGold): that wing's only
-    source is a Kanto location, so without Kanto it is not in the item pool.
-    Leaving them in would create locations no logic can ever reach. Derived
-    from the wing locations and EXIT_RULES rather than hardcoded, so it
-    follows data_gen/rules.toml."""
+    """`johto_only`'s full exclusion set: KANTO_REGION_KEYS plus every
+    Johto region that can no longer be reached once Kanto is gone.
+
+    Without Kanto, the items those locations hold in the unrandomized game
+    are not in the pool either (create_items only adds the original items of
+    created locations), and neither are the story events granted there. So
+    a region behind one of them is unreachable in logic: the Pewter-side
+    wing (Bell Tower 2F and up in SoulSilver, the Lugia chamber in
+    HeartGold), everything behind Rock Climb (HM08 comes from Oak in Pallet
+    Town, the Earth Badge from Blue), the League gate's Route 22 and Mt.
+    Silver sides (a visit to Viridian, Blue beaten), a Ruins of Alph
+    chamber whose key item comes from Kanto. Leaving them in would create
+    locations no logic can ever reach.
+
+    Derived, not hardcoded (2026-09-23; was the wing case only): drop the
+    excluded regions' items and events, flood-fill from New Bark with what
+    is left, exclude what the flood misses, repeat until nothing changes."""
+    from data.items import ITEMS
     from data.locations import LOCATIONS
     from data.rules import EXIT_RULES
 
     from locations import location_region_key
 
-    kanto_wings = {
-        data["original_item"]
-        for data in LOCATIONS.values()
-        if data.get("original_item") in _WING_ITEMS
-        and location_region_key(data, soulsilver) in KANTO_REGION_KEYS
-    }
     excluded = set(KANTO_REGION_KEYS)
-    for (src, dst), requirement in EXIT_RULES.items():
-        if not kanto_wings.intersection(requirement.get("items", ())):
-            continue
-        behind = _regions_behind(src, dst)
-        # Rules are bidirectional by default, so EXIT_RULES also holds the
-        # way back out (dst -> src), whose "behind" side is the rest of the
-        # world. Same anchor as KANTO_REGION_KEYS' own derivation.
-        if "new_bark" in behind:
-            continue
-        excluded |= behind
-    return frozenset(excluded)
+    while True:
+        kept = [data for data in LOCATIONS.values() if location_region_key(data, soulsilver) not in excluded]
+        items = {data["original_item"] for data in kept if data.get("original_item") in ITEMS}
+        event_regions: dict[str, set[str]] = {}
+        for data in kept:
+            if data["type"] == "event":
+                event_regions.setdefault(data["event"], set()).add(location_region_key(data, soulsilver))
+
+        reached = {"new_bark"}
+        events: set[str] = set()
+        changed = True
+        while changed:
+            changed = False
+            stack = list(reached)
+            while stack:
+                src = stack.pop()
+                for dst in REGIONS[src]["exits"]:
+                    if dst in reached or dst not in REGIONS or dst in excluded:
+                        continue
+                    rule = EXIT_RULES.get((src, dst))
+                    if rule is not None and not (
+                        set(rule["items"]) <= items
+                        and all(f"badge_{badge}" in items for badge in rule["badges"])
+                        and set(rule["events"]) <= events
+                    ):
+                        continue
+                    reached.add(dst)
+                    stack.append(dst)
+                    changed = True
+            for event, homes in event_regions.items():
+                if event not in events and homes & reached:
+                    events.add(event)
+                    changed = True
+
+        newly = set(REGIONS) - reached - excluded
+        if not newly:
+            return frozenset(excluded)
+        excluded |= newly
 
 
 def create_regions(

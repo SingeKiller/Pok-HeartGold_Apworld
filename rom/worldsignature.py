@@ -48,6 +48,20 @@ def stamp_slot_auth(packed: bytearray, auth: bytes) -> None:
     packed[SLOT_AUTH_ROM_OFFSET : SLOT_AUTH_ROM_OFFSET + SLOT_AUTH_SIZE] = auth
 
 
+# DeathLink scripts (2026-10-16): ROMs patched with rom/deathlinkdata.py's
+# edits carry this tag, so the client can tell a player whose ROM predates
+# them to patch it again instead of failing silently. 0x190-0x193: next to
+# the slot auth, same DSi extended header area, zero on both retail ROMs.
+DEATHLINK_SCRIPTS_ROM_OFFSET = 0x190
+DEATHLINK_SCRIPTS_TAG = b"PKDL"
+
+
+def stamp_deathlink_scripts(packed: bytearray) -> None:
+    """Write DEATHLINK_SCRIPTS_TAG into an already-packed ROM image."""
+    end = DEATHLINK_SCRIPTS_ROM_OFFSET + len(DEATHLINK_SCRIPTS_TAG)
+    packed[DEATHLINK_SCRIPTS_ROM_OFFSET:end] = DEATHLINK_SCRIPTS_TAG
+
+
 def has_world_signature(header_bytes: bytes) -> bool:
     """True if a WORLD_SIGNATURE_SIZE-byte read at WORLD_SIGNATURE_ROM_OFFSET
     is this world's signature."""

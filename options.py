@@ -283,9 +283,10 @@ class JohtoOnly(Toggle):
     """Remove all of Kanto from the game. No Kanto locations, no Kanto
     badges in the item pool.
 
-    Johto's own Elite Four and the post game Red fight still work
-    normally. If your goal is `n_badges` and you asked for more than 8,
-    it gets capped to 8 automatically."""
+    Johto's own Elite Four still works normally. Red cannot be reached
+    (Mt. Silver opens from Kanto), so the `champion_red` goal is refused.
+    If your goal is `n_badges` and you asked for more than 8, it gets
+    capped to 8 automatically."""
 
     display_name = "Johto Only"
 
@@ -386,6 +387,18 @@ class GoalBadgeCount(Range):
     range_start = 1
     range_end = 16
     default = 16
+
+
+class RequireFlash(Toggle):
+    """Require Flash (TM70) in logic before entering a dark cave: Rock
+    Tunnel, Dark Cave, the first two floors of the Whirl Islands and Cerulean
+    Cave (the maps the game itself darkens until Flash is used).
+
+    Off by default: the caves can be crossed in the dark, it is only harder
+    to see where you are going.
+    """
+
+    display_name = "Require Flash"
 
 
 class HiddenItemsRequireDowsingMachine(Toggle):
@@ -512,6 +525,28 @@ class DexsanityEncounterTypes(OptionSet):
     default = frozenset(valid_keys)
 
 
+class TrainersanityCount(Range):
+    """With `trainersanity` on, how many trainer battles are checks, picked
+    at random among every trainer this seed has (all of them by default).
+    Ignored when `trainersanity` is off."""
+
+    display_name = "Trainersanity Count"
+    range_start = 1
+    range_end = 390
+    default = 390
+
+
+class DexsanityCount(Range):
+    """With `dexsanity` on, how many species are checks at most, picked at
+    random among the species this seed's wild tables really hold (all of
+    them by default). Ignored when `dexsanity` is off."""
+
+    display_name = "Dexsanity Count"
+    range_start = 1
+    range_end = 493
+    default = 493
+
+
 class Legendarysanity(Toggle):
     """Add a check for catching Ho-Oh (Bell Tower) and Lugia (Whirl
     Islands), both only reachable after defeating the Elite Four/Champion,
@@ -631,10 +666,10 @@ class TradeEvolutionLevel(Range):
 class HeartGoldDeathLink(DeathLink):
     __doc__ = (
         DeathLink.__doc__
-        + "\n\n    In Pokemon HeartGold/SoulSilver, having one of your own Pokemon "
-        "faint sends a death, and receiving a death faints your entire "
-        "party (zeroes each party Pokemon's current HP, same as a "
-        "vanilla blackout).\n"
+        + "\n\n    In Pokemon HeartGold/SoulSilver, a death is a whiteout: "
+        "whiting out sends one, and receiving one whites you out on your "
+        "next step, back to the last Pokemon Center as the game itself "
+        "does. Needs a ROM patched by this APWorld version or later.\n"
     )
 
 
@@ -668,6 +703,7 @@ class HeartGoldOptions(PerGameCommonOptions):
     sphere_based_trainer_leveling_bonus: SphereBasedTrainerLevelingBonus
 
     hidden_items_require_dowsing_machine: HiddenItemsRequireDowsingMachine
+    require_flash: RequireFlash
     magnet_train: MagnetTrain
     remote_items: RemoteItems
 
@@ -689,6 +725,8 @@ class HeartGoldOptions(PerGameCommonOptions):
     dexsanity_trigger: DexsanityTrigger
     dexsanity_encounter_types: DexsanityEncounterTypes
     legendarysanity: Legendarysanity
+    trainersanity_count: TrainersanityCount
+    dexsanity_count: DexsanityCount
 
     start_inventory_from_pool: StartInventoryPool
 
@@ -726,6 +764,7 @@ OPTION_GROUPS = [
             SphereBasedTrainerLeveling,
             SphereBasedTrainerLevelingBonus,
             HiddenItemsRequireDowsingMachine,
+            RequireFlash,
             MagnetTrain,
             RemoteItems,
         ],
@@ -752,7 +791,8 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Stretch Goals",
-        [Trainersanity, Dexsanity, DexsanityTrigger, DexsanityEncounterTypes, Legendarysanity],
+        [Trainersanity, TrainersanityCount, Dexsanity, DexsanityCount, DexsanityTrigger, DexsanityEncounterTypes,
+         Legendarysanity],
         start_collapsed=True,
     ),
 ]

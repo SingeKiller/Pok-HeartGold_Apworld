@@ -8,6 +8,7 @@ OPTIONS = {
     johto_only = false,
     magnet_train = true,
     hidden_items_require_dowsing_machine = false,
+    require_flash = false,
     origin = "new_bark",
 }
 
@@ -65,6 +66,31 @@ local function rule_passes(rule, events)
     return true
 end
 
+-- Every gate of an entry (location or event) at once, as in
+-- locations._story_gate_rules.
+local function gates_pass(entry, reachable, events)
+    for _, code in ipairs(entry.items or {}) do
+        if not has(code) then
+            return false
+        end
+    end
+    local dropped = OPTIONS.magnet_train and (DATA.magnet_train_dropped_regions or {}) or {}
+    for _, region in ipairs(entry.regions or {}) do
+        if not dropped[region] and not reachable[region] then
+            return false
+        end
+    end
+    for _, event in ipairs(entry.events or {}) do
+        if not events[event] then
+            return false
+        end
+    end
+    if entry.power_plant and not OPTIONS.magnet_train and not events["power_plant_restored"] then
+        return false
+    end
+    return true
+end
+
 local function solve()
     local reachable = {}
     local events = {}
@@ -87,7 +113,8 @@ local function solve()
             for _, dst in ipairs(DATA.regions[src] or {}) do
                 if not reachable[dst] and DATA.regions[dst] ~= nil and not excluded(dst) then
                     local rule = DATA.exit_rules[src .. ">" .. dst]
-                    if rule == nil or rule_passes(rule, events) then
+                    local dark = OPTIONS.require_flash and DATA.dark_entries[src .. ">" .. dst] and not has("tm70")
+                    if not dark and (rule == nil or rule_passes(rule, events)) then
                         reachable[dst] = true
                         queue[#queue + 1] = dst
                         changed = true
@@ -96,7 +123,7 @@ local function solve()
             end
         end
         for name, entry in pairs(DATA.events) do
-            if not events[name] and reachable[region_of(entry)] then
+            if not events[name] and reachable[region_of(entry)] and gates_pass(entry, reachable, events) then
                 events[name] = true
                 changed = true
             end
@@ -120,8 +147,8 @@ function has_event(name)
     return state().events[name] == true
 end
 
--- Section access rule: "$loc|<location key>". Mirrors create_locations'
--- rule precedence (one extra rule at most, first match wins).
+-- Section access rule: "$loc|<location key>". Mirrors create_locations:
+-- the Dowsing Machine rule plus every gate.
 function loc(key)
     local entry = DATA.locations[key]
     if entry == nil then
@@ -131,43 +158,37 @@ function loc(key)
     if not s.reachable[region_of(entry)] then
         return false
     end
-    if entry.type == "hidden_item" and OPTIONS.hidden_items_require_dowsing_machine then
-        return has("dowsing_mchn")
+    if entry.type == "hidden_item" and OPTIONS.hidden_items_require_dowsing_machine and not has("dowsing_mchn") then
+        return false
     end
-    if entry.items then
-        for _, code in ipairs(entry.items) do
-            if not has(code) then
-                return false
-            end
-        end
-        return true
-    end
-    if entry.regions then
-        for _, region in ipairs(entry.regions) do
-            if not s.reachable[region] then
-                return false
-            end
-        end
-        return true
-    end
-    if entry.events then
-        for _, event in ipairs(entry.events) do
-            if not s.events[event] then
-                return false
-            end
-        end
-        return true
-    end
-    if entry.power_plant and not OPTIONS.magnet_train then
-        return s.events["power_plant_restored"] == true
-    end
-    return true
+    return gates_pass(entry, s.reachable, s.events)
 end
 
--- Dexsanity: which species exist and where they live is seed data the pack
--- does not have, so these checks are always shown as available.
-function dex()
-    return true
+-- Dexsanity: where this seed put each species comes from slot data
+-- ("dexsanity_logic", set by autotracking.lua): one entry per place, any
+-- one is enough. Without it (offline, or a seed generated before
+-- 2026-10-04) the answer is unknown: shown as "inspect", not as in logic.
+DEXSANITY_LOGIC = nil
+
+function dex(location_id)
+    local sources = DEXSANITY_LOGIC and DEXSANITY_LOGIC[tostring(location_id)]
+    if sources == nil then
+        return AccessibilityLevel and AccessibilityLevel.Inspect or true
+    end
+    local s = state()
+    for _, source in ipairs(sources) do
+        local ok = s.reachable[source[1]] == true
+        for _, code in ipairs(source[2] or {}) do
+            ok = ok and has(code)
+        end
+        for _, region in ipairs(source[3] or {}) do
+            ok = ok and s.reachable[region] == true
+        end
+        if ok then
+            return true
+        end
+    end
+    return false
 end
 
 ScriptHost:AddWatchForCode("hgss_logic_invalidate", "*", invalidate_logic)

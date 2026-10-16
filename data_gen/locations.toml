@@ -244,7 +244,7 @@ x = 15
 z = 6
 
 [burned_tower_1f_hp_up]
-region = 'burned_tower_1f'
+region = 'burned_tower_1f_rocks'
 type = 'ground_item'
 original_item = 'hp_up'
 id = 1073
@@ -260,7 +260,7 @@ x = 15
 z = 9
 
 [burned_tower_b1f_tm12]
-region = 'burned_tower_b1f'
+region = 'burned_tower_b1f_strength'
 type = 'hm_tm'
 original_item = 'tm12'
 id = 1074
@@ -284,7 +284,7 @@ x = 77
 z = 33
 
 [national_park_shiny_stone]
-region = 'national_park'
+region = 'national_park_rock_climb'
 type = 'ground_item'
 original_item = 'shiny_stone'
 id = 1286
@@ -308,7 +308,7 @@ x = 435
 z = 274
 
 [ruins_of_alph_hyper_potion]
-region = 'ruins_of_alph'
+region = 'ruins_of_alph_ledge'
 type = 'ground_item'
 original_item = 'hyper_potion'
 id = 1147
@@ -772,7 +772,7 @@ x = 67
 z = 28
 
 [mount_mortar_1f_back_iron_ball]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_inner'
 type = 'ground_item'
 original_item = 'iron_ball'
 id = 1177
@@ -788,7 +788,7 @@ x = 51
 z = 43
 
 [mount_mortar_1f_back_iron]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_inner'
 type = 'ground_item'
 original_item = 'iron'
 id = 1179
@@ -796,7 +796,7 @@ x = 29
 z = 20
 
 [mount_mortar_1f_back_max_revive]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_inner'
 type = 'ground_item'
 original_item = 'max_revive'
 id = 1180
@@ -812,7 +812,7 @@ x = 37
 z = 52
 
 [mount_mortar_1f_back_full_incense]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_upper'
 type = 'ground_item'
 original_item = 'full_incense'
 id = 1194
@@ -820,7 +820,7 @@ x = 73
 z = 47
 
 [mount_mortar_1f_back_protector]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_upper'
 type = 'ground_item'
 original_item = 'protector'
 id = 1195
@@ -1068,7 +1068,7 @@ x = 14
 z = 27
 
 [mount_silver_cave_1f_full_restore]
-region = 'mount_silver_cave_1f'
+region = 'mount_silver_cave_1f_upper'
 type = 'ground_item'
 original_item = 'full_restore'
 id = 1241
@@ -1124,7 +1124,7 @@ x = 17
 z = 11
 
 [mount_silver_cave_2f_calcium]
-region = 'mount_silver_cave_2f'
+region = 'mount_silver_cave_2f_rocks'
 type = 'ground_item'
 original_item = 'calcium'
 id = 1248
@@ -1148,7 +1148,7 @@ x = 25
 z = 7
 
 [dark_cave_route_45_side_tm54]
-region = 'dark_cave_route_45_side'
+region = 'dark_cave_route_45_side_water'
 type = 'hm_tm'
 original_item = 'tm54'
 id = 1113
@@ -1156,7 +1156,7 @@ x = 14
 z = 49
 
 [dark_cave_route_45_side_revive]
-region = 'dark_cave_route_45_side'
+region = 'dark_cave_route_45_side_water'
 type = 'ground_item'
 original_item = 'revive'
 id = 1114
@@ -1172,7 +1172,7 @@ x = 10
 z = 13
 
 [dark_cave_route_31_side_hyper_potion]
-region = 'dark_cave_route_31_side'
+region = 'dark_cave_route_31_side_rocks'
 type = 'ground_item'
 original_item = 'hyper_potion'
 id = 1219
@@ -1180,7 +1180,7 @@ x = 51
 z = 15
 
 [dark_cave_route_31_side_full_heal]
-region = 'dark_cave_route_31_side'
+region = 'dark_cave_route_31_side_east'
 type = 'ground_item'
 original_item = 'full_heal'
 id = 1220
@@ -1188,7 +1188,7 @@ x = 56
 z = 43
 
 [dark_cave_route_31_side_dire_hit]
-region = 'dark_cave_route_31_side'
+region = 'dark_cave_route_31_side_east'
 type = 'ground_item'
 original_item = 'dire_hit'
 id = 1221
@@ -1196,7 +1196,7 @@ x = 46
 z = 51
 
 [dark_cave_route_31_side_black_flute]
-region = 'dark_cave_route_31_side'
+region = 'dark_cave_route_31_side_water'
 type = 'ground_item'
 original_item = 'black_flute'
 id = 1292
@@ -1260,7 +1260,7 @@ x = 46
 z = 19
 
 [victory_road_3f_tm79]
-region = 'victory_road_3f'
+region = 'victory_road_3f_rocks'
 type = 'hm_tm'
 original_item = 'tm79'
 id = 1126
@@ -1276,7 +1276,7 @@ x = 25
 z = 15
 
 [dragons_den_dragon_fang]
-region = 'dragons_den'
+region = 'dragons_den_water_surf_whirlpool'
 type = 'ground_item'
 original_item = 'dragon_fang'
 id = 1112
@@ -1284,7 +1284,7 @@ x = 50
 z = 34
 
 [dragons_den_calcium]
-region = 'dragons_den'
+region = 'dragons_den_surf'
 type = 'ground_item'
 original_item = 'calcium'
 id = 1210
@@ -1292,7 +1292,7 @@ x = 42
 z = 16
 
 [dragons_den_max_elixir]
-region = 'dragons_den'
+region = 'dragons_den_water'
 type = 'ground_item'
 original_item = 'max_elixir'
 id = 1211
@@ -1300,7 +1300,7 @@ x = 7
 z = 33
 
 [tohjo_falls_moon_stone]
-region = 'tohjo_falls'
+region = 'tohjo_falls_pool'
 type = 'ground_item'
 original_item = 'moon_stone'
 id = 1116
@@ -1372,7 +1372,7 @@ x = 451
 z = 401
 
 [route_32_shell_bell]
-region = 'route_32'
+region = 'route_32_rock_smash'
 type = 'ground_item'
 original_item = 'shell_bell'
 id = 1239
@@ -1380,7 +1380,7 @@ x = 475
 z = 439
 
 [route_34_nugget]
-region = 'route_34'
+region = 'route_34_surf'
 type = 'ground_item'
 original_item = 'nugget'
 id = 1087
@@ -1411,11 +1411,13 @@ id = 1275
 x = 375
 z = 277
 
-# x=393 is inside mapmatrix cell (12,7) of R36, west of the Sudowoodo at
-# x=415, hence `route_36_west` (2026-08-22; see data_gen/regions.toml's
-# [route_36] comment for the split and the cell arithmetic).
+# The ball at (393,237) is picked up from (392,237), (394,237) or (393,236),
+# all on the Route 37 side of the Sudowoodo; (393,238) is a headbutt tree
+# and the trees below it cut it off from the grass (2026-09-27, ROM walk,
+# HeartGold and SoulSilver identical). See data_gen/regions.toml's
+# [route_36] comment for the three-way split.
 [route_36_hyper_potion]
-region = 'route_36_west'
+region = 'route_36_north'
 type = 'ground_item'
 original_item = 'hyper_potion'
 id = 1276
@@ -1431,7 +1433,7 @@ x = 329
 z = 177
 
 [route_38_lax_incense]
-region = 'route_38'
+region = 'route_38_rock_climb'
 type = 'ground_item'
 original_item = 'lax_incense'
 id = 1278
@@ -1447,7 +1449,7 @@ x = 257
 z = 187
 
 [route_42_super_potion]
-region = 'route_42'
+region = 'route_42_pond'
 type = 'ground_item'
 original_item = 'super_potion'
 id = 1172
@@ -1455,7 +1457,7 @@ x = 472
 z = 176
 
 [route_42_dubious_disc]
-region = 'route_42'
+region = 'route_42_cliff'
 type = 'ground_item'
 original_item = 'dubious_disc'
 id = 1193
@@ -1487,7 +1489,7 @@ x = 564
 z = 177
 
 [route_44_max_revive]
-region = 'route_44'
+region = 'route_44_surf'
 type = 'ground_item'
 original_item = 'max_revive'
 id = 1202
@@ -1572,7 +1574,7 @@ x = 108
 z = 385
 
 [route_47_wave_incense]
-region = 'route_47'
+region = 'route_47_rock_climb_surf'
 type = 'ground_item'
 original_item = 'wave_incense'
 id = 1282
@@ -1596,7 +1598,7 @@ x = 75
 z = 336
 
 [violet_rare_candy]
-region = 'violet'
+region = 'violet_surf'
 type = 'ground_item'
 original_item = 'rare_candy'
 id = 1059
@@ -1604,7 +1606,7 @@ x = 504
 z = 237
 
 [violet_pp_up]
-region = 'violet'
+region = 'violet_surf'
 type = 'ground_item'
 original_item = 'pp_up'
 id = 1060
@@ -1620,7 +1622,7 @@ x = 2
 z = 15
 
 [olivine_tm57]
-region = 'olivine'
+region = 'olivine_surf'
 type = 'hm_tm'
 original_item = 'tm57'
 id = 1310
@@ -1660,7 +1662,7 @@ x = 540
 z = 37
 
 [mount_silver_reaper_cloth]
-region = 'mount_silver'
+region = 'mount_silver_water'
 type = 'ground_item'
 original_item = 'reaper_cloth'
 id = 1231
@@ -1756,7 +1758,7 @@ x = 11
 z = 6
 
 [burned_tower_b1f_revive]
-region = 'burned_tower_b1f'
+region = 'burned_tower_b1f_strength'
 type = 'hidden_item'
 original_item = 'revive'
 id = 21
@@ -1796,7 +1798,7 @@ x = 442
 z = 296
 
 [ruins_of_alph_rare_candy]
-region = 'ruins_of_alph'
+region = 'ruins_of_alph_rocks'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 149
@@ -1812,7 +1814,7 @@ x = 424
 z = 278
 
 [ruins_of_alph_big_mushroom]
-region = 'ruins_of_alph'
+region = 'ruins_of_alph_southwest'
 type = 'hidden_item'
 original_item = 'big_mushroom'
 id = 147
@@ -1820,7 +1822,7 @@ x = 418
 z = 314
 
 [ruins_of_alph_nugget]
-region = 'ruins_of_alph'
+region = 'ruins_of_alph_southwest'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 150
@@ -1828,7 +1830,7 @@ x = 423
 z = 311
 
 [union_cave_1f_big_pearl]
-region = 'union_cave_1f'
+region = 'union_cave_1f_water'
 type = 'hidden_item'
 original_item = 'big_pearl'
 id = 154
@@ -1860,7 +1862,7 @@ x = 20
 z = 43
 
 [union_cave_b1f_revive]
-region = 'union_cave_b1f'
+region = 'union_cave_b1f_water'
 type = 'hidden_item'
 original_item = 'revive'
 id = 155
@@ -1900,7 +1902,7 @@ x = 38
 z = 15
 
 [slowpoke_well_b1f_full_heal]
-region = 'slowpoke_well_b1f'
+region = 'slowpoke_well_b1f_strength_surf'
 type = 'hidden_item'
 original_item = 'full_heal'
 id = 29
@@ -1988,7 +1990,7 @@ x = 28
 z = 26
 
 [ilex_forest_big_mushroom]
-region = 'ilex_forest_north'
+region = 'ilex_forest_north_surf'
 type = 'hidden_item'
 original_item = 'big_mushroom'
 id = 213
@@ -2060,7 +2062,7 @@ x = 27
 z = 42
 
 [mount_mortar_1f_entrance_revive_2]
-region = 'mount_mortar_1f_entrance'
+region = 'mount_mortar_1f_entrance_upper'
 type = 'hidden_item'
 original_item = 'revive'
 id = 44
@@ -2076,7 +2078,7 @@ x = 54
 z = 68
 
 [mount_mortar_1f_back_ether]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_inner'
 type = 'hidden_item'
 original_item = 'ether'
 id = 46
@@ -2084,7 +2086,7 @@ x = 43
 z = 20
 
 [mount_mortar_1f_back_rare_candy]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_upper'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 140
@@ -2092,7 +2094,7 @@ x = 34
 z = 74
 
 [mount_mortar_1f_back_ultra_ball_2]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_upper'
 type = 'hidden_item'
 original_item = 'ultra_ball'
 id = 141
@@ -2100,7 +2102,7 @@ x = 60
 z = 37
 
 [mount_mortar_1f_back_nugget_2]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_upper'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 142
@@ -2140,7 +2142,7 @@ x = 16
 z = 18
 
 [mount_mortar_b1f_max_revive]
-region = 'mount_mortar_b1f'
+region = 'mount_mortar_b1f_inner'
 type = 'hidden_item'
 original_item = 'max_revive'
 id = 49
@@ -2236,7 +2238,7 @@ x = 29
 z = 11
 
 [mount_silver_cave_1f_dire_hit]
-region = 'mount_silver_cave_1f'
+region = 'mount_silver_cave_1f_upper'
 type = 'hidden_item'
 original_item = 'dire_hit'
 id = 76
@@ -2244,7 +2246,7 @@ x = 45
 z = 45
 
 [mount_silver_cave_1f_ultra_ball]
-region = 'mount_silver_cave_1f'
+region = 'mount_silver_cave_1f_pool'
 type = 'hidden_item'
 original_item = 'ultra_ball'
 id = 77
@@ -2252,7 +2254,7 @@ x = 10
 z = 39
 
 [mount_silver_cave_1f_revive]
-region = 'mount_silver_cave_1f'
+region = 'mount_silver_cave_1f_upper'
 type = 'hidden_item'
 original_item = 'revive'
 id = 201
@@ -2300,7 +2302,7 @@ x = 2
 z = 1
 
 [mount_silver_cave_2f_max_potion]
-region = 'mount_silver_cave_2f'
+region = 'mount_silver_cave_2f_rocks'
 type = 'hidden_item'
 original_item = 'max_potion'
 id = 78
@@ -2308,7 +2310,7 @@ x = 2
 z = 19
 
 [mount_silver_cave_2f_iron]
-region = 'mount_silver_cave_2f'
+region = 'mount_silver_cave_2f_rocks'
 type = 'hidden_item'
 original_item = 'iron'
 id = 222
@@ -2324,7 +2326,7 @@ x = 24
 z = 2
 
 [dark_cave_route_45_side_max_revive]
-region = 'dark_cave_route_45_side'
+region = 'dark_cave_route_45_side_water'
 type = 'hidden_item'
 original_item = 'max_revive'
 id = 16
@@ -2332,7 +2334,7 @@ x = 14
 z = 9
 
 [dark_cave_route_45_side_hyper_potion]
-region = 'dark_cave_route_45_side'
+region = 'dark_cave_route_45_side_pool'
 type = 'hidden_item'
 original_item = 'hyper_potion'
 id = 17
@@ -2356,7 +2358,7 @@ x = 12
 z = 11
 
 [dark_cave_route_31_side_max_ether]
-region = 'dark_cave_route_31_side'
+region = 'dark_cave_route_31_side_east'
 type = 'hidden_item'
 original_item = 'max_ether'
 id = 15
@@ -2420,7 +2422,7 @@ x = 43
 z = 18
 
 [dragons_den_revive]
-region = 'dragons_den'
+region = 'dragons_den_surf'
 type = 'hidden_item'
 original_item = 'revive'
 id = 81
@@ -2428,7 +2430,7 @@ x = 14
 z = 12
 
 [dragons_den_max_elixir_2]
-region = 'dragons_den'
+region = 'dragons_den_water'
 type = 'hidden_item'
 original_item = 'max_elixir'
 id = 83
@@ -2436,7 +2438,7 @@ x = 32
 z = 49
 
 [dragons_den_max_potion]
-region = 'dragons_den'
+region = 'dragons_den_water'
 type = 'hidden_item'
 original_item = 'max_potion'
 id = 82
@@ -2444,7 +2446,7 @@ x = 8
 z = 22
 
 [route_29_nugget]
-region = 'route_29'
+region = 'route_29_surf'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 1
@@ -2452,7 +2454,7 @@ x = 572
 z = 390
 
 [route_30_potion_2]
-region = 'route_30'
+region = 'route_30_north'
 type = 'hidden_item'
 original_item = 'potion'
 id = 2
@@ -2460,7 +2462,7 @@ x = 555
 z = 319
 
 [route_32_heart_scale]
-region = 'route_32'
+region = 'route_32_surf'
 type = 'hidden_item'
 original_item = 'heart_scale'
 id = 4
@@ -2476,7 +2478,7 @@ x = 460
 z = 432
 
 [route_32_super_potion]
-region = 'route_32'
+region = 'route_32_cut'
 type = 'hidden_item'
 original_item = 'super_potion'
 id = 97
@@ -2484,7 +2486,7 @@ x = 459
 z = 309
 
 [route_34_rare_candy]
-region = 'route_34'
+region = 'route_34_surf'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 7
@@ -2499,8 +2501,16 @@ id = 8
 x = 381
 z = 417
 
+# Despite its key, this hidden item sits on Goldenrod's own tiles, in the
+# alley of the Bike Shop door (its bg is listed in both 035_R34.json and
+# 073_T25.json; the tile resolves to T25). The only way in is the alley's
+# mouth, where obj_T25_rocketm_6/7 (368-369,358) stand while the Radio
+# Tower takeover runs (FLAG_HIDE_ROCKET_TAKEOVER_1, scr_seq_0885_T25.s:43-83),
+# so it takes the Card Key like the Bike Shop door (locations.py
+# _ITEM_GATED_LOCATIONS). Found 2026-09-27 by the ROM blocker scan; the key
+# stays for save and seed compatibility.
 [route_34_super_potion_2]
-region = 'route_34'
+region = 'goldenrod'
 type = 'hidden_item'
 original_item = 'super_potion'
 id = 9
@@ -2508,14 +2518,15 @@ x = 369
 z = 380
 
 [route_35_nugget]
-region = 'route_35'
+region = 'route_35_surf'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 10
 x = 357
 z = 278
 
-# x=391, same cell (12,7) and same reasoning as route_36_hyper_potion above.
+# Picked up from (391,244), in the grass corridor south-west of the
+# Sudowoodo; (391,242) is a tree (2026-09-27, ROM walk).
 [route_36_awakening]
 region = 'route_36_west'
 type = 'hidden_item'
@@ -2525,7 +2536,7 @@ x = 391
 z = 243
 
 [route_38_hp_up]
-region = 'route_38'
+region = 'route_38_rock_climb'
 type = 'hidden_item'
 original_item = 'hp_up'
 id = 22
@@ -2565,7 +2576,7 @@ x = 285
 z = 231
 
 [route_42_max_potion]
-region = 'route_42'
+region = 'route_42_pond'
 type = 'hidden_item'
 original_item = 'max_potion'
 id = 42
@@ -2589,7 +2600,7 @@ x = 649
 z = 289
 
 [route_45_pp_max]
-region = 'route_45'
+region = 'route_45_rock_climb'
 type = 'hidden_item'
 original_item = 'pp_max'
 id = 230
@@ -2621,7 +2632,7 @@ x = 682
 z = 391
 
 [cherrygrove_nugget]
-region = 'cherrygrove'
+region = 'cherrygrove_rock_climb_surf'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 225
@@ -2629,7 +2640,7 @@ x = 522
 z = 388
 
 [violet_hyper_potion]
-region = 'violet'
+region = 'violet_rock_smash'
 type = 'hidden_item'
 original_item = 'hyper_potion'
 id = 3
@@ -2653,7 +2664,7 @@ x = 421
 z = 469
 
 [cianwood_revive]
-region = 'cianwood'
+region = 'cianwood_rock_smash_surf'
 type = 'hidden_item'
 original_item = 'revive'
 id = 25
@@ -2669,7 +2680,7 @@ x = 189
 z = 357
 
 [olivine_rare_candy]
-region = 'olivine'
+region = 'olivine_rock_climb'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 23
@@ -2754,7 +2765,7 @@ x = 252
 z = 300
 
 [route_41_max_ether]
-region = 'route_41'
+region = 'route_41_islets'
 type = 'hidden_item'
 original_item = 'max_ether'
 id = 99
@@ -2762,7 +2773,7 @@ x = 237
 z = 370
 
 [route_41_stardust]
-region = 'route_41'
+region = 'route_41_islets'
 type = 'hidden_item'
 original_item = 'stardust'
 id = 170
@@ -2770,7 +2781,7 @@ x = 203
 z = 336
 
 [route_41_stardust_2]
-region = 'route_41'
+region = 'route_41_islets'
 type = 'hidden_item'
 original_item = 'stardust'
 id = 171
@@ -2778,7 +2789,7 @@ x = 212
 z = 373
 
 [route_41_stardust_3]
-region = 'route_41'
+region = 'route_41_islets'
 type = 'hidden_item'
 original_item = 'stardust'
 id = 173
@@ -2786,7 +2797,7 @@ x = 243
 z = 336
 
 [route_41_stardust_4]
-region = 'route_41'
+region = 'route_41_islets'
 type = 'hidden_item'
 original_item = 'stardust'
 id = 172
@@ -3150,11 +3161,13 @@ original_item = 'poke_ball'
 id = 9010
 label = 'Route 29 - 5 Poke Balls'
 
-# The flower shop girl (obj_R36_gsgirl1_2, x=415 z=249, cell (12,7)) hands
-# these over inside the Sudowoodo cutscene itself: `GiveItemNoCheck
-# ITEM_BERRY_POTS` lives in scr_seq_R36_000, the Sudowoodo's own script,
-# after the wild battle. So it is Squirtbottle-locked in vanilla, which
-# `route_36_west` expresses exactly (2026-08-22 split).
+# The flower shop girl (obj_R36_gsgirl1_2, x=415 z=249) hands these over
+# inside the Sudowoodo cutscene itself: `GiveItemNoCheck ITEM_BERRY_POTS`
+# (scr_seq_0243_R36.s:129) lives in scr_seq_R36_000, the Sudowoodo's own
+# script, after the wild battle. The tree can be watered from any of the
+# three Route 36 regions, so the region alone does not express it: the
+# Squirtbottle itself is required in locations.py's _ITEM_GATED_LOCATIONS
+# (2026-09-27; route_36_west is free from Goldenrod).
 [route_36_berry_pots]
 region = 'route_36_west'
 type = 'npc_gift'
@@ -3344,7 +3357,7 @@ x = 24
 z = 6
 
 [cerulean_cave_2f_pp_up]
-region = 'cerulean_cave_2f'
+region = 'cerulean_cave_2f_rocks'
 type = 'ground_item'
 original_item = 'pp_up'
 id = 1262
@@ -3360,7 +3373,7 @@ x = 12
 z = 32
 
 [cerulean_cave_2f_tm24]
-region = 'cerulean_cave_2f'
+region = 'cerulean_cave_2f_rocks'
 type = 'hm_tm'
 original_item = 'tm24'
 id = 1264
@@ -3368,7 +3381,7 @@ x = 56
 z = 17
 
 [cerulean_cave_2f_odd_incense]
-region = 'cerulean_cave_2f'
+region = 'cerulean_cave_2f_rocks'
 type = 'ground_item'
 original_item = 'odd_incense'
 id = 1265
@@ -3392,7 +3405,7 @@ x = 5
 z = 32
 
 [cerulean_cave_b1f_dusk_stone]
-region = 'cerulean_cave_b1f'
+region = 'cerulean_cave_b1f_cliff'
 type = 'ground_item'
 original_item = 'dusk_stone'
 id = 1270
@@ -3400,7 +3413,7 @@ x = 28
 z = 26
 
 [cerulean_cave_b1f_electirizer]
-region = 'cerulean_cave_b1f'
+region = 'cerulean_cave_b1f_cliff'
 type = 'ground_item'
 original_item = 'electirizer'
 id = 1271
@@ -3416,7 +3429,7 @@ x = 57
 z = 39
 
 [cinnabar_island_magmarizer]
-region = 'cinnabar_island'
+region = 'cinnabar_island_volcano'
 type = 'ground_item'
 original_item = 'magmarizer'
 id = 1236
@@ -3424,7 +3437,7 @@ x = 1045
 z = 497
 
 [diglett_cave_pp_max]
-region = 'diglett_cave'
+region = 'diglett_cave_rock_climb'
 type = 'ground_item'
 original_item = 'pp_max'
 id = 1297
@@ -3440,7 +3453,7 @@ x = 23
 z = 75
 
 [pewter_wise_glasses]
-region = 'pewter'
+region = 'pewter_rocks'
 type = 'ground_item'
 original_item = 'wise_glasses'
 id = 1308
@@ -3464,7 +3477,7 @@ x = 24
 z = 20
 
 [rock_tunnel_b1f_iron]
-region = 'rock_tunnel_b1f'
+region = 'rock_tunnel_b1f_rock_climb'
 type = 'ground_item'
 original_item = 'iron'
 id = 1224
@@ -3488,7 +3501,7 @@ x = 24
 z = 5
 
 [rock_tunnel_b1f_oval_stone]
-region = 'rock_tunnel_b1f'
+region = 'rock_tunnel_b1f_rock_climb'
 type = 'ground_item'
 original_item = 'oval_stone'
 id = 1296
@@ -3496,7 +3509,7 @@ x = 15
 z = 31
 
 [route_10_south_tm69]
-region = 'route_10_south'
+region = 'route_10_south_strength'
 type = 'hm_tm'
 original_item = 'tm69'
 id = 1300
@@ -3544,7 +3557,7 @@ x = 1290
 z = 434
 
 [route_19_tm55]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'hm_tm'
 original_item = 'tm55'
 id = 1199
@@ -3552,7 +3565,7 @@ x = 1210
 z = 505
 
 [route_2_elixir]
-region = 'route_2'
+region = 'route_2_southeast'
 type = 'ground_item'
 original_item = 'elixir'
 id = 1233
@@ -3560,7 +3573,7 @@ x = 1045
 z = 212
 
 [route_25_protein]
-region = 'route_25'
+region = 'route_25_cut_pocket'
 type = 'ground_item'
 original_item = 'protein'
 id = 1227
@@ -3584,7 +3597,7 @@ x = 783
 z = 407
 
 [route_27_tm02]
-region = 'route_27'
+region = 'route_27_whirlpool_pocket'
 type = 'hm_tm'
 original_item = 'tm02'
 id = 1118
@@ -3592,7 +3605,7 @@ x = 793
 z = 407
 
 [route_27_destiny_knot]
-region = 'route_27'
+region = 'route_27_east'
 type = 'ground_item'
 original_item = 'destiny_knot'
 id = 1293
@@ -3600,7 +3613,7 @@ x = 843
 z = 394
 
 [route_28_tm35]
-region = 'route_28'
+region = 'route_28_cut_pocket'
 type = 'hm_tm'
 original_item = 'tm35'
 id = 1280
@@ -3656,7 +3669,7 @@ x = 1358
 z = 248
 
 [route_9_tm91]
-region = 'route_9'
+region = 'route_9_cut'
 type = 'hm_tm'
 original_item = 'tm91'
 id = 1301
@@ -3672,7 +3685,7 @@ x = 1413
 z = 154
 
 [route_9_light_clay]
-region = 'route_9'
+region = 'route_9_cut'
 type = 'ground_item'
 original_item = 'light_clay'
 id = 1303
@@ -3744,7 +3757,7 @@ x = 42
 z = 8
 
 [vermilion_luck_incense]
-region = 'vermilion'
+region = 'vermilion_surf'
 type = 'ground_item'
 original_item = 'luck_incense'
 id = 1294
@@ -3800,7 +3813,7 @@ x = 1230
 z = 272
 
 [cerulean_nugget]
-region = 'cerulean'
+region = 'cerulean_river'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 106
@@ -3808,7 +3821,7 @@ x = 1298
 z = 110
 
 [cerulean_cave_1f_hyper_potion]
-region = 'cerulean_cave_1f'
+region = 'cerulean_cave_1f_rocks'
 type = 'hidden_item'
 original_item = 'hyper_potion'
 id = 93
@@ -3872,7 +3885,7 @@ x = 56
 z = 24
 
 [cerulean_cave_2f_protein]
-region = 'cerulean_cave_2f'
+region = 'cerulean_cave_2f_rocks'
 type = 'hidden_item'
 original_item = 'protein'
 id = 221
@@ -3880,7 +3893,7 @@ x = 6
 z = 18
 
 [cerulean_cave_b1f_max_revive_2]
-region = 'cerulean_cave_b1f'
+region = 'cerulean_cave_b1f_rocks'
 type = 'hidden_item'
 original_item = 'max_revive'
 id = 121
@@ -3888,7 +3901,7 @@ x = 14
 z = 12
 
 [cerulean_cave_b1f_ultra_ball_2]
-region = 'cerulean_cave_b1f'
+region = 'cerulean_cave_b1f_rocks'
 type = 'hidden_item'
 original_item = 'ultra_ball'
 id = 123
@@ -3896,7 +3909,7 @@ x = 26
 z = 19
 
 [cerulean_cave_b1f_nugget]
-region = 'cerulean_cave_b1f'
+region = 'cerulean_cave_b1f_rocks'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 124
@@ -3904,7 +3917,7 @@ x = 39
 z = 11
 
 [cinnabar_island_rare_candy]
-region = 'cinnabar_island'
+region = 'cinnabar_island_volcano'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 114
@@ -3912,7 +3925,7 @@ x = 1030
 z = 481
 
 [cinnabar_island_iron]
-region = 'cinnabar_island'
+region = 'cinnabar_island_volcano'
 type = 'hidden_item'
 original_item = 'iron'
 id = 166
@@ -3920,7 +3933,7 @@ x = 1044
 z = 506
 
 [cinnabar_island_star_piece]
-region = 'cinnabar_island'
+region = 'cinnabar_island_volcano'
 type = 'hidden_item'
 original_item = 'star_piece'
 id = 167
@@ -3936,7 +3949,7 @@ x = 9
 z = 30
 
 [cliff_edge_gate_big_pearl]
-region = 'cliff_edge_gate'
+region = 'cliff_edge_gate_rock_climb_surf'
 type = 'hidden_item'
 original_item = 'big_pearl'
 id = 209
@@ -3952,7 +3965,7 @@ x = 28
 z = 60
 
 [diglett_cave_calcium]
-region = 'diglett_cave'
+region = 'diglett_cave_rock_climb'
 type = 'hidden_item'
 original_item = 'calcium'
 id = 224
@@ -4032,7 +4045,7 @@ x = 38
 z = 31
 
 [rock_tunnel_b1f_max_potion]
-region = 'rock_tunnel_b1f'
+region = 'rock_tunnel_b1f_rock_smash'
 type = 'hidden_item'
 original_item = 'max_potion'
 id = 61
@@ -4040,7 +4053,7 @@ x = 38
 z = 34
 
 [rock_tunnel_b1f_hp_up]
-region = 'rock_tunnel_b1f'
+region = 'rock_tunnel_b1f_rock_climb'
 type = 'hidden_item'
 original_item = 'hp_up'
 id = 169
@@ -4048,7 +4061,7 @@ x = 25
 z = 34
 
 [route_10_carbos]
-region = 'route_10'
+region = 'route_10_surf'
 type = 'hidden_item'
 original_item = 'carbos'
 id = 197
@@ -4112,7 +4125,7 @@ x = 1198
 z = 468
 
 [route_19_big_pearl]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'hidden_item'
 original_item = 'big_pearl'
 id = 180
@@ -4120,7 +4133,7 @@ x = 1210
 z = 505
 
 [route_19_revive]
-region = 'route_19'
+region = 'route_19_rocks'
 type = 'hidden_item'
 original_item = 'revive'
 id = 207
@@ -4136,7 +4149,7 @@ x = 1209
 z = 460
 
 [route_20_deepseatooth]
-region = 'route_20'
+region = 'route_20_west'
 type = 'hidden_item'
 original_item = 'deepseatooth'
 id = 38
@@ -4144,7 +4157,7 @@ x = 1136
 z = 503
 
 [route_20_stardust]
-region = 'route_20'
+region = 'route_20_west'
 type = 'hidden_item'
 original_item = 'stardust'
 id = 174
@@ -4192,7 +4205,7 @@ x = 1327
 z = 41
 
 [route_26_nugget]
-region = 'route_26'
+region = 'route_26_surf'
 type = 'hidden_item'
 original_item = 'nugget'
 id = 183
@@ -4208,7 +4221,7 @@ x = 923
 z = 316
 
 [route_27_revive]
-region = 'route_27'
+region = 'route_27_east'
 type = 'hidden_item'
 original_item = 'revive'
 id = 181
@@ -4216,7 +4229,7 @@ x = 858
 z = 394
 
 [route_27_big_mushroom]
-region = 'route_27'
+region = 'route_27_east'
 type = 'hidden_item'
 original_item = 'big_mushroom'
 id = 182
@@ -4224,7 +4237,7 @@ x = 882
 z = 396
 
 [route_28_rare_candy]
-region = 'route_28'
+region = 'route_28_cut_pocket'
 type = 'hidden_item'
 original_item = 'rare_candy'
 id = 115
@@ -4240,7 +4253,7 @@ x = 1100
 z = 116
 
 [route_3_hyper_potion]
-region = 'route_3'
+region = 'route_3_rocks'
 type = 'hidden_item'
 original_item = 'hyper_potion'
 id = 139
@@ -4376,7 +4389,7 @@ x = 26
 z = 20
 
 [vermilion_full_heal]
-region = 'vermilion'
+region = 'vermilion_rock_smash'
 type = 'hidden_item'
 original_item = 'full_heal'
 id = 103
@@ -4384,7 +4397,7 @@ x = 1324
 z = 306
 
 [vermilion_pearl]
-region = 'vermilion'
+region = 'vermilion_surf'
 type = 'hidden_item'
 original_item = 'pearl'
 id = 162
@@ -4392,7 +4405,7 @@ x = 1312
 z = 336
 
 [vermilion_pearl_2]
-region = 'vermilion'
+region = 'vermilion_surf'
 type = 'hidden_item'
 original_item = 'pearl'
 id = 163
@@ -4400,7 +4413,7 @@ x = 1313
 z = 335
 
 [vermilion_big_pearl]
-region = 'vermilion'
+region = 'vermilion_surf'
 type = 'hidden_item'
 original_item = 'big_pearl'
 id = 164
@@ -4408,7 +4421,7 @@ x = 1315
 z = 335
 
 [vermilion_heart_scale]
-region = 'vermilion'
+region = 'vermilion_surf'
 type = 'hidden_item'
 original_item = 'heart_scale'
 id = 168
@@ -4807,6 +4820,111 @@ label = 'S.S. Aqua - Metal Coat'
 # of_fame is only ever reached after they're all defeated -- confirmed by
 # scr_seq_0740_T01R0301.s, which sets FLAG_UNLOCKED_MT_SILVER in this exact
 # room at the same time Silver hands over HM08.
+# Johto story locks (2026-09-23), see data_gen/rules.toml's "Story locks,
+# 2026-09-23" for the scripts behind each one.
+[mr_pokemon_visited_event]
+region = 'route_30_mr_pokemon_house'
+type = 'event'
+event = 'mr_pokemon_visited'
+id = 23
+label = "Route 30 - Mr. Pokemon's house visited"
+
+[mystery_egg_delivered_event]
+region = 'new_bark_elms_lab_1f_egg_delivery'
+type = 'event'
+event = 'mystery_egg_delivered'
+id = 24
+label = "Elm's Lab - Mystery Egg delivered"
+
+[falkner_defeated_event]
+region = 'violet_gym'
+type = 'event'
+event = 'falkner_defeated'
+id = 25
+label = 'Violet Gym - Falkner defeated'
+
+[togepi_egg_obtained_event]
+region = 'violet_pokemart_aide'
+type = 'event'
+event = 'togepi_egg_obtained'
+id = 26
+label = "Violet Mart - Elm's aide's Egg"
+
+[radio_card_obtained_event]
+region = 'goldenrod_radio_tower_1f'
+type = 'event'
+event = 'radio_card_obtained'
+id = 27
+label = 'Radio Tower 1F - Radio Card quiz'
+
+[burned_tower_beasts_fled_event]
+region = 'burned_tower_b1f'
+type = 'event'
+event = 'burned_tower_beasts_fled'
+id = 28
+label = 'Burned Tower B1F - legendary beasts fled'
+
+[amphy_healed_event]
+region = 'olivine_lighthouse_amphy'
+type = 'event'
+event = 'amphy_healed'
+id = 29
+label = 'Olivine Lighthouse - Amphy healed'
+
+[chuck_defeated_event]
+region = 'cianwood_gym'
+type = 'event'
+event = 'chuck_defeated'
+id = 30
+label = 'Cianwood Gym - Chuck defeated'
+
+[jasmine_defeated_event]
+region = 'olivine_gym_jasmine'
+type = 'event'
+event = 'jasmine_defeated'
+id = 31
+label = 'Olivine Gym - Jasmine defeated'
+
+[morty_defeated_event]
+region = 'ecruteak_gym'
+type = 'event'
+event = 'morty_defeated'
+id = 33
+label = 'Ecruteak Gym - Morty defeated'
+
+[pryce_defeated_event]
+region = 'mahogany_gym_leader_room'
+type = 'event'
+event = 'pryce_defeated'
+id = 32
+label = 'Mahogany Gym - Pryce defeated'
+
+# viridian_visited / oaks_lab_visited: the two Pokemon League reception
+# gate policemen, see data_gen/rules.toml's "Scenario gates".
+[viridian_visited_event]
+region = 'viridian'
+type = 'event'
+event = 'viridian_visited'
+id = 21
+label = 'Viridian City - visited'
+
+[oaks_lab_visited_event]
+region = 'pallet_town_oaks_lab'
+type = 'event'
+event = 'oaks_lab_visited'
+id = 22
+label = "Pallet Town - Oak's Lab visited"
+
+# ho_oh_met: Ho-Oh in the party opens the Ruins of Alph's north-west back
+# room (scr_seq_0045_D24R0208.s:153). The Bell Tower roof is where it can
+# be caught, in both versions.
+[ho_oh_met_event]
+region = 'bell_tower_roof'
+type = 'event'
+event = 'ho_oh_met'
+id = 20
+label = 'Bell Tower - Ho-Oh met'
+
 [elite_four_defeated_event]
 region = 'pokemon_league_hall_of_fame'
 type = 'event'
@@ -4898,7 +5016,7 @@ label = 'Team Rocket HQ B3F - hideout cleared'
 # that sets FLAG_BEAT_RADIO_TOWER_ROCKETS and frees the director, who hands
 # over the Rainbow Wing 60-odd lines earlier in the same file.
 [radio_tower_rockets_defeated_event]
-region = 'goldenrod_radio_tower_observation_deck'
+region = 'goldenrod_radio_tower_archer'
 type = 'event'
 event = 'radio_tower_rockets_defeated'
 id = 5
@@ -5173,21 +5291,21 @@ trainer = 'sailor_parker'
 label = 'Parker'
 
 [cerulean_gym_swimmer_f_briana]
-region = 'cerulean_gym'
+region = 'cerulean_gym_surf'
 type = 'trainer'
 id = 17
 trainer = 'swimmer_f_briana'
 label = 'Briana'
 
 [cerulean_gym_swimmer_f_diana]
-region = 'cerulean_gym'
+region = 'cerulean_gym_surf'
 type = 'trainer'
 id = 18
 trainer = 'swimmer_f_diana'
 label = 'Diana'
 
 [cerulean_gym_swimmer_f_joy]
-region = 'cerulean_gym'
+region = 'cerulean_gym_surf'
 type = 'trainer'
 id = 19
 trainer = 'swimmer_f_joy'
@@ -5222,21 +5340,21 @@ trainer = 'black_belt_yoshi'
 label = 'Yoshi'
 
 [dragons_den_ace_trainer_f_piper]
-region = 'dragons_den'
+region = 'dragons_den_water'
 type = 'trainer'
 id = 24
 trainer = 'ace_trainer_f_piper'
 label = 'Piper'
 
 [dragons_den_ace_trainer_m_kobe]
-region = 'dragons_den'
+region = 'dragons_den_surf'
 type = 'trainer'
 id = 25
 trainer = 'ace_trainer_m_kobe'
 label = 'Kobe'
 
 [dragons_den_twins_clea_and_gil]
-region = 'dragons_den'
+region = 'dragons_den_water'
 type = 'trainer'
 id = 26
 trainer = 'twins_clea_and_gil'
@@ -5481,7 +5599,7 @@ trainer = 'ace_trainer_f_lois'
 label = 'Lois'
 
 [lake_of_rage_ace_trainer_m_alton]
-region = 'lake_of_rage'
+region = 'lake_of_rage_surf'
 type = 'trainer'
 id = 61
 trainer = 'ace_trainer_m_alton'
@@ -5537,7 +5655,7 @@ trainer = 'skier_diana'
 label = 'Diana'
 
 [mount_mortar_1f_back_poke_maniac_harrison]
-region = 'mount_mortar_1f_back'
+region = 'mount_mortar_1f_back_south'
 type = 'trainer'
 id = 69
 trainer = 'poke_maniac_harrison'
@@ -6076,28 +6194,28 @@ trainer = 'bird_keeper_gs_boris'
 label = 'Boris'
 
 [route_19_swimmer_f_debbie]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'trainer'
 id = 146
 trainer = 'swimmer_f_debbie'
 label = 'Debbie'
 
 [route_19_swimmer_m_harold]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'trainer'
 id = 147
 trainer = 'swimmer_m_harold'
 label = 'Harold'
 
 [route_19_swimmer_m_jerome]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'trainer'
 id = 148
 trainer = 'swimmer_m_jerome'
 label = 'Jerome'
 
 [route_19_swimmer_m_tucker]
-region = 'route_19'
+region = 'route_19_sea'
 type = 'trainer'
 id = 149
 trainer = 'swimmer_m_tucker'
@@ -6118,14 +6236,14 @@ trainer = 'bug_catcher_rob'
 label = 'Rob'
 
 [route_20_bird_keeper_gs_bert]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 152
 trainer = 'bird_keeper_gs_bert'
 label = 'Bert'
 
 [route_20_bird_keeper_gs_ernie]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 153
 trainer = 'bird_keeper_gs_ernie'
@@ -6139,21 +6257,21 @@ trainer = 'camper_pedro'
 label = 'Pedro'
 
 [route_20_picnicker_adrian]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 155
 trainer = 'picnicker_adrian'
 label = 'Adrian'
 
 [route_20_picnicker_cheyenne]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 156
 trainer = 'picnicker_cheyenne'
 label = 'Cheyenne'
 
 [route_20_swimmer_f_leona]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 157
 trainer = 'swimmer_f_leona'
@@ -6167,7 +6285,7 @@ trainer = 'swimmer_f_lori'
 label = 'Lori'
 
 [route_20_swimmer_f_mina]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 159
 trainer = 'swimmer_f_mina'
@@ -6188,7 +6306,7 @@ trainer = 'swimmer_m_elmo'
 label = 'Elmo'
 
 [route_20_swimmer_m_frankie]
-region = 'route_20'
+region = 'route_20_west'
 type = 'trainer'
 id = 162
 trainer = 'swimmer_m_frankie'
@@ -6363,7 +6481,7 @@ trainer = 'ace_trainer_m_jake'
 label = 'Jake'
 
 [route_26_fisherman_scott]
-region = 'route_26'
+region = 'route_26_surf'
 type = 'trainer'
 id = 187
 trainer = 'fisherman_scott'
@@ -6377,49 +6495,49 @@ trainer = 'psychic_m_vernon'
 label = 'Vernon'
 
 [route_27_ace_trainer_f_megan]
-region = 'route_27'
+region = 'route_27_east_surf'
 type = 'trainer'
 id = 189
 trainer = 'ace_trainer_f_megan'
 label = 'Megan'
 
 [route_27_ace_trainer_f_reena]
-region = 'route_27'
+region = 'route_27_east'
 type = 'trainer'
 id = 190
 trainer = 'ace_trainer_f_reena'
 label = 'Reena'
 
 [route_27_ace_trainer_m_blake]
-region = 'route_27'
+region = 'route_27_east'
 type = 'trainer'
 id = 191
 trainer = 'ace_trainer_m_blake'
 label = 'Blake'
 
 [route_27_ace_trainer_m_brian]
-region = 'route_27'
+region = 'route_27_east'
 type = 'trainer'
 id = 192
 trainer = 'ace_trainer_m_brian'
 label = 'Brian'
 
 [route_27_bird_keeper_gs_jose_2]
-region = 'route_27'
+region = 'route_27_whirlpool_pocket'
 type = 'trainer'
 id = 193
 trainer = 'bird_keeper_gs_jose_2'
 label = 'Jose'
 
 [route_27_psychic_m_eli]
-region = 'route_27'
+region = 'route_27_east'
 type = 'trainer'
 id = 194
 trainer = 'psychic_m_eli'
 label = 'Eli'
 
 [route_2_east_bug_catcher_ed]
-region = 'route_2_east'
+region = 'route_2_north'
 type = 'trainer'
 id = 195
 trainer = 'bug_catcher_ed'
@@ -6496,7 +6614,7 @@ trainer = 'youngster_warren'
 label = 'Warren'
 
 [route_30_bug_catcher_don]
-region = 'route_30'
+region = 'route_30_north'
 type = 'trainer'
 id = 206
 trainer = 'bug_catcher_don'
@@ -6510,7 +6628,7 @@ trainer = 'youngster_joey'
 label = 'Joey'
 
 [route_30_youngster_mikey]
-region = 'route_30'
+region = 'route_30_north'
 type = 'trainer'
 id = 208
 trainer = 'youngster_mikey'
@@ -7245,7 +7363,7 @@ trainer = 'picnicker_heidi'
 label = 'Heidi'
 
 [ruins_of_alph_psychic_m_nathan]
-region = 'ruins_of_alph'
+region = 'ruins_of_alph_northwest'
 type = 'trainer'
 id = 312
 trainer = 'psychic_m_nathan'
@@ -7644,28 +7762,28 @@ trainer = 'poke_maniac_larry'
 label = 'Larry'
 
 [union_cave_b1f_hiker_leonard]
-region = 'union_cave_b1f'
+region = 'union_cave_b1f_water'
 type = 'trainer'
 id = 369
 trainer = 'hiker_leonard'
 label = 'Leonard'
 
 [union_cave_b1f_hiker_phillip]
-region = 'union_cave_b1f'
+region = 'union_cave_b1f_water'
 type = 'trainer'
 id = 370
 trainer = 'hiker_phillip'
 label = 'Phillip'
 
 [union_cave_b1f_poke_maniac_andrew]
-region = 'union_cave_b1f'
+region = 'union_cave_b1f_water'
 type = 'trainer'
 id = 371
 trainer = 'poke_maniac_andrew'
 label = 'Andrew'
 
 [union_cave_b1f_poke_maniac_calvin]
-region = 'union_cave_b1f'
+region = 'union_cave_b1f_water'
 type = 'trainer'
 id = 372
 trainer = 'poke_maniac_calvin'

@@ -46,6 +46,11 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
   padding: 2px 3px; cursor: pointer; overflow: hidden; user-select: none; }
 .t span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .t.on { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-text); }
+.t.ic { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 58px; gap: 1px; }
+.t.ic img { width: 32px; height: 32px; image-rendering: pixelated; filter: grayscale(1) brightness(.55); }
+.t.ic[data-leader] img { width: 36px; height: 36px; object-fit: cover; object-position: top; }
+.t.ic.on img { filter: none; }
+.t.ic span { font-size: 9px; -webkit-line-clamp: 1; }
 .tabs { display: flex; gap: 6px; margin: 14px 0 8px; flex-wrap: wrap; }
 .tabs button { padding: 6px 16px; }
 .tabs button.on { background: var(--link); border-color: var(--link); color: #fff; }
@@ -59,6 +64,7 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
 .ct { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .d-ok { background: var(--ok); } .d-bad { background: var(--bad); } .d-part { background: var(--part); }
+.d-unk { background: transparent; box-shadow: inset 0 0 0 2px var(--part); }
 .d-done { background: var(--done); }
 .chev { width: 14px; flex: none; color: var(--faint); font-size: 11px; transition: transform .12s; }
 .closed > .row .chev { transform: rotate(-90deg); }
@@ -86,6 +92,15 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
 .s-ok { fill: var(--ok); stroke: var(--ok); } .s-bad { fill: var(--bad); stroke: var(--bad); }
 .s-part { fill: var(--part); stroke: var(--part); } .s-done { fill: var(--done); stroke: var(--done); }
 .s-none { fill: #f4f4f4; stroke: #f4f4f4; }
+.map .sea { stroke: #9cc8f0; }
+.plan svg { width: 100%; max-height: 70vh; display: block; border-radius: 8px; background: #20242b; }
+.plan .w { fill: #5b4a36; } .plan .f { fill: #d9c9a3; } .plan .g { fill: #8fc46a; } .plan .h2o { fill: #5a9fe0; }
+.plan .door { fill: #20242b; stroke: #ffb347; stroke-width: 2.2; }
+.plan .door.go { cursor: pointer; fill: #ffb347; }
+.plan .chk { stroke: #111; stroke-width: 1.2; cursor: pointer; }
+.plan .chk.sel { stroke: #fff36b; stroke-width: 2.4; }
+.crumbs { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.crumbs button { background: none; border: 1px solid var(--line); color: inherit; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
 .map-panel { margin-top: 8px; }
 @media (max-width: 600px) { .conn input { width: 120px; } }
 </style>
@@ -140,6 +155,7 @@ const S = {
   open: new Set(store.get("open", ["johto", "kanto", "johto/towns", "johto/dungeons", "johto/routes",
     "kanto/towns", "kanto/dungeons", "kanto/routes", "tr/johto", "tr/kanto"])),
   manualItems: new Set(store.get("manualItems", [])), manualChecks: new Set(store.get("manualChecks", [])),
+  leaderMarks: store.get("leaderMarks", {}), plan: null, planTrail: [], planSpot: null,
   received: new Set(), checked: new Set(), present: null, slotData: null, slot: null,
   players: {}, gamesBySlot: {}, itemNames: {}, scouted: {}, revealed: new Set(),
 };
@@ -159,6 +175,7 @@ function options() {
     soulsilver: o.game_version === 1, johto_only: flag(o.johto_only),
     magnet_train: !(o.magnet_train === 0 || o.magnet_train === false),
     hidden_items_require_dowsing_machine: flag(o.hidden_items_require_dowsing_machine), origin,
+    require_flash: flag(o.require_flash),
     trainersanity: S.slotData ? flag(o.trainersanity) : true, dexsanity: S.slotData ? flag(o.dexsanity) : true,
     legendarysanity: S.slotData ? flag(o.legendarysanity) : true, bicycle: S.slotData ? flag(o.randomize_bicycle) : true,
   };
@@ -177,7 +194,10 @@ function visible(id, opts) {
   })[rule] !== false);
 }
 
+// A click on a Leader tile overrides what the badge checks say, connected
+// or not (Leaders are display only, the logic never reads them).
 function leaderBeaten(code) {
+  if (code in S.leaderMarks) return S.leaderMarks[code];
   return Object.entries(DATA.leader_locations).some(([id, c]) => c === code && isDone(Number(id)));
 }
 
@@ -203,7 +223,8 @@ function revealHtml(id) {
 
 function checkRow(id, name, logic, extra = "") {
   const done = isDone(id);
-  const dot = done ? "d-done" : logic(id) ? "d-ok" : "d-bad";
+  const state = done ? null : logic(id);
+  const dot = done ? "d-done" : state === null ? "d-unk" : state ? "d-ok" : "d-bad";
   return `<div class="row click${done ? " done" : ""}" data-check="${id}">${extra}<span class="dot ${dot}"></span>` +
     `<span class="nm" title="${esc(name)}">${esc(name)}</span>${revealHtml(id)}</div>`;
 }
@@ -232,8 +253,11 @@ function renderHeader(opts) {
   document.getElementById("header").innerHTML = sections.map(([title, codes]) => {
     const isLeader = title === "leaders";
     const on = (code) => isLeader ? leaderBeaten(code) : owned(code);
-    const tiles = codes.map((code) => `<div class="t${on(code) ? " on" : ""}" data-item="${isLeader ? "" : code}"` +
-      ` title="${esc(DATA.labels[S.lang][code])}"><span>${esc(DATA.labels[S.lang][code])}</span></div>`).join("");
+    const icon = (code) => DATA.icons && DATA.icons[code];
+    const tiles = codes.map((code) => `<div class="t${on(code) ? " on" : ""}${icon(code) ? " ic" : ""}" ${isLeader ? "data-leader" : "data-item"}="${code}"` +
+      ` title="${esc(DATA.labels[S.lang][code])}">` +
+      (icon(code) ? `<img src="${icon(code)}" alt="">` : "") +
+      `<span>${esc(DATA.labels[S.lang][code])}</span></div>`).join("");
     return `<div class="sec"><div class="sec-head"><span>${esc(UI(title))}</span>` +
       `<span>${codes.filter(on).length} / ${codes.length}</span></div><div class="grid">${tiles}</div></div>`;
   }).join("");
@@ -272,10 +296,24 @@ function renderRegion(region, logic, opts, trainers) {
   return html || `<div class="empty">${T("empty")}</div>`;
 }
 
-function renderDex(opts) {
+// Where this seed put each species comes from slot data ("dexsanity_logic"):
+// one entry per place, any one is enough. Without it (offline, or a seed
+// generated before 2026-10-04) the answer is unknown (null), not "in logic".
+function dexLogic(logic) {
+  const sources = S.slotData && S.slotData.dexsanity_logic;
+  return (id) => {
+    const list = sources && sources[String(id)];
+    if (!list) return null;
+    return list.some(([region, items, regions]) => logic.state.reachable[region] === true &&
+      (items || []).every((code) => owned(code)) && (regions || []).every((r) => logic.state.reachable[r] === true));
+  };
+}
+
+function renderDex(opts, logic) {
   const chips = ["all", "left"].map((f) => `<button data-dexf="${f}" class="${S.dexFilter === f ? "on" : ""}">${T(f)}</button>`).join("");
+  const rule = dexLogic(logic);
   const rows = DATA.dex.filter((d) => visible(d.id, opts) && (S.dexFilter === "all" || !isDone(d.id)))
-    .map((d) => checkRow(d.id, d.name[S.lang], () => true, `<span class="num">#${String(d.num).padStart(3, "0")}</span>`)).join("");
+    .map((d) => checkRow(d.id, d.name[S.lang], rule, `<span class="num">#${String(d.num).padStart(3, "0")}</span>`)).join("");
   return `<div class="chips">${chips}</div>${rows || `<div class="empty">${T("empty")}</div>`}`;
 }
 
@@ -298,7 +336,7 @@ function renderMap(logic, opts) {
   const routes = shapes.filter(([, s]) => s.kind === "route");
   let svg = `<image href="${M.bg}" width="${M.w}" height="${M.h}" preserveAspectRatio="none"/>`;
   svg += routes.map(([, s]) => s.segs.map((g) => line(g, "casing")).join("")).join("");
-  svg += routes.map(([, s]) => s.segs.map((g) => line(g, "road")).join("")).join("");
+  svg += routes.map(([code, s]) => s.segs.map((g) => line(g, code[0] === "W" ? "road sea" : "road")).join("")).join("");
   svg += routes.map(([code, s]) => `<g class="hit" data-area="${code}">${tip(code)}` +
     s.segs.map((g) => line(g, "rs " + cls(code) + (S.mapSel === code ? " sel" : ""))).join("") +
     s.segs.map((g) => `<line x1="${g[0]}" y1="${g[1]}" x2="${g[2]}" y2="${g[3]}" stroke="transparent" stroke-width="9"/>`).join("") +
@@ -323,6 +361,50 @@ function renderMap(logic, opts) {
   return map + `<div class="map-panel">${panel}</div>`;
 }
 
+// Detailed map of one place (prototype: New Bark Town and its buildings):
+// the ROM's own walls, floor, water and grass, a circle on every door or
+// staircase (click it to go through), a square on every check.
+function planName(code) {
+  const p = DATA.detail[code];
+  return p ? p.name[S.lang] : code;
+}
+
+function renderPlan(logic, opts) {
+  const P = DATA.detail[S.plan];
+  const U = 16;
+  let svg = "";
+  const cls = { "#": "w", ".": "f", '"': "g", "~": "h2o", "D": "f" };
+  P.rows.forEach((row, y) => {
+    let x = 0;
+    while (x < row.length) {
+      let end = x;
+      while (end < row.length && row[end] === row[x]) end++;
+      if (cls[row[x]]) svg += `<rect class="${cls[row[x]]}" x="${x * U}" y="${y * U}" width="${(end - x) * U}" height="${U}"/>`;
+      x = end;
+    }
+  });
+  svg += P.warps.map((w) => {
+    const go = w.to && DATA.detail[w.to];
+    return `<circle class="door${go ? " go" : ""}" ${go ? `data-plan="${w.to}"` : ""} cx="${w.x * U + U / 2}" cy="${w.y * U + U / 2}"` +
+      ` r="${U * 0.42}"><title>${esc(planName(w.to))}</title></circle>`;
+  }).join("");
+  const spots = P.checks.map((c) => ({ ...c, ids: c.ids.filter((id) => DATA.checks[id] && visible(id, opts)) }))
+    .filter((c) => c.ids.length);
+  svg += spots.map((c, i) => {
+    const names = c.ids.map((id) => DATA.checks[id].name[S.lang]).join(" / ");
+    return `<rect class="chk s-${statusOf(c.ids, logic).slice(2)}${S.planSpot === i ? " sel" : ""}" data-spot="${i}"` +
+      ` x="${c.x * U + 2}" y="${c.y * U + 2}" width="${U - 4}" height="${U - 4}" rx="2"><title>${esc(names)}</title></rect>`;
+  }).join("");
+  const crumbs = `<div class="crumbs"><button data-plan="">&#8592; ${esc(T("map"))}</button>` +
+    S.planTrail.map((code) => `<button data-plan="${code}">${esc(planName(code))}</button>`).join("<span>&#8250;</span>") + `</div>`;
+  const shown = S.planSpot === null ? spots : spots.filter((_, i) => i === S.planSpot);
+  const ids = shown.flatMap((c) => c.ids);
+  const panel = ids.length ? ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("")
+    : `<div class="empty">${T("empty")}</div>`;
+  return `${crumbs}<div class="plan"><svg viewBox="0 0 ${P.w * U} ${P.h * U}" xmlns="http://www.w3.org/2000/svg">${svg}</svg></div>` +
+    `<div class="map-panel">${panel}</div>`;
+}
+
 function render() {
   document.documentElement.lang = S.lang;
   document.documentElement.dataset.theme = S.theme;
@@ -342,8 +424,9 @@ function render() {
     `<span class="note">${T("note")}</span>`;
 
   let html;
-  if (S.tab === "map" && DATA.map) html = renderMap(logic, opts);
-  else if (S.tab === "dex") html = renderDex(opts);
+  if (S.tab === "map" && DATA.map && S.plan && DATA.detail && DATA.detail[S.plan]) html = renderPlan(logic, opts);
+  else if (S.tab === "map" && DATA.map) html = renderMap(logic, opts);
+  else if (S.tab === "dex") html = renderDex(opts, logicState);
   else if (S.tab === "trainers") {
     const chips = ["all", "left"].map((f) => `<button data-trf="${f}" class="${S.trainerFilter === f ? "on" : ""}">${T(f)}</button>`).join("");
     const regions = ["johto", "kanto"].map((r) => {
@@ -460,7 +543,7 @@ function disconnect() {
 
 // -- events ------------------------------------------------------------------
 document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area]");
+  const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-leader],[data-plan],[data-spot],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area]");
   if (!el) return;
   const d = el.dataset;
   if (d.reveal) {
@@ -478,8 +561,22 @@ document.addEventListener("click", (e) => {
     if (!d.item || S.slotData) return;
     S.manualItems.has(d.item) ? S.manualItems.delete(d.item) : S.manualItems.add(d.item);
     store.set("manualItems", [...S.manualItems]);
+  } else if (d.plan !== undefined) {
+    if (!d.plan) { S.plan = null; S.planTrail = []; }
+    else {
+      const at = S.planTrail.indexOf(d.plan);
+      S.planTrail = at >= 0 ? S.planTrail.slice(0, at + 1) : S.planTrail.concat([d.plan]);
+      S.plan = d.plan;
+    }
+    S.planSpot = null;
+  } else if (d.spot !== undefined) {
+    S.planSpot = S.planSpot === Number(d.spot) ? null : Number(d.spot);
+  } else if (d.leader) {
+    S.leaderMarks[d.leader] = !leaderBeaten(d.leader);
+    store.set("leaderMarks", S.leaderMarks);
   } else if (d.tab) { S.tab = d.tab; store.set("tab", S.tab); }
   else if (d.lang) { S.lang = d.lang; store.set("lang", S.lang); }
+  else if (d.area && DATA.detail && DATA.detail[d.area]) { S.mapSel = d.area; S.plan = d.area; S.planTrail = [d.area]; S.planSpot = null; }
   else if (d.area) S.mapSel = S.mapSel === d.area ? null : d.area;
   else if (d.dexf) S.dexFilter = d.dexf;
   else if (d.trf) S.trainerFilter = d.trf;

@@ -32,16 +32,20 @@ from data.rules import BADGES
 from items import HEARTGOLD_ITEM_ID_BASE
 from location_flags import (
     build_dexsanity_flag_to_ap_location_id,
+    flag_id_for_location,
     build_flag_id_to_ap_location_id,
     build_locally_substituted_ap_location_ids,
 )
 from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE
+from rom.deathlinkdata import FLAG_AP_DEATHLINK, FLAG_AP_DEATHLINK_WHITEOUT, FLAG_AP_WHITED_OUT
 from rom.startlocation import (
     REVOCATION_RECORD_ROM_OFFSET,
     REVOCATION_RECORD_SIZE,
     parse_revocation_record,
 )
 from rom.worldsignature import (
+    DEATHLINK_SCRIPTS_ROM_OFFSET,
+    DEATHLINK_SCRIPTS_TAG,
     SLOT_AUTH_ROM_OFFSET,
     SLOT_AUTH_SIZE,
     WORLD_SIGNATURE_ROM_OFFSET,
@@ -50,6 +54,7 @@ from rom.worldsignature import (
 )
 from save_layout import (
     BAG_POCKET_OFFSETS,
+    BAG_SIZE,
     BATTLE_SCENE_BIT,
     FLAGS_ARRAY_OFFSET,
     FLAGS_ARRAY_SIZE,
@@ -101,12 +106,9 @@ _POKEDEX_CHUNK_ID = 6  # SAVE_POKEDEX
 _PARTY_CHUNK_ID = 2  # SAVE_PARTY
 _GAMESTATS_CHUNK_ID = 16  # SAVE_GAMESTATS
 
-# DeathLink send: GAME_STAT_PLAYER_MON_FAINTED counter, a real vanilla
-# savedata field -- see NOTES.md for the struct derivation.
-_GAME_STAT_PLAYER_MON_FAINTED_OFFSET = 338
-
-# ...but that counter is NOT readable as a plain u16, and reading it as one
-# was a real bug (player report, 2026-08-22: DeathLink fired at the *start*
+# GameStats counters (battle starts, _GAME_STAT_BATTLE_STARTS_OFFSET) are
+# NOT readable as plain integers; reading one raw was a real bug (player
+# report, 2026-08-22: the old faint-counting DeathLink fired at the *start*
 # of a battle, with nothing fainted at all). `src/game_stats.c` keeps most
 # of the GameStats chunk XOR-"encrypted" whenever it is not being actively
 # read or written:
@@ -119,7 +121,7 @@ _GAME_STAT_PLAYER_MON_FAINTED_OFFSET = 338
 #
 # Every accessor (GameStats_Inc/_Add/_SetCapped/_GetCapped/_UpdateBounded)
 # is that exact Acquire/.../Release sandwich, all synchronous, so at rest
-# the region is ALWAYS encrypted -- a raw read of offset 338 returns
+# the region is ALWAYS encrypted -- a raw read of any stat in it returns
 # ciphertext, never the counter.
 #
 # Worse than merely wrong: the key is `unk_1BC + (unk_1BE << 16)` and
@@ -132,7 +134,7 @@ _GAME_STAT_PLAYER_MON_FAINTED_OFFSET = 338
 # ciphertext that happened to compare greater than the previous one and
 # sent a bogus death.
 #
-# So the send side decrypts, following src/math_util.c's own
+# So the client decrypts, following src/math_util.c's own
 # _MonEncryptSegment/MonEncryptionLCRNG:
 #
 #   seed = unk_1BC + (unk_1BE << 16)
@@ -153,27 +155,44 @@ _GAMESTATS_KEY_HIGH_OFFSET = 446  # offsetof(GameStats, unk_1BE)
 _GAMESTATS_LCRNG_MULTIPLIER = 1103515245
 _GAMESTATS_LCRNG_INCREMENT = 24691
 
-# GameStats_GetMaxValue: a statsHalf[] stat whose sIsExtraWide[] entry is
-# FALSE (index 97's is) is capped at 9999 by every writer, so a decrypted
-# value above that cannot come from a real save and is treated as a bad
-# read (keep the old baseline, send nothing, retry next tick).
-_MAX_PLAUSIBLE_PLAYER_MON_FAINTED = 9999
+# Battles and the Bag (player report 2026-10-03: some received items never
+# reached the Bag). A battle works on copies of the Bag, party, profile and
+# Pokedex taken when it starts (src/battle/battle_setup.c:233/294/365) and
+# writes them back over the save when it ends (:434, Save_Bag_Copy(setup->
+# bag, bag)): an item written into the save's Bag during a battle is wiped
+# when the battle ends. GAME_STAT_WILD_ENCOUNTERS / GAME_STAT_TRAINER_BATTLES
+# (statsWords[8]/[9], u32 at bytes 32/36, encrypted like the faint counter)
+# go up exactly when a battle starts (src/encounter.c:356, 725 and the
+# other entry points). The save's Bag and party do not change at all while
+# the battle runs, and are rewritten when it ends. So: deliveries wait from
+# a battle's start until the party or Bag is seen rewritten; past
+# _BATTLE_HOLD_TICKS they go on, with a receipt, and an item the battle's
+# end then wipes is delivered again.
+_GAME_STAT_BATTLE_STARTS_OFFSET = 32  # statsWords[8] then statsWords[9]
+_BATTLE_HOLD_TICKS = 90
+_BATTLE_WATCH_TICKS = 1800
+_PARTY_STRUCT_SIZE = 8 + 6 * 0xEC  # maxCount, curCount, mons[6]
 
-# A tick is roughly one second and a fainting animation is several, so a
-# genuine increase is 1 (2 at the very most, in a double battle). Anything
-# larger is not a real sequence of faints: re-baseline on it, but never
-# send a death for it. Deliberately generous at a full party's worth --
-# the point is to reject the ~65000-wide random jumps a wrong decryption
-# key would produce, not to police plausible play.
-_MAX_PLAUSIBLE_FAINTS_PER_TICK = 6
-
-# DeathLink receive: PartyCore/PartyPokemon layout for zeroing current HP,
-# a plain unencrypted savedata field -- see NOTES.md for the derivation.
-_PARTY_CUR_COUNT_OFFSET = 4
-_PARTY_MONS_OFFSET = 8
-_PARTY_POKEMON_STRUCT_SIZE = 0xEC
-_PARTY_POKEMON_HP_OFFSET = 0x96
-_PARTY_MAX_SIZE = 6
+# DeathLink (rewritten 2026-10-16, player report: "I enabled DeathLink but
+# it doesn't work"). A death is the game's own whiteout, both ways, through
+# the scripts rom/deathlinkdata.py patches:
+#   - send: every whiteout sets FLAG_AP_WHITED_OUT; the client clears it and
+#     sends a death, unless FLAG_AP_DEATHLINK_WHITEOUT says the whiteout was
+#     a received death;
+#   - receive: the client sets FLAG_AP_DEATHLINK and the Repel counter to 1;
+#     on the next step the "Repel wore off" script whites the player out.
+# The old receive zeroed 0x96 in each party Pokemon, which is Speed, not HP
+# (PartyPokemon.hp is 0x8E), inside the PID-encrypted party block, so
+# nothing happened. Zeroing HP for real is not safe either: field code
+# assumes a living party (GetFirstAliveMonInParty_CrashIfNone). The old send
+# fired on every single fainted Pokemon instead of a whiteout. All three
+# flags share one byte (0x540-0x542).
+_DEATHLINK_FLAGS_BYTE = flag_byte_and_bit(FLAG_AP_DEATHLINK)[0]
+_FLAG_SYS_SAFARI = 0x967  # a whiteout would strand the Safari Game state: wait
+_ROAMER_CHUNK_ID = 21  # SAVE_ROAMER
+# RoamerSaveData.repelSteps (include/roamer.h): rand[2], playerLocation
+# History[2], Roamer data[4] (20 bytes each), locations[4], outbreak.
+_ROAMER_REPEL_STEPS_OFFSET = 8 + 8 + 4 * 20 + 4 + 1
 
 # Pokedex.caughtSpecies -- see location_flags.dexsanity_pokedex_bit_for_species.
 _POKEDEX_CAUGHT_SPECIES_OFFSET = 4
@@ -304,13 +323,18 @@ async def _locate_save_addresses(
     found (caller retries next tick)."""
     data = await _read_chunked(ctx, _ARRAY_HEADERS_SCAN_START, _ARRAY_HEADERS_SCAN_LENGTH, "ARM9 System Bus")
 
-    for candidate_offset in _find_array_headers_candidates(data):
-        array_headers_address = _ARRAY_HEADERS_SCAN_START + candidate_offset
+    # A candidate whose Pokedex chunk carries POKEDEX_MAGIC is this game's
+    # live SaveData beyond doubt; the Bag check alone (8 slots) is only a
+    # fallback (2026-10-03: a player's client kept settling on an address
+    # whose Bag failed the full check, rescanning every second).
+    candidates = [_ARRAY_HEADERS_SCAN_START + offset for offset in _find_array_headers_candidates(data)]
+    with_magic = [address for address in candidates if await _pokedex_magic_ok(ctx, address)]
+    for array_headers_address in with_magic + [address for address in candidates if address not in with_magic]:
         dynamic_region_base = array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
         bag_chunk_offset = await _chunk_offset(ctx, array_headers_address, _BAG_CHUNK_ID)
         bag_address = dynamic_region_base + bag_chunk_offset
 
-        if not await _bag_looks_plausible(ctx, bag_address):
+        if array_headers_address not in with_magic and not await _bag_looks_plausible(ctx, bag_address):
             continue
 
         flags_chunk_offset = await _chunk_offset(ctx, array_headers_address, _FLAGS_CHUNK_ID)
@@ -334,6 +358,22 @@ async def _locate_save_addresses(
         )
 
     return None
+
+
+async def _pokedex_magic_ok(ctx: BizHawkClientContext, array_headers_address: int) -> bool:
+    """Whether the SaveData these arrayHeaders describe has POKEDEX_MAGIC
+    at its Pokedex chunk (a fixed value the game asserts on everywhere)."""
+    dynamic_region_base = array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
+    try:
+        pokedex_offset = await _chunk_offset(ctx, array_headers_address, _POKEDEX_CHUNK_ID)
+        raw = (
+            await bizhawk.read(
+                ctx.bizhawk_ctx, [(dynamic_region_base + pokedex_offset + _POKEDEX_MAGIC_OFFSET, 4, "ARM9 System Bus")]
+            )
+        )[0]
+    except bizhawk.RequestFailedError:
+        return False
+    return struct.unpack("<I", bytes(raw))[0] == _POKEDEX_MAGIC
 
 
 async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_address: int) -> bool:
@@ -501,7 +541,9 @@ _START_LOCATION_TOWN_SPAWN_IDS: dict[str, int] = {
 # FLAG_UNK_B5A is referenced nowhere in the decomp (scripts, C or asm) nor
 # claimed anywhere else in this project (rom/npcgiftgatedata.py holds
 # 0xB48-0xB4F, rom/badgedata.py 0xB50-0xB59).
-_BLACKOUT_SPAWN_LATCH_FLAG = 0xB5A
+# 0x531 since 2026-09-24: 0xB5A sat in the daily flag band (0xAA0-0xB5F),
+# wiped at every day change (see rom/badgedata.py), which re-armed the latch.
+_BLACKOUT_SPAWN_LATCH_FLAG = 0x531
 
 # magnet_train on: the Power Plant counts as repaired from the start.
 #
@@ -632,8 +674,42 @@ _MAX_ITEMS_APPLIED_PER_TICK = 20
 # guarded write is otherwise treated as transient and retried forever.
 _BAG_WRITE_FAILURES_BEFORE_RELOCATE = 3
 
+# How many received items have been written into the Bag, kept IN THE SAVE
+# since 2026-09-24 (player report: items arrived while the game was about
+# to be closed or reloaded were lost for good). The Bag and this counter
+# are saved, or lost, together; the Datastorage copy only ever runs ahead
+# of the save, so a reload used to leave items counted as delivered that
+# the save never got. Two save vars no script, C or asm code ever touches
+# (include/constants/vars.h, whole decomp checked); only a new game clears
+# them. The marker tells a save this client already anchored from one where
+# the Datastorage count has to be adopted first.
+# Story repairs (2026-09-24), see _repair_story_vars.
+_VAR_SCENE_ROCKET_TAKEOVER = 0x4077
+_VAR_MIDGAME_BADGES = 0x4134
+_VAR_KIMONO_CHAIN = 0x4079  # VAR_UNK_4079
+_VAR_DANCE_THEATER = 0x410C  # VAR_UNK_410C
+_VAR_SCENE_ELMS_LAB = 0x4108
+_VAR_SCENE_LIGHTHOUSE_JASMINE = 0x40A5
+_FLAG_GOT_SECRETPOTION = 0xB9
+_FLAG_LIGHTHOUSE_BARRIER_OPEN = 0x1D8  # FLAG_UNK_1D8, see rom/lighthousedata.py
+_MIDGAME_LEADER_BADGE_KEYS = (
+    "ecruteak_gym_badge", "cianwood_gym_badge", "olivine_gym_badge", "mahogany_gym_leader_room_badge",
+)
+
+_VAR_AP_ITEMS_APPLIED = 0x416C
+_VAR_AP_ITEMS_MARKER = 0x416D
+_AP_ITEMS_MARKER = 0xA7C5
+# Items delivered past one held back by a full pocket, kept in the save too
+# (2026-10-03): bit i is items_received[count + 1 + i]. Only this many may
+# be delivered ahead; the rest wait. A third save var nothing touches
+# (VAR_UNK_416E, whole decomp checked).
+_VAR_AP_ITEMS_AHEAD = 0x416E
+_DELIVERED_AHEAD_WINDOW = 16
+
 # Wing item -> the flag its monk tests since v0.2.5 (rom/wingmonkdata.py).
-_WING_PASS_FLAGS = {"rainbow_wing": 0xB5B, "silver_wing": 0xB5C}
+# (current flag, flag of ROMs patched before 2026-09-24): both are set, so
+# the monks open on either ROM.
+_WING_PASS_FLAGS = {"rainbow_wing": (0x532, 0xB5B), "silver_wing": (0x533, 0xB5C)}
 # Per version: (the wing the Pewter old man hands over, the hide flag of
 # the legendary that handover reveals, that legendary's caught flag).
 # include/constants/flags.h: FLAG_HIDE_BELL_TOWER_HO_OH 0x242,
@@ -674,6 +750,22 @@ def _build_ap_item_id_to_bag_write_info() -> dict[int, tuple[int, str]]:
 
 _AP_ITEM_ID_TO_BAG_WRITE_INFO = _build_ap_item_id_to_bag_write_info()
 
+# Items the game never takes back, so one received but missing from the
+# Bag was lost (a reload, or the game closed before saving): given again by
+# _ensure_key_items. Key items minus the ones scripts take (`TakeItem`, whole
+# decomp: Red Scale, Mystery Egg, SecretPotion, RageCandyBar, Machine Part,
+# Lost Item, Enigma Stone), plus the HMs. Neither pocket can be tossed or
+# stored in the PC in HGSS.
+_TAKEN_BY_SCRIPTS = frozenset(
+    {"red_scale", "mystery_egg", "secretpotion", "ragecandybar", "machine_part", "lost_item", "enigma_stone"}
+)
+_KEPT_ITEM_AP_IDS = frozenset(
+    HEARTGOLD_ITEM_ID_BASE + data["id"]
+    for key, data in ITEMS.items()
+    if (data["pocket"] == "key_items" and key not in _TAKEN_BY_SCRIPTS) or key.startswith("hm0")
+)
+_KEY_ITEM_CHECK_EVERY_TICKS = 10
+
 
 def _build_ap_item_id_to_badge_index() -> dict[int, int]:
     """AP item id -> badge.h's own BADGE_* index (0-15), for the 16
@@ -709,6 +801,188 @@ _FLAG_ID_TO_AP_LOCATION_ID = build_flag_id_to_ap_location_id()
 # dict and a separate read/check path (see location_flags.build_dexsanity_
 # flag_to_ap_location_id's own docstring for why these can't share one map).
 _DEXSANITY_FLAG_ID_TO_AP_LOCATION_ID = build_dexsanity_flag_to_ap_location_id()
+
+
+def _build_version_bound_checks() -> tuple[dict[int, int], int | None]:
+    """Checks the game itself can never set, handled here so running seeds
+    need no new generation (2026-09-24, player report).
+
+    - The Kimono Girls give only one bell per version
+      (scr_seq_0928_T27R0501.s:807-816: the Clear Bell and flag 0x103 in
+      HeartGold, the Tidal Bell and flag 0x104 in SoulSilver), but both
+      checks exist in either version: the one the game gives also sends
+      the other one.
+    - The TM78 ball stands in the Japanese Goldenrod Game Corner
+      (MAP_GOLDENROD_GAME_CORNER_JP), which no warp of the US ROMs leads
+      to: it is sent on entering the Goldenrod Game Corner itself, which is
+      exactly what the logic expects of it (no requirement past Goldenrod).
+    Returns ({AP id: AP id sent along with it}, the TM78 AP id)."""
+    from locations import create_location_label_to_code_map
+
+    ids = create_location_label_to_code_map()
+    clear_bell = ids.get("ecruteak_dance_theater_clear_bell")
+    tidal_bell = ids.get("ecruteak_dance_theater_tidal_bell")
+    companions = {}
+    if clear_bell is not None and tidal_bell is not None:
+        companions = {clear_bell: tidal_bell, tidal_bell: clear_bell}
+    return companions, ids.get("goldenrod_game_corner_jp_tm78")
+
+
+_COMPANION_AP_LOCATION_IDS, _GAME_CORNER_JP_TM78_AP_ID = _build_version_bound_checks()
+_MAP_GOLDENROD_GAME_CORNER = 536  # include/constants/maps.h (MAP_T25SP0101)
+
+
+def _build_flag_upkeep() -> tuple[dict[int, tuple[int, ...]], dict[int, int], dict[int, tuple[int, int]]]:
+    """Three tables for flags this project added (2026-09-24):
+
+    - {AP location id: flags}: the flags the ROM sets when that check is
+      done (Leader sentinels, NPC gift gates, injected gift flags), current
+      and pre-2026-09-24 ids alike. Set again every tick for every checked
+      location: the old ids sat in the daily band (0xAA0-0xB5F) the game
+      wipes at each day change, which made beaten Leaders fightable again
+      (a second win breaks the Radio Tower takeover counter) and reopened
+      the gift gates; a ROM re-patched with the new ids also starts with
+      them clear on an existing save.
+    - {flag: AP location id}: the pre-2026-09-24 gate ids, plus
+      FLAG_UNK_09A (set only by the Route 29 catching tutorial,
+      scr_seq_0225_R29.s:321), still read as check flags so ROMs patched
+      before, and gifts obtained before, are reported.
+    - {AP location id: (var, minimum)}: story vars set right after a gift,
+      reporting the gifts obtained before those checks had a flag."""
+    from locations import create_location_label_to_code_map
+    from rom import badgedata, giftflagdata, npcgiftgatedata
+
+    ids = create_location_label_to_code_map()
+    upkeep: dict[int, tuple[int, ...]] = {}
+    new_to_badge = {flag: badge for badge, flag in badgedata.BADGE_SENTINEL_INJECTIONS.items()}
+    for key in ids:
+        try:
+            flag = flag_id_for_location(key)
+        except KeyError:
+            continue
+        if flag in new_to_badge:
+            upkeep[ids[key]] = (flag, badgedata.LEGACY_BADGE_SENTINEL_INJECTIONS[new_to_badge[flag]])
+    for key, flag in npcgiftgatedata.GATE_FLAGS.items():
+        legacy = npcgiftgatedata.LEGACY_GATE_FLAGS.get(key)
+        upkeep[ids[key]] = (flag,) if legacy is None else (flag, legacy)
+    for key, flag in giftflagdata.GIFT_FLAGS.items():
+        upkeep[ids[key]] = (flag,)
+
+    aliases = {legacy: ids[key] for key, legacy in npcgiftgatedata.LEGACY_GATE_FLAGS.items()}
+    aliases[0x9A] = ids["route_29_poke_ball"]
+
+    var_checks = {
+        ids["new_bark_elms_lab_1f_potion"]: (0x4108, 2),  # VAR_SCENE_ELMS_LAB, scr_seq_0843_T20R0101.s:527
+        ids["route_30_mr_pokemon_house_mystery_egg"]: (0x4108, 3),  # scr_seq_0229_R30R0201.s:269
+        ids["pallet_town_oaks_lab_jade_orb"]: (0x40F9, 5),  # VAR_SCENE_EMBEDDED_TOWER, scr_seq_0740_T01R0301.s:350
+        ids["ss_aqua_1f_northwest_rooms_metal_coat"]: (0x40CB, 6),  # VAR_UNK_40CB, scr_seq_0161_P01R0306.s:76
+    }
+    return upkeep, aliases, var_checks
+
+
+_UPKEEP_FLAGS_BY_AP_ID, _ALIAS_FLAG_TO_AP_ID, _VAR_CHECKS = _build_flag_upkeep()
+
+
+def _build_location_key_to_ap_id() -> dict[str, int]:
+    from locations import create_location_label_to_code_map
+
+    return create_location_label_to_code_map()
+
+
+_LOCATION_KEY_TO_AP_ID = _build_location_key_to_ap_id()
+
+
+def _build_never_given_in_game() -> dict[bool, frozenset[int]]:
+    """Per version (soulsilver?), the locations whose ROM-substituted item
+    the game never hands over: the other version's bell and the unreachable
+    TM78 ball. Their item comes through the network like a remote one."""
+    from locations import create_location_label_to_code_map
+
+    ids = create_location_label_to_code_map()
+    result = {}
+    for soulsilver in (False, True):
+        keys = ["goldenrod_game_corner_jp_tm78",
+                "ecruteak_dance_theater_clear_bell" if soulsilver else "ecruteak_dance_theater_tidal_bell"]
+        result[soulsilver] = frozenset(ids[key] for key in keys if key in ids)
+    return result
+
+
+_NEVER_GIVEN_IN_GAME = _build_never_given_in_game()
+
+
+def _never_given_in_game(ctx: BizHawkClientContext) -> frozenset[int]:
+    return _NEVER_GIVEN_IN_GAME[(ctx.slot_data.get("options") or {}).get("game_version") == 1]
+
+
+# Checks that only exist while the Radio Tower takeover runs
+# (VAR_SCENE_ROCKET_TAKEOVER == 4, see locations.TAKEOVER_TRAINER_KEYS):
+# gone for good once Archer is beaten, so the missed ones are sent then
+# (2026-09-26).
+_TAKEOVER_OVER = 5
+# FLAG_UNK_0B5, set when the Sudowoodo is watered (scr_seq_0243_R36.s:110).
+_FLAG_SUDOWOODO_CLEARED = 0xB5
+# Gifts the game can skip for good: {location key: (marker flag, trigger)},
+# the trigger being the save state after which the gift can never happen
+# (("var", var, minimum) or ("flag", flag)). Once triggered, a gift still
+# missing is sent, and its marker (unused FLAG_UNK_ band, rom/badgedata.py)
+# records that the game never handed its item over, so it comes through the
+# network instead.
+#   - Petrel and the warehouse director only stand there during the takeover.
+#   - The Flower Shop owner only runs her Mulch shop once the Sudowoodo is
+#     gone (`GoToIfSet FLAG_UNK_0B5`, scr_seq_0896_T25R0601.s:121): a
+#     Squirtbottle from another world used on the tree first lost her check
+#     for good (2026-09-27).
+_MISSABLE_GIFTS = {
+    "goldenrod_radio_tower_5f_basement_key": (0x53C, ("var", _VAR_SCENE_ROCKET_TAKEOVER, _TAKEOVER_OVER)),
+    "goldenrod_tunnel_warehouse_card_key": (0x53D, ("var", _VAR_SCENE_ROCKET_TAKEOVER, _TAKEOVER_OVER)),
+    "goldenrod_flower_shop_squirtbottle": (0x53E, ("flag", _FLAG_SUDOWOODO_CLEARED)),
+    # Jasmine heals Amphy once FLAG_GOT_SECRETPOTION (0xB9) is set
+    # (scr_seq_0066_D27R0107.s:29), never checking the item itself (the
+    # TakeItem result is ignored), and only the Cianwood pharmacist sets
+    # that flag (scr_seq_0881_T24R0501.s:40). A Secret Potion received from
+    # the multiworld did nothing (player report 2026-10-03). Receiving it
+    # now sets the flag, which also stands for the pharmacy's own check:
+    # that check is sent and its item delivered like a missed gift.
+    "cianwood_pharmacy_secretpotion": (0x53F, ("item", "secretpotion", (0xB9,))),
+}
+# Set right after Petrel hands the Basement Key over
+# (scr_seq_0033_D23R0105.s:134), on old ROMs and new ones alike.
+_VAR_BASEMENT_KEY_GIVEN = (0x40E7, 2)  # VAR_UNK_40E7
+# Trainers the game hides for good at some point (2026-09-26/27): once the
+# trigger holds, the ones still missing are sent. Same trigger shapes as
+# _MISSABLE_GIFTS, plus ("always",) for a trainer that never appears.
+# See the key tuples' own notes in locations.py.
+_MISSABLE_TRAINER_GROUPS = (
+    ("TAKEOVER_TRAINER_KEYS", ("var", _VAR_SCENE_ROCKET_TAKEOVER, _TAKEOVER_OVER)),
+    ("LIGHTHOUSE_4F_TRAINER_KEYS", ("var", 0x40A5, 2)),  # VAR_SCENE_LIGHTHOUSE_JASMINE
+    ("HIDEOUT_TRAINER_KEYS", ("flag", 0x1F2)),  # FLAG_HIDE_MAHOGANY_SHOP_SHADY_SALESMAN
+    ("SLOWPOKE_WELL_TRAINER_KEYS", ("flag", 0x1A9)),  # FLAG_UNK_1A9
+    ("NEVER_PRESENT_TRAINER_KEYS", ("always",)),
+)
+
+
+def _build_missable_checks() -> tuple[tuple[tuple[frozenset[int], tuple], ...], dict[int, tuple[tuple[int, ...], int, tuple]]]:
+    """(((trainer AP ids, trigger), ...), {gift AP id: (flags the game sets
+    when it hands that gift over, marker flag, trigger)})."""
+    import locations
+    from locations import create_location_label_to_code_map
+    from rom import npcgiftgatedata
+
+    ids = create_location_label_to_code_map()
+    gifts = {}
+    for key, (marker, trigger) in _MISSABLE_GIFTS.items():
+        given = {
+            flag_id_for_location(key), npcgiftgatedata.GATE_FLAGS.get(key), npcgiftgatedata.LEGACY_GATE_FLAGS.get(key)
+        }
+        gifts[ids[key]] = (tuple(sorted(flag for flag in given if flag is not None)), marker, trigger)
+    trainers = tuple(
+        (frozenset(ids[key] for key in getattr(locations, name)), trigger) for name, trigger in _MISSABLE_TRAINER_GROUPS
+    )
+    return trainers, gifts
+
+
+_MISSABLE_TRAINERS, _MISSABLE_GIFTS_BY_AP_ID = _build_missable_checks()
+_BASEMENT_KEY_AP_ID = _LOCATION_KEY_TO_AP_ID["goldenrod_radio_tower_5f_basement_key"]
 
 # -- Untrustworthy-read guard for check reporting ----------------------------
 #
@@ -810,6 +1084,11 @@ def _pokedex_read_looks_sane(pokedex_bytes: bytes) -> bool:
     return not any(is_flag_set(pokedex_bytes, bit) for bit in _DEXSANITY_UNUSED_BITS)
 
 
+def _flag_in_byte(value: int, flag_id: int) -> bool:
+    """Whether `flag_id` is set in `value`, the flags byte holding it."""
+    return bool(value & (1 << flag_byte_and_bit(flag_id)[1]))
+
+
 def _decrypt_gamestats_halfword(raw_value: int, checksum: int, key_high: int, byte_offset: int) -> int:
     """Plaintext value of the u16 GameStats field at `byte_offset` (from
     the start of the GameStats chunk), given the ciphertext halfword read
@@ -867,6 +1146,65 @@ def cmd_pending(self) -> None:
     )
 
 
+def _pocket_quantity(pocket_bytes: bytes, native_id: int) -> int:
+    """How many of `native_id` one pocket holds (all its slots)."""
+    return sum(
+        quantity
+        for item_id, quantity in (struct.unpack_from("<HH", pocket_bytes, o) for o in range(0, len(pocket_bytes) - 3, 4))
+        if item_id == native_id
+    )
+
+
+def _pocket_slice(bag_bytes: bytes, bag_field: str) -> bytes:
+    offset, capacity = BAG_POCKET_OFFSETS[bag_field]
+    return bag_bytes[offset : offset + capacity * 4]
+
+
+def _normalized_item_name(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def cmd_resend(self, item_name: str = "") -> None:
+    """Give you one more copy of an item the server sent you that never reached your Bag."""
+    ctx = self.ctx
+    handler = ctx.client_handler
+    if ctx.game != HeartGoldClient.game or not isinstance(handler, HeartGoldClient):
+        logger.warning("This command only works while playing Pokemon HGSS Singe.")
+        return
+    if not ctx.server or not ctx.slot:
+        logger.warning("Connect to the server first.")
+        return
+    if not item_name.strip():
+        logger.info(
+            "Usage: /resend <item name>, e.g. /resend Expert Belt. Gives one copy of an item the server already "
+            "sent you. Key items and HMs come back on their own; use this for others lost before this client "
+            "version (game closed or reloaded right after they arrived)."
+        )
+        return
+    received: dict[int, int] = {}
+    for network_item in ctx.items_received:
+        received[network_item.item] = received.get(network_item.item, 0) + 1
+    wanted = _normalized_item_name(item_name)
+    matches = [ap_id for ap_id in received if _normalized_item_name(_item_display_name(ctx, ap_id)) == wanted]
+    if not matches:
+        logger.warning(f"The server never sent you an item named {item_name.strip()!r}, nothing to resend.")
+        return
+    ap_id = matches[0]
+    name = _item_display_name(ctx, ap_id)
+    if ap_id not in _AP_ITEM_ID_TO_BAG_WRITE_INFO:
+        logger.warning(f"{name} does not go in the Bag (badges are restored on their own).")
+        return
+    used = handler._resent_counts.get(ap_id, 0) + handler._resend_queue.count(ap_id)
+    if used >= received[ap_id]:
+        logger.warning(f"{name} was already resent as many times as the server sent it ({received[ap_id]}).")
+        return
+    handler._resend_queue.append(ap_id)
+    logger.info(f"Resending one {name}. Save in-game afterwards to keep it.")
+
+
+cmd_resend.raw_text = True  # the item name is the rest of the line, spaces included
+
+
 def cmd_restore_power(self) -> None:
     """Repair the Kanto Power Plant in your save (Magnet Train fallback)."""
     ctx = self.ctx
@@ -917,7 +1255,6 @@ class HeartGoldClient(BizHawkClient):
     _delivered_ahead: set[int]
     _qol_applied: bool
     _known_tm_quantities: dict[int, int] | None
-    _known_player_mon_fainted: int | None
     _previous_death_link: float | None
     _ignore_next_death_link: bool
     _death_link_tag_set: bool
@@ -944,6 +1281,9 @@ class HeartGoldClient(BizHawkClient):
         self._previous_death_link = None
         self._ignore_next_death_link = False
         self._death_link_tag_set = False
+        self._death_link_queued = False
+        self._rom_has_deathlink_scripts = False
+        self._reported_deathlink_old_rom = False
         self._known_trainer_id = None
         self._pending_trainer_id = None
         self._start_location_revocation_target = None
@@ -978,9 +1318,13 @@ class HeartGoldClient(BizHawkClient):
 
     async def validate_rom(self, ctx: BizHawkClientContext) -> bool:
         try:
-            id_code, signature = await bizhawk.read(
+            id_code, signature, deathlink_tag = await bizhawk.read(
                 ctx.bizhawk_ctx,
-                [(0x0C, 4, "ROM"), (WORLD_SIGNATURE_ROM_OFFSET, WORLD_SIGNATURE_SIZE, "ROM")],
+                [
+                    (0x0C, 4, "ROM"),
+                    (WORLD_SIGNATURE_ROM_OFFSET, WORLD_SIGNATURE_SIZE, "ROM"),
+                    (DEATHLINK_SCRIPTS_ROM_OFFSET, len(DEATHLINK_SCRIPTS_TAG), "ROM"),
+                ],
             )
         except bizhawk.RequestFailedError:
             return False
@@ -996,6 +1340,8 @@ class HeartGoldClient(BizHawkClient):
             ctx.command_processor.commands["restore_power"] = cmd_restore_power
         if "pending" not in ctx.command_processor.commands:
             ctx.command_processor.commands["pending"] = cmd_pending
+        if "resend" not in ctx.command_processor.commands:
+            ctx.command_processor.commands["resend"] = cmd_resend
 
         ctx.game = self.game
         ctx.items_handling = 0b111  # locations + remote items + start inventory
@@ -1016,6 +1362,9 @@ class HeartGoldClient(BizHawkClient):
         self._previous_death_link = None
         self._ignore_next_death_link = False
         self._death_link_tag_set = False
+        self._death_link_queued = False
+        self._rom_has_deathlink_scripts = bytes(deathlink_tag) == DEATHLINK_SCRIPTS_TAG
+        self._reported_deathlink_old_rom = False
         self._known_trainer_id = None
         self._pending_trainer_id = None
         # Connection-scoped, not save-scoped: the record describes the ROM
@@ -1061,22 +1410,36 @@ class HeartGoldClient(BizHawkClient):
         _applied_item_count/_delivered_ahead index into a Bag that no
         longer exists, _starting_money_applied guards a PlayerProfile.money
         that was zeroed, _qol_applied guards an Options word that was
-        zeroed, and _known_tm_quantities/_known_player_mon_fainted are
-        baselines taken against a different save's numbers (re-baselining
+        zeroed, and _known_tm_quantities is a
+        baseline taken against a different save's numbers (re-baselining
         costs one tick and prevents a cross-save comparison).
 
         Deliberately NOT reset here: _previous_death_link,
-        _ignore_next_death_link and _death_link_tag_set, which are scoped
-        to the *connection*, not to the save file."""
+        _ignore_next_death_link, _death_link_tag_set and _death_link_queued,
+        which are scoped to the *connection*, not to the save file."""
         self._applied_item_count = 0
         self._delivered_ahead = set()
+        self._save_anchored = False
+        self._save_item_count_address: int | None = None
+        self._key_item_check_countdown = 0
+        self._gifts_never_given: frozenset[int] = frozenset()
+        # /resend (cmd_resend): AP item ids queued, and how many of each
+        # were already given back on this save.
+        self._resend_queue: list[int] = []
+        self._resent_counts: dict[int, int] = {}
+        # Battle tracking, see _GAME_STAT_BATTLE_STARTS_OFFSET.
+        self._battle_counter: int | None = None
+        self._battle: dict | None = None
+        self._battle_receipts: list[tuple[int, str, int, int]] = []
+        self._tick = 0
         self._reported_stuck_items: set[int] = set()
+        self._reported_odd_slots: set[tuple[str, int, int, int]] = set()
+        self._reported_bag_relocation = False
         self._bag_write_failures = 0
         self._power_restore_requested = False
         self._starting_money_applied = False
         self._qol_applied = False
         self._known_tm_quantities = None
-        self._known_player_mon_fainted = None
         self._goal_pending = False
 
     async def _ensure_addresses_located(self, ctx: BizHawkClientContext) -> bool:
@@ -1589,12 +1952,14 @@ class HeartGoldClient(BizHawkClient):
         soulsilver = (ctx.slot_data.get("options") or {}).get("game_version") == 1
         pewter_wing, hide_flag, caught_flag = _PEWTER_WING_LEGENDARY["soulsilver" if soulsilver else "heartgold"]
         new_flags = bytearray(flags)
-        for key, pass_flag in wanted:
-            if is_set(pass_flag):
+        for key, (pass_flag, legacy_flag) in wanted:
+            if is_set(pass_flag) and is_set(legacy_flag):
                 continue
-            byte_index, bit_index = flag_byte_and_bit(pass_flag)
-            new_flags[byte_index] |= 1 << bit_index
-            if key == pewter_wing and not is_set(caught_flag):
+            first_time = not is_set(pass_flag)
+            for flag_id in (pass_flag, legacy_flag):
+                byte_index, bit_index = flag_byte_and_bit(flag_id)
+                new_flags[byte_index] |= 1 << bit_index
+            if first_time and key == pewter_wing and not is_set(caught_flag):
                 byte_index, bit_index = flag_byte_and_bit(hide_flag)
                 new_flags[byte_index] &= ~(1 << bit_index) & 0xFF
         writes, guards = [], []
@@ -1659,93 +2024,100 @@ class HeartGoldClient(BizHawkClient):
         await ctx.update_death_link(bool(ctx.slot_data.get("death_link", False)))
         self._death_link_tag_set = True
 
-    async def _send_death_link_on_faint(self, ctx: BizHawkClientContext) -> None:
-        """DeathLink send side: poll GAME_STAT_PLAYER_MON_FAINTED and send
-        a death the moment it increases. The first tick after
-        (re)connecting only records a baseline.
-
-        The counter is stored XOR-encrypted and has to be decrypted before
-        it means anything at all -- see the _GAMESTATS_SECURE_REGION_OFFSET
-        block for the decomp derivation and for the real "DeathLink fires
-        at the start of every other battle" bug that reading it raw caused.
-        The checksum/key halfwords are fetched in the same read request as
-        the ciphertext so they describe the same moment.
-
-        Two things can only ever *suppress* a send, never cause one:
-        a decrypted value above the game's own 9999 cap for this stat (a
-        read that cannot come from a real save -- keep the old baseline
-        untouched and try again next tick), and an increase too large to be
-        a real sequence of faints (re-baseline, but stay quiet). A save
-        reload or a New Game makes the counter go backwards, which simply
-        re-baselines: _reset_save_scoped_progress also clears the baseline
-        outright when the save file itself changes."""
-        if not bool(ctx.slot_data.get("death_link", False)) or self.gamestats_address is None:
+    async def _send_death_link_on_whiteout(self, ctx: BizHawkClientContext) -> None:
+        """DeathLink send side: every whiteout sets FLAG_AP_WHITED_OUT (see
+        the DeathLink constants). Clear it, together with the received-death
+        flags it settles, and send a death unless FLAG_AP_DEATHLINK_WHITEOUT
+        says this whiteout was a received death. A whiteout while a
+        received death still waits (FLAG_AP_DEATHLINK) settles that one too."""
+        if not bool(ctx.slot_data.get("death_link", False)) or self.flags_array_address is None:
             return
-
-        stat_address = self.gamestats_address + _GAME_STAT_PLAYER_MON_FAINTED_OFFSET
-        crypt_address = self.gamestats_address + _GAMESTATS_CHECKSUM_OFFSET
-        raw_stat, raw_crypt = await bizhawk.read(
+        address = self.flags_array_address + _DEATHLINK_FLAGS_BYTE
+        value = (await bizhawk.read(ctx.bizhawk_ctx, [(address, 1, "ARM9 System Bus")]))[0][0]
+        if not _flag_in_byte(value, FLAG_AP_WHITED_OUT):
+            return
+        cleared = value
+        for flag_id in (FLAG_AP_DEATHLINK, FLAG_AP_WHITED_OUT, FLAG_AP_DEATHLINK_WHITEOUT):
+            cleared &= ~(1 << flag_byte_and_bit(flag_id)[1])
+        if not await bizhawk.guarded_write(
             ctx.bizhawk_ctx,
-            [(stat_address, 2, "ARM9 System Bus"), (crypt_address, 4, "ARM9 System Bus")],
-        )
-        (ciphertext,) = struct.unpack("<H", bytes(raw_stat))
-        checksum, key_high = struct.unpack("<HH", bytes(raw_crypt))
-        fainted_count = _decrypt_gamestats_halfword(
-            ciphertext, checksum, key_high, _GAME_STAT_PLAYER_MON_FAINTED_OFFSET
-        )
-
-        if fainted_count > _MAX_PLAUSIBLE_PLAYER_MON_FAINTED:
-            return  # impossible value -- bad read, keep the old baseline
-
-        previous = self._known_player_mon_fainted
-        self._known_player_mon_fainted = fainted_count
-        if previous is None:
-            return  # first tick after (re)connecting: baseline only
-
-        if not 0 < fainted_count - previous <= _MAX_PLAUSIBLE_FAINTS_PER_TICK:
+            [(address, bytes([cleared]), "ARM9 System Bus")],
+            [(address, bytes([value]), "ARM9 System Bus")],
+        ):
+            return  # the game changed the byte meanwhile: next tick
+        if _flag_in_byte(value, FLAG_AP_DEATHLINK_WHITEOUT):
             return
-
         self._ignore_next_death_link = True
-        await ctx.send_death(f"{ctx.player_names[ctx.slot]}'s Pokémon fainted!")
+        await ctx.send_death(f"{ctx.player_names[ctx.slot]} whited out!")
 
     async def _receive_death_link(self, ctx: BizHawkClientContext) -> None:
         """DeathLink receive side: notice `ctx.last_death_link` changing
-        (CommonContext's own DeathLink bookkeeping) and zero every real
-        party Pokemon's current HP, matching a vanilla blackout.
+        (CommonContext's own DeathLink bookkeeping), then set
+        FLAG_AP_DEATHLINK and the Repel counter to 1 so the next step whites
+        the player out (see the DeathLink constants). Waits while a Safari
+        Game runs; while the flag is set, keeps the counter at 1 (a Repel
+        used meanwhile would delay the death by up to 250 steps).
         `_ignore_next_death_link` skips the echo of this player's own
         just-sent death (Bounce rebroadcasts to the sender too)."""
-        if not bool(ctx.slot_data.get("death_link", False)) or self.party_address is None:
+        if not bool(ctx.slot_data.get("death_link", False)) or self.flags_array_address is None:
             return
 
         if self._previous_death_link is None:
             self._previous_death_link = ctx.last_death_link
+        elif ctx.last_death_link != self._previous_death_link:
+            self._previous_death_link = ctx.last_death_link
+            if self._ignore_next_death_link:
+                self._ignore_next_death_link = False
+            else:
+                self._death_link_queued = True
+
+        if self._death_link_queued and not self._rom_has_deathlink_scripts:
+            self._death_link_queued = False
+            if not self._reported_deathlink_old_rom:
+                self._reported_deathlink_old_rom = True
+                logger.warning(
+                    "DeathLink: this ROM was patched by an older version of the APWorld, which cannot make you "
+                    "white out. Patch your .appokehgss again with this APWorld (your save keeps working)."
+                )
             return
 
-        if ctx.last_death_link == self._previous_death_link:
+        repel_address = await self._roamer_repel_address(ctx)
+        if repel_address is None:
             return
-        self._previous_death_link = ctx.last_death_link
-
-        if self._ignore_next_death_link:
-            self._ignore_next_death_link = False
+        address = self.flags_array_address + _DEATHLINK_FLAGS_BYTE
+        safari_byte, safari_bit = flag_byte_and_bit(_FLAG_SYS_SAFARI)
+        raw_flags, raw_safari, raw_repel = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (address, 1, "ARM9 System Bus"),
+                (self.flags_array_address + safari_byte, 1, "ARM9 System Bus"),
+                (repel_address, 1, "ARM9 System Bus"),
+            ],
+        )
+        value, repel_steps = raw_flags[0], raw_repel[0]
+        writes, guards = [], []
+        if self._death_link_queued and not raw_safari[0] & (1 << safari_bit):
+            flag_set = value | (1 << flag_byte_and_bit(FLAG_AP_DEATHLINK)[1])
+            writes.append((address, bytes([flag_set]), "ARM9 System Bus"))
+            guards.append((address, bytes([value]), "ARM9 System Bus"))
+            value = flag_set
+        if _flag_in_byte(value, FLAG_AP_DEATHLINK) and repel_steps != 1:
+            writes.append((repel_address, b"\x01", "ARM9 System Bus"))
+            guards.append((repel_address, bytes([repel_steps]), "ARM9 System Bus"))
+        if not writes or not await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards):
             return
+        if self._death_link_queued and _flag_in_byte(value, FLAG_AP_DEATHLINK):
+            self._death_link_queued = False
+            logger.info("DeathLink: you will white out on your next step.")
 
-        cur_count_raw = (
-            await bizhawk.read(ctx.bizhawk_ctx, [(self.party_address + _PARTY_CUR_COUNT_OFFSET, 4, "ARM9 System Bus")])
-        )[0]
-        (cur_count,) = struct.unpack("<i", bytes(cur_count_raw))
-        cur_count = max(0, min(cur_count, _PARTY_MAX_SIZE))
-
-        mons_address = self.party_address + _PARTY_MONS_OFFSET
-        writes = [
-            (
-                mons_address + i * _PARTY_POKEMON_STRUCT_SIZE + _PARTY_POKEMON_HP_OFFSET,
-                struct.pack("<H", 0),
-                "ARM9 System Bus",
-            )
-            for i in range(cur_count)
-        ]
-        if writes:
-            await bizhawk.write(ctx.bizhawk_ctx, writes)
+    async def _roamer_repel_address(self, ctx: BizHawkClientContext) -> int | None:
+        """RoamerSaveData.repelSteps in this save, from the located
+        arrayHeaders (None until they are)."""
+        if self._array_headers_address is None:
+            return None
+        dynamic_region_base = self._array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
+        chunk_offset = await _chunk_offset(ctx, self._array_headers_address, _ROAMER_CHUNK_ID)
+        return dynamic_region_base + chunk_offset + _ROAMER_REPEL_STEPS_OFFSET
 
     async def game_watcher(self, ctx: BizHawkClientContext) -> None:
         if ctx.server is None or ctx.server.socket.closed:
@@ -1834,10 +2206,15 @@ class HeartGoldClient(BizHawkClient):
             await self._apply_wing_passes(ctx)
             await self._restore_reusable_tms(ctx)
             await self._update_death_link_tag(ctx)
-            await self._send_death_link_on_faint(ctx)
+            await self._send_death_link_on_whiteout(ctx)
             await self._receive_death_link(ctx)
             await self._check_locations(ctx)
-            await self._apply_received_items(ctx, applied_key, delivered_ahead_key)
+            await self._repair_story_vars(ctx)
+            await self._track_battles(ctx)
+            if await self._sync_item_count_with_save(ctx, applied_key):
+                await self._apply_received_items(ctx, applied_key, delivered_ahead_key)
+                await self._ensure_key_items(ctx)
+                await self._process_resends(ctx)
             await self._apply_pending_badges(ctx)
         except bizhawk.RequestFailedError:
             pass  # exit handler, return to main loop to reconnect
@@ -1870,6 +2247,37 @@ class HeartGoldClient(BizHawkClient):
         self._known_trainer_id = trainer_id
         self._reset_save_scoped_progress()
         return True
+
+    async def _pocket_usable(self, ctx: BizHawkClientContext, pocket_bytes: bytes, bag_field: str) -> bool:
+        """Whether a pocket read can be written into. An entry outside the
+        usual bounds used to make the client drop the Bag address and
+        rescan, every second and forever when the entry was really there,
+        blocking every delivery (player report 2026-10-03). Now: if the
+        save's Pokedex signature still checks out, the address is right and
+        the odd entry is left alone (writes only go to empty or matching
+        slots), reported once; only a failed signature means a stale
+        address and a rescan."""
+        if _pocket_looks_plausible(pocket_bytes):
+            return True
+        # Without a located Pokedex (manual address overrides) there is no
+        # signature to tell an odd entry from a stale address: rescan.
+        if self.pokedex_caught_species_address is not None and await self._save_block_signature_valid(ctx):
+            for offset in range(0, len(pocket_bytes) - 3, 4):
+                item_id, quantity = struct.unpack_from("<HH", pocket_bytes, offset)
+                if item_id and not (item_id <= _MAX_PLAUSIBLE_ITEM_ID and quantity <= _MAX_PLAUSIBLE_ITEM_QUANTITY):
+                    key = (bag_field, offset // 4, item_id, quantity)
+                    if key not in self._reported_odd_slots:
+                        self._reported_odd_slots.add(key)
+                        logger.warning(
+                            f"Your Bag's {bag_field} pocket holds an unexpected entry (slot {offset // 4 + 1}: item "
+                            f"{item_id}, quantity {quantity}). Items keep arriving; please report this entry."
+                        )
+            return True
+        self._array_headers_address = None
+        if not self._reported_bag_relocation:
+            self._reported_bag_relocation = True
+            logger.warning("Bag data looks wrong, searching for your save data again.")
+        return False
 
     async def _save_block_signature_valid(self, ctx: BizHawkClientContext) -> bool:
         """Layer 1 of the check-report guard (see its section comment):
@@ -1922,11 +2330,87 @@ class HeartGoldClient(BizHawkClient):
             self._pending_check_batch = None
             return
 
-        newly_checked = {
+        flagged = {
             ap_location_id
-            for flag_id, ap_location_id in _FLAG_ID_TO_AP_LOCATION_ID.items()
-            if ap_location_id in ctx.missing_locations and is_flag_set(bytes(flags_bytes), flag_id)
+            for flag_id, ap_location_id in (*_FLAG_ID_TO_AP_LOCATION_ID.items(), *_ALIAS_FLAG_TO_AP_ID.items())
+            if is_flag_set(bytes(flags_bytes), flag_id)
         }
+        missing = set(ctx.missing_locations)
+        # A checked gift with no marker: a save reloaded from before the
+        # marker was written.
+        checked = set(getattr(ctx, "checked_locations", None) or ())
+        # Missable gifts neither handed over by the game nor marked yet.
+        unmarked = {
+            ap_id: (marker, trigger)
+            for ap_id, (given_flags, marker, trigger) in _MISSABLE_GIFTS_BY_AP_ID.items()
+            if (ap_id in missing or ap_id in checked)
+            and not is_flag_set(flags_bytes, marker)
+            and not any(is_flag_set(flags_bytes, f) for f in given_flags)
+        }
+        vars_bytes = None
+        if (
+            missing & _VAR_CHECKS.keys()
+            or any(trigger[0] == "var" for _, trigger in unmarked.values())
+            or any(trigger[0] == "var" and missing & ap_ids for ap_ids, trigger in _MISSABLE_TRAINERS)
+        ):
+            vars_bytes = bytes(
+                (
+                    await bizhawk.read(
+                        ctx.bizhawk_ctx, [(flags_address - FLAGS_ARRAY_OFFSET, FLAGS_ARRAY_OFFSET, "ARM9 System Bus")]
+                    )
+                )[0]
+            )
+
+        def var(var_id: int) -> int:
+            assert vars_bytes is not None
+            return struct.unpack_from("<H", vars_bytes, (var_id - _VAR_BASE) * 2)[0]
+
+        received_ids = {network_item.item for network_item in getattr(ctx, "items_received", ())}
+
+        def triggered(trigger: tuple) -> bool:
+            if trigger[0] == "always":
+                return True
+            if trigger[0] == "flag":
+                return is_flag_set(flags_bytes, trigger[1])
+            if trigger[0] == "item":
+                return HEARTGOLD_ITEM_ID_BASE + ITEMS[trigger[1]]["id"] in received_ids
+            return vars_bytes is not None and var(trigger[1]) >= trigger[2]
+
+        if vars_bytes is not None:
+            for ap_id, (var_id, minimum) in _VAR_CHECKS.items():
+                if var(var_id) >= minimum:
+                    flagged.add(ap_id)
+        for ap_ids, trigger in _MISSABLE_TRAINERS:
+            if missing & ap_ids and triggered(trigger):
+                flagged |= ap_ids
+        new_markers = {ap_id: marker for ap_id, (marker, trigger) in unmarked.items() if triggered(trigger)}
+        if vars_bytes is not None and var(_VAR_BASEMENT_KEY_GIVEN[0]) >= _VAR_BASEMENT_KEY_GIVEN[1]:
+            new_markers.pop(_BASEMENT_KEY_AP_ID, None)
+        # An "item" trigger also sets the flags the game itself reads.
+        unlock_flags = tuple(
+            flag
+            for ap_id in new_markers
+            if unmarked[ap_id][1][0] == "item"
+            for flag in unmarked[ap_id][1][2]
+        )
+        if not await self._keep_check_flags_set(
+            ctx, flags_address, flags_bytes, tuple(new_markers.values()) + unlock_flags
+        ):
+            # A gift is only sent once its marker is in the save.
+            new_markers = {}
+        # A marked gift is sent too: the marker may have reached the save on
+        # a tick whose batch was held back (layer 3) or never sent.
+        self._gifts_never_given = frozenset(
+            ap_id for ap_id, (_, marker, _) in _MISSABLE_GIFTS_BY_AP_ID.items() if is_flag_set(flags_bytes, marker)
+        ) | new_markers.keys()
+        flagged |= self._gifts_never_given
+        # A check the game cannot set in this version rides along with its
+        # twin (see _build_version_bound_checks).
+        flagged |= {_COMPANION_AP_LOCATION_IDS[i] for i in flagged if i in _COMPANION_AP_LOCATION_IDS}
+        newly_checked = flagged & set(ctx.missing_locations)
+        if _GAME_CORNER_JP_TM78_AP_ID in ctx.missing_locations:
+            if await self._current_map_id(ctx) == _MAP_GOLDENROD_GAME_CORNER:
+                newly_checked.add(_GAME_CORNER_JP_TM78_AP_ID)
 
         # Dexsanity (task M3.4): Pokedex.caughtSpecies is its own savedata
         # array, not SaveVarsFlags.flags[] -- a separate read, separate map,
@@ -1986,6 +2470,102 @@ class HeartGoldClient(BizHawkClient):
             self.local_checked_locations = newly_checked
             await ctx.check_locations(newly_checked)
 
+    async def _repair_story_vars(self, ctx: BizHawkClientContext) -> None:
+        """Story chains an out-of-order run can break for good (2026-09-24,
+        decomp), plus the lighthouse barrier (2026-10-16, see below):
+
+        - The Radio Tower takeover starts when VAR_MIDGAME_BADGES, counted
+          up by the Morty, Chuck, Jasmine and Pryce wins, equals exactly 4
+          (scr_seq_0684_T26_hdr.s, scr_seq_0703_T28_hdr.s). The sentinels
+          that stop a Leader from being fought twice used to be wiped at
+          every day change, and a second win pushes the counter past 4:
+          while the takeover has not started, a counter above 4 is set back
+          to the number of those four Leaders actually beaten.
+        - The Kimono Girls hand their bell over only after the Ecruteak
+          rival scene, which fires on VAR_UNK_4079 == 3, set by the Elm's lab
+          scene after Clair (scr_seq_0843_T20R0101.s:946). Morty's win sets
+          it to 1 (scr_seq_0922_T27GYM0101.s:72) and Ecruteak then to 0, so
+          beating Morty after that lab scene hid them forever: once the lab
+          scene is done (VAR_SCENE_ELMS_LAB >= 9) and the bell scene not
+          reached (VAR_UNK_410C < 4), 0 or 1 is set back to 3."""
+        if self.flags_array_address is None:
+            return
+        vars_address = self.flags_array_address - FLAGS_ARRAY_OFFSET
+        vars_bytes = bytes(
+            (await bizhawk.read(ctx.bizhawk_ctx, [(vars_address, FLAGS_ARRAY_OFFSET, "ARM9 System Bus")]))[0]
+        )
+
+        def var(var_id: int) -> int:
+            return struct.unpack_from("<H", vars_bytes, (var_id - _VAR_BASE) * 2)[0]
+
+        writes = []
+        if var(_VAR_SCENE_ROCKET_TAKEOVER) < 2 and var(_VAR_MIDGAME_BADGES) > 4:
+            ids = _LOCATION_KEY_TO_AP_ID
+            checked = getattr(ctx, "checked_locations", None) or set()
+            beaten = sum(1 for key in _MIDGAME_LEADER_BADGE_KEYS if ids.get(key) in checked)
+            writes.append((_VAR_MIDGAME_BADGES, beaten))
+        if (
+            var(_VAR_SCENE_ELMS_LAB) >= 9
+            and var(_VAR_DANCE_THEATER) < 4
+            and var(_VAR_KIMONO_CHAIN) in (0, 1)
+        ):
+            writes.append((_VAR_KIMONO_CHAIN, 3))
+        for var_id, value in writes:
+            address = vars_address + (var_id - _VAR_BASE) * 2
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(address, struct.pack("<H", value), "ARM9 System Bus")],
+                [(address, struct.pack("<H", var(var_id)), "ARM9 System Bus")],
+            )
+
+        # Lighthouse top (2026-10-16, rom/lighthousedata.py): only Jasmine's
+        # first talk opens the way out, and a ROM patched before that fix
+        # skips it when the Secret Potion is already owned, leaving the
+        # player walled in once Jasmine leaves. FLAG_UNK_1D8 hides the
+        # barrier from the next map load on (a stuck player saves and
+        # reloads); setting it early is harmless.
+        potion_byte, potion_bit = flag_byte_and_bit(_FLAG_GOT_SECRETPOTION)
+        barrier_byte, barrier_bit = flag_byte_and_bit(_FLAG_LIGHTHOUSE_BARRIER_OPEN)
+        raw_potion, raw_barrier = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (self.flags_array_address + potion_byte, 1, "ARM9 System Bus"),
+                (self.flags_array_address + barrier_byte, 1, "ARM9 System Bus"),
+            ],
+        )
+        potion_owned = raw_potion[0] & (1 << potion_bit) or var(_VAR_SCENE_LIGHTHOUSE_JASMINE) >= 2
+        if potion_owned and not raw_barrier[0] & (1 << barrier_bit):
+            address = self.flags_array_address + barrier_byte
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(address, bytes([raw_barrier[0] | (1 << barrier_bit)]), "ARM9 System Bus")],
+                [(address, bytes(raw_barrier), "ARM9 System Bus")],
+            )
+
+    async def _keep_check_flags_set(
+        self, ctx: BizHawkClientContext, flags_address: int, flags_bytes: bytes, extra_flags: tuple[int, ...] = ()
+    ) -> bool:
+        """Set again, for every checked location, the flags this project's
+        ROM patches rely on (see _build_flag_upkeep): a day change wipes the
+        old ids, and a ROM re-patched with the new ids starts with them
+        clear. `extra_flags` go in the same write (they may share a byte).
+        One guarded write for every changed byte, retried next tick on
+        failure; returns whether it went through."""
+        checked = getattr(ctx, "checked_locations", None) or set()
+        new_flags = bytearray(flags_bytes)
+        wanted = [flag for ap_id, flag_ids in _UPKEEP_FLAGS_BY_AP_ID.items() if ap_id in checked for flag in flag_ids]
+        for flag_id in (*wanted, *extra_flags):
+            byte_index, bit_index = flag_byte_and_bit(flag_id)
+            new_flags[byte_index] |= 1 << bit_index
+        writes, guards = [], []
+        for byte_index, (old, new) in enumerate(zip(flags_bytes, new_flags)):
+            if old != new:
+                writes.append((flags_address + byte_index, bytes([new]), "ARM9 System Bus"))
+                guards.append((flags_address + byte_index, bytes([old]), "ARM9 System Bus"))
+        if not writes:
+            return True
+        return bool(await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards))
+
     async def _report_goal(self, ctx: BizHawkClientContext, flags_bytes: bytes, goal_seen_last_tick: bool) -> None:
         """Send CLIENT_GOAL once this slot's goal (slot_data "goal") is met.
         See _GOAL_ELITE_FOUR's block for what each goal reads and why.
@@ -2042,9 +2622,50 @@ class HeartGoldClient(BizHawkClient):
         two sides is ahead wins, so a stale or late Datastorage value can
         never re-deliver an item that was already written."""
         ctx.set_notify(applied_key, delivered_ahead_key)
+        if self._save_anchored:
+            return  # the save's own counter rules, see _sync_item_count_with_save
         self._applied_item_count = max(self._applied_item_count, int(ctx.stored_data.get(applied_key, 0) or 0))
         self._delivered_ahead |= _indices_from_mask(int(ctx.stored_data.get(delivered_ahead_key, 0) or 0))
         self._compact_delivery_progress()
+
+    async def _sync_item_count_with_save(self, ctx: BizHawkClientContext, applied_key: str) -> bool:
+        """Read the delivered-item counter kept in the save (see
+        _VAR_AP_ITEMS_APPLIED). A save without the marker adopts the count
+        known so far, once the Datastorage answer is in (adopting 0 before
+        it arrives would hand everything out again). A save whose counter
+        went down (reloaded, or closed without saving) gets its items
+        again. Returns False while nothing may be delivered yet."""
+        if self.flags_array_address is None:
+            return False
+        address = self.flags_array_address - FLAGS_ARRAY_OFFSET + (_VAR_AP_ITEMS_APPLIED - _VAR_BASE) * 2
+        raw = bytes((await bizhawk.read(ctx.bizhawk_ctx, [(address, 6, "ARM9 System Bus")]))[0])
+        count, marker, ahead_mask = struct.unpack("<HHH", raw)
+        if marker != _AP_ITEMS_MARKER:
+            if applied_key not in ctx.stored_data:
+                return False
+            count = min(self._applied_item_count, 0xFFFF)
+            ahead_mask = self._ahead_mask(count)
+            # A plain write: nothing in the game ever touches these vars.
+            await bizhawk.write(
+                ctx.bizhawk_ctx,
+                [(address, struct.pack("<HHH", count, _AP_ITEMS_MARKER, ahead_mask), "ARM9 System Bus")],
+            )
+        # The save rules both halves: whatever was written after it was made
+        # (counted or delivered ahead) is gone with a reload, and comes again.
+        self._save_anchored = True
+        self._applied_item_count = count
+        self._delivered_ahead = {count + 1 + bit for bit in range(_DELIVERED_AHEAD_WINDOW) if ahead_mask >> bit & 1}
+        self._save_item_count_address = address
+        return True
+
+    def _ahead_mask(self, count: int) -> int:
+        """_delivered_ahead as the save's bit mask relative to `count`
+        (indices past the window are left out, so they come again)."""
+        return sum(
+            1 << (index - count - 1)
+            for index in self._delivered_ahead
+            if count < index <= count + _DELIVERED_AHEAD_WINDOW
+        )
 
     def pending_item_indices(self, ctx: BizHawkClientContext) -> list[int]:
         """items_received indices not delivered yet, for /pending. Items
@@ -2085,11 +2706,13 @@ class HeartGoldClient(BizHawkClient):
         nor lost across a client restart (see
         _DELIVERED_AHEAD_KEY_TEMPLATE). A failed guarded_write is the one
         genuinely transient case, and still stops the tick."""
+        if self._deliveries_held():
+            return  # a battle is running: its end would wipe the Bag writes
         locally_substituted = (
             _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_REMOTE
             if bool(ctx.slot_data.get("remote_items", False))
             else _LOCALLY_SUBSTITUTED_AP_LOCATION_IDS_NORMAL
-        )
+        ) - _never_given_in_game(ctx) - self._gifts_never_given
 
         applied_this_tick = 0
         index = self._applied_item_count
@@ -2097,12 +2720,18 @@ class HeartGoldClient(BizHawkClient):
         # one more read RPC per queued item is not worth it when the next
         # tick is a second away anyway.
         full_bag_fields: set[str] = set()
+        # First item left waiting this tick: past it, only
+        # _DELIVERED_AHEAD_WINDOW items may go ahead (the save keeps them
+        # as a mask, see _VAR_AP_ITEMS_AHEAD).
+        held_back: int | None = None
         while applied_this_tick < _MAX_ITEMS_APPLIED_PER_TICK and index < len(ctx.items_received):
             if index in self._delivered_ahead:
                 # Already written into the Bag by an earlier tick that
                 # scanned past a blocked item.
                 index += 1
                 continue
+            if held_back is not None and index - held_back > _DELIVERED_AHEAD_WINDOW:
+                break
 
             next_item = ctx.items_received[index]
 
@@ -2147,6 +2776,7 @@ class HeartGoldClient(BizHawkClient):
                 # Another item bound for this same pocket already found it
                 # full this tick -- leave this one pending too and keep
                 # scanning for items bound elsewhere.
+                held_back = index if held_back is None else held_back
                 index += 1
                 continue
 
@@ -2158,11 +2788,9 @@ class HeartGoldClient(BizHawkClient):
                 await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_size, "ARM9 System Bus")])
             )[0]
 
-            if not _pocket_looks_plausible(bytes(pocket_bytes)):
-                # Not a Bag at all: the cached address went stale. Force a
-                # fresh scan next tick instead of calling the pocket full.
-                logger.warning("Bag data looks wrong, searching for your save data again.")
-                self._array_headers_address = None
+            if not await self._pocket_usable(ctx, bytes(pocket_bytes), bag_field):
+                # Not a Bag at all: the cached address went stale (the
+                # signature check dropped it, so the next tick rescans).
                 break
 
             plan = plan_bag_item_write(bytes(pocket_bytes), native_item_id, 1, stack_cap_for_pocket(bag_field))
@@ -2180,6 +2808,7 @@ class HeartGoldClient(BizHawkClient):
                 # the player makes room; every *other* pocket's items keep
                 # flowing (see this method's own docstring).
                 full_bag_fields.add(bag_field)
+                held_back = index if held_back is None else held_back
                 index += 1
                 continue
 
@@ -2205,12 +2834,175 @@ class HeartGoldClient(BizHawkClient):
             self._bag_write_failures = 0
             self._reported_stuck_items.discard(index)
             self._delivered_ahead.add(index)
+            self._note_delivery(
+                next_item.item,
+                bag_field,
+                native_item_id,
+                bytes(pocket_bytes[:slot_offset]) + slot_bytes + bytes(pocket_bytes[slot_offset + 4 :]),
+            )
             index += 1
             applied_this_tick += 1
 
         self._compact_delivery_progress()
         if applied_this_tick > 0:
             await self._store_applied_item_count(ctx, applied_key, delivered_ahead_key)
+
+    async def _read_battle_starts(self, ctx: BizHawkClientContext) -> int | None:
+        """GAME_STAT_WILD_ENCOUNTERS + GAME_STAT_TRAINER_BATTLES, decrypted,
+        or None without a GameStats address."""
+        if self.gamestats_address is None:
+            return None
+        raw_stats, raw_crypt = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (self.gamestats_address + _GAME_STAT_BATTLE_STARTS_OFFSET, 8, "ARM9 System Bus"),
+                (self.gamestats_address + _GAMESTATS_CHECKSUM_OFFSET, 4, "ARM9 System Bus"),
+            ],
+        )
+        checksum, key_high = struct.unpack("<HH", bytes(raw_crypt))
+        halves = [
+            _decrypt_gamestats_halfword(value, checksum, key_high, _GAME_STAT_BATTLE_STARTS_OFFSET + 2 * i)
+            for i, value in enumerate(struct.unpack("<4H", bytes(raw_stats)))
+        ]
+        return (halves[0] | halves[1] << 16) + (halves[2] | halves[3] << 16)
+
+    async def _read_party_and_bag(self, ctx: BizHawkClientContext) -> tuple[bytes, bytes]:
+        party, bag = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [
+                (self.party_address, _PARTY_STRUCT_SIZE, "ARM9 System Bus"),
+                (self.bag_base_address, BAG_SIZE, "ARM9 System Bus"),
+            ],
+        )
+        return bytes(party), bytes(bag)
+
+    def _deliveries_held(self) -> bool:
+        """A battle started and its end has not been seen yet (and it is
+        recent): writing into the Bag now would be wiped."""
+        return self._battle is not None and self._tick < self._battle["hold_until"]
+
+    def _note_delivery(self, ap_id: int, bag_field: str, native_id: int, pocket_bytes: bytes) -> None:
+        """Keep a receipt for a Bag write made while a battle may still be
+        running (past the hold), so its end wiping it can be undone."""
+        if self._battle is not None:
+            self._battle_receipts.append((ap_id, bag_field, native_id, _pocket_quantity(pocket_bytes, native_id)))
+
+    async def _track_battles(self, ctx: BizHawkClientContext) -> None:
+        """See _GAME_STAT_BATTLE_STARTS_OFFSET. Notices a battle starting,
+        then its end (the party or Bag rewritten), and hands the items that
+        end wiped to _process_resends."""
+        self._tick += 1
+        if self.party_address is None or self.bag_base_address is None:
+            return
+        starts = await self._read_battle_starts(ctx)
+        if starts is None:
+            return
+        previous, self._battle_counter = self._battle_counter, starts
+        if previous is not None and starts > previous:
+            party, bag = await self._read_party_and_bag(ctx)
+            self._battle = {
+                "party": party,
+                "bag": bag,
+                "hold_until": self._tick + _BATTLE_HOLD_TICKS,
+                "watch_until": self._tick + _BATTLE_WATCH_TICKS,
+            }
+            self._battle_receipts = []
+            return
+        if previous is not None and starts < previous:
+            self._battle = None  # a reload or another save: start over
+            self._battle_receipts = []
+            return
+        if self._battle is None:
+            return
+        party, bag = await self._read_party_and_bag(ctx)
+        wiped = [
+            receipt
+            for receipt in self._battle_receipts
+            if _pocket_quantity(_pocket_slice(bag, receipt[1]), receipt[2]) < receipt[3]
+        ]
+        for ap_id, *_rest in wiped:
+            self._resend_queue.append(ap_id)
+            logger.info(
+                f"{_item_display_name(ctx, ap_id)} arrived during a battle and was undone when it ended: "
+                "delivering it again."
+            )
+        ended = bool(wiped) or party != self._battle["party"] or (
+            not self._battle_receipts and bag != self._battle["bag"]
+        )
+        if ended or self._tick >= self._battle["watch_until"]:
+            self._battle = None
+            self._battle_receipts = []
+
+    async def _process_resends(self, ctx: BizHawkClientContext) -> None:
+        """Write the copies asked for with /resend (and the items a battle's
+        end wiped), one Bag write each. An item whose pocket is full waits
+        until the player makes room; nothing is written during a battle."""
+        while self._resend_queue and self.bag_base_address is not None and not self._deliveries_held():
+            ap_id = self._resend_queue[0]
+            native_id, bag_field = _AP_ITEM_ID_TO_BAG_WRITE_INFO[ap_id]
+            pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS[bag_field]
+            pocket_address = self.bag_base_address + pocket_offset
+            pocket_bytes = bytes(
+                (await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_capacity * 4, "ARM9 System Bus")]))[0]
+            )
+            if not await self._pocket_usable(ctx, pocket_bytes, bag_field):
+                return
+            plan = plan_bag_item_write(pocket_bytes, native_id, 1, stack_cap_for_pocket(bag_field))
+            if plan is None:
+                return  # pocket full: kept queued
+            slot_offset, slot_bytes = plan
+            if not await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(pocket_address + slot_offset, slot_bytes, "ARM9 System Bus")],
+                [(pocket_address + slot_offset, pocket_bytes[slot_offset : slot_offset + 4], "ARM9 System Bus")],
+            ):
+                return
+            self._resend_queue.pop(0)
+            self._resent_counts[ap_id] = self._resent_counts.get(ap_id, 0) + 1
+            pocket_bytes = pocket_bytes[:slot_offset] + slot_bytes + pocket_bytes[slot_offset + 4 :]
+            self._note_delivery(ap_id, bag_field, native_id, pocket_bytes)
+            logger.info(f"Resent {_item_display_name(ctx, ap_id)}.")
+
+    async def _ensure_key_items(self, ctx: BizHawkClientContext) -> None:
+        """Give back any kept item (_KEPT_ITEM_AP_IDS) this player received
+        and this client already wrote, that the Bag no longer holds. The
+        counter now lives in the save, but saves from before that fix may
+        already have lost some (player report 2026-09-24: Squirtbottle,
+        Basement Key). Every few ticks only: two pocket reads."""
+        self._key_item_check_countdown -= 1
+        if self._key_item_check_countdown > 0 or self.bag_base_address is None or self._deliveries_held():
+            return
+        self._key_item_check_countdown = _KEY_ITEM_CHECK_EVERY_TICKS
+        wanted: dict[str, set[int]] = {}
+        for index, item in enumerate(ctx.items_received):
+            if index >= self._applied_item_count and index not in self._delivered_ahead:
+                continue
+            if item.item not in _KEPT_ITEM_AP_IDS:
+                continue
+            write_info = _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(item.item)
+            if write_info is not None:
+                wanted.setdefault(write_info[1], set()).add(write_info[0])
+        for bag_field, native_ids in wanted.items():
+            pocket_offset, pocket_capacity = BAG_POCKET_OFFSETS[bag_field]
+            pocket_address = self.bag_base_address + pocket_offset
+            pocket_bytes = bytes(
+                (await bizhawk.read(ctx.bizhawk_ctx, [(pocket_address, pocket_capacity * 4, "ARM9 System Bus")]))[0]
+            )
+            if not await self._pocket_usable(ctx, pocket_bytes, bag_field):
+                return
+            held = {struct.unpack_from("<H", pocket_bytes, o)[0] for o in range(0, len(pocket_bytes), 4)}
+            for native_id in sorted(native_ids - held):
+                plan = plan_bag_item_write(pocket_bytes, native_id, 1, stack_cap_for_pocket(bag_field))
+                if plan is None:
+                    continue
+                slot_offset, slot_bytes = plan
+                if await bizhawk.guarded_write(
+                    ctx.bizhawk_ctx,
+                    [(pocket_address + slot_offset, slot_bytes, "ARM9 System Bus")],
+                    [(pocket_address + slot_offset, pocket_bytes[slot_offset : slot_offset + 4], "ARM9 System Bus")],
+                ):
+                    pocket_bytes = pocket_bytes[:slot_offset] + slot_bytes + pocket_bytes[slot_offset + 4 :]
+                    logger.info(f"Gave back {_item_display_name(ctx, HEARTGOLD_ITEM_ID_BASE + native_id)}.")
 
     async def _store_applied_item_count(
         self, ctx: BizHawkClientContext, applied_key: str, delivered_ahead_key: str
@@ -2221,6 +3013,16 @@ class HeartGoldClient(BizHawkClient):
         counter is still recorded (the counter simply lags and catches up
         next tick), whereas the reverse order could forget it and hand it
         out twice."""
+        if self._save_item_count_address is not None:
+            count = min(self._applied_item_count, 0xFFFF)
+            await bizhawk.write(
+                ctx.bizhawk_ctx,
+                [(
+                    self._save_item_count_address,
+                    struct.pack("<HHH", count, _AP_ITEMS_MARKER, self._ahead_mask(count)),
+                    "ARM9 System Bus",
+                )],
+            )
         delivered_ahead_mask = _mask_from_indices(self._delivered_ahead)
         ctx.stored_data[delivered_ahead_key] = delivered_ahead_mask
         ctx.stored_data[applied_key] = self._applied_item_count

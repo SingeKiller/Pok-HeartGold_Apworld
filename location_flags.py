@@ -283,17 +283,31 @@ _SYNTHETIC_ID_FLAG_OVERRIDES: dict[str, int] = {
     # hand-spot-checked in that Leader's own win branch (unconditional,
     # right after CheckBattleWon, same pattern as the 6 above) before being
     # trusted.
-    "azalea_gym_badge": 0xB50,  # Bugsy (hive)
-    "ecruteak_gym_badge": 0xB51,  # Morty (fog)
-    "cianwood_gym_badge": 0xB52,  # Chuck (storm)
-    "olivine_gym_badge": 0xB53,  # Jasmine (mineral)
-    "mahogany_gym_leader_room_badge": 0xB54,  # Pryce (glacier)
-    "pewter_gym_badge": 0xB55,  # Brock (boulder)
-    "cerulean_gym_badge": 0xB56,  # Misty (cascade)
-    "celadon_gym_badge": 0xB57,  # Erika (rainbow)
-    "fuchsia_gym_badge": 0xB58,  # Janine (soul)
-    "saffron_gym_badge": 0xB59,  # Sabrina (marsh)
+    "azalea_gym_badge": 0x520,  # Bugsy (hive)
+    "ecruteak_gym_badge": 0x521,  # Morty (fog)
+    "cianwood_gym_badge": 0x522,  # Chuck (storm)
+    "olivine_gym_badge": 0x523,  # Jasmine (mineral)
+    "mahogany_gym_leader_room_badge": 0x524,  # Pryce (glacier)
+    "pewter_gym_badge": 0x525,  # Brock (boulder)
+    "cerulean_gym_badge": 0x526,  # Misty (cascade)
+    "celadon_gym_badge": 0x527,  # Erika (rainbow)
+    "fuchsia_gym_badge": 0x528,  # Janine (soul)
+    "saffron_gym_badge": 0x529,  # Sabrina (marsh)
 }
+
+# 2026-09-24 (player report: items found at these 14 spots never reached
+# the server). Every one of them now has a check flag the ROM sets on the
+# give path: the duplication gates of rom/npcgiftgatedata.py (their
+# SetFlag runs right before the give) and the flags rom/giftflagdata.py
+# injects. Only locations that had no readable flag at all are listed; the
+# Card Key keeps its own.
+from rom.giftflagdata import GIFT_FLAGS  # noqa: E402
+from rom.npcgiftgatedata import GATE_FLAGS  # noqa: E402
+
+_SYNTHETIC_ID_FLAG_OVERRIDES.update(GIFT_FLAGS)
+_SYNTHETIC_ID_FLAG_OVERRIDES.update(
+    {key: flag for key, flag in GATE_FLAGS.items() if key != "goldenrod_tunnel_warehouse_card_key"}
+)
 
 # Real bug, found and reverted live (2026-08-15, first live BizHawk test of
 # task M1.6): route_29_poke_ball (FLAG_HIDE_ROUTE_29_FRIEND, 0x1A4) and

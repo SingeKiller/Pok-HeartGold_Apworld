@@ -189,22 +189,43 @@ exits = [
 [burned_tower_1f]
 map_code = 'D18R0101'
 exits = [
+    'burned_tower_1f_rocks',
     'burned_tower_b1f',
     'ecruteak',
+]
+
+[burned_tower_1f_rocks]
+map_code = 'D18R0101'
+exits = [
+    'burned_tower_1f',
 ]
 
 [burned_tower_b1f]
 map_code = 'D18R0102'
 exits = [
     'burned_tower_1f',
+    'burned_tower_b1f_strength',
+]
+
+[burned_tower_b1f_strength]
+map_code = 'D18R0102'
+exits = [
+    'burned_tower_b1f',
 ]
 
 [national_park]
 map_code = 'D22R0101'
 exits = [
+    'national_park_rock_climb',
+    'national_park_unused_gatehouse',
     'route_35_national_park_pokeathalon_gatehouse',
     'route_36_national_park_gatehouse',
-    'national_park_unused_gatehouse',
+]
+
+[national_park_rock_climb]
+map_code = 'D22R0101'
+exits = [
+    'national_park',
 ]
 
 [national_park_bug_catching_contest]
@@ -260,7 +281,14 @@ exits = [
 [goldenrod_radio_tower_observation_deck]
 map_code = 'D23R0106'
 exits = [
+    'goldenrod_radio_tower_archer',
     'goldenrod_radio_tower_elevator',
+]
+
+[goldenrod_radio_tower_archer]
+map_code = 'D23R0106'
+exits = [
+    'goldenrod_radio_tower_observation_deck',
 ]
 
 [goldenrod_radio_tower_elevator]
@@ -329,13 +357,51 @@ exits = [
     'route_36_ruins_of_alph_gatehouse',
     'ruins_of_alph_hall_entrance',
     'ruins_of_alph_hall_entrance_sinjoh_event',
+    'ruins_of_alph_ledge',
     'ruins_of_alph_northeast_entrance_first_room',
-    'ruins_of_alph_northwest_entrance_first_room',
     'ruins_of_alph_research_center',
-    'ruins_of_alph_southeast_entrance_first_room',
-    'ruins_of_alph_southwest_entrance_first_room',
-    'union_cave_1f',
+    'ruins_of_alph_rocks',
+    'ruins_of_alph_south',
     'violet',
+]
+
+# Ruins of Alph's exterior patches, see data_gen/rules.toml (2026-09-23).
+[ruins_of_alph_south]
+map_code = 'D24R0101'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_ledge',
+    'ruins_of_alph_southeast_entrance_first_room',
+]
+
+[ruins_of_alph_southwest]
+map_code = 'D24R0101'
+exits = [
+    'ruins_of_alph_northwest',
+    'ruins_of_alph_south',
+    'ruins_of_alph_southwest_entrance_first_room',
+    'union_cave_1f_water',
+]
+
+[ruins_of_alph_northwest]
+map_code = 'D24R0101'
+exits = [
+    'ruins_of_alph_northwest_entrance_first_room',
+    'ruins_of_alph_southwest',
+    'union_cave_1f_water',
+]
+
+[ruins_of_alph_rocks]
+map_code = 'D24R0101'
+exits = [
+    'ruins_of_alph',
+]
+
+[ruins_of_alph_ledge]
+map_code = 'D24R0101'
+exits = [
+    'ruins_of_alph',
+    'ruins_of_alph_south',
 ]
 
 [ruins_of_alph_research_center]
@@ -360,7 +426,7 @@ exits = [
 [ruins_of_alph_southeast_entrance_first_room]
 map_code = 'D24R0204'
 exits = [
-    'ruins_of_alph',
+    'ruins_of_alph_south',
     'ruins_of_alph_southeast_entrance_second_room',
 ]
 
@@ -373,7 +439,7 @@ exits = [
 [ruins_of_alph_southwest_entrance_first_room]
 map_code = 'D24R0206'
 exits = [
-    'ruins_of_alph',
+    'ruins_of_alph_southwest',
     'ruins_of_alph_southwest_entrance_second_room',
 ]
 
@@ -386,7 +452,7 @@ exits = [
 [ruins_of_alph_northwest_entrance_first_room]
 map_code = 'D24R0208'
 exits = [
-    'ruins_of_alph',
+    'ruins_of_alph_northwest',
     'ruins_of_alph_northwest_entrance_second_room',
 ]
 
@@ -462,8 +528,17 @@ map_code = 'D25R0101'
 exits = [
     'route_32',
     'route_33',
-    'ruins_of_alph',
+    'union_cave_1f_water',
     'union_cave_b1f',
+]
+
+[union_cave_1f_water]
+map_code = 'D25R0101'
+exits = [
+    'ruins_of_alph_northwest',
+    'ruins_of_alph_southwest',
+    'union_cave_1f',
+    'union_cave_b1f_water',
     'union_cave_b2f',
 ]
 
@@ -471,14 +546,22 @@ exits = [
 map_code = 'D25R0102'
 exits = [
     'union_cave_1f',
+    'union_cave_b1f_water',
+]
+
+[union_cave_b1f_water]
+map_code = 'D25R0102'
+exits = [
+    'union_cave_1f_water',
+    'union_cave_b1f',
     'union_cave_b2f',
 ]
 
 [union_cave_b2f]
 map_code = 'D25R0103'
 exits = [
-    'union_cave_1f',
-    'union_cave_b1f',
+    'union_cave_1f_water',
+    'union_cave_b1f_water',
 ]
 
 [slowpoke_well_entrance]
@@ -491,8 +574,15 @@ exits = [
 [slowpoke_well_b1f]
 map_code = 'D26R0102'
 exits = [
+    'slowpoke_well_b1f_strength_surf',
     'slowpoke_well_b2f',
     'slowpoke_well_entrance',
+]
+
+[slowpoke_well_b1f_strength_surf]
+map_code = 'D26R0102'
+exits = [
+    'slowpoke_well_b1f',
 ]
 
 [slowpoke_well_b2f]
@@ -548,7 +638,14 @@ exits = [
 map_code = 'D27R0107'
 exits = [
     'olivine_lighthouse_5f',
+    'olivine_lighthouse_amphy',
     'olivine_lighthouse_elevator',
+]
+
+[olivine_lighthouse_amphy]
+map_code = 'D27R0107'
+exits = [
+    'olivine_lighthouse_light_room',
 ]
 
 [olivine_lighthouse_elevator]
@@ -604,7 +701,14 @@ exits = [
 map_code = 'D36R0101'
 exits = [
     'ilex_forest',
+    'ilex_forest_north_surf',
     'route_34_ilex_forest_gatehouse',
+]
+
+[ilex_forest_north_surf]
+map_code = 'D36R0101'
+exits = [
+    'ilex_forest_north',
 ]
 
 [goldenrod_tunnel_1f]
@@ -642,35 +746,85 @@ exits = [
     'goldenrod_tunnel_b2f',
 ]
 
+# Mount Mortar walked on its collision data (2026-09-23, tools/mapwalk.py),
+# from each of its Route 42 mouths. The front of 1F and the south end of
+# the back room need nothing. The rest of the back room needs Strength,
+# Rock Climb or Surf + Waterfall; the inside (2F, the north end of the back
+# room and B1F's far corner) needs Surf with Strength or Waterfall; B1F's
+# lake needs Surf. `mount_mortar_waterfall` is the Surf + Waterfall way in,
+# a routing region that holds no check. The Rock Climb wall on Route 42
+# (`route_42_cliff`) leads to two upper ledges of the cave.
 [mount_mortar_1f_entrance]
 map_code = 'D38R0101'
 exits = [
     'mount_mortar_1f_back',
-    'mount_mortar_2f',
+    'mount_mortar_1f_back_inner',
+    'mount_mortar_1f_back_south',
     'mount_mortar_b1f',
+    'mount_mortar_waterfall',
     'route_42',
+]
+
+[mount_mortar_1f_entrance_upper]
+map_code = 'D38R0101'
+exits = [
+    'route_42_cliff',
+]
+
+[mount_mortar_waterfall]
+map_code = 'D38R0101'
+exits = [
+    'mount_mortar_1f_back',
+    'mount_mortar_1f_back_inner',
+    'mount_mortar_1f_entrance',
 ]
 
 [mount_mortar_1f_back]
 map_code = 'D38R0102'
 exits = [
+    'mount_mortar_1f_back_upper',
+    'mount_mortar_1f_entrance',
+    'mount_mortar_waterfall',
+]
+
+[mount_mortar_1f_back_south]
+map_code = 'D38R0102'
+exits = [
+    'mount_mortar_1f_entrance',
+]
+
+[mount_mortar_1f_back_inner]
+map_code = 'D38R0102'
+exits = [
     'mount_mortar_1f_entrance',
     'mount_mortar_2f',
-    'mount_mortar_b1f',
+    'mount_mortar_waterfall',
+]
+
+[mount_mortar_1f_back_upper]
+map_code = 'D38R0102'
+exits = [
+    'mount_mortar_1f_back',
+    'route_42_cliff',
 ]
 
 [mount_mortar_2f]
 map_code = 'D38R0103'
 exits = [
-    'mount_mortar_1f_back',
-    'mount_mortar_1f_entrance',
+    'mount_mortar_1f_back_inner',
+    'mount_mortar_b1f_inner',
 ]
 
 [mount_mortar_b1f]
 map_code = 'D38R0104'
 exits = [
-    'mount_mortar_1f_back',
     'mount_mortar_1f_entrance',
+]
+
+[mount_mortar_b1f_inner]
+map_code = 'D38R0104'
+exits = [
+    'mount_mortar_2f',
 ]
 
 # The Blackthorn exit moved off 1F on 2026-08-23 (user verification in
@@ -760,9 +914,23 @@ exits = [
 map_code = 'D41R0101'
 exits = [
     'mount_silver',
-    'mount_silver_cave_2f',
+    'mount_silver_cave_1f_upper',
     'mount_silver_cave_expert_belt_chamber',
+]
+
+[mount_silver_cave_1f_upper]
+map_code = 'D41R0101'
+exits = [
+    'mount_silver_cave_1f',
+    'mount_silver_cave_1f_pool',
+    'mount_silver_cave_2f',
     'mount_silver_cave_lower_mountainside',
+]
+
+[mount_silver_cave_1f_pool]
+map_code = 'D41R0101'
+exits = [
+    'mount_silver_cave_1f_upper',
     'mount_silver_cave_moltres_chamber',
 ]
 
@@ -776,7 +944,7 @@ exits = [
 [mount_silver_cave_lower_mountainside]
 map_code = 'D41R0103'
 exits = [
-    'mount_silver_cave_1f',
+    'mount_silver_cave_1f_upper',
 ]
 
 [mount_silver_cave_expert_belt_chamber]
@@ -788,14 +956,21 @@ exits = [
 [mount_silver_cave_moltres_chamber]
 map_code = 'D41R0105'
 exits = [
-    'mount_silver_cave_1f',
+    'mount_silver_cave_1f_pool',
 ]
 
 [mount_silver_cave_2f]
 map_code = 'D41R0106'
 exits = [
-    'mount_silver_cave_1f',
+    'mount_silver_cave_1f_upper',
+    'mount_silver_cave_2f_rocks',
     'mount_silver_cave_upper_mountainside',
+]
+
+[mount_silver_cave_2f_rocks]
+map_code = 'D41R0106'
+exits = [
+    'mount_silver_cave_2f',
 ]
 
 [mount_silver_cave_3f]
@@ -814,15 +989,58 @@ exits = [
 [dark_cave_route_45_side]
 map_code = 'D42R0101'
 exits = [
-    'dark_cave_route_31_side',
+    'dark_cave_route_45_side_water',
     'route_45',
+]
+
+[dark_cave_route_45_side_water]
+map_code = 'D42R0101'
+exits = [
+    'dark_cave_route_45_side_pool',
+]
+
+[dark_cave_route_45_side_pool]
+map_code = 'D42R0101'
+exits = [
+    'dark_cave_route_31_side_water',
 ]
 
 [dark_cave_route_31_side]
 map_code = 'D42R0102'
 exits = [
-    'dark_cave_route_45_side',
+    'dark_cave_route_31_side_east',
+    'dark_cave_route_31_side_water',
     'route_31',
+]
+
+# Dark Cave's patches, see data_gen/rules.toml's "Dark Cave" section.
+[dark_cave_route_31_side_water]
+map_code = 'D42R0102'
+exits = [
+    'dark_cave_route_31_side',
+    'dark_cave_route_31_side_east',
+    'dark_cave_route_45_side_pool',
+]
+
+[dark_cave_route_31_side_east]
+map_code = 'D42R0102'
+exits = [
+    'dark_cave_route_31_side',
+    'dark_cave_route_31_side_rocks',
+    'dark_cave_route_31_side_water',
+    'dark_cave_route_46_side',
+]
+
+[dark_cave_route_31_side_rocks]
+map_code = 'D42R0102'
+exits = [
+    'dark_cave_route_31_side_east',
+]
+
+[dark_cave_route_46_side]
+map_code = 'D42R0102'
+exits = [
+    'dark_cave_route_31_side_east',
     'route_46_north',
 ]
 
@@ -845,6 +1063,13 @@ map_code = 'D43R0103'
 exits = [
     'indigo_plateau',
     'victory_road_2f',
+    'victory_road_3f_rocks',
+]
+
+[victory_road_3f_rocks]
+map_code = 'D43R0103'
+exits = [
+    'victory_road_3f',
 ]
 
 [dragons_den_entrance]
@@ -859,6 +1084,27 @@ map_code = 'D44R0102'
 exits = [
     'dragons_den_entrance',
     'dragons_den_shrine',
+    'dragons_den_surf',
+    'dragons_den_water',
+]
+
+[dragons_den_surf]
+map_code = 'D44R0102'
+exits = [
+    'dragons_den',
+]
+
+[dragons_den_water]
+map_code = 'D44R0102'
+exits = [
+    'dragons_den',
+    'dragons_den_water_surf_whirlpool',
+]
+
+[dragons_den_water_surf_whirlpool]
+map_code = 'D44R0102'
+exits = [
+    'dragons_den_water',
 ]
 
 [dragons_den_shrine]
@@ -871,7 +1117,26 @@ exits = [
 map_code = 'D45R0101'
 exits = [
     'route_27',
+    'tohjo_falls_east',
     'tohjo_falls_hidden_room',
+]
+
+# Tohjo Falls (D45R0101) walked on its collision data: the west mouth
+# (`tohjo_falls`, from `route_27`) and the east mouth (`tohjo_falls_east`, from
+# `route_27_east`) only meet over the waterfall (Surf + Waterfall, both ways).
+# `tohjo_falls_pool` is the Moon Stone's bank, Surf from the east side.
+[tohjo_falls_east]
+map_code = 'D45R0101'
+exits = [
+    'route_27_east',
+    'tohjo_falls',
+    'tohjo_falls_pool',
+]
+
+[tohjo_falls_pool]
+map_code = 'D45R0101'
+exits = [
+    'tohjo_falls_east',
 ]
 
 [tohjo_falls_hidden_room]
@@ -891,6 +1156,13 @@ exits = [
     'cherrygrove',
     'new_bark',
     'route_29_route_46_gatehouse',
+    'route_29_surf',
+]
+
+[route_29_surf]
+map_code = 'R29'
+exits = [
+    'route_29',
 ]
 
 [route_29_route_46_gatehouse]
@@ -904,9 +1176,26 @@ exits = [
 map_code = 'R30'
 exits = [
     'cherrygrove',
+    'route_30_after_battle',
     'route_30_apricorn_house',
     'route_30_mr_pokemon_house',
+    'route_30_north',
+]
+
+# Johto story locks read from the decomp's scripts and checked on the map
+# (2026-09-23); see data_gen/rules.toml's "Story locks, 2026-09-23".
+[route_30_north]
+map_code = 'R30'
+exits = [
+    'route_30',
     'route_31',
+]
+
+[route_30_after_battle]
+map_code = 'R30'
+exits = [
+    'route_30',
+    'route_30_north',
 ]
 
 [route_30_apricorn_house]
@@ -938,7 +1227,7 @@ exits = [
 map_code = 'R31'
 exits = [
     'dark_cave_route_31_side',
-    'route_30',
+    'route_30_north',
     'route_31_violet_gatehouse',
 ]
 
@@ -966,10 +1255,38 @@ exits = [
 [route_32]
 map_code = 'R32'
 exits = [
+    'route_32_cut',
+    'route_32_north',
     'route_32_pokecenter_1f',
-    'route_32_ruins_of_alph_gatehouse',
+    'route_32_rock_smash',
+    'route_32_surf',
     'union_cave_1f',
+]
+
+[route_32_north]
+map_code = 'R32'
+exits = [
+    'route_32',
+    'route_32_ruins_of_alph_gatehouse',
     'violet',
+]
+
+[route_32_surf]
+map_code = 'R32'
+exits = [
+    'route_32',
+]
+
+[route_32_rock_smash]
+map_code = 'R32'
+exits = [
+    'route_32',
+]
+
+[route_32_cut]
+map_code = 'R32'
+exits = [
+    'route_32',
 ]
 
 [route_32_pokecenter_1f]
@@ -988,7 +1305,7 @@ exits = [
 [route_32_ruins_of_alph_gatehouse]
 map_code = 'R32R0101'
 exits = [
-    'route_32',
+    'route_32_north',
     'ruins_of_alph',
 ]
 
@@ -1008,6 +1325,13 @@ exits = [
     'goldenrod',
     'route_34_daycare',
     'route_34_ilex_forest_gatehouse',
+    'route_34_surf',
+]
+
+[route_34_surf]
+map_code = 'R34'
+exits = [
+    'route_34',
 ]
 
 [route_34_daycare]
@@ -1031,7 +1355,14 @@ map_code = 'R35'
 exits = [
     'route_35_goldenrod_gatehouse',
     'route_35_national_park_pokeathalon_gatehouse',
+    'route_35_surf',
     'route_36_west',
+]
+
+[route_35_surf]
+map_code = 'R35'
+exits = [
+    'route_35',
 ]
 
 [route_35_goldenrod_gatehouse]
@@ -1050,32 +1381,28 @@ exits = [
     'route_35',
 ]
 
-# Route 36 is split in two AP regions since 2026-08-22 (user verification on
-# an interactive in-game map, then decomp-confirmed below), same technique
-# as the `ilex_forest` and `route_46` splits: the Sudowoodo does not just
-# block the way to Route 37, it blocks the whole crossroads, so the
-# Squirtbottle gate in rules.toml has to sit on ONE chokepoint rather than
-# be spread over three separate exits that a fourth could later bypass.
-#
-# The decomp puts the tree exactly on a mapmatrix cell boundary, which is
-# what makes the split clean. R36 occupies grid cells (11,7), (12,7) and
-# (13,7); each cell is 32 tiles wide, so cell 11 spans x 352-383, cell 12
-# spans x 384-415 and cell 13 spans x 416-447. In 037_R36.json the
-# Sudowoodo (SPRITE_USOKKY / FLAG_HIDE_ROUTE_36_SUDOWOODO, whose script
-# scr_seq_0243_R36.s carries the `HasItem ITEM_SQUIRTBOTTLE` check) stands
-# at x=415, the very last tile of cell 12, i.e. on the seam between cell 12
-# and cell 13. Everything the two halves connect to follows from that:
-#   - cell 13 (east, Violet side): the Violet gatehouse warp (x=447), the
-#     Ruins of Alph gatehouse warp (x=430), and the grid neighbours
-#     MAP_VIOLET east at (14,7) and MAP_RUINS_OF_ALPH south at (13,8);
-#   - cells 11-12 (west, past the tree): the National Park gatehouse warp
-#     (x=374), the grid neighbour MAP_ROUTE_35 south of cell 11 at (11,8)
-#     and MAP_ROUTE_37 north of cell 12 at (12,6).
-# So `route_36` keeps the eastern half (the side a player reaches first,
-# from Violet, and the side data_gen/encounters.toml's own `route_36` zone
-# key therefore stays attached to -- the same freer-half convention the
-# `ilex_forest` and `route_46` splits use) and `route_36_west` is
-# everything beyond the Sudowoodo. Both keep map_code R36; nothing in this
+# Route 36 is split in three AP regions around its Sudowoodo (obj_R36_usokky,
+# overworld tile x=415 z=246, whose script scr_seq_0243_R36.s carries the
+# `HasItem ITEM_SQUIRTBOTTLE` check). Corrected 2026-09-27 from the ROM's
+# own collision data (tools/mapwalk.py with the tree as a wall, HeartGold
+# and SoulSilver identical, and player reports): the tree is a three-way
+# fork, open to the east, south and north (its west tile is a wall). Until
+# then Route 36 had two halves, east and west, split on the mapmatrix cell
+# seam at x=415/416, and Route 37 hung off the west half with no rule:
+# Goldenrod -> Route 35 or the National Park -> Route 37 -> Ecruteak was in
+# logic without the Squirtbottle.
+#   - `route_36` (east, x 416-447): the Violet gatehouse and the Ruins of
+#     Alph gatehouse; the side reached first from Violet. data_gen/
+#     encounters.toml's `route_36` zone key stays attached to it for the
+#     headbutt trees (the grass table is moved, see locations.py's
+#     DEXSANITY_ZONE_METHOD_REGIONS).
+#   - `route_36_west` (south of the tree, x 374-415): Route 35, the National
+#     Park gatehouse and all of the route's grass.
+#   - `route_36_north` (north of the tree, x 388-415 z 224-245): the only
+#     way onto Route 37.
+# Every edge between two of them crosses the tree, so each carries the
+# Squirtbottle in data_gen/rules.toml. Watering it removes it for good, so
+# all three edges are two-way. All three keep map_code R36; nothing in this
 # codebase keys off map_code for region identity.
 #
 # The direct `violet` exit is gone since 2026-08-23 (user verification on an
@@ -1087,20 +1414,26 @@ exits = [
 [route_36]
 map_code = 'R36'
 exits = [
+    'route_36_north',
     'route_36_ruins_of_alph_gatehouse',
     'route_36_west',
     'violet_route_36_gatehouse',
 ]
 
-# Watering the Sudowoodo removes it permanently, so unlike the Route 46
-# ledge this internal edge is two-way; the requirement itself lives in
-# data_gen/rules.toml (see its "Route 36's Sudowoodo" entry).
 [route_36_west]
 map_code = 'R36'
 exits = [
     'route_35',
     'route_36',
     'route_36_national_park_gatehouse',
+    'route_36_north',
+]
+
+[route_36_north]
+map_code = 'R36'
+exits = [
+    'route_36',
+    'route_36_west',
     'route_37',
 ]
 
@@ -1123,7 +1456,7 @@ exits = [
 map_code = 'R37'
 exits = [
     'ecruteak',
-    'route_36_west',
+    'route_36_north',
 ]
 
 # Route 38's half of the fourteen-pair gatehouse sweep (see
@@ -1133,7 +1466,14 @@ exits = [
 map_code = 'R38'
 exits = [
     'route_38_ecruteak_gatehouse',
+    'route_38_rock_climb',
     'route_39',
+]
+
+[route_38_rock_climb]
+map_code = 'R38'
+exits = [
+    'route_38',
 ]
 
 [route_38_ecruteak_gatehouse]
@@ -1175,7 +1515,26 @@ map_code = 'R42'
 exits = [
     'mahogany',
     'mount_mortar_1f_entrance',
+    'route_42_cliff',
     'route_42_ecruteak_gatehouse',
+    'route_42_pond',
+]
+
+# Route 42's pond (two items, Surf) and the Rock Climb wall above the
+# cave (`route_42_cliff`: the Dubious Disc and the cave's upper ledges),
+# walked on the ROM's collision data on 2026-09-23.
+[route_42_pond]
+map_code = 'R42'
+exits = [
+    'route_42',
+]
+
+[route_42_cliff]
+map_code = 'R42'
+exits = [
+    'mount_mortar_1f_back_upper',
+    'mount_mortar_1f_entrance_upper',
+    'route_42',
 ]
 
 [route_42_ecruteak_gatehouse]
@@ -1244,6 +1603,13 @@ map_code = 'R44'
 exits = [
     'ice_path_1f',
     'mahogany',
+    'route_44_surf',
+]
+
+[route_44_surf]
+map_code = 'R44'
+exits = [
+    'route_44',
 ]
 
 # route_45 -> route_46: hand patch (task M0.4, same category as this
@@ -1284,7 +1650,14 @@ map_code = 'R45'
 exits = [
     'blackthorn',
     'dark_cave_route_45_side',
+    'route_45_rock_climb',
     'route_46_north',
+]
+
+[route_45_rock_climb]
+map_code = 'R45'
+exits = [
+    'route_45',
 ]
 
 # Route 46's half of the fourteen-pair gatehouse sweep (see
@@ -1304,7 +1677,7 @@ exits = [
 [route_46_north]
 map_code = 'R46'
 exits = [
-    'dark_cave_route_31_side',
+    'dark_cave_route_46_side',
     'route_46',
 ]
 
@@ -1330,7 +1703,14 @@ exits = [
     'embedded_tower_groudon_room',
     'embedded_tower_kyogre_room',
     'embedded_tower_rayquaza_room',
+    'route_47_rock_climb_surf',
     'route_48',
+]
+
+[route_47_rock_climb_surf]
+map_code = 'R47'
+exits = [
+    'route_47',
 ]
 
 [route_48]
@@ -1356,6 +1736,13 @@ exits = [
 map_code = 'T20R0101'
 exits = [
     'new_bark',
+    'new_bark_elms_lab_1f_egg_delivery',
+]
+
+[new_bark_elms_lab_1f_egg_delivery]
+map_code = 'T20R0101'
+exits = [
+    'new_bark_elms_lab_1f',
 ]
 
 [new_bark_elms_lab_2f]
@@ -1402,10 +1789,17 @@ exits = [
     'cherrygrove_guide_gent_house',
     'cherrygrove_pokecenter_1f',
     'cherrygrove_pokemart',
+    'cherrygrove_rock_climb_surf',
     'cherrygrove_southeast_house',
     'cherrygrove_southwest_house',
     'route_29',
     'route_30',
+]
+
+[cherrygrove_rock_climb_surf]
+map_code = 'T21'
+exits = [
+    'cherrygrove',
 ]
 
 [cherrygrove_pokemart]
@@ -1453,7 +1847,7 @@ exits = [
 map_code = 'T22'
 exits = [
     'route_31_violet_gatehouse',
-    'route_32',
+    'route_32_north',
     'ruins_of_alph',
     'sprout_tower_1f',
     'violet_bellsprout_onyx_trade_house',
@@ -1462,13 +1856,34 @@ exits = [
     'violet_pokecenter_1f',
     'violet_pokemart',
     'violet_pokemon_school',
+    'violet_rock_smash',
     'violet_route_36_gatehouse',
+    'violet_surf',
+]
+
+[violet_surf]
+map_code = 'T22'
+exits = [
+    'violet',
+]
+
+[violet_rock_smash]
+map_code = 'T22'
+exits = [
+    'violet',
 ]
 
 [violet_pokemart]
 map_code = 'T22FS0101'
 exits = [
     'violet',
+    'violet_pokemart_aide',
+]
+
+[violet_pokemart_aide]
+map_code = 'T22FS0101'
+exits = [
+    'violet_pokemart',
 ]
 
 [violet_gym]
@@ -1609,8 +2024,15 @@ exits = [
     'cianwood_north_house',
     'cianwood_pharmacy',
     'cianwood_pokecenter_1f',
+    'cianwood_rock_smash_surf',
     'cliff_edge_gate',
     'route_41',
+]
+
+[cianwood_rock_smash_surf]
+map_code = 'T24'
+exits = [
+    'cianwood',
 ]
 
 [cianwood_gym]
@@ -1876,9 +2298,23 @@ exits = [
     'olivine_northwest_house',
     'olivine_pokecenter_1f',
     'olivine_pokemart',
+    'olivine_rock_climb',
+    'olivine_surf',
     'route_39',
     'route_40',
     'ss_aqua_olivine_port_interior',
+]
+
+[olivine_surf]
+map_code = 'T26'
+exits = [
+    'olivine',
+]
+
+[olivine_rock_climb]
+map_code = 'T26'
+exits = [
+    'olivine',
 ]
 
 [olivine_pokemart]
@@ -1891,6 +2327,13 @@ exits = [
 map_code = 'T26GYM0101'
 exits = [
     'olivine',
+    'olivine_gym_jasmine',
+]
+
+[olivine_gym_jasmine]
+map_code = 'T26GYM0101'
+exits = [
+    'olivine_gym',
 ]
 
 [olivine_pokecenter_1f]
@@ -2094,7 +2537,14 @@ map_code = 'T29'
 exits = [
     'lake_of_rage_fishing_guru_house',
     'lake_of_rage_north',
+    'lake_of_rage_surf',
     'route_43',
+]
+
+[lake_of_rage_surf]
+map_code = 'T29'
+exits = [
+    'lake_of_rage',
 ]
 
 # The far shore(s). Named `north` after the Hidden Power house's own bank,
@@ -2189,7 +2639,14 @@ map_code = 'T31'
 exits = [
     'mount_silver_cave_1f',
     'mount_silver_pokecenter_1f',
+    'mount_silver_water',
     'route_28',
+]
+
+[mount_silver_water]
+map_code = 'T31'
+exits = [
+    'mount_silver',
 ]
 
 [mount_silver_pokecenter_1f]
@@ -2225,14 +2682,28 @@ map_code = 'W41'
 exits = [
     'cianwood',
     'route_40',
+    'route_41_islets',
     'whirl_islands_1f',
+]
+
+[route_41_islets]
+map_code = 'W41'
+exits = [
+    'route_41',
 ]
 
 [diglett_cave]
 map_code = 'D01R0101'
 exits = [
-    'route_11',
+    'diglett_cave_rock_climb',
+    'route_11_west',
     'route_2_east',
+]
+
+[diglett_cave_rock_climb]
+map_code = 'D01R0101'
+exits = [
+    'diglett_cave',
 ]
 
 [mount_moon]
@@ -2270,24 +2741,56 @@ exits = [
     'mount_moon_square',
 ]
 
+# Cerulean Cave walked on the ROM's collision data (2026-09-23): once
+# inside (the mouth is on `cerulean_river`, Surf), every floor needs Surf,
+# and its cracked rocks and one Rock Climb wall only guard corners, split off
+# as `*_rocks` / `cerulean_cave_b1f_cliff`.
 [cerulean_cave_1f]
 map_code = 'D03R0101'
 exits = [
-    'cerulean',
+    'cerulean_cave_1f_rocks',
     'cerulean_cave_2f',
     'cerulean_cave_b1f',
+    'cerulean_river',
+]
+
+[cerulean_cave_1f_rocks]
+map_code = 'D03R0101'
+exits = [
+    'cerulean_cave_1f',
 ]
 
 [cerulean_cave_2f]
 map_code = 'D03R0102'
 exits = [
     'cerulean_cave_1f',
+    'cerulean_cave_2f_rocks',
+]
+
+[cerulean_cave_2f_rocks]
+map_code = 'D03R0102'
+exits = [
+    'cerulean_cave_2f',
 ]
 
 [cerulean_cave_b1f]
 map_code = 'D03R0103'
 exits = [
     'cerulean_cave_1f',
+    'cerulean_cave_b1f_cliff',
+    'cerulean_cave_b1f_rocks',
+]
+
+[cerulean_cave_b1f_rocks]
+map_code = 'D03R0103'
+exits = [
+    'cerulean_cave_b1f',
+]
+
+[cerulean_cave_b1f_cliff]
+map_code = 'D03R0103'
+exits = [
+    'cerulean_cave_b1f',
 ]
 
 [rock_tunnel_1f]
@@ -2302,6 +2805,20 @@ exits = [
 map_code = 'D05R0102'
 exits = [
     'rock_tunnel_1f',
+    'rock_tunnel_b1f_rock_climb',
+    'rock_tunnel_b1f_rock_smash',
+]
+
+[rock_tunnel_b1f_rock_smash]
+map_code = 'D05R0102'
+exits = [
+    'rock_tunnel_b1f',
+]
+
+[rock_tunnel_b1f_rock_climb]
+map_code = 'D05R0102'
+exits = [
+    'rock_tunnel_b1f',
 ]
 
 [pal_park]
@@ -2313,15 +2830,23 @@ exits = [
 [seafoam_islands_1f]
 map_code = 'D11R0101'
 exits = [
-    'route_20',
+    'route_20_west',
     'seafoam_islands_b1f',
     'seafoam_islands_cinnabar_gym',
+]
+
+[seafoam_islands_1f_east]
+map_code = 'D11R0101'
+exits = [
+    'route_20',
+    'seafoam_islands_b1f',
 ]
 
 [seafoam_islands_b1f]
 map_code = 'D11R0102'
 exits = [
     'seafoam_islands_1f',
+    'seafoam_islands_1f_east',
     'seafoam_islands_b2f',
 ]
 
@@ -2368,7 +2893,14 @@ exits = [
 map_code = 'D48R0101'
 exits = [
     'cianwood',
+    'cliff_edge_gate_rock_climb_surf',
     'route_47',
+]
+
+[cliff_edge_gate_rock_climb_surf]
+map_code = 'D48R0101'
+exits = [
+    'cliff_edge_gate',
 ]
 
 [embedded_tower_groudon_room]
@@ -2489,18 +3021,38 @@ exits = [
 [route_2]
 map_code = 'R02'
 exits = [
-    'route_2_southeast_gatehouse',
+    'route_2_southeast',
     'route_2_viridian_forest_south_gatehouse',
     'viridian',
+]
+
+# Route 2's two Cut trees (2026-09-23, collision data): one between the
+# Viridian side and the patch south of the south-east gatehouse
+# (`route_2_southeast`, the Elixir), one on the east side between the
+# Diglett's Cave exit (`route_2_east`) and the part that leads on to Pewter
+# City and the Viridian Forest's north gatehouse (`route_2_north`). Coming
+# from Diglett's Cave, the whole west of Kanto is therefore behind Cut.
+[route_2_southeast]
+map_code = 'R02'
+exits = [
+    'route_2',
+    'route_2_southeast_gatehouse',
 ]
 
 [route_2_east]
 map_code = 'R02R0101'
 exits = [
     'diglett_cave',
-    'pewter',
     'route_2_house',
+    'route_2_north',
     'route_2_southeast_gatehouse',
+]
+
+[route_2_north]
+map_code = 'R02R0101'
+exits = [
+    'pewter',
+    'route_2_east',
     'route_2_viridian_forest_north_gatehouse',
 ]
 
@@ -2513,8 +3065,8 @@ exits = [
 [route_2_southeast_gatehouse]
 map_code = 'R02R0301'
 exits = [
-    'route_2',
     'route_2_east',
+    'route_2_southeast',
 ]
 
 [route_2_viridian_forest_south_gatehouse]
@@ -2527,7 +3079,7 @@ exits = [
 [route_2_viridian_forest_north_gatehouse]
 map_code = 'R02R0501'
 exits = [
-    'route_2_east',
+    'route_2_north',
     'viridian_forest',
 ]
 
@@ -2537,7 +3089,14 @@ exits = [
     'mount_moon',
     'pewter',
     'route_3_pokecenter_1f',
+    'route_3_rocks',
     'route_4',
+]
+
+[route_3_rocks]
+map_code = 'R03'
+exits = [
+    'route_3',
 ]
 
 [route_3_pokecenter_1f]
@@ -2553,6 +3112,9 @@ exits = [
     'route_3_pokecenter_1f',
 ]
 
+# Route 4 is one-way toward Cerulean (a ledge just west of the town,
+# 2026-09-23, collision data): Cerulean has no exit back into it, so Route
+# 4, Mt. Moon, Route 3 and Pewter are only reached from the west.
 [route_4]
 map_code = 'R04'
 exits = [
@@ -2658,6 +3220,13 @@ map_code = 'R09'
 exits = [
     'cerulean',
     'route_10',
+    'route_9_cut',
+]
+
+[route_9_cut]
+map_code = 'R09'
+exits = [
+    'route_9',
 ]
 
 # route_10 <-> route_10_power_plant_repaired: removed 2026-08-24 (Kanto
@@ -2680,7 +3249,14 @@ exits = [
     'route_10_pokecenter_1f',
     'route_10_power_plant_broken',
     'route_10_south',
+    'route_10_surf',
     'route_9',
+]
+
+[route_10_surf]
+map_code = 'R10'
+exits = [
+    'route_10',
 ]
 
 [route_10_south]
@@ -2689,6 +3265,13 @@ exits = [
     'lavender',
     'rock_tunnel_1f',
     'route_10',
+    'route_10_south_strength',
+]
+
+[route_10_south_strength]
+map_code = 'R10R0101'
+exits = [
+    'route_10_south',
 ]
 
 # Reached only from route_10_power_plant_broken now (see that region's own
@@ -2744,8 +3327,15 @@ exits = [
 [route_11]
 map_code = 'R11'
 exits = [
-    'diglett_cave',
+    'route_11_west',
     'route_19_route_12_gatehouse',
+]
+
+[route_11_west]
+map_code = 'R11'
+exits = [
+    'diglett_cave',
+    'route_11',
     'vermilion',
 ]
 
@@ -2960,7 +3550,14 @@ exits = [
 map_code = 'R25'
 exits = [
     'route_24',
+    'route_25_cut_pocket',
     'route_25_sea_cottage',
+]
+
+[route_25_cut_pocket]
+map_code = 'R25'
+exits = [
+    'route_25',
 ]
 
 [route_25_sea_cottage]
@@ -2974,8 +3571,15 @@ map_code = 'R26'
 exits = [
     'route_22_pokemon_league_reception_gate',
     'route_26_north_house',
+    'route_26_surf',
     'route_26_week_siblings_house',
-    'route_27',
+    'route_27_east',
+]
+
+[route_26_surf]
+map_code = 'R26'
+exits = [
+    'route_26',
 ]
 
 [route_26_north_house]
@@ -2994,15 +3598,43 @@ exits = [
 map_code = 'R27'
 exits = [
     'new_bark',
-    'route_26',
-    'route_27_house',
     'tohjo_falls',
+]
+
+# Route 27 split in three (2026-09-23, walked on the ROM's own collision
+# data with tools/mapwalk.py). `route_27` is the New Bark side, reached with
+# Surf. The rest of the route (its trainers, the house, the way to Route 26)
+# is `route_27_east`: from New Bark it is only reached through Tohjo Falls
+# (Surf + Waterfall), and coming back west needs nothing but Surf (one-way
+# ledges, then the sea). `route_27_whirlpool_pocket` (TM02, Bird Keeper Jose)
+# sits behind the whirlpools south of the route, reached from the east side.
+[route_27_east]
+map_code = 'R27'
+exits = [
+    'route_26',
+    'route_27',
+    'route_27_east_surf',
+    'route_27_house',
+    'route_27_whirlpool_pocket',
+    'tohjo_falls_east',
+]
+
+[route_27_east_surf]
+map_code = 'R27'
+exits = [
+    'route_27_east',
+]
+
+[route_27_whirlpool_pocket]
+map_code = 'R27'
+exits = [
+    'route_27_east',
 ]
 
 [route_27_house]
 map_code = 'R27R0101'
 exits = [
-    'route_27',
+    'route_27_east',
 ]
 
 [route_28]
@@ -3010,7 +3642,14 @@ map_code = 'R28'
 exits = [
     'mount_silver',
     'route_22_pokemon_league_reception_gate',
+    'route_28_cut_pocket',
     'route_28_house',
+]
+
+[route_28_cut_pocket]
+map_code = 'R28'
+exits = [
+    'route_28',
 ]
 
 [route_28_house]
@@ -3031,7 +3670,22 @@ exits = [
 map_code = 'W19'
 exits = [
     'route_19_fuchsia_gatehouse',
+    'route_19_rocks',
+    'route_19_sea',
+]
+
+# Routes 19-21 and the Seafoam Islands, see data_gen/rules.toml (Verrou D7).
+[route_19_sea]
+map_code = 'W19'
+exits = [
+    'route_19',
     'route_20',
+]
+
+[route_19_rocks]
+map_code = 'W19'
+exits = [
+    'route_19',
 ]
 
 [route_19_fuchsia_gatehouse]
@@ -3044,8 +3698,14 @@ exits = [
 [route_20]
 map_code = 'W20'
 exits = [
+    'route_19_sea',
+    'seafoam_islands_1f_east',
+]
+
+[route_20_west]
+map_code = 'W20'
+exits = [
     'cinnabar_island',
-    'route_19',
     'seafoam_islands_1f',
 ]
 
@@ -3175,9 +3835,17 @@ exits = [
     'pewter_northeast_house',
     'pewter_pokecenter_1f',
     'pewter_pokemart',
+    'pewter_rocks',
     'pewter_southwest_house',
-    'route_2_east',
+    'route_2_north',
     'route_3',
+]
+
+# Pewter City's and Route 3's cracked-rock corners (2026-09-23, collision data).
+[pewter_rocks]
+map_code = 'T03'
+exits = [
+    'pewter',
 ]
 
 [pewter_museum_of_science]
@@ -3227,17 +3895,25 @@ exits = [
 map_code = 'T04'
 exits = [
     'cerulean_bike_maniac_house',
-    'cerulean_cave_1f',
     'cerulean_east_house',
     'cerulean_gym',
     'cerulean_north_house',
     'cerulean_pokecenter_1f',
     'cerulean_pokemart',
+    'cerulean_river',
     'cerulean_west_house',
     'route_24',
-    'route_4',
-    'route_5',
     'route_9',
+]
+
+# Cerulean's river, north-west of the town, which the Cerulean Cave mouth
+# opens onto (2026-09-23, collision data): Surf, also for the hidden Nugget
+# in the water.
+[cerulean_river]
+map_code = 'T04'
+exits = [
+    'cerulean',
+    'cerulean_cave_1f',
 ]
 
 [cerulean_north_house]
@@ -3287,6 +3963,13 @@ exits = [
 map_code = 'T04GYM0101'
 exits = [
     'cerulean',
+    'cerulean_gym_surf',
+]
+
+[cerulean_gym_surf]
+map_code = 'T04GYM0101'
+exits = [
+    'cerulean_gym',
 ]
 
 [lavender]
@@ -3356,16 +4039,38 @@ exits = [
 [vermilion]
 map_code = 'T06'
 exits = [
-    'route_11',
+    'route_11_west',
     'route_6',
     'ss_aqua_vermilion_port_interior',
     'vermilion_central_house',
     'vermilion_fishing_dude_house',
     'vermilion_gym',
+    'vermilion_gym_shore',
     'vermilion_pokecenter_1f',
     'vermilion_pokemart',
     'vermilion_pokemon_fan_club',
+    'vermilion_rock_smash',
     'vermilion_south_house',
+    'vermilion_surf',
+]
+
+[vermilion_surf]
+map_code = 'T06'
+exits = [
+    'vermilion',
+]
+
+[vermilion_rock_smash]
+map_code = 'T06'
+exits = [
+    'vermilion',
+]
+
+[vermilion_gym_shore]
+map_code = 'T06'
+exits = [
+    'vermilion',
+    'vermilion_gym',
 ]
 
 [vermilion_fishing_dude_house]
@@ -3415,6 +4120,7 @@ exits = [
 map_code = 'T06GYM0101'
 exits = [
     'vermilion',
+    'vermilion_gym_shore',
 ]
 
 [celadon]
@@ -3655,8 +4361,15 @@ exits = [
 map_code = 'T09'
 exits = [
     'cinnabar_island_pokecenter_1f',
-    'route_20',
+    'cinnabar_island_volcano',
+    'route_20_west',
     'route_21',
+]
+
+[cinnabar_island_volcano]
+map_code = 'T09'
+exits = [
+    'cinnabar_island',
 ]
 
 [cinnabar_island_pokecenter_1f]
@@ -3679,13 +4392,15 @@ exits = [
     'victory_road_3f',
 ]
 
+# The Elite Four is a corridor (2026-09-27 logic audit, zone_event warps
+# 271_T10R0101.json to 277_T10R0701.json): the entrance's only door leads to
+# Will's room, and every room's other door leads to the next one; their way
+# back all lands on the entrance's Will door. It used to be a hub with a
+# door into every room.
 [pokemon_league_entrance]
 map_code = 'T10R0101'
 exits = [
     'indigo_plateau',
-    'pokemon_league_bruno_room',
-    'pokemon_league_karen_room',
-    'pokemon_league_koga_room',
     'pokemon_league_will_room',
 ]
 
@@ -3701,7 +4416,6 @@ map_code = 'T10R0301'
 exits = [
     'pokemon_league_bruno_room',
     'pokemon_league_entrance',
-    'pokemon_league_will_room',
 ]
 
 [pokemon_league_bruno_room]
@@ -3709,13 +4423,11 @@ map_code = 'T10R0401'
 exits = [
     'pokemon_league_entrance',
     'pokemon_league_karen_room',
-    'pokemon_league_koga_room',
 ]
 
 [pokemon_league_karen_room]
 map_code = 'T10R0501'
 exits = [
-    'pokemon_league_bruno_room',
     'pokemon_league_entrance',
     'pokemon_league_lance_room',
 ]

@@ -150,6 +150,41 @@ def write_party_species(rom: HeartGoldRom, trainer_id: int, party: Sequence[dict
     write_party_entry(rom, trainer_id, bytes(entry))
 
 
+def trainer_has_custom_moves(rom: HeartGoldRom, trainer_id: int) -> bool:
+    """Whether this trainer's party slots carry hand-picked moves."""
+    return bool(read_stats_entry(rom, trainer_id)[0] & _TRPOKE_HAS_CUSTOM_MOVES_BIT)
+
+
+def write_party_moves(rom: HeartGoldRom, trainer_id: int, movesets: Sequence[Sequence[int] | None]) -> None:
+    """Overwrite the hand-picked moves of the party slots whose moveset is
+    given (None keeps the slot as it is), up to 4 raw move ids each, the
+    rest padded with 0 (no move). Only for a trainer whose type has custom
+    moves (include/trainer_data.h: level, species, then the held item when
+    there is one, then moves[4], then capsule)."""
+    trainer_type = read_stats_entry(rom, trainer_id)[0]
+    if not trainer_type & _TRPOKE_HAS_CUSTOM_MOVES_BIT:
+        raise ValueError(f"trainer {trainer_id} has no custom moves to write")
+    slot_size = _slot_size_for_trainer_type(trainer_type)
+    moves_offset = _SPECIES_OFFSET_WITHIN_SLOT + 2
+    if trainer_type & _TRPOKE_HAS_HELD_ITEM_BIT:
+        moves_offset += _TRPOKE_ITEM_FIELD_SIZE
+
+    entry = bytearray(read_party_entry(rom, trainer_id))
+    if slot_size * len(movesets) > len(entry):
+        raise ValueError(
+            f"trainer {trainer_id}: {len(movesets)} mons x {slot_size}-byte slots "
+            f"({slot_size * len(movesets)} bytes) exceeds the {len(entry)}-byte party entry"
+        )
+    for index, moves in enumerate(movesets):
+        if moves is None:
+            continue
+        if len(moves) > 4:
+            raise ValueError(f"trainer {trainer_id} slot {index}: more than 4 moves")
+        padded = list(moves) + [0] * (4 - len(moves))
+        struct.pack_into("<4H", entry, index * slot_size + moves_offset, *padded)
+    write_party_entry(rom, trainer_id, bytes(entry))
+
+
 def write_party_levels(rom: HeartGoldRom, trainer_id: int, party: Sequence[dict]) -> None:
     """Overwrite one trainer's party level fields in place -- same
     slot-stride/validation rules as write_party_species, just a

@@ -142,10 +142,18 @@ from = "route_41"
 to = "cianwood"
 hms = ["surf"]
 
+# Every Whirl Islands mouth is ringed by whirlpools on Route 41, and so are
+# the islets holding Route 41's hidden items (`route_41_islets`): Surf +
+# Whirlpool (2026-09-23, collision data). Inside, nothing else is needed.
 [[exit_rule]]
 from = "route_41"
 to = "whirl_islands_1f"
-hms = ["surf"]
+hms = ["surf", "whirlpool"]
+
+[[exit_rule]]
+from = "route_41"
+to = "route_41_islets"
+hms = ["surf", "whirlpool"]
 
 [[exit_rule]]
 from = "pallet"
@@ -157,49 +165,56 @@ from = "route_21"
 to = "cinnabar_island"
 hms = ["surf"]
 
-# Verrou D7 rides on this one (2026-08-23), so it carries a badge as well as
-# an HM. This used to be `route_19 -> fuchsia`; that direct edge was a
-# mapmatrix false positive and data_gen/regions.toml removed it, leaving the
-# gatehouse as Fuchsia's only way onto Route 19 (W19's own two warps both
-# lead back into it). Surf, because W19 is open water; the Volcano Badge,
-# because 4 SPRITE_STOP barriers and 2 workmen (obj_W19_stop..._stop_4 and
-# obj_W19_workman/_2 in 088_W19.json, at z=457/458, four tiles below the
-# gatehouse door) hold the beach until FLAG_UNK_265 and
-# FLAG_HIDE_ROUTE_19_WORKMEN_CLOSED are set -- which happens in
-# scr_seq_0015_D11R0106.s:94-95, inside Blaine's own `GiveBadge
-# BADGE_VOLCANO` block two lines above. Bidirectional: a badge is permanent
-# and the barriers are gone for good once it is earned, so both directions
-# are equivalent (and the barriers face the gatehouse door either way, so
-# they also stop a swimmer coming up from Route 20 walking into Fuchsia).
+# Verrou D7. Fuchsia's gatehouse is the only way onto Route 19 from
+# Fuchsia, and the beach below its door is held by 4 SPRITE_STOP barriers
+# and 2 workmen (obj_W19_stop..._stop_4, obj_W19_workman/_2) until
+# FLAG_UNK_265 / FLAG_HIDE_ROUTE_19_WORKMEN_CLOSED are set, in Blaine's win
+# branch (scr_seq_0015_D11R0106.s:94-95): beating Blaine, not the Volcano
+# Badge item. The beach itself is dry land (`route_19`); the sea is
+# `route_19_sea` (Surf) and a cracked-rock corner is `route_19_rocks`.
 #
-# REPORTED, NOT CHANGED: this is a gate, not a chokepoint. Routes 19 and 20
-# and the Seafoam Islands are still reachable badgeless from the other end,
-# by Surf alone: pallet -> route_21 -> cinnabar_island -> route_20 ->
-# route_19. That is real vanilla geography (Cinnabar is a Surf destination
-# from Pallet in its own right), not a phantom edge, so nothing is removed;
-# what the Volcano Badge really gates is the Fuchsia doorway.
-# tests/test_rules.py::test_route_19_beach_needs_the_volcano_badge pins both
-# halves.
+# Walked on the ROM's collision data on 2026-09-23: Route 20 is cut in two
+# by the Seafoam Islands. The Fuchsia side (`route_20`, with Route 19's sea)
+# and the Cinnabar side (`route_20_west`, with Cinnabar Island, Route 21 and
+# Pallet Town) only meet through the islands' basement, which needs
+# Strength. Blaine's gym opens off the Cinnabar side's mouth
+# (`seafoam_islands_1f`); the Fuchsia side's mouth is
+# `seafoam_islands_1f_east`.
 [[exit_rule]]
 from = "route_19_fuchsia_gatehouse"
 to = "route_19"
-hms = ["surf"]
-badges = ["volcano"]
+events = ["blaine_defeated"]
 
 [[exit_rule]]
 from = "route_19"
-to = "route_20"
+to = "route_19_sea"
 hms = ["surf"]
 
 [[exit_rule]]
-from = "route_20"
+from = "route_19"
+to = "route_19_rocks"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "route_20_west"
 to = "cinnabar_island"
 hms = ["surf"]
 
 [[exit_rule]]
-from = "route_20"
-to = "seafoam_islands_1f"
-hms = ["surf"]
+from = "seafoam_islands_1f"
+to = "seafoam_islands_b1f"
+hms = ["strength"]
+
+[[exit_rule]]
+from = "seafoam_islands_1f_east"
+to = "seafoam_islands_b1f"
+hms = ["strength"]
+
+# Cinnabar Island's volcano side is up a Rock Climb wall.
+[[exit_rule]]
+from = "cinnabar_island"
+to = "cinnabar_island_volcano"
+hms = ["rock_climb"]
 
 # Route 27 (map_code R27, a land route, not a `W` code) still has a
 # mandatory water crossing between New Bark Town and Route 26: confirmed by
@@ -236,14 +251,12 @@ hms = ["surf"]
 # note: the boulder is physically on the B1F map, gating the way down).
 from = "slowpoke_well_b1f"
 to = "slowpoke_well_b2f"
-hms = ["strength"]
+# Surf as well (2026-09-23, collision data): B2F's items and the King's Rock
+# man are across water past the boulder.
+hms = ["strength", "surf"]
 
-[[exit_rule]]
-# Whirl Islands B1F -> B2F boulder puzzle. SPRITE_ROCK confirmed on
-# D40R0102 (zone_event 228_D40R0102.json).
-from = "whirl_islands_b1f"
-to = "whirl_islands_b2f"
-hms = ["strength"]
+# Whirl Islands B1F -> B2F: its boulders do not block the way down
+# (2026-09-23, collision data), so there is no Strength rule here any more.
 
 # --- Dark Cave: Rock Smash AND Strength, on both ways out ----------------
 # Entering the cave from Route 31 is free; crossing it is not. Both
@@ -261,21 +274,96 @@ hms = ["strength"]
 # Until 2026-08-22 the Route 45 crossing asked for Strength alone and the
 # Route 46 one asked for nothing at all, which put Route 46's northern half
 # in sphere 0 through the cave.
+#
+# Walked on the ROM's collision data on 2026-09-23 (tools/mapwalk.py): the
+# Route 46 way out also opens with Strength + Surf instead of Rock Smash
+# (round the pair of rocks by the lake), and the Route 45 side is one-way:
+# ledges drop from its dry part (`dark_cave_route_45_side`, from Route 45)
+# to its lake (`dark_cave_route_45_side_water`, Surf) and on to the pool
+# that meets the Route 31 side's lake (`dark_cave_route_45_side_pool`), but
+# nothing climbs back. On the Route 31 side, the lake is
+# `dark_cave_route_31_side_water` (Surf), the part past the boulder that
+# leads to Route 46 is `dark_cave_route_31_side_east`, the Route 46 landing
+# is `dark_cave_route_46_side` and a rock corner is
+# `dark_cave_route_31_side_rocks`.
 [[exit_rule]]
-from = "dark_cave_route_45_side"
-to = "dark_cave_route_31_side"
-hms = ["rock_smash", "strength"]
+from = "dark_cave_route_31_side"
+to = "dark_cave_route_31_side_water"
+hms = ["surf"]
 
 [[exit_rule]]
 from = "dark_cave_route_31_side"
-to = "route_46_north"
+to = "dark_cave_route_31_side_east"
 hms = ["rock_smash", "strength"]
 
 [[exit_rule]]
-# Victory Road 1F -> 2F boulder puzzle (the classic Victory Road Strength
-# gate). SPRITE_ROCK confirmed on D43R0102 (zone_event 171_D43R0102.json).
-from = "victory_road_1f"
-to = "victory_road_2f"
+from = "dark_cave_route_31_side_water"
+to = "dark_cave_route_31_side_east"
+bidirectional = false
+hms = ["strength"]
+
+[[exit_rule]]
+from = "dark_cave_route_31_side_east"
+to = "dark_cave_route_31_side_water"
+bidirectional = false
+hms = ["strength", "surf"]
+
+[[exit_rule]]
+from = "dark_cave_route_31_side_east"
+to = "dark_cave_route_31_side_rocks"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "dark_cave_route_46_side"
+to = "dark_cave_route_31_side_east"
+bidirectional = false
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "dark_cave_route_45_side"
+to = "dark_cave_route_45_side_water"
+bidirectional = false
+hms = ["surf"]
+
+# Dragon's Den walked on the ROM's collision data (2026-09-23): its lake
+# (`dragons_den_water`) needs Surf, and the shrine, where Clair's test and
+# the Rising Badge are, sits past whirlpools: Surf + Whirlpool.
+[[exit_rule]]
+from = "dragons_den"
+to = "dragons_den_water"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "dragons_den"
+to = "dragons_den_shrine"
+hms = ["surf", "whirlpool"]
+
+# Two Kanto gyms sit behind obstacles (2026-09-23, collision data): Erika's
+# door is behind a Cut tree, Lt. Surge's behind a Cut tree too, or reached
+# over the water in front of it (`vermilion_gym_shore`, Surf).
+[[exit_rule]]
+from = "celadon"
+to = "celadon_gym"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "vermilion"
+to = "vermilion_gym"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "vermilion"
+to = "vermilion_gym_shore"
+hms = ["surf"]
+
+# Victory Road walked on the ROM's collision data (2026-09-23): a Strength
+# boulder (D43R0101, 43,52) closes the way from the reception gate, so all
+# of 1F and beyond needs Strength; after it the way up to Indigo Plateau
+# needs nothing else. Its cracked rocks only guard TM79's corner of 3F
+# (`victory_road_3f_rocks`).
+[[exit_rule]]
+from = "route_22_pokemon_league_reception_gate"
+to = "victory_road_1f"
 hms = ["strength"]
 
 [[exit_rule]]
@@ -295,35 +383,83 @@ hms = ["strength"]
 # --- Rock Smash (zephyr badge) ------------------------------------------
 # Each confirmed by a SPRITE_BREAKROCK object on the destination/blocking
 # map.
+# Burned Tower (2026-09-23, collision data): B1F is down a ladder that
+# needs nothing; 1F's cracked rocks ring the HP Up
+# (`burned_tower_1f_rocks`), and B1F's boulders guard two items (a pocket
+# further down this file).
 [[exit_rule]]
-# Burned Tower 1F -> B1F crumbled/cracked floor. SPRITE_BREAKROCK confirmed
-# on D18R0102 (zone_event 204_D18R0102.json).
 from = "burned_tower_1f"
-to = "burned_tower_b1f"
+to = "burned_tower_1f_rocks"
+hms = ["rock_smash"]
+
+# Ruins of Alph (2026-09-23). The exterior, walked on the ROM's collision
+# data, is four patches: the east (`ruins_of_alph`, from both gatehouses),
+# the south (`ruins_of_alph_south`, Surf from the east, or straight out of
+# Union Cave's south passage), the north-west (`ruins_of_alph_northwest`,
+# straight out of Union Cave's north passage, otherwise Surf + Strength)
+# and two small corners. No rock blocks any chamber door (the old Rock
+# Smash rules here were wrong). Each chamber's back room is opened by a
+# script in its first room (scr_seq_0039/0041/0043/0045): the north-east one
+# by using an Escape Rope there (sold in every Mart, not required here),
+# the south-east one by using Flash (TM70; the field move has no badge
+# check, src/field_move.c), the south-west one by using a Water Stone, and
+# the north-west one only with Ho-Oh in the party (PlayerHasSpecies
+# SPECIES_HO_OH, scr_seq_0045_D24R0208.s:153).
+[[exit_rule]]
+from = "ruins_of_alph"
+to = "ruins_of_alph_south"
+hms = ["surf"]
+
+# The south-west patch (Union Cave's south passage, the south-west chamber)
+# drops one way into the south-east one; it meets the north-west patch
+# over Surf + Strength.
+[[exit_rule]]
+from = "ruins_of_alph_southwest"
+to = "ruins_of_alph_northwest"
+hms = ["surf", "strength"]
+
+[[exit_rule]]
+from = "ruins_of_alph"
+to = "ruins_of_alph_rocks"
 hms = ["rock_smash"]
 
 [[exit_rule]]
-# Ruins of Alph's 4 Unown-puzzle entrance chambers are each behind their own
-# cracked rock outside. SPRITE_BREAKROCK confirmed on D24R0101 (zone_event
-# 110_D24R0101.json, the shared Ruins of Alph exterior map).
 from = "ruins_of_alph"
-to = "ruins_of_alph_northeast_entrance_first_room"
+to = "ruins_of_alph_ledge"
 hms = ["rock_smash"]
 
 [[exit_rule]]
-from = "ruins_of_alph"
-to = "ruins_of_alph_southeast_entrance_first_room"
-hms = ["rock_smash"]
+from = "ruins_of_alph_south"
+to = "ruins_of_alph_ledge"
+hms = ["surf"]
 
 [[exit_rule]]
-from = "ruins_of_alph"
-to = "ruins_of_alph_southwest_entrance_first_room"
-hms = ["rock_smash"]
+from = "ruins_of_alph_southeast_entrance_first_room"
+to = "ruins_of_alph_southeast_entrance_second_room"
+items = ["tm70"]
 
 [[exit_rule]]
-from = "ruins_of_alph"
-to = "ruins_of_alph_northwest_entrance_first_room"
-hms = ["rock_smash"]
+from = "ruins_of_alph_southwest_entrance_first_room"
+to = "ruins_of_alph_southwest_entrance_second_room"
+items = ["water_stone"]
+
+[[exit_rule]]
+from = "ruins_of_alph_northwest_entrance_first_room"
+to = "ruins_of_alph_northwest_entrance_second_room"
+events = ["ho_oh_met"]
+
+# Union Cave 1F's dry floor needs nothing; its lake (Surf) holds a Big
+# Pearl and leads on to B2F, both Ruins of Alph passages, and B1F's own lake
+# (2026-09-23, collision data).
+[[exit_rule]]
+from = "union_cave_1f"
+to = "union_cave_1f_water"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "union_cave_b1f"
+to = "union_cave_b1f_water"
+hms = ["surf"]
 
 [[exit_rule]]
 # Ice Path B1F -> B2F boulder-into-hole puzzle. SPRITE_ROCK confirmed on
@@ -349,33 +485,71 @@ from = "ice_path_b2f"
 to = "ice_path_b3f"
 hms = ["rock_smash"]
 
+# Mt. Silver walked on the ROM's collision data (2026-09-23). Past the cave
+# mouth (`mount_silver_cave_1f`, no check) every floor is up Rock Climb
+# walls (`mount_silver_cave_1f_upper` and everything above it, the summit
+# included); 2F's cracked rocks guard a corner (`mount_silver_cave_2f_rocks`),
+# the Expert Belt room is up the waterfall from the mouth and the Moltres
+# room up the waterfall from 1F's upper part (`mount_silver_cave_1f_pool`).
+# Outside, one item is across the water and Route 28 has a Cut pocket.
 [[exit_rule]]
-# Mount Silver Cave 1F -> 2F cracked rock. SPRITE_BREAKROCK confirmed on
-# D41R0106 (zone_event 417_D41R0106.json).
 from = "mount_silver_cave_1f"
-to = "mount_silver_cave_2f"
+to = "mount_silver_cave_1f_upper"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "mount_silver_cave_1f"
+to = "mount_silver_cave_expert_belt_chamber"
+hms = ["surf", "waterfall"]
+
+[[exit_rule]]
+from = "mount_silver_cave_1f_upper"
+to = "mount_silver_cave_1f_pool"
+hms = ["surf", "waterfall"]
+
+[[exit_rule]]
+from = "mount_silver_cave_2f"
+to = "mount_silver_cave_2f_rocks"
 hms = ["rock_smash"]
 
 [[exit_rule]]
-# Victory Road 2F -> 3F cracked rock (past the Strength boulders on 1F->2F).
-# SPRITE_BREAKROCK confirmed on D43R0103 (zone_event 172_D43R0103.json).
-from = "victory_road_2f"
-to = "victory_road_3f"
-hms = ["rock_smash"]
+from = "mount_silver"
+to = "mount_silver_water"
+hms = ["surf"]
 
 [[exit_rule]]
-# Cerulean Cave 1F -> 2F cracked rock. SPRITE_BREAKROCK confirmed on
-# D03R0102 (zone_event 405_D03R0102.json).
+from = "route_28"
+to = "route_28_cut_pocket"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "victory_road_3f"
+to = "victory_road_3f_rocks"
+hms = ["rock_smash"]
+
+# Cerulean Cave's cracked rocks (SPRITE_BREAKROCK on D03R0101-0103) only
+# guard corners of each floor, not the stairs: walked on the ROM's
+# collision data on 2026-09-23, see data_gen/regions.toml's
+# [cerulean_cave_1f]. The corners are their own regions, below.
+[[exit_rule]]
 from = "cerulean_cave_1f"
-to = "cerulean_cave_2f"
+to = "cerulean_cave_1f_rocks"
 hms = ["rock_smash"]
 
 [[exit_rule]]
-# Cerulean Cave 1F -> B1F cracked rock. SPRITE_BREAKROCK confirmed on
-# D03R0103 (zone_event 406_D03R0103.json).
-from = "cerulean_cave_1f"
-to = "cerulean_cave_b1f"
+from = "cerulean_cave_2f"
+to = "cerulean_cave_2f_rocks"
 hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "cerulean_cave_b1f"
+to = "cerulean_cave_b1f_rocks"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "cerulean_cave_b1f"
+to = "cerulean_cave_b1f_cliff"
+hms = ["rock_climb"]
 
 # --- Waterfall (rising badge) -------------------------------------------
 [[exit_rule]]
@@ -422,20 +596,30 @@ hms = ["whirlpool"]
 # (The script is the monk standing on B2F: with FLAG_UNK_094 set he shows
 # the wing, sets FLAG_UNK_106 and steps aside, which is what the map's own
 # scr_seq_D40R0104_001 MovePersonFacing branch replays on every later
-# load.) Lugia's own visibility does not need the event either:
-# FLAG_HIDE_WHIRL_ISLAND_LUGIA is cleared by the wing handover script
+# load.) In HeartGold, Lugia's own visibility follows the same handover:
+# FLAG_HIDE_WHIRL_ISLAND_LUGIA is cleared by the Pewter wing script
 # (scr_seq_0750_T03.s:66) as well as by the Hall of Fame
-# (scr_seq_0825_T10R0701.s:123), so data_gen/locations.toml's catch_lugia
-# stays consistent with this edge. Combined with the Whirlpool requirement
+# (scr_seq_0825_T10R0701.s:123); SoulSilver differs, see below. Combined with the Whirlpool requirement
 # above (AND, not a separate blocking gate), which is unchanged.
 # v0.2.5 (user request): the monk now tests a flag the client sets as soon
 # as the Silver Wing ITEM is received (rom/wingmonkdata.py), so the edge
 # needs the item again; the handover notes above describe vanilla.
+# Corrected 2026-09-27 (logic audit): the wing handover that reveals Lugia
+# (scr_seq_0750_T03.s:66) is the Pewter old man's, and only in HeartGold.
+# In SoulSilver the Silver Wing comes from the Radio Tower director
+# (scr_seq_0034_D23R0106.s:86), which clears nothing: Lugia, and the five
+# collision walls that go with it (230_D40R0107.json, all on
+# FLAG_HIDE_WHIRL_ISLAND_LUGIA), only appear after the Kimono Girls' dance
+# down there (scr_seq_0104_D40R0107.s:404) or the Hall of Fame
+# (scr_seq_0825_T10R0701.s:123). The Hall of Fame is the one this logic can
+# express, so the edge needs it in both versions, the same way the Ho-Oh
+# edge does.
 [[exit_rule]]
 from = "whirl_islands_b2f"
 to = "whirl_islands_b3f_lugia_cave"
 hms = ["whirlpool"]
 items = ["silver_wing"]
+events = ["elite_four_defeated"]
 
 # --- Cliff Edge Gate (Secret Potion) -------------------------------------
 # The Cliff Edge Gate is the only crossing between Cianwood and Route 47
@@ -450,17 +634,25 @@ items = ["silver_wing"]
 # Safari Zone and their locations behind the Earth Badge.
 #
 # The Secret Potion is required (verrou A9, user map verification
-# 2026-08-23): two workers stand in the gate itself while FLAG_UNK_249 is
-# set, and that flag is cleared in scr_seq_0911_T26.s:39, the Olivine
-# script that runs once Jasmine's Secret Potion errand is done.
+# 2026-08-23): two workers stand in the gate itself until FLAG_UNK_249 is
+# set, by Baoba's call on the next visit to Olivine (scr_seq_0911_T26.s:39)
+# once the Potion has healed Amphy at the top of the lighthouse
+# (scr_seq_0066_D27R0107.s:105, VAR_SCENE_LIGHTHOUSE_JASMINE 2). Since
+# 2026-09-23 that is the `amphy_healed` event, granted in
+# `olivine_lighthouse_amphy`, reached from the light room with the Potion.
 [[exit_rule]]
 from = "cliff_edge_gate"
 to = "cianwood"
-items = ["secretpotion"]
+events = ["amphy_healed"]
 
 [[exit_rule]]
 from = "cliff_edge_gate"
 to = "route_47"
+events = ["amphy_healed"]
+
+[[exit_rule]]
+from = "olivine_lighthouse_light_room"
+to = "olivine_lighthouse_amphy"
 items = ["secretpotion"]
 
 # --- Key items (non-HM) --------------------------------------------------
@@ -514,23 +706,40 @@ to = "saffron_magnet_train_station_2f"
 items = ["pass"]
 events = ["power_plant_restored"]
 
-# Route 36's Sudowoodo (`HasItem ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s)
-# blocks the whole crossroads, not just the way north to Route 37: until
-# 2026-08-22 this gate sat on route_36 -> route_37 alone, which left Route
-# 35, the National Park and, through them, Goldenrod and half of Johto free
-# in sphere 0. The tree stands at x=415 on R36, the last tile of mapmatrix
-# cell (12,7), while the Violet and Ruins of Alph warps are all in cell
-# (13,7) and the National Park warp plus the Route 35/Route 37 grid
-# neighbours are all in cells (11,7)/(12,7) -- so data_gen/regions.toml now
-# splits R36 there into `route_36` (east, Violet side) and `route_36_west`
-# (everything past the tree), and this single entry gates the seam itself.
-# See that file's [route_36] comment for the full cell-by-cell derivation.
-# Bidirectional: watering the Sudowoodo removes it for good, so the two
-# directions are equivalent.
+# Route 36's Sudowoodo (`HasItem ITEM_SQUIRTBOTTLE` in scr_seq_0243_R36.s:48;
+# the first watering always needs it, the item-free branch at :47 only runs
+# on the post-Hall-of-Fame respawn). The tree is a three-way fork between
+# `route_36` (Violet side), `route_36_west` (Route 35, National Park,
+# Goldenrod) and `route_36_north` (Route 37, Ecruteak): see the [route_36]
+# comment in data_gen/regions.toml. Every pair crosses the tree, so every
+# pair needs the Squirtbottle (the script handles the player facing west,
+# south or north, scr_seq_0243_R36.s:77-90). Until 2026-09-27 only the
+# east/west pair was gated and Route 37 hung off the west half, which put
+# Ecruteak in logic from Goldenrod without the Squirtbottle (player
+# report). Bidirectional: watering the Sudowoodo removes it for good.
 [[exit_rule]]
 from = "route_36"
 to = "route_36_west"
 items = ["squirtbottle"]
+
+[[exit_rule]]
+from = "route_36"
+to = "route_36_north"
+items = ["squirtbottle"]
+
+[[exit_rule]]
+from = "route_36_west"
+to = "route_36_north"
+items = ["squirtbottle"]
+
+# Route 35's direct overland path to Route 36 goes through a Cut tree
+# (obj_R35_tree at 380,265, FLAG_MAPTEMP_010, back on every map load). The
+# walk through the National Park gatehouses is free and reaches the same
+# place, so this only makes the edge itself faithful (2026-09-27).
+[[exit_rule]]
+from = "route_35"
+to = "route_36_west"
+hms = ["cut"]
 
 # The Cycling Road, verrou D8 (2026-08-23). Both of its gatehouses run
 # `PlayerOnBikeCheck VAR_SPECIAL_RESULT` on a coord trigger and bounce a
@@ -602,14 +811,24 @@ items = ["rainbow_wing"]
 # corrected. Gated on 1F -> B2F, the direct staircase; note B2F is also
 # reachable the long way round through the warehouse and the Department
 # Store basement (goldenrod_department_store_basement <->
-# goldenrod_tunnel_warehouse <-> goldenrod_tunnel_b2f), which vanilla only
-# opens once the hideout is cleared -- that second approach is a scenario
-# gate with no item behind it and is deliberately left for the pending
-# event-gate pass, so this rule is not a true chokepoint yet.
+# goldenrod_tunnel_warehouse <-> goldenrod_tunnel_b2f); see the next rule.
 [[exit_rule]]
 from = "goldenrod_tunnel_1f"
 to = "goldenrod_tunnel_b2f"
 items = ["basement_key"]
+
+# The Department Store basement's shutter (obj_D37R0103_babyboy1_9, hidden
+# by FLAG_UNK_1C1) only opens when the warehouse director hands the Card Key
+# over (scr_seq_0097_D37R0105.s:30, the flag's only setter), i.e. once the
+# warehouse has been reached the other way, through B2F. Requiring the
+# Basement Key here says exactly that (2026-09-26; this edge used to be
+# free, which put the warehouse and its director in logic from the store's
+# elevator). One way: the basement itself is open from the store's elevator.
+[[exit_rule]]
+from = "goldenrod_department_store_basement"
+to = "goldenrod_tunnel_warehouse"
+items = ["basement_key"]
+bidirectional = false
 
 # The Goldenrod Radio Tower's shuttered door, verrou B6 (arbitrated by the
 # user in game on 2026-08-23; it had been left unwritten until then, see the
@@ -636,10 +855,17 @@ items = ["basement_key"]
 # observation wins over the naming: this tower's map numbering is offset by
 # one relative to its floors. Everything above the door -- 3F, 4F, 5F, the
 # elevator and the observation deck -- moves behind the Card Key with it.
+#
+# The takeover events (2026-09-26, decomp): the policeman standing on the
+# D23R0102 staircase (obj_D23R0102_policeman, on the 3F warp) is only hidden
+# at VAR_SCENE_ROCKET_TAKEOVER == 4 and only steps aside at 5
+# (scr_seq_0030_D23R0102.s:21-44). Before the takeover nobody goes up, Card
+# Key or not.
 [[exit_rule]]
 from = "goldenrod_radio_tower_2f"
 to = "goldenrod_radio_tower_3f"
 items = ["card_key"]
+events = ["morty_defeated", "chuck_defeated", "jasmine_defeated", "pryce_defeated"]
 
 # --- Known limitations (documented, not hidden; see this task's handoff
 # notes for the full rationale) --------------------------------------------
@@ -683,39 +909,26 @@ items = ["card_key"]
 # route_28 side. Neither flag has a corresponding data_gen/items.toml or
 # [badges] entry (they are pure story flags), so both use the new `events`
 # Requirement field (task M0.3) instead:
-#   - FLAG_UNLOCKED_WEST_KANTO is set on first entering T02 (Route 2, Kanto
-#     mainland, scr_seq_0741_T02.s) -- reachable only via the S.S. Aqua
-#     ferry from Olivine at this point in the graph (see the S.S. Ticket
-#     gate above), so this edge is gated by the same requirement as the
-#     ferry rather than by a new event of its own: whatever it takes to
-#     make that first crossing is exactly what it takes to have set this
-#     flag. Updated 2026-08-23 with verrou D1: the ferry now also needs
-#     `elite_four_defeated` (the sailor's own FLAG_GAME_CLEAR check), so
-#     this edge does too -- otherwise the policeman would let a
-#     ticket-holding, pre-league player walk into Viridian and reopen the
-#     whole of Kanto, which is precisely the hole D1 exists to close, and
-#     which vanilla does not have (the flag cannot be set before the ferry
-#     sails).
-#   - FLAG_UNLOCKED_MT_SILVER is set in scr_seq_0740_T01R0301.s
-#     (pokemon_league_hall_of_fame), the exact same script line that hands
-#     over HM08 from Silver -- i.e. only reachable after defeating the
-#     Elite Four + Champion Lance, whose rooms
-#     (data_gen/regions.toml's pokemon_league_entrance and onward)
-#     physically block progress with no known scripted flag of their own
-#     (no scr_seq file exists for indigo_plateau/victory_road_1f at all).
-#     Modeled as a locked `type = 'event'` location at
-#     pokemon_league_hall_of_fame (data_gen/locations.toml's
-#     elite_four_defeated_event), granting the `elite_four_defeated` event.
+#   - FLAG_UNLOCKED_WEST_KANTO is set by Viridian City's own map script the
+#     first time the player is there (scr_seq_0741_T02.s:79-81), however
+#     they got there: `viridian_visited`, an event at `viridian`.
+#   - FLAG_UNLOCKED_MT_SILVER is set in Oak's lab in Pallet Town
+#     (scr_seq_0740_T01R0301.s:206), in the same block where Oak hands over
+#     HM08. Oak only does so once VAR_UNK_4096 is 2 (l. 96), which his phone
+#     call after Blue's defeat sets (scr_seq_0743_T02GYM0101.s:66 arms the
+#     call, scr_seq_0741_T02.s:51 places it): `blue_defeated` and a visit to
+#     the lab afterwards (`oaks_lab_visited`, an event at the lab).
+# Corrected 2026-09-23: these read "S.S. Ticket + Elite Four" and "Elite
+# Four", both off (the second one also named the wrong map).
 [[exit_rule]]
 from = "route_22_pokemon_league_reception_gate"
 to = "route_22"
-items = ["s_s_ticket"]
-events = ["elite_four_defeated"]
+events = ["viridian_visited"]
 
 [[exit_rule]]
 from = "route_22_pokemon_league_reception_gate"
 to = "route_28"
-events = ["elite_four_defeated"]
+events = ["blue_defeated", "oaks_lab_visited"]
 
 # Bell Tower's own Ho-Oh encounter, same "elite_four_defeated" gate (see
 # data_gen/locations.toml's catch_ho_oh entry / NOTES.md). No HM/item is
@@ -905,8 +1118,17 @@ events = ["power_plant_restored"]
 # 11-12 gatehouse and Diglett's Cave, the only edge this region has toward
 # it (data_gen/regions.toml's own [route_11]).
 [[exit_rule]]
-from = "route_11"
+from = "route_11_west"
 to = "diglett_cave"
+events = ["expansion_card_obtained"]
+
+# Corrected 2026-09-23 (collision data with obj_R11_kabigon as a wall): the
+# Snorlax also cuts Vermilion off from the rest of Route 11. The Route 11/12
+# gatehouse side (`route_11`, all six Route 11 checks) and Vermilion's side
+# (`route_11_west`) only meet once it is awake.
+[[exit_rule]]
+from = "route_11_west"
+to = "route_11"
 events = ["expansion_card_obtained"]
 
 # Route 12 has no Snorlax gate (map pass, 2026-09-17). The pier runs from
@@ -1001,18 +1223,422 @@ badges = ["fog"]
 # gate: nothing here needs HM08.
 # Corrected 2026-09-17: that block is Blue's win branch, so what opens the
 # cave is beating Blue, not holding the Earth Badge item.
+# The cave mouth itself is across the water north-west of the town
+# (2026-09-23, collision data): `cerulean_river`, Surf.
 [[exit_rule]]
-from = "cerulean"
+from = "cerulean_river"
 to = "cerulean_cave_1f"
 events = ["blue_defeated"]
 
+[[exit_rule]]
+from = "cerulean"
+to = "cerulean_river"
+hms = ["surf"]
+
 #
-# Known remaining gap (task M0.4, not this one): pokemon_league_entrance's
-# own room chain (will/koga/bruno/karen/lance rooms) is modeled as a flat,
-# symmetrized graph with no sequencing at all -- data_gen/regions.toml lists
-# all 4 rooms as direct exits of pokemon_league_entrance itself, and there is
-# no known flag gating door-to-door progress between them, so right now (even
-# after the 8-badge gate above) a full-inventory reachability check can walk
-# straight to karen_room/lance_room without having "beaten" will/koga/bruno
-# first. Same class of issue as the Route 46/45 one-way ledge M0.4 is
-# scoped to fix.
+# The Elite Four rooms are a corridor since 2026-09-27 (data_gen/regions.toml,
+# [pokemon_league_entrance]): each room only opens onto the next one, as in
+# the ROM's warps. No rule sits on those doors; each Leader's fight is
+# forced on entering their room, which the logic does not model (it never
+# models battles won).
+
+# Route 27 / Tohjo Falls, see data_gen/regions.toml's [route_27_east].
+[[exit_rule]]
+from = "route_27_east"
+to = "route_27"
+bidirectional = false
+hms = ["surf"]
+
+[[exit_rule]]
+from = "tohjo_falls"
+to = "tohjo_falls_east"
+hms = ["surf", "waterfall"]
+
+[[exit_rule]]
+from = "tohjo_falls_east"
+to = "tohjo_falls_pool"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_27_east"
+to = "route_27_whirlpool_pocket"
+hms = ["surf", "whirlpool"]
+
+# Mount Mortar and Route 42, see data_gen/regions.toml's
+# [mount_mortar_1f_entrance] and [route_42_pond].
+[[exit_rule]]
+from = "mount_mortar_1f_entrance"
+to = "mount_mortar_1f_back"
+hms = ["strength"]
+
+[[exit_rule]]
+from = "mount_mortar_1f_entrance"
+to = "mount_mortar_1f_back_inner"
+hms = ["strength", "surf"]
+
+[[exit_rule]]
+from = "mount_mortar_1f_entrance"
+to = "mount_mortar_waterfall"
+hms = ["surf", "waterfall"]
+
+[[exit_rule]]
+from = "mount_mortar_1f_entrance"
+to = "mount_mortar_b1f"
+hms = ["surf"]
+
+# The Surf + Waterfall way drops into the back room and the inside, but
+# going back up from there is the same climb.
+[[exit_rule]]
+from = "mount_mortar_1f_back"
+to = "mount_mortar_waterfall"
+bidirectional = false
+hms = ["surf", "waterfall"]
+
+[[exit_rule]]
+from = "mount_mortar_1f_back_inner"
+to = "mount_mortar_waterfall"
+bidirectional = false
+hms = ["surf", "waterfall"]
+
+# The upper ledges drop into the back room; climbing back needs Rock Climb,
+# which is already what reached them.
+[[exit_rule]]
+from = "mount_mortar_1f_back"
+to = "mount_mortar_1f_back_upper"
+bidirectional = false
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "route_42"
+to = "route_42_cliff"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "route_42"
+to = "route_42_pond"
+hms = ["surf"]
+
+# Route 25's Protein sits behind a Cut tree (2026-09-23, collision data).
+[[exit_rule]]
+from = "route_25"
+to = "route_25_cut_pocket"
+hms = ["cut"]
+
+# Route 2's Cut trees, see data_gen/regions.toml's [route_2_southeast].
+[[exit_rule]]
+from = "route_2"
+to = "route_2_southeast"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "route_2_east"
+to = "route_2_north"
+hms = ["cut"]
+
+# Pewter City's and Route 3's cracked-rock corners.
+[[exit_rule]]
+from = "pewter"
+to = "pewter_rocks"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "route_3"
+to = "route_3_rocks"
+hms = ["rock_smash"]
+
+# Union Cave's two Ruins passages open onto dry pockets of its lake: the
+# north one costs Surf to go on from either side, the south one Surf and a
+# Strength boulder (2026-09-23, collision data).
+[[exit_rule]]
+from = "union_cave_1f_water"
+to = "ruins_of_alph_southwest"
+hms = ["surf", "strength"]
+
+[[exit_rule]]
+from = "union_cave_1f_water"
+to = "ruins_of_alph_northwest"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "burned_tower_b1f"
+to = "burned_tower_b1f_strength"
+hms = ["strength"]
+
+[[exit_rule]]
+from = "cerulean_gym"
+to = "cerulean_gym_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "cherrygrove"
+to = "cherrygrove_rock_climb_surf"
+hms = ["rock_climb", "surf"]
+
+[[exit_rule]]
+from = "cianwood"
+to = "cianwood_rock_smash_surf"
+hms = ["rock_smash", "surf"]
+
+[[exit_rule]]
+from = "cliff_edge_gate"
+to = "cliff_edge_gate_rock_climb_surf"
+hms = ["rock_climb", "surf"]
+
+[[exit_rule]]
+from = "diglett_cave"
+to = "diglett_cave_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "dragons_den"
+to = "dragons_den_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "dragons_den_water"
+to = "dragons_den_water_surf_whirlpool"
+hms = ["surf", "whirlpool"]
+
+[[exit_rule]]
+from = "ilex_forest_north"
+to = "ilex_forest_north_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "lake_of_rage"
+to = "lake_of_rage_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "national_park"
+to = "national_park_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "olivine"
+to = "olivine_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "olivine"
+to = "olivine_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "rock_tunnel_b1f"
+to = "rock_tunnel_b1f_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "rock_tunnel_b1f"
+to = "rock_tunnel_b1f_rock_smash"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "route_10"
+to = "route_10_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_10_south"
+to = "route_10_south_strength"
+hms = ["strength"]
+
+[[exit_rule]]
+from = "route_26"
+to = "route_26_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_27_east"
+to = "route_27_east_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_29"
+to = "route_29_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_32"
+to = "route_32_cut"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "route_32"
+to = "route_32_rock_smash"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "route_32"
+to = "route_32_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_34"
+to = "route_34_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_35"
+to = "route_35_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_38"
+to = "route_38_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "route_44"
+to = "route_44_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "route_45"
+to = "route_45_rock_climb"
+hms = ["rock_climb"]
+
+[[exit_rule]]
+from = "route_47"
+to = "route_47_rock_climb_surf"
+hms = ["rock_climb", "surf"]
+
+[[exit_rule]]
+from = "route_9"
+to = "route_9_cut"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "slowpoke_well_b1f"
+to = "slowpoke_well_b1f_strength_surf"
+hms = ["strength", "surf"]
+
+[[exit_rule]]
+from = "vermilion"
+to = "vermilion_rock_smash"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "vermilion"
+to = "vermilion_surf"
+hms = ["surf"]
+
+[[exit_rule]]
+from = "violet"
+to = "violet_rock_smash"
+hms = ["rock_smash"]
+
+[[exit_rule]]
+from = "violet"
+to = "violet_surf"
+hms = ["surf"]
+
+# --- Story locks, 2026-09-23 --------------------------------------------
+# Each one an NPC (or a coord trigger) the decomp's scripts keep in the way
+# until a scene has played; checked on the map with tools/mapwalk.py.
+#
+# Route 30: the two youngsters battling mid-route (obj_R30_gsboy2_3 and
+# their Pokemon, FLAG_HIDE_ROUTE_30_BATTLERS) cut it in two until Elm has
+# been handed the Mystery Egg (scr_seq_0843_T20R0101.s:758), a scene that
+# follows the visit to Mr. Pokemon's house; a Cut tree also gets round them.
+# That scene is also what puts Youngster Joey on the route (locations.py).
+[[exit_rule]]
+from = "route_30"
+to = "route_30_north"
+hms = ["cut"]
+
+[[exit_rule]]
+from = "route_30"
+to = "route_30_after_battle"
+events = ["mystery_egg_delivered"]
+
+[[exit_rule]]
+from = "new_bark_elms_lab_1f"
+to = "new_bark_elms_lab_1f_egg_delivery"
+events = ["mr_pokemon_visited"]
+
+# Route 32: the man at its north end (coord trigger at 475,305,
+# scr_seq_0232_R32.s:240) walks you back unless you carry the Egg from
+# Elm's aide, who waits in the Violet Mart (scr_seq_0858_T22FS0101.s:54)
+# once Elm has called after Falkner's win (scr_seq_0859_T22GYM0101.s:80,
+# scr_seq_0857_T22.s:25-29).
+[[exit_rule]]
+from = "route_32_north"
+to = "route_32"
+events = ["togepi_egg_obtained"]
+
+[[exit_rule]]
+from = "violet_pokemart"
+to = "violet_pokemart_aide"
+events = ["falkner_defeated"]
+
+# Goldenrod Gym: a Gym Trainer stands in the door (obj_T25_gswoman2_4,
+# FLAG_UNK_318) while Whitney is out getting a Radio Card; she comes back
+# once the Radio Tower 1F quiz has been done (scr_seq_0029_D23R0101.s:157).
+[[exit_rule]]
+from = "goldenrod"
+to = "goldenrod_gym"
+items = ["card_key"]
+events = ["radio_card_obtained"]
+
+# Ecruteak Gym: the old man in its doorway (FLAG_UNK_247) leaves once the
+# legendary beasts have fled Burned Tower B1F (scr_seq_0024_D18R0102.s:135).
+[[exit_rule]]
+from = "ecruteak"
+to = "ecruteak_gym"
+events = ["burned_tower_beasts_fled"]
+
+# Mahogany -> Route 44: the Rage Candy Bar seller's coord trigger (540,176,
+# VAR_UNK_407A) turns you back until the Radio Tower is freed
+# (scr_seq_0034_D23R0106.s:142).
+[[exit_rule]]
+from = "mahogany"
+to = "route_44"
+events = ["radio_tower_rockets_defeated"]
+
+# The Power Plant's door is across water from the rest of Route 10's north
+# half (2026-09-23, collision data): Surf.
+[[exit_rule]]
+from = "route_10"
+to = "route_10_power_plant_broken"
+hms = ["surf"]
+
+# The Radio Tower takeover (2026-09-23, decomp). VAR_MIDGAME_BADGES counts
+# the wins over Morty, Chuck, Jasmine and Pryce (AddVar in each win branch,
+# scr_seq_0922_T27GYM0101.s:117 and the three others; the badge
+# neutralization patch leaves it in place). At 4, entering Olivine or
+# Mahogany (scr_seq_0684_T26_hdr.s, scr_seq_0703_T28_hdr.s) or Chuck's
+# Fly scene in Cianwood (scr_seq_0875_T24.s:47) starts the takeover
+# (VAR_SCENE_ROCKET_TAKEOVER 2). Archer and his grunts only stand in the
+# tower from then on (FLAG_HIDE_ROCKET_TAKEOVER_1), so beating him needs
+# all four Leaders beaten first. Jasmine only fights once Amphy is healed.
+[[exit_rule]]
+from = "goldenrod_radio_tower_observation_deck"
+to = "goldenrod_radio_tower_archer"
+events = ["morty_defeated", "chuck_defeated", "jasmine_defeated", "pryce_defeated"]
+
+[[exit_rule]]
+from = "olivine_gym"
+to = "olivine_gym_jasmine"
+events = ["amphy_healed"]
+
+# While the takeover runs (VAR_SCENE_ROCKET_TAKEOVER 2 to 4, until Archer is
+# beaten), Rockets stand on the doors of Goldenrod's gym (obj_T25_gswoman2_3
+# on the gym warp), bike shop, flower shop and three other buildings
+# (FLAG_HIDE_ROCKET_TAKEOVER_1/3/4 objects, collision walk), and the Radio
+# Card quiz woman, Goldenrod Tunnel B1F's trainers, Buena and Mary step
+# aside (FLAG_HIDE_ROCKET_TAKEOVER_2, or a refusal at phase 4). Ending it
+# only takes the Card Key (Radio Tower 2F -> 3F). Requiring the Card Key
+# for everything the takeover hides means the Card Key can never sit
+# behind one of them, so a player who beats the four Leaders first can
+# always finish the takeover and get them back.
+[[exit_rule]]
+from = "goldenrod"
+to = "goldenrod_bike_shop"
+items = ["card_key"]
+
+[[exit_rule]]
+from = "goldenrod"
+to = "goldenrod_flower_shop"
+items = ["card_key"]

@@ -163,7 +163,7 @@ def zone_method_is_written(zone_key: str, method: str) -> bool:
     """Whether a species placed in `zone_key`'s `method` table (a
     species.py encounter-method name) actually ends up in the patched
     ROM."""
-    if method == "headbutt":
+    if method in ("headbutt", "headbutt_secret"):
         return zone_key in HEADBUTT_ZONE_KEY_TO_MEMBER
     return method in WRITTEN_ENCOUNTER_METHODS and zone_is_written(zone_key)
 

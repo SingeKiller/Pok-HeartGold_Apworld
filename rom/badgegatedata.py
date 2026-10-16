@@ -188,17 +188,17 @@ EXCLUDED: dict[str, str] = {
 # (see WHITNEY_VAR below).
 SENTINEL_FLAGS: dict[str, int] = {
     "zephyr": 0x192,  # violet_gym_badge (Falkner), pre-existing
-    "hive": 0xB50,  # azalea_gym_badge (Bugsy), injected
-    "fog": 0xB51,  # ecruteak_gym_badge (Morty), injected
-    "storm": 0xB52,  # cianwood_gym_badge (Chuck), injected
-    "mineral": 0xB53,  # olivine_gym_badge (Jasmine), injected
-    "glacier": 0xB54,  # mahogany_gym_leader_room_badge (Pryce), injected
-    "boulder": 0xB55,  # pewter_gym_badge (Brock), injected
-    "cascade": 0xB56,  # cerulean_gym_badge (Misty), injected
+    "hive": 0x520,  # azalea_gym_badge (Bugsy), injected
+    "fog": 0x521,  # ecruteak_gym_badge (Morty), injected
+    "storm": 0x522,  # cianwood_gym_badge (Chuck), injected
+    "mineral": 0x523,  # olivine_gym_badge (Jasmine), injected
+    "glacier": 0x524,  # mahogany_gym_leader_room_badge (Pryce), injected
+    "boulder": 0x525,  # pewter_gym_badge (Brock), injected
+    "cascade": 0x526,  # cerulean_gym_badge (Misty), injected
     "thunder": 0x31A,  # vermilion_gym_badge (Lt. Surge), pre-existing
-    "rainbow": 0xB57,  # celadon_gym_badge (Erika), injected
-    "soul": 0xB58,  # fuchsia_gym_badge (Janine), injected
-    "marsh": 0xB59,  # saffron_gym_badge (Sabrina), injected
+    "rainbow": 0x527,  # celadon_gym_badge (Erika), injected
+    "soul": 0x528,  # fuchsia_gym_badge (Janine), injected
+    "marsh": 0x529,  # saffron_gym_badge (Sabrina), injected
     "volcano": 0x265,  # seafoam_islands_cinnabar_gym_badge (Blaine), pre-existing
     "earth": 0x97F,  # viridian_gym_badge (Blue), pre-existing
 }

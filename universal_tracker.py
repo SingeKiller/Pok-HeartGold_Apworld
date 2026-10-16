@@ -44,7 +44,9 @@ TRACKED_OPTION_NAMES = (
     "randomize_species_types",
     "trainer_level_scaling",
     "trainersanity",
+    "trainersanity_count",
     "dexsanity",
+    "dexsanity_count",
     "dexsanity_encounter_types",
     "randomize_start_location",
     "starting_town",
@@ -54,6 +56,8 @@ TRACKED_OPTION_NAMES = (
     # (locations.POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS) and which
     # edges need `power_plant_restored`.
     "magnet_train",
+    # Adds TM70 to the edges into dark caves (rules.DARK_MAP_CODES).
+    "require_flash",
     # Location rules the PopTracker pack reproduces (tracker/, v0.2.5).
     "hidden_items_require_dowsing_machine",
 )

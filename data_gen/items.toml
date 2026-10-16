@@ -669,7 +669,9 @@ id = 84
 label = "WATER_STONE"
 price = 2100
 pocket = "items"
-classification = "filler"
+# progression (2026-09-23): using one in the Ruins of Alph's south-west
+# chamber opens its back room, see data_gen/rules.toml.
+classification = "progression"
 
 [leaf_stone]
 id = 85

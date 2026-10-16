@@ -112,9 +112,10 @@ Pokemon HGSS Singe:
     # Remove all of Kanto from the game. No Kanto locations, no Kanto
     # badges in the item pool.
     # 
-    # Johto's own Elite Four and the post game Red fight still work
-    # normally. If your goal is `n_badges` and you asked for more than 8,
-    # it gets capped to 8 automatically.
+    # Johto's own Elite Four still works normally. Red cannot be reached
+    # (Mt. Silver opens from Kanto), so the `champion_red` goal is refused.
+    # If your goal is `n_badges` and you asked for more than 8, it gets
+    # capped to 8 automatically.
     'false': 50
     'true': 0
 
@@ -399,6 +400,16 @@ Pokemon HGSS Singe:
     'false': 50
     'true': 0
 
+  require_flash:
+    # Require Flash (TM70) in logic before entering a dark cave: Rock
+    # Tunnel, Dark Cave, the first two floors of the Whirl Islands and Cerulean
+    # Cave (the maps the game itself darkens until Flash is used).
+    #
+    # Off by default: the caves can be crossed in the dark, it is only harder
+    # to see where you are going.
+    'false': 50
+    'true': 0
+
   magnet_train:
     # Open the Goldenrod <-> Saffron Magnet Train as an early way into Kanto.
     #
@@ -612,6 +623,32 @@ Pokemon HGSS Singe:
     # 
     # Ignored when `dexsanity` is off.
     ['old_rod', 'land', 'surf', 'rock_smash', 'super_rod', 'good_rod', 'headbutt']
+
+  trainersanity_count:
+    # With `trainersanity` on, how many trainer battles are checks, picked
+    # at random among every trainer this seed has (all of them by default).
+    # Ignored when `trainersanity` is off.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 1
+    # Maximum value is 390
+    390: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+
+  dexsanity_count:
+    # With `dexsanity` on, how many species are checks at most, picked at
+    # random among the species this seed's wild tables really hold (all of
+    # them by default). Ignored when `dexsanity` is off.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 1
+    # Maximum value is 493
+    493: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
 
   legendarysanity:
     # Add a check for catching Ho-Oh (Bell Tower) and Lugia (Whirl

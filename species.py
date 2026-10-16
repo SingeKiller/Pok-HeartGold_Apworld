@@ -310,7 +310,7 @@ def species_encounter_sources(
     key, for all 137 of them -- checked by tests/test_encounters.py::
     test_every_zone_key_is_a_known_region), `method` is one of
     'land'/'surf'/'rock_smash'/'old_rod'/'good_rod'/'super_rod'/
-    'headbutt'.
+    'headbutt'/'headbutt_secret' (the secret trees of a headbutt table).
 
     `source_filter(zone_key, method)` drops pairs it rejects, and a
     species left with no pair at all is dropped entirely. Dexsanity (task
@@ -345,9 +345,13 @@ def species_encounter_sources(
         for rod, table in zone["fishing"].items():
             for slot in table["slots"]:
                 add(slot["species"], zone_key, rod)
-        for tier_slots in zone.get("headbutt", {}).values():
+        for tier, tier_slots in zone.get("headbutt", {}).items():
+            # Secret trees can stand apart from the others (the National
+            # Park's need Rock Climb), see locations.DEXSANITY_ZONE_METHOD_
+            # REGIONS; the method is otherwise the same Headbutt.
+            method = "headbutt_secret" if tier == "secret" else "headbutt"
             for slot in tier_slots:
-                add(slot["species"], zone_key, "headbutt")
+                add(slot["species"], zone_key, method)
 
     return {species: frozenset(sources) for species, sources in result.items()}
 
@@ -361,7 +365,9 @@ def species_encounter_methods(
     the cheapest method that actually works); anything that also needs to
     know *where* must use `species_encounter_sources` instead."""
     return {
-        species: frozenset(method for _zone_key, method in sources)
+        species: frozenset(
+            "headbutt" if method == "headbutt_secret" else method for _zone_key, method in sources
+        )
         for species, sources in species_encounter_sources(encounters, source_filter=source_filter).items()
     }
 
@@ -414,8 +420,8 @@ def scale_trainer_levels_by_sphere(trainers: dict, trainer_sphere: dict[str, int
     Target level curve is linear between the weakest and strongest
     vanilla trainer level found anywhere in `trainers` (sphere 0 -> that
     minimum, the deepest sphere present in `trainer_sphere` -> that
-    maximum), then shifted by `bonus` levels (negative = easier, positive
-    = harder) before clamping. Each trainer's party is scaled
+    maximum), then every mon is shifted by `bonus` levels (negative =
+    easier, positive = harder) before clamping. Each trainer's party is scaled
     proportionally around its own strongest mon (preserving relative
     levels within the party, the same "reshape around a base level" idea
     `scale_trainer_levels` uses for a flat percentage). A trainer absent
@@ -440,10 +446,13 @@ def scale_trainer_levels_by_sphere(trainers: dict, trainer_sphere: dict[str, int
             new_trainers[key] = trainer
             continue
         base_target = min_level if max_sphere == 0 else min_level + (max_level - min_level) * sphere / max_sphere
-        target_level = max(_MIN_LEVEL, min(_MAX_LEVEL, round(base_target + bonus)))
         old_base_level = max(mon["level"] for mon in trainer["party"])
+        # The bonus is added to every mon after the party is reshaped, so a
+        # +10 means +10 for each of them (2026-09-24, player report: added
+        # to the strongest mon's target only, it shrank with the party's
+        # own ratio and left some mons under level 10).
         new_party = tuple(
-            {**mon, "level": max(_MIN_LEVEL, min(_MAX_LEVEL, round(mon["level"] * target_level / old_base_level)))}
+            {**mon, "level": max(_MIN_LEVEL, min(_MAX_LEVEL, round(mon["level"] * base_target / old_base_level) + bonus))}
             for mon in trainer["party"]
         )
         new_trainers[key] = {**trainer, "party": new_party}
@@ -532,7 +541,36 @@ def convert_trade_and_friendship_evolutions(species: dict, enabled: bool, level:
             else:
                 new_evolutions.append(evo)
         new_species[key] = {**data, "evolutions": tuple(new_evolutions)}
-    return new_species
+    return restore_shadowed_time_evolutions(new_species)
+
+
+def restore_shadowed_time_evolutions(species: dict, vanilla: dict = SPECIES) -> dict:
+    """Undo a conversion that made an evolution unreachable (2026-09-24,
+    player report: Eevee could not become Umbreon). Converting both of
+    Eevee's friendship evolutions (Espeon by day, Umbreon by night) to the
+    same plain level makes the game take the first one every time, as it
+    checks a species' evolutions in order. Every edge sharing its species'
+    plain level with another edge goes back to its vanilla day/night
+    friendship method, the only way the game can tell them apart. Also run
+    when a patch is applied, so seeds generated before the fix get it."""
+    time_methods = {"friendship_day", "friendship_night"}
+    fixed: dict[str, dict] = {}
+    for key, data in species.items():
+        levels = [evo["param"] for evo in data["evolutions"] if evo["method"] == "level"]
+        vanilla_by_target = {evo["target"]: evo for evo in vanilla.get(key, {}).get("evolutions", ())}
+        evolutions = []
+        for evo in data["evolutions"]:
+            original = vanilla_by_target.get(evo["target"])
+            if (
+                evo["method"] == "level"
+                and levels.count(evo["param"]) > 1
+                and original is not None
+                and original["method"] in time_methods
+            ):
+                evo = dict(original)
+            evolutions.append(evo)
+        fixed[key] = {**data, "evolutions": tuple(evolutions)}
+    return fixed
 
 
 # --- 5. Base stats -----------------------------------------------------------

@@ -68,6 +68,53 @@ _ID_CODE_BY_VERSION: dict[str, bytes] = {
 # truncated/corrupted rather than a legitimate ROM of the wrong game.
 _MIN_PLAUSIBLE_ROM_SIZE = 0x4000
 
+# Trimmed dumps (2026-10-03, player reports of "File hash does not match"
+# with a US ROM): most ROM tools cut the 0xFF padding that follows the used
+# part of the cartridge (its size is the header's u32 at 0x80, 0x78C763C
+# for both versions, in a 0x8000000-byte retail image). Same game, other
+# MD5: recognised by the MD5 of that used part, then padded back.
+_RETAIL_ROM_SIZE = 0x8000000
+_USED_SIZE_OFFSET = 0x80
+_VERSION_BY_USED_MD5: dict[str, str] = {
+    "4dc7993a7db6858b43da83be434ba673": "heartgold",
+    "380e7441c09c938cdcc8bd28546037e2": "soulsilver",
+}
+_GAME_NAMES = {b"IPK": "HeartGold", b"IPG": "SoulSilver"}
+_REGION_NAMES = {
+    ord("E"): "USA", ord("P"): "Europe", ord("J"): "Japan", ord("K"): "Korea", ord("D"): "Germany",
+    ord("F"): "France", ord("I"): "Italy", ord("S"): "Spain",
+}
+
+
+def identify_rom(data: bytes) -> tuple[str | None, bytes]:
+    """("heartgold" or "soulsilver", the retail image) for an unmodified US
+    dump, padded back to full size if it was trimmed; (None, data) for
+    anything else."""
+    version = _VERSION_BY_MD5.get(hashlib.md5(data).hexdigest())
+    if version is not None:
+        return version, data
+    if _MIN_PLAUSIBLE_ROM_SIZE <= len(data) <= _RETAIL_ROM_SIZE:
+        (used,) = struct.unpack_from("<I", data, _USED_SIZE_OFFSET)
+        if _MIN_PLAUSIBLE_ROM_SIZE <= used <= len(data) and not data[used:].strip(b"\xff"):
+            version = _VERSION_BY_USED_MD5.get(hashlib.md5(data[:used]).hexdigest())
+            if version is not None:
+                return version, data[:used] + b"\xff" * (_RETAIL_ROM_SIZE - used)
+    return None, data
+
+
+def describe_rom(data: bytes) -> str:
+    """What this ROM looks like, from its header's game code, for error
+    messages: e.g. "Pokemon SoulSilver (Europe, game code IPGP)"."""
+    if len(data) < 0x10:
+        return "not a Nintendo DS ROM"
+    code = bytes(data[0x0C:0x10])
+    game = _GAME_NAMES.get(code[:3])
+    printable = code.decode("ascii", "replace")
+    if game is None:
+        return f"not Pokemon HeartGold or SoulSilver (game code {printable})"
+    region = _REGION_NAMES.get(code[3], "unknown region")
+    return f"Pokemon {game} ({region}, game code {printable})"
+
 
 class HeartGoldRom:
     """Thin wrapper around apnds.rom.Rom for a Pokemon HeartGold/SoulSilver
@@ -97,7 +144,8 @@ class HeartGoldRom:
     _NITROCODE_FOOTER_SIZE = 12
 
     def __init__(self, data: bytes, *, expect_vanilla: bool = True) -> None:
-        self.version: str | None = self._validate_size_and_hash(data, expect_vanilla=expect_vanilla)
+        self.version: str | None
+        self.version, data = self._validate_size_and_hash(data, expect_vanilla=expect_vanilla)
         try:
             self._rom = apnds.rom.Rom.from_bytes(data)
         except Exception as exc:  # apnds itself raises assorted exception types
@@ -118,26 +166,25 @@ class HeartGoldRom:
         return raw, b""
 
     @staticmethod
-    def _validate_size_and_hash(data: bytes, *, expect_vanilla: bool) -> str | None:
+    def _validate_size_and_hash(data: bytes, *, expect_vanilla: bool) -> tuple[str | None, bytes]:
+        """(version, data) -- data padded back to the retail size when the
+        dump was trimmed (see identify_rom)."""
         if len(data) < _MIN_PLAUSIBLE_ROM_SIZE:
             raise InvalidRomError(
                 f"File is only {len(data)} bytes -- too small to be a "
                 "Nintendo DS ROM. It is likely truncated or corrupted."
             )
         if not expect_vanilla:
-            return None
-        digest = hashlib.md5(data).hexdigest()
-        version = _VERSION_BY_MD5.get(digest)
+            return None, data
+        version, data = identify_rom(data)
         if version is None:
-            expected = ", ".join(sorted(_VERSION_BY_MD5))
             raise InvalidRomError(
-                "This does not look like a retail Pokemon HeartGold/SoulSilver "
-                f"(USA) ROM: expected one of [{expected}], got {digest}. Make "
-                "sure the ROM path points at an unmodified US HeartGold or "
-                "SoulSilver dump -- not another region or revision, and not "
-                "an already-patched ROM."
+                f"This ROM is {describe_rom(data)}, or a modified dump: an "
+                "unmodified Pokemon HeartGold or SoulSilver (USA) ROM is needed "
+                "(game code IPKE or IPGE). Other regions and already-patched "
+                "ROMs do not work."
             )
-        return version
+        return version, data
 
     def _validate_game_code(self) -> None:
         id_code = bytes(self._rom.header[apnds.rom.HeaderField.SERIAL])

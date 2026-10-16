@@ -39,6 +39,7 @@ if os.path.isdir(_THIS_DIR) and not os.path.isdir(os.path.join(_THIS_DIR, "data"
 
 import settings  # noqa: E402
 from BaseClasses import CollectionState, Item, Region, Tutorial  # noqa: E402
+from Options import OptionError  # noqa: E402
 from worlds.AutoWorld import AutoWorldRegister, WebWorld, World  # noqa: E402
 
 import location_flags  # noqa: E402
@@ -48,7 +49,7 @@ from data.encounters import ENCOUNTERS_HEARTGOLD, ENCOUNTERS_SOULSILVER  # noqa:
 from data.items import ITEMS  # noqa: E402
 from data.locations import LOCATIONS  # noqa: E402
 from data.rules import BADGES  # noqa: E402
-from items import create_item, create_item_label_to_code_map  # noqa: E402
+from items import create_item, create_item_label_to_code_map, create_item_name_groups  # noqa: E402
 from locations import (  # noqa: E402
     DOWSING_MACHINE_ITEM_LABEL,
     POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS,
@@ -56,6 +57,8 @@ from locations import (  # noqa: E402
     badge_item_label,
     create_location_label_to_code_map,
     create_locations,
+    DEXSANITY_UNUSABLE_ZONE_METHODS,
+    dexsanity_source_requirement,
     dexsanity_sources_within_regions,
     location_region_key,
 )
@@ -219,7 +222,12 @@ def _constrain_undetectable_locations(player: int, multiworld, excluded_region_k
     local_players = {player} | multiworld.get_player_groups(player)
 
     def rule(item: Item) -> bool:
-        return item.player in local_players and item.classification != ItemClassification.progression
+        # A bit test, not `!= progression` (2026-09-24, player report): an
+        # item reclassified `useful | progression` (the Dowsing Machine with
+        # hidden_items_require_dowsing_machine) passed the old comparison.
+        # Unused since the same day (every location has a check flag), kept
+        # for any location that ever loses its flag again.
+        return item.player in local_players and not (item.classification & ItemClassification.progression)
 
     for location_key in location_flags.unsupported_location_keys():
         if LOCATIONS[location_key]["region"] in excluded_region_keys:
@@ -266,6 +274,28 @@ class HeartGoldWebWorld(WebWorld):
     tutorials: list[Tutorial] = [_setup_en]
 
 
+def _validate_rom_setting(path: str, version: str, setting: str) -> None:
+    """Archipelago checks the configured ROM on every use (its default check
+    is the exact MD5, the "File hash does not match" error). Accepts trimmed
+    US dumps too (rom.identify_rom), and otherwise says what the file is and
+    how to get out: Archipelago keeps the file it was first given (copied
+    under the US name), so picking the right ROM again needs it removed.
+    Player reports 2026-09-29: an EU ROM, and a US one that kept failing."""
+    from rom import describe_rom, identify_rom
+
+    with open(path, "rb") as rom_file:
+        data = rom_file.read()
+    found, _ = identify_rom(data)
+    if found == version:
+        return
+    names = {"heartgold": "HeartGold (USA, game code IPKE)", "soulsilver": "SoulSilver (USA, game code IPGE)"}
+    raise ValueError(
+        f"{path} is {describe_rom(data) if found is None else 'Pokemon ' + names[found]}, "
+        f"but this patch needs an unmodified Pokemon {names[version]}. Delete that file (or fix "
+        f"pokemon_heartgold_settings.{setting} in host.yaml), then open the patch again to pick the right ROM."
+    )
+
+
 class HeartGoldSettings(settings.Group):
     """Per-machine settings -- distinct from HeartGoldOptions (per-player,
     YAML-configured). Two separate rom_file settings, not one shared
@@ -288,10 +318,18 @@ class HeartGoldSettings(settings.Group):
         copy_to = "Pokemon - HeartGold Version (USA).nds"
         md5s = [HEARTGOLD_US_MD5]
 
+        @classmethod
+        def validate(cls, path: str) -> None:
+            _validate_rom_setting(path, "heartgold", "heartgold_rom_file")
+
     class SoulSilverRomFile(settings.UserFilePath):
         description = "Pokemon SoulSilver (USA) ROM file"
         copy_to = "Pokemon - SoulSilver Version (USA).nds"
         md5s = [SOULSILVER_US_MD5]
+
+        @classmethod
+        def validate(cls, path: str) -> None:
+            _validate_rom_setting(path, "soulsilver", "soulsilver_rom_file")
 
     heartgold_rom_file: HeartGoldRomFile = HeartGoldRomFile(HeartGoldRomFile.copy_to)
     soulsilver_rom_file: SoulSilverRomFile = SoulSilverRomFile(SoulSilverRomFile.copy_to)
@@ -324,6 +362,7 @@ class HeartGoldWorld(World):
 
     item_name_to_id = create_item_label_to_code_map()
     location_name_to_id = create_location_label_to_code_map()
+    item_name_groups = create_item_name_groups()
 
     origin_region_name = ORIGIN_REGION_NAME
 
@@ -372,6 +411,17 @@ class HeartGoldWorld(World):
     def generate_early(self) -> None:
         load_ut_slot_data(self)
 
+        # Mt. Silver only opens once Blue is beaten and Oak has been seen in
+        # Pallet Town (data_gen/rules.toml, the route_28 gate), both in
+        # Kanto: with johto_only, Red cannot be reached, in vanilla either.
+        # Refused here with a clear message rather than a KeyError on the
+        # excluded summit region (2026-09-27 logic audit).
+        if bool(self.options.johto_only.value) and self.options.goal.value == Goal.option_champion_red:
+            raise OptionError(
+                f"{self.player_name}: goal champion_red cannot be reached with johto_only "
+                "(Mt. Silver opens from Kanto); use elite_four or n_badges."
+            )
+
         # Wild encounters must be known before create_regions()/create_items()
         # run (Dexsanity, task M3.4, scopes its locations to species that
         # genuinely appear somewhere in this seed's own table -- see
@@ -410,7 +460,9 @@ class HeartGoldWorld(World):
         self.dexsanity_species_sources = species_encounter_sources(
             self.generated_encounters,
             source_filter=lambda zone_key, method: (
-                method in allowed_methods and zone_method_is_written(zone_key, method)
+                ("headbutt" if method == "headbutt_secret" else method) in allowed_methods
+                and zone_method_is_written(zone_key, method)
+                and (zone_key, method) not in DEXSANITY_UNUSABLE_ZONE_METHODS
             ),
         )
 
@@ -455,9 +507,31 @@ class HeartGoldWorld(World):
         # (johto_only drops Kanto's) *before* create_locations, so
         # create_items below can use the exact same dict and the item pool
         # can never outnumber the created Dexsanity locations.
+        available_items = None
+        if self._excluded_region_keys:
+            available_items = {
+                data["original_item"]
+                for data in LOCATIONS.values()
+                if data.get("original_item")
+                and location_region_key(data, self._soulsilver) not in self._excluded_region_keys
+            }
         self.dexsanity_species_sources = dexsanity_sources_within_regions(
-            self.dexsanity_species_sources, self.regions
+            self.dexsanity_species_sources, self.regions, available_items
         )
+        # trainersanity_count / dexsanity_count: a random subset, drawn from
+        # sorted keys so the same seed always draws the same one.
+        self._trainer_keys = None
+        trainer_pool = sorted(
+            key for key, data in LOCATIONS.items()
+            if data["type"] == "trainer"
+            and location_region_key(data, self._soulsilver) not in self._excluded_region_keys
+        )
+        if self.options.trainersanity_count.value < len(trainer_pool):
+            self._trainer_keys = frozenset(self.random.sample(trainer_pool, self.options.trainersanity_count.value))
+        species = sorted(self.dexsanity_species_sources)
+        if self.options.dexsanity_count.value < len(species):
+            keep = set(self.random.sample(species, self.options.dexsanity_count.value))
+            self.dexsanity_species_sources = {s: v for s, v in self.dexsanity_species_sources.items() if s in keep}
         create_locations(
             self.player,
             self.regions,
@@ -470,6 +544,7 @@ class HeartGoldWorld(World):
             bicycle_enabled=bool(self.options.randomize_bicycle.value),
             power_plant_prerestored=bool(self.options.magnet_train.value),
             soulsilver=self._soulsilver,
+            trainer_keys=self._trainer_keys,
         )
 
     def create_items(self) -> None:
@@ -513,7 +588,7 @@ class HeartGoldWorld(World):
                 # locations() skipped the location, same reasoning as above.
                 continue
             if data["type"] == "trainer":
-                if not trainersanity:
+                if not trainersanity or (self._trainer_keys is not None and key not in self._trainer_keys):
                     continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
@@ -587,6 +662,7 @@ class HeartGoldWorld(World):
             self.multiworld,
             self.regions,
             magnet_train=bool(self.options.magnet_train.value),
+            require_flash=bool(self.options.require_flash.value),
         )
         _constrain_undetectable_locations(self.player, self.multiworld, self._excluded_region_keys)
 
@@ -680,8 +756,31 @@ class HeartGoldWorld(World):
             # _apply_power_plant_prerestored).
             "magnet_train": bool(self.options.magnet_train.value),
             "remote_items": bool(self.options.remote_items.value),
+            # Where this seed put each Dexsanity species, for the trackers
+            # (they cannot know it otherwise and used to show every species
+            # as catchable; player report 2026-10-04).
+            "dexsanity_logic": self._dexsanity_logic_for_trackers(),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
+
+    def _dexsanity_logic_for_trackers(self) -> dict[str, list[list]]:
+        """{AP location id: [[region, item keys, other regions], ...]} for
+        every Dexsanity location, one entry per place the species can be
+        caught (any one is enough), see locations.dexsanity_source_requirement."""
+        result: dict[str, list[list]] = {}
+        for location in self.multiworld.get_locations(self.player):
+            data = LOCATIONS.get(location.name)
+            if location.address is None or data is None or data["type"] != "dexsanity":
+                continue
+            sources = self.dexsanity_species_sources.get(data["species"], ())
+            requirements = sorted({dexsanity_source_requirement(source) for source in sources})
+            # The location's own parent region counts too (a random start
+            # may begin away from it).
+            parent = location.parent_region.name
+            result[str(location.address)] = [
+                [region, list(items), sorted(set(regions) | {parent})] for region, items, regions in requirements
+            ]
+        return result
 
     def generate_output(self, output_directory: str) -> None:
         if bool(self.options.sphere_based_trainer_leveling.value):

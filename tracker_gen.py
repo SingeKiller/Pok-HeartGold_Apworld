@@ -137,6 +137,7 @@ def build() -> Path:
 
     import locations as loc_mod
     import regions as reg_mod
+    import rules as rules_mod
     from items import HEARTGOLD_ITEM_ID_BASE
 
     fr = json.loads(I18N_FR.read_text(encoding="utf-8"))
@@ -238,7 +239,18 @@ def build() -> Path:
             return ""
         if lang == "fr" and rest in fr["sub"]:
             return fr["sub"][rest]
-        return pretty(rest)
+        if lang == "fr" and fr["words"].get(rest):
+            return fr["words"][rest]
+        if lang == "fr":
+            # Map-walk pockets ("surf", "rock_climb", "b1f_rocks"...): word by
+            # word, "rock_smash" / "rock_climb" first as they are one move.
+            text = rest.replace("rock_smash", "rocksmash").replace("rock_climb", "rockclimb")
+            words = {**fr["words"], "rocksmash": "Éclate-Roc", "rockclimb": "Escalade"}
+            parts = [words.get(w, w.upper() if re.fullmatch(r"b?\d+f", w) else w) for w in text.split("_")]
+            return " ".join(p for p in parts if p)
+        # The Japanese Game Corner map is never reached in the US games; its
+        # TM78 is sent on entering the Game Corner itself (client.py).
+        return "Game Corner" if rest == "game_corner_jp" else pretty(rest)
 
     def trainer_class(data) -> str:
         label = data["label"].lower().replace(" ", "_").replace(".", "_")
@@ -360,7 +372,7 @@ def build() -> Path:
             column.append((name, None))
             locations_json.append({
                 "name": name, "visibility_rules": ["opt_dexsanity"],
-                "sections": [{"name": label, "item_count": 1, "access_rules": ["$dex"],
+                "sections": [{"name": label, "item_count": 1, "access_rules": [f"$dex|{location_ids[key]}"],
                               "hosted_item": f"reveal_{location_ids[key]}"}],
                 "map_locations": [{"map": page, "ref": (None, len(column) - 1)}],
             })
@@ -458,10 +470,22 @@ def build() -> Path:
                                                      encoding="utf-8")
 
     # -- logic data ------------------------------------------------------------
+    def add_gates(key, entry):
+        # Every gate applies at once, as in locations._story_gate_rules.
+        if key in loc_mod._ITEM_GATED_LOCATIONS:
+            entry["items"] = list(loc_mod._ITEM_GATED_LOCATIONS[key])
+        if key in loc_mod.REGION_GATED_LOCATIONS:
+            entry["regions"] = list(loc_mod.REGION_GATED_LOCATIONS[key])
+        if key in loc_mod.EVENT_GATED_LOCATIONS:
+            entry["events"] = list(loc_mod.EVENT_GATED_LOCATIONS[key])
+        if key in loc_mod.POWER_PLANT_GATED_LOCATION_KEYS:
+            entry["power_plant"] = True
+        return entry
+
     events = {}
-    for data in LOCATIONS.values():
+    for key, data in LOCATIONS.items():
         if data["type"] == "event":
-            events[data["event"]] = {"region": data["region"], "ss_region": data.get("soulsilver_region")}
+            events[data["event"]] = add_gates(key, {"region": data["region"], "ss_region": data.get("soulsilver_region")})
     lua_locations = {}
     for key, data in LOCATIONS.items():
         if data["type"] not in SECTION_TYPES:
@@ -469,15 +493,7 @@ def build() -> Path:
         entry = {"type": data["type"], "region": data["region"]}
         if "soulsilver_region" in data:
             entry["ss_region"] = data["soulsilver_region"]
-        if key in loc_mod._ITEM_GATED_LOCATIONS:
-            entry["items"] = list(loc_mod._ITEM_GATED_LOCATIONS[key])
-        elif key in loc_mod.REGION_GATED_LOCATIONS:
-            entry["regions"] = list(loc_mod.REGION_GATED_LOCATIONS[key])
-        elif key in loc_mod.EVENT_GATED_LOCATIONS:
-            entry["events"] = list(loc_mod.EVENT_GATED_LOCATIONS[key])
-        elif key in loc_mod.POWER_PLANT_GATED_LOCATION_KEYS:
-            entry["power_plant"] = True
-        lua_locations[key] = entry
+        lua_locations[key] = add_gates(key, entry)
     data_lua = {
         "regions": {key: list(region["exits"]) for key, region in REGIONS.items()},
         "exit_rules": {
@@ -486,8 +502,11 @@ def build() -> Path:
         },
         "events": events,
         "locations": lua_locations,
+        "magnet_train_dropped_regions": {k: True for k in sorted(loc_mod.MAGNET_TRAIN_DROPPED_GATE_REGIONS)},
         "johto_only_excluded_hg": {k: True for k in sorted(reg_mod.johto_only_excluded_region_keys(False))},
         "johto_only_excluded_ss": {k: True for k in sorted(reg_mod.johto_only_excluded_region_keys(True))},
+        "dark_entries": {f"{src}>{dst}": True for src, region in REGIONS.items() for dst in region["exits"]
+                         if dst in REGIONS and rules_mod.is_dark_entry(src, dst)},
         "location_sections_by_lang": sections_by_lang,
         "item_codes": {HEARTGOLD_ITEM_ID_BASE + ITEMS[c]["id"]: c for c in tracked},
         "tracked_items": tracked,
@@ -517,7 +536,8 @@ def build() -> Path:
         web_areas.append(entry)
     web = {
         "logic": {k: data_lua[k] for k in ("regions", "exit_rules", "events", "locations",
-                                           "johto_only_excluded_hg", "johto_only_excluded_ss")},
+                                           "johto_only_excluded_hg", "johto_only_excluded_ss", "dark_entries",
+                                           "magnet_train_dropped_regions")},
         "item_codes": data_lua["item_codes"],
         "hms": hm_codes, "badges": badge_codes, "keys": key_codes, "leaders": leader_codes,
         "leader_locations": data_lua["leader_locations"],
@@ -529,6 +549,8 @@ def build() -> Path:
                           "en": LOCATIONS[k]["label"].split(": ", 1)[-1]}} for k in dex_keys],
         "ui": UI,
         "map": _web_map(areas, code_regions, parent_area),
+        "detail": _detail_maps(location_ids, code_regions),
+        "icons": _web_icons({code: ITEMS[code]["id"] for code in tracked if code in ITEMS}),
     }
     template = (STATIC / "web" / "tracker.html").read_text(encoding="utf-8")
     page = template.replace("/*__LOGIC__*/", (STATIC / "web" / "logic.js").read_text(encoding="utf-8")).replace(
@@ -684,117 +706,394 @@ def _draw_reveal_icon(root) -> None:
 SITE_NAMES = {"S:D23": "Radio Tower", "S:D35": "Rocket HQ", "S:P01": "S.S. Aqua", "S:D37": "Underground"}
 
 
-MAP_UNIT = 16  # map units per 32x32-tile chunk
+MAP_UNIT = 16  # map units per Pokegear map cell
+PGMAP_C = ROOT / "ressources/Decomposition/pokeheartgold/src/application/pokegear/map/pokegear_map.c"
+
+
+def _pokegear_cells():
+    """{map code: [(x, y), ...]} from the game's own Pokegear map layout
+    (sLocationSpecs in src/application/pokegear/map/pokegear_map.c: each
+    map's cell, width and height on the 45 x 18 cell Town Map)."""
+    consts = {}
+    for line in MAPS_H.read_text().splitlines():
+        m = re.match(r"#define (MAP_\w+)\s+\d+\s+//\s+MAP_(\w+)", line)
+        if m:
+            consts[m.group(1)] = m.group(2)
+    table = PGMAP_C.read_text()
+    table = table[table.index("sLocationSpecs[PGMAP_NUM_LOCATIONS]"):]
+    cells = defaultdict(list)
+    for const, x, y, w, h in re.findall(
+        r"\.mapId = (MAP_\w+),\s*\.x = (\d+),\s*\.y = (\d+),\s*\.width = (\d+),\s*\.height = (\d+)", table
+    ):
+        code = consts.get(const)
+        if code:
+            cells[code] += [(int(x) + i, int(y) + j) for i in range(int(w)) for j in range(int(h))]
+    return cells
 
 
 def _web_map(areas, code_regions, parent_area):
-    """Pokegear-style map for the web tracker, laid out from the overworld
-    matrix (matrix 0, both regions side by side): land and sea behind, and
-    each area's shape on top: towns as boxes,
-    routes as road segments between chunk centres, caves and towers as dots
-    next to the outdoor map they open onto. None without a ROM."""
-    rom_path = os.environ.get("HEARTGOLD_ROM_PATH")
-    if not rom_path or not MAPS_H.is_file():
-        print("no HEARTGOLD_ROM_PATH: the web tracker gets no map")
+    """Pokegear-style map for the web tracker, laid out exactly like the
+    game's own Town Map (_pokegear_cells): land and sea behind, towns as
+    boxes, routes as road segments between cell centres, caves and towers as
+    dots on their own cell, or around the town or route they open onto.
+    The drawing is ours; only the cell layout comes from the game. None
+    without the decomp sources."""
+    if not MAPS_H.is_file() or not PGMAP_C.is_file():
+        print("no decomp sources: the web tracker gets no map")
         return None
     from PIL import Image, ImageDraw, ImageFilter
 
-    from rom import HeartGoldRom
+    spec = _pokegear_cells()
+    # Areas are keyed by outdoor map code or "S:<family>"; a family's cells
+    # are those of any of its maps listed in the table (D42R0101 -> S:D42).
+    area_cells = {}
+    for code in areas:
+        if code.startswith("S:"):
+            family = code[2:]
+            area_cells[code] = sorted({c for key, cells in spec.items() if key[:3] == family for c in cells})
+        else:
+            area_cells[code] = spec.get(code, [])
+    width = max(x for cells in spec.values() for x, _ in cells) + 3
+    height = max(y for cells in spec.values() for _, y in cells) + 3
 
-    rom = HeartGoldRom.open(rom_path)
-    matrix = bytes(rom.read_narc("a/0/4/1").files[0])
-    width, height = matrix[0], matrix[1]
-    cursor = 5 + matrix[4]
-    headers = struct.unpack_from(f"<{width * height}H", matrix, cursor)
-    cursor += width * height * 2
-    if matrix[3]:
-        cursor += width * height
-    models = struct.unpack_from(f"<{width * height}H", matrix, cursor)
-    code_by_id = {}
-    for line in MAPS_H.read_text().splitlines():
-        m = re.match(r"#define MAP_\w+\s+(\d+)\s+//\s+MAP_(\w+)", line)
-        if m:
-            code_by_id[int(m.group(1))] = m.group(2)
-
-    chunks = defaultdict(list)
-    for cz in range(height):
-        for cx in range(width):
-            if models[cz * width + cx] != 0xFFFF:
-                chunks[code_by_id.get(headers[cz * width + cx], "")].append((cx, cz))
-
-    # Background: land wherever a town, route or site sits (sea routes
-    # excepted), grown and rounded off like the Pokegear's coastline, with
-    # greener lowland right under the roads and towns.
+    # Background, drawn after the Town Map's own look: the whole north is
+    # land (mountains, forests), the sea is the band along the south coast
+    # plus the straits the sea routes run through. Column by column, land
+    # runs from the top down to the southernmost mainland place (one column
+    # of slack either side), islands are drawn on their own, sea routes are
+    # carved out, and the result is rounded off.
+    islands = {"T09", "D11R0101", "D40R0101", "P01R0301"}
+    mainland = [c for key, cells in spec.items() if key[:1] != "W" and key not in islands for c in cells]
+    sea_cells = [c for key, cells in spec.items() if key[:1] == "W" for c in cells]
+    island_cells = [c for key in islands for c in spec.get(key, []) if key != "P01R0301"]
+    roads = [c for key, cells in spec.items() if key[:1] in "TR" for c in cells]
+    lowest = defaultdict(lambda: -1)
+    for cx, cy in mainland:
+        lowest[cx] = max(lowest[cx], cy)
+    xs = sorted(lowest)
+    coast = {x: max(lowest[n] for n in (x - 1, x, x + 1) if n in lowest) for x in range(xs[0], xs[-1] + 1)}
     scale = 8
-    def mask(cells, grow, blur):
+
+    def raster(cells, grow):
         layer = Image.new("L", (width * scale, height * scale), 0)
         draw = ImageDraw.Draw(layer)
-        for cx, cz in cells:
-            draw.rectangle((cx * scale - grow, cz * scale - grow, (cx + 1) * scale + grow, (cz + 1) * scale + grow),
+        for cx, cy in cells:
+            draw.rectangle((cx * scale - grow, cy * scale - grow, (cx + 1) * scale + grow, (cy + 1) * scale + grow),
                            fill=255)
+        return layer
+
+    def smooth(layer, blur):
         layer = layer.resize((width * MAP_UNIT * 2, height * MAP_UNIT * 2), Image.BILINEAR)
         return layer.filter(ImageFilter.GaussianBlur(blur)).point(lambda v: 255 if v > 128 else 0)
 
-    land_cells = [c for code, cells in chunks.items() if code not in ("EVERYWHERE", "") and not code.startswith("W")
-                  for c in cells]
-    road_cells = [c for code, cells in chunks.items() if code[:1] in "TR" for c in cells]
+    def land_mask(grow, blur):
+        layer = raster([(x, y) for x, bottom in coast.items() for y in range(0, bottom + 1)], grow)
+        layer.paste(255, mask=raster(mainland, grow))
+        # A sea route is open water down to the southern sea; the islands
+        # out in it are islets.
+        layer.paste(0, mask=raster({(x, y2) for x, y in sea_cells for y2 in range(y, height)}, 0))
+        layer.paste(255, mask=raster(island_cells, grow - 3))
+        return smooth(layer, blur)
+
     img = Image.new("RGB", (width * MAP_UNIT * 2, height * MAP_UNIT * 2), (72, 152, 216))
-    img.paste((121, 100, 64), mask=mask(land_cells, 7, 9))
-    img.paste((216, 172, 104), mask=mask(land_cells, 5, 9))
-    img.paste((144, 196, 104), mask=mask(road_cells, 1, 7))
+    img.paste((121, 100, 64), mask=land_mask(5, 9))
+    img.paste((216, 172, 104), mask=land_mask(3, 9))
+    img.paste((144, 196, 104), mask=smooth(raster(roads, 2), 6))
     buffer = io.BytesIO()
     img.convert("P", palette=Image.ADAPTIVE, colors=16).save(buffer, "PNG", optimize=True)
 
     def centre(cell):
         return [cell[0] * MAP_UNIT + MAP_UNIT / 2, cell[1] * MAP_UNIT + MAP_UNIT / 2]
 
-    owner = {cell: code for code, cells in chunks.items() for cell in cells}
+    owner = {}
+    for code, cells in area_cells.items():
+        if code[:1] in "TRW":
+            for cell in cells:
+                owner.setdefault(cell, code)
     shapes = {}
     for code in areas:
-        cells = chunks.get(code) or chunks.get(code[2:] if code.startswith("S:") else "", [])
+        cells = area_cells.get(code, [])
         if code.startswith("T") and cells:
-            xs, zs = [c[0] for c in cells], [c[1] for c in cells]
-            pad = MAP_UNIT * 0.22
-            shapes[code] = {"kind": "town", "rect": [min(xs) * MAP_UNIT + pad, min(zs) * MAP_UNIT + pad,
+            xs, ys = [c[0] for c in cells], [c[1] for c in cells]
+            pad = MAP_UNIT * 0.18
+            shapes[code] = {"kind": "town", "rect": [min(xs) * MAP_UNIT + pad, min(ys) * MAP_UNIT + pad,
                                                      (max(xs) - min(xs) + 1) * MAP_UNIT - 2 * pad,
-                                                     (max(zs) - min(zs) + 1) * MAP_UNIT - 2 * pad]}
+                                                     (max(ys) - min(ys) + 1) * MAP_UNIT - 2 * pad]}
         elif code[0] in "RW" and cells:
             segments = []
-            for cx, cz in cells:
-                for nx, nz in ((cx + 1, cz), (cx, cz + 1), (cx - 1, cz), (cx, cz - 1)):
-                    other = owner.get((nx, nz), "EVERYWHERE")
-                    if other == code and (nx, nz) > (cx, cz):
-                        segments.append(centre((cx, cz)) + centre((nx, nz)))
-                    elif other != code and other != "EVERYWHERE" and other[:1] in "TRW":
-                        a, b = centre((cx, cz)), centre((nx, nz))
+            steps = ((1, 0), (0, 1), (-1, 0), (0, -1))
+            # One road through the route's cells (a tree, so a 3 x 2 block
+            # like Route 47 is a path, not a grid), from where it meets
+            # another place.
+            own = set(cells)
+            starts = [c for c in cells if any(owner.get((c[0] + dx, c[1] + dy)) not in (None, code) for dx, dy in steps)]
+            seen = {(starts or cells)[0]}
+            queue = deque(seen)
+            while queue:
+                cx, cy = queue.popleft()
+                for dx, dy in steps:
+                    nxt = (cx + dx, cy + dy)
+                    if nxt in own and nxt not in seen:
+                        seen.add(nxt)
+                        queue.append(nxt)
+                        segments.append(centre((cx, cy)) + centre(nxt))
+            for cx, cy in cells:
+                for dx, dy in steps:
+                    other = owner.get((cx + dx, cy + dy))
+                    if other is not None and other != code:
+                        a, b = centre((cx, cy)), centre((cx + dx, cy + dy))
                         segments.append(a + [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])
             if not segments:
                 x, y = centre(cells[0])
                 segments.append([x - 4, y, x + 4, y])
             shapes[code] = {"kind": "route", "segs": segments}
         else:
+            own = [c for c in cells if c not in owner]
             ring = 0.0
-            if not cells:
-                # An interior: next to the outdoor map it opens onto.
-                cells = chunks.get(parent_area(code_regions[code][0]), [])
-                if cells:
-                    xs, zs = [c[0] for c in cells], [c[1] for c in cells]
-                    ring = max(max(xs) - min(xs), max(zs) - min(zs)) * MAP_UNIT / 2 + MAP_UNIT * 0.55
-            if cells:
-                xs, zs = zip(*(centre(c) for c in cells))
-                shapes[code] = {"kind": "site", "at": [sum(xs) / len(xs), sum(zs) / len(zs)], "ring": ring}
-    # Dots around the same outdoor map share its ring, spread out on it.
+            if not own:
+                # No cell of its own (or under a town's box): around the
+                # town or route it opens onto.
+                parent = parent_area(code_regions[code][0])
+                own = area_cells.get(parent) or cells
+                if own:
+                    xs, ys = [c[0] for c in own], [c[1] for c in own]
+                    ring = max(max(xs) - min(xs) + 1, max(ys) - min(ys) + 1) * MAP_UNIT / 2 + MAP_UNIT * 0.1
+            if own:
+                points = [centre(c) for c in own]
+                shapes[code] = {"kind": "site", "at": [sum(p[0] for p in points) / len(points),
+                                                       sum(p[1] for p in points) / len(points)], "ring": ring}
+    # Dots around the same place share its ring, spread out on it.
     spots = defaultdict(list)
     for code, shape in shapes.items():
         if shape["kind"] == "site":
             spots[tuple(round(v) for v in shape["at"])].append(code)
     for (x, y), codes in spots.items():
         for i, code in enumerate(sorted(codes)):
-            ring = shapes[code].pop("ring") or (7 if len(codes) > 1 else 0)
+            ring = shapes[code].pop("ring") or (5 if len(codes) > 1 else 0)
             angle = 2 * math.pi * i / max(len(codes), 1) - 0.8
             shapes[code]["at"] = [round(x + ring * math.cos(angle), 1), round(y + ring * math.sin(angle), 1)]
     return {"w": width * MAP_UNIT, "h": height * MAP_UNIT, "shapes": shapes,
             "bg": "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")}
+
+
+# Detailed maps (prototype, 2026-09-23: New Bark Town, the player's house
+# and Prof. Elm's lab and house). Each is drawn from the ROM's own tiles
+# (walls, floor, water, grass), with a circle on every door or staircase
+# leading to another map and a square on every check where it sits.
+DETAIL_MAPS = {
+    "T20": {"fr": "Bourg Geon", "en": "New Bark Town"},
+    "T20R0101": {"fr": "Labo du Prof. Orme", "en": "Prof. Elm's Lab"},
+    "T20R0102": {"fr": "Maison du Prof. Orme", "en": "Prof. Elm's House"},
+    "T20R0201": {"fr": "Maison du joueur 1F", "en": "Player's House 1F"},
+    "T20R0202": {"fr": "Maison du joueur 2F", "en": "Player's House 2F"},
+}
+# NPC gifts: which object hands the item over (scr_seq_0843_T20R0101.s:
+# Elm's script 000 gives the S.S. Ticket and the Everstone, script 003 the
+# aide's Potions).
+DETAIL_GIFT_OBJECTS = {
+    "new_bark_elms_lab_1f_everstone": "obj_T20R0101_doctor",
+    "new_bark_elms_lab_1f_s_s_ticket": "obj_T20R0101_doctor",
+    "new_bark_elms_lab_1f_potion": "obj_T20R0101_assistantm",
+}
+SURF_BEHAVIOURS = {16, 17, 18, 19, 20, 21, 25, 42, 80, 81, 82, 83, 115, 120, 124}
+ZONE_EVENTS = ROOT / "ressources/Decomposition/pokeheartgold/files/fielddata/eventdata/zone_event"
+MAP_HEADERS = ROOT / "ressources/Decomposition/pokeheartgold/src/data/map_headers.h"
+
+
+def _detail_maps(location_ids, code_regions):
+    """{map code: plan} for DETAIL_MAPS; None without a ROM."""
+    rom_path = os.environ.get("HEARTGOLD_ROM_PATH")
+    if not rom_path or not MAP_HEADERS.is_file():
+        return None
+    from data.locations import LOCATIONS
+    from rom import HeartGoldRom
+
+    rom = HeartGoldRom.open(rom_path)
+    matrices = rom.read_narc("a/0/4/1").files
+    land = rom.read_narc("a/0/6/5").files
+    consts = {}
+    for line in MAPS_H.read_text().splitlines():
+        m = re.match(r"#define (MAP_\w+)\s+(\d+)\s+//\s+MAP_(\w+)", line)
+        if m:
+            consts[m.group(1)] = (int(m.group(2)), m.group(3))
+    code_of_const = {const: code for const, (_, code) in consts.items()}
+    code_of_id = {num: code for num, code in consts.values()}
+    headers_src = MAP_HEADERS.read_text()
+
+    def matrix(index):
+        raw = bytes(matrices[index])
+        w, h, has_headers, has_alt, name_len = raw[0], raw[1], raw[2], raw[3], raw[4]
+        cursor = 5 + name_len
+        heads = None
+        if has_headers:
+            heads = struct.unpack_from(f"<{w * h}H", raw, cursor)
+            cursor += w * h * 2
+        if has_alt:
+            cursor += w * h
+        return w, h, heads, struct.unpack_from(f"<{w * h}H", raw, cursor)
+
+    def chunk(model):
+        raw = bytes(land[model])
+        return struct.unpack_from("<1024H", raw, 0x14 + struct.unpack_from("<H", raw, 0x12)[0])
+
+    def tiles_of(code):
+        """{(x, y): tile} in the map's own event coordinates."""
+        const = next(c for c, (_, k) in consts.items() if k == code)
+        block = headers_src[headers_src.index(f"[{const}] = {{"):]
+        index = int(re.search(r"map_matrix_(\d+)_", block).group(1))
+        w, h, heads, models = matrix(index)
+        out = {}
+        for cy in range(h):
+            for cx in range(w):
+                if models[cy * w + cx] == 0xFFFF:
+                    continue
+                if index == 0 and code_of_id.get(heads[cy * w + cx]) != code:
+                    continue
+                for i, t in enumerate(chunk(models[cy * w + cx])):
+                    out[(cx * 32 + i % 32, cy * 32 + i // 32)] = t
+        return out
+
+    plans = {}
+    for code, name in DETAIL_MAPS.items():
+        path = next(ZONE_EVENTS.glob(f"*_{code}.json"))
+        events = json.loads(path.read_text())
+        tiles = tiles_of(code)
+        warps = [(w["x"], w["z"], code_of_const.get(w["header"])) for w in events.get("warps", [])]
+        warp_at = {(x, z) for x, z, _ in warps}
+        # The walkable area reached from the doors; anything else in the
+        # map's 32 x 32 block is the void around a room.
+        reached = set(warp_at)
+        queue = deque(warp_at)
+        while queue:
+            x, y = queue.popleft()
+            for nxt in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                t = tiles.get(nxt)
+                if nxt not in reached and t is not None and (not t & 0x8000 or nxt in warp_at):
+                    reached.add(nxt)
+                    queue.append(nxt)
+        x0, x1 = min(p[0] for p in reached) - 1, max(p[0] for p in reached) + 1
+        y0, y1 = min(p[1] for p in reached) - 1, max(p[1] for p in reached) + 1
+        rows = []
+        for y in range(y0, y1 + 1):
+            row = ""
+            for x in range(x0, x1 + 1):
+                t = tiles.get((x, y))
+                near = any((x + dx, y + dy) in reached for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+                if t is None or not near:
+                    row += " "
+                elif (x, y) in warp_at:
+                    row += "D"
+                elif t & 0xFF in SURF_BEHAVIOURS:
+                    row += "~"
+                elif t & 0x8000:
+                    row += "#"
+                elif t & 0xFF in (2, 3):
+                    row += '"'
+                else:
+                    row += "."
+            rows.append(row)
+        objects = {o["id"]: (o["x"], o["z"]) for o in events.get("objects", [])}
+        spots = defaultdict(list)
+        for key, data in LOCATIONS.items():
+            if key not in location_ids or code_regions.get(code) is None or data["region"] not in code_regions[code]:
+                continue
+            if key in DETAIL_GIFT_OBJECTS:
+                spot = objects[DETAIL_GIFT_OBJECTS[key]]
+            elif "x" in data and "z" in data:
+                spot = (data["x"], data["z"])
+            else:
+                continue
+            spots[spot].append(location_ids[key])
+        plans[code] = {
+            "name": name, "w": x1 - x0 + 1, "h": y1 - y0 + 1, "rows": rows,
+            "warps": [{"x": x - x0, "y": z - y0, "to": to} for x, z, to in warps],
+            "checks": [{"x": x - x0, "y": z - y0, "ids": ids} for (x, z), ids in spots.items()],
+        }
+    return plans
+
+
+# Gym Leader trainer classes (include/constants/trainer_class.h), in
+# BADGE_ORDER: their front picture is a/0/5/8 member class * 5.
+LEADER_CLASSES = (66, 67, 70, 72, 75, 74, 73, 76, 98, 103, 104, 105, 106, 107, 108, 110)
+ITEM_C = ROOT / "ressources/Decomposition/pokeheartgold/src/item.c"
+ITEMS_H = ROOT / "ressources/Decomposition/pokeheartgold/include/constants/items.h"
+
+
+def _nitro_palette(raw, base=0, count=16):
+    raw = bytes(raw)
+    c = raw.index(b"TTLP")
+    _, _, size, off = struct.unpack_from("<IIII", raw, c + 8)
+    words = struct.unpack_from(f"<{size // 2}H", raw, c + 8 + off)[base:base + count]
+    return [((v & 31) * 255 // 31, ((v >> 5) & 31) * 255 // 31, ((v >> 10) & 31) * 255 // 31) for v in words]
+
+
+def _nitro_tiles(raw, first_tile, tiles_wide, tiles_high, palette):
+    """An image from 4bpp 8 x 8 tiles laid out in order (1D mapping)."""
+    from PIL import Image
+
+    raw = bytes(raw)
+    c = raw.index(b"RAHC")
+    size, off = struct.unpack_from("<II", raw, c + 24)
+    data = raw[c + 8 + off: c + 8 + off + size]
+    img = Image.new("RGBA", (tiles_wide * 8, tiles_high * 8))
+    px = img.load()
+    for t in range(tiles_wide * tiles_high):
+        start = (first_tile + t) * 32
+        for i in range(32):
+            b = data[start + i]
+            for k, v in enumerate((b & 15, b >> 4)):
+                if v:
+                    px[(t % tiles_wide) * 8 + (i % 4) * 2 + k, (t // tiles_wide) * 8 + i // 4] = palette[v] + (255,)
+    return img
+
+
+def _web_icons(item_ids):
+    """{tile code: PNG data URI} for the web tracker's header, from the
+    ROM: item icons (a/0/1/8, the table in src/item.c), the Trainer
+    Card's badge sprites (a/0/4/9 member 46, 12 frames per badge, tinted
+    gold) and the Gym Leaders' pictures (a/0/5/8, the first 64 x 64 cell).
+    None without a ROM."""
+    rom_path = os.environ.get("HEARTGOLD_ROM_PATH")
+    if not rom_path or not ITEM_C.is_file():
+        return None
+    from rom import HeartGoldRom
+
+    rom = HeartGoldRom.open(rom_path)
+    icons = {}
+
+    def uri(img):
+        buffer = io.BytesIO()
+        img.save(buffer, "PNG", optimize=True)
+        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+    numbers = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define (ITEM_\w+)\s+(\d+)", ITEMS_H.read_text())}
+    table = {}
+    for const, ncgr, nclr in re.findall(
+        r"\[(ITEM_\w+)\] = \{ NARC_item_data_\d+_bin, NARC_item_icon_item_icon_(\d+)_NCGR, NARC_item_icon_item_icon_(\d+)_NCLR",
+        ITEM_C.read_text(),
+    ):
+        if const in numbers:
+            table[numbers[const]] = (int(ncgr), int(nclr))
+    item_narc = rom.read_narc("a/0/1/8").files
+    for code, item_id in item_ids.items():
+        if item_id in table:
+            ncgr, nclr = table[item_id]
+            icons[code] = uri(_nitro_tiles(item_narc[ncgr], 0, 4, 4, _nitro_palette(item_narc[nclr])))
+
+    card = rom.read_narc("a/0/4/9").files
+    for index, badge in enumerate(BADGE_ORDER):
+        shades = _nitro_palette(card[index], 16, 16)
+        gold = []
+        for r, g, b in shades:
+            lum = (r * 299 + g * 587 + b * 114) / 255000
+            gold.append((int(70 + 185 * lum), int(45 + 180 * lum), int(10 + 120 * lum)))
+        icons[f"badge_{badge}"] = uri(_nitro_tiles(card[46], index * 12 * 16, 4, 4, gold))
+
+    pictures = rom.read_narc("a/0/5/8").files
+    for badge, trainer_class in zip(BADGE_ORDER, LEADER_CLASSES):
+        palette = _nitro_palette(pictures[trainer_class * 5 + 1])
+        icons[f"leader_{badge}"] = uri(_nitro_tiles(pictures[trainer_class * 5], 0, 8, 8, palette))
+    return icons
 
 
 def _site_name(region_keys) -> str:

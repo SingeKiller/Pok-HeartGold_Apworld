@@ -363,25 +363,18 @@ close the existing flag-reading mechanism already gets.
   the option enabled, confirmed it reappeared in the Bag on the next
   poll (read back directly: slot 0, id 337, qty 1, matching the
   pre-teach baseline exactly).
-- **DeathLink** (2026-08-15). Send side: `GAME_STAT_PLAYER_MON_FAINTED`
-  (`include/constants/game_stats.h`, id 97) is a real vanilla `GameStats`
-  savedata counter incremented every time one of the player's own
-  Pokemon faints -- polled the same "read and diff" way as reusable
-  TMs above, no ROM patch. Cross-checked `platinum_archipelago`'s own
-  DeathLink client: it uses the exact same technique (their own
-  equivalent "num_blacked_out" counter) for the send side, confirming
-  this doesn't need their custom ARM-hook infrastructure. Receive side:
-  `client.py`'s `_receive_death_link` notices `ctx.last_death_link`
-  changing (CommonContext's own `on_deathlink` hook updates it) and
-  zeroes every real party Pokemon's current HP -- `include/
-  pokemon_types_def.h`'s own `PartyPokemon.hp` field (Pokemon struct
-  offset 0x96) is a plain unencrypted u16 mirror kept outside
-  `BoxPokemon`'s encrypted/checksummed data blocks ("stored here...
-  rather than recalculating stats after each battle" per that struct's
-  own doc comment), so this is a safe plain write, no ARM hook needed
-  either. `_ignore_next_death_link` skips the echo of this player's own
-  just-sent death (AP's "Bounce" mechanism rebroadcasts to the sender
-  too).
+- **DeathLink** (2026-08-15, rewritten 2026-10-16 after a player report
+  that it did nothing). A death is the game's own whiteout, both ways,
+  through three data edits of the std scripts (`rom/deathlinkdata.py`):
+  the two whiteout scripts set a flag the client turns into a sent death,
+  and the "Repel wore off" script whites the player out when the client
+  has set a received-death flag and the Repel counter to 1. The first
+  version zeroed `Pokemon` offset 0x96, which is Speed (`PartyPokemon.hp`
+  is 0x8E) inside the PID-encrypted party block, and sent a death for
+  every fainted Pokemon. Zeroing HP for real is not an option either: the
+  field code assumes a living party (`GetFirstAliveMonInParty_
+  CrashIfNone`). `_ignore_next_death_link` still skips the echo of this
+  player's own just-sent death.
 - **Convert trade/friendship evolutions** (2026-08-15, user request).
   Trade (`trade`/`trade_item`) and friendship-based evolutions are a
   real single-player accessibility problem -- `species.

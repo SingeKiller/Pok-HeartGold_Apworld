@@ -24,6 +24,19 @@ function createLogic(DATA, has, options) {
     return true;
   }
 
+  // Every gate of an entry (location or event) at once, as in
+  // locations._story_gate_rules.
+  function gatesPass(entry, reachable, events) {
+    if (entry.items && !entry.items.every((code) => has(code))) return false;
+    if (entry.regions) {
+      const dropped = options.magnet_train ? DATA.magnet_train_dropped_regions || {} : {};
+      if (!entry.regions.every((region) => dropped[region] || reachable[region])) return false;
+    }
+    if (entry.events && !entry.events.every((event) => events[event])) return false;
+    if (entry.power_plant && !options.magnet_train && !events["power_plant_restored"]) return false;
+    return true;
+  }
+
   function solve() {
     const reachable = {};
     const events = {};
@@ -39,7 +52,8 @@ function createLogic(DATA, has, options) {
         for (const dst of DATA.regions[src] || []) {
           if (reachable[dst] || DATA.regions[dst] === undefined || excluded(dst)) continue;
           const rule = DATA.exit_rules[src + ">" + dst];
-          if (rule === undefined || rulePasses(rule, events)) {
+          const dark = options.require_flash && (DATA.dark_entries || {})[src + ">" + dst] && !has("tm70");
+          if (!dark && (rule === undefined || rulePasses(rule, events))) {
             reachable[dst] = true;
             queue.push(dst);
             changed = true;
@@ -47,7 +61,7 @@ function createLogic(DATA, has, options) {
         }
       }
       for (const [name, entry] of Object.entries(DATA.events)) {
-        if (!events[name] && reachable[regionOf(entry)]) {
+        if (!events[name] && reachable[regionOf(entry)] && gatesPass(entry, reachable, events)) {
           events[name] = true;
           changed = true;
         }
@@ -58,19 +72,15 @@ function createLogic(DATA, has, options) {
 
   const state = solve();
 
-  // Mirrors create_locations' rule precedence (one extra rule at most).
+  // Mirrors create_locations: the Dowsing Machine rule plus every gate.
   function loc(key) {
     const entry = DATA.locations[key];
     if (entry === undefined) return false;
     if (!state.reachable[regionOf(entry)]) return false;
-    if (entry.type === "hidden_item" && options.hidden_items_require_dowsing_machine) {
-      return has("dowsing_mchn");
+    if (entry.type === "hidden_item" && options.hidden_items_require_dowsing_machine && !has("dowsing_mchn")) {
+      return false;
     }
-    if (entry.items) return entry.items.every((code) => has(code));
-    if (entry.regions) return entry.regions.every((region) => state.reachable[region]);
-    if (entry.events) return entry.events.every((event) => state.events[event]);
-    if (entry.power_plant && !options.magnet_train) return state.events["power_plant_restored"] === true;
-    return true;
+    return gatesPass(entry, state.reachable, state.events);
   }
 
   return { loc, state };

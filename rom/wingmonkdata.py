@@ -12,7 +12,7 @@
 # reporting a check that was never done.
 #
 # Here: the flag id inside each of those three CheckFlag instructions is
-# rewritten to a fresh one (0xB5B / 0xB5C, unused by the whole game), which
+# rewritten to a fresh one (0x532 / 0x533, unused by the whole game), which
 # client.py sets as soon as the wing item has been received, wherever it
 # came from. Only the 2-byte flag operand changes; the 11-byte
 # CheckFlag + GoToIf TRUE shape and its jump target stay vanilla. Offsets
@@ -31,8 +31,12 @@ GOTOIF_TRUE = 1
 
 FLAG_UNK_093 = 0x93  # Rainbow Wing handed over (vanilla)
 FLAG_UNK_094 = 0x94  # Silver Wing handed over (vanilla)
-RAINBOW_WING_PASS_FLAG = 0xB5B
-SILVER_WING_PASS_FLAG = 0xB5C
+# 0x532/0x533 since 2026-09-24 (the old 0xB5B/0xB5C sat in the daily band,
+# wiped at every day change; see rom/badgedata.py). The client sets both.
+RAINBOW_WING_PASS_FLAG = 0x532
+SILVER_WING_PASS_FLAG = 0x533
+LEGACY_RAINBOW_WING_PASS_FLAG = 0xB5B
+LEGACY_SILVER_WING_PASS_FLAG = 0xB5C
 
 # (scr_seq narc index, byte offset of the CheckFlag opcode, vanilla flag, new flag)
 SITES: tuple[tuple[int, int, int, int], ...] = (

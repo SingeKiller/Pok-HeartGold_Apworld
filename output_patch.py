@@ -25,7 +25,7 @@ from worlds.Files import APAutoPatchInterface
 import patch_gen
 from options import GameVersion
 from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, HeartGoldRom, RomError
-from rom.worldsignature import stamp_slot_auth, stamp_world_signature
+from rom.worldsignature import stamp_deathlink_scripts, stamp_slot_auth, stamp_world_signature
 
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
@@ -146,6 +146,9 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         species = json.loads(self.get_file("species.json"))
         patch_gen.apply_evolution_and_stat_randomization(rom, species)
 
+        # After the learnsets are final (randomize_learnsets).
+        patch_gen.apply_trainer_movesets(rom, trainers)
+
         moves = json.loads(self.get_file("moves.json"))
         patch_gen.apply_move_randomization(rom, moves)
 
@@ -171,7 +174,16 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
         patch_gen.apply_npc_gift_duplication_gate_fix(rom)
 
+        # After apply_local_item_substitutions: copies the item operand it wrote.
+        patch_gen.apply_gift_flags(rom)
+
         patch_gen.apply_wing_monk_regate(rom)
+
+        patch_gen.apply_new_bark_east_exit_fix(rom)
+
+        patch_gen.apply_lighthouse_fix(rom)
+
+        patch_gen.apply_deathlink_scripts(rom)
 
         exp_settings = json.loads(self.get_file("exp_settings.json"))
         patch_gen.apply_exp_settings(rom, exp_settings["global_exp_share"], exp_settings["multiplier"])
@@ -195,6 +207,7 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
             patch_gen.stamp_start_location_revocation(packed)
         # Lets client.py recognize this world's ROMs (rom/worldsignature.py).
         stamp_world_signature(packed)
+        stamp_deathlink_scripts(packed)
         stamp_slot_auth(packed, bytes.fromhex(json.loads(self.get_file("slot_auth.json"))))
         with open(target, "wb") as out_file:
             out_file.write(packed)
