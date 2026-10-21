@@ -9,6 +9,10 @@ items), NPC gifts, HMs/TMs, and more, all randomizable and integrated
 into multiworld logic. See [docs/scope.md](docs/scope.md)
 for the exact v1 scope (and what's planned for later).
 
+LLM Disclaimer :  LLM use for this project , ( IAA ) for test Harness powerfull
+all retake , test and reviews is did by myself
+i test in game all game play in HeartGold and SoulSilver for detect Bug
+
 ## Download
 
 - **`.apworld` (install directly into Archipelago)**:
@@ -57,9 +61,6 @@ Full architecture and design-decision documentation:
 
 This project builds on the work of several open source projects:
 
-- [pret/pokeheartgold](https://github.com/pret/pokeheartgold) - the
-  HeartGold/SoulSilver decomp, source of the memory addresses, symbols,
-  and data structures used throughout this project.
 - [ljtpetersen/platinum_archipelago](https://github.com/ljtpetersen/platinum_archipelago)
   (MIT) - architectural reference for how a Gen4 Pokémon Archipelago
   world is structured.
