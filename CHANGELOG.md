@@ -217,7 +217,7 @@ working with their own apworld; generate new seeds with this one.
 - Item groups for hints: `HMs`, `Field Moves`, `Johto Badges`, `Kanto
   Badges`, `Badges`, `Wings`, and one per field move (`Surf`, `Cut`, ...).
 
-## [0.10.0] - 2026-09-18 (tag v0.2.5)
+##  2026-09-18 (tag v0.2.5)
 
 **Breaking release.** Seeds generated with v0.2.4 or earlier cannot be
 played with this version: finish them with the v0.2.4-hotfix apworld.
@@ -321,7 +321,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   Elixir Surf (read from the game's collision data, same in both
   versions).
 
-## [0.9.0-hotfix] - 2026-09-17 (tag v0.2.4-hotfix, same world_version, compatible with existing 0.9.0 seeds)
+##  2026-09-17 (tag v0.2.4-hotfix, same world_version, compatible with existing 0.9.0 seeds)
 
 ### Fixed
 - **Cliff Edge Gate no longer requires Rock Climb.** The gate between
@@ -397,7 +397,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   location was never handed over there. ROM fix: games in progress get it
   by re-opening their .apheartgold file with this version.
 
-## [0.9.0] - 2026-08-24
+## 2026-08-24
 
 ### Added
 - **New option `magnet_train`** (on by default). The Magnet Train between
@@ -577,7 +577,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   the very start of the game changes; sphere 0 is untouched, all of this
   sits deep in Kanto. Seeds must be regenerated to benefit.
 
-## [0.8.0] - 2026-08-22
+##  2026-08-22
 
 ### Removed
 - **`extra_route_blockers` (breaking change to existing YAML files).** The
@@ -666,7 +666,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   normal and expected. No client update is needed, and existing seeds are
   unaffected (they must be regenerated to benefit).
 
-## [0.7.1] - 2026-08-19
+##  2026-08-19
 
 ### Fixed
 - **One bad memory read could send dozens of checks you never made, with
@@ -714,7 +714,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   so existing YAML files keep loading unchanged, and generation is
   identical either way.
 
-## [0.7.0] - 2026-08-19
+##  2026-08-19
 
 ### Changed
 - **Holding a badge and holding its HM is now all you need to use that HM
@@ -769,7 +769,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   above. Regenerate the patch to pick this up; the ROM patch and the
   client changed together and are expected to match.
 
-## [0.6.9] - 2026-08-19
+## 2026-08-19
 
 ### Fixed
 - **One full Bag pocket froze the delivery of every later received item,
@@ -792,7 +792,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   and loses none of the still-pending ones. A failed guarded write still
   stops the tick and retries, unchanged.
 
-## [0.6.8] - 2026-08-18
+## 2026-08-18
 
 ### Fixed
 - **The BizHawk client's GameWatcher task could die permanently and
@@ -836,7 +836,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   could patch and have it stick). Accepted as-is rather than shipping an
   unverified partial fix.
 
-## [0.6.7] - 2026-08-18
+##  2026-08-18
 
 ### Fixed
 - **The other 10 gym badges from 0.6.6 are now fixed too** (Bugsy, Morty,
@@ -855,7 +855,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   completes. If you generated a seed before this version and need these
   10 badges to actually complete, regenerate.
 
-## [0.6.6] - 2026-08-18
+##  2026-08-18
 
 ### Fixed
 - **Gym Leaders were re-fightable forever, replaying their entire win
@@ -884,7 +884,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   If you generated a seed before this version and need gym badge checks
   to actually complete, regenerate.
 
-## [0.6.5] - 2026-08-18
+##  2026-08-18
 
 ### Fixed
 - **Ilex Forest soft-lock.** Real player report: stuck at Ilex Forest with
@@ -919,7 +919,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   always teach Flash and placed more accessibly by the fill rather than
   risk shuffling it onto an unrelated move.
 
-## [0.6.4] - 2026-08-17
+## 2026-08-17
 
 ### Fixed
 - **0.6.3's own Elm's Lab entrance-position fix was itself broken.** 0.6.3
@@ -949,7 +949,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   (only the one(s) matching the game_version(s) you actually generate for
   are required).
 
-## [0.6.3] - 2026-08-17
+##  2026-08-17
 
 ### Fixed
 Emergency patch, same day as 0.6.2, following a real live playtest of
