@@ -9,6 +9,10 @@ les objets cachés), cadeaux PNJ, CT/CS et plus encore, tous randomisables
 et intégrés dans la logique du multiworld. Voir [docs/scope.md](docs/scope.md) pour le détail exact de
 ce qui est randomisé en v1 (et ce qui est prévu pour plus tard).
 
+LLM disclaimer: Utilisation d'IAA a des fin de perfectionnement et de teste du Harness
+relecture , correction et verification des teste manuellement.
+Tous les teste sont effectuer par moi même en jeux en solo pour une detections des bugs
+
 ## Téléchargement
 
 - **`.apworld` (à installer directement dans Archipelago)** :
@@ -59,9 +63,6 @@ Documentation complète de l'architecture et des choix techniques :
 
 Ce projet s'appuie sur le travail de plusieurs projets open source :
 
-- [pret/pokeheartgold](https://github.com/pret/pokeheartgold) - le decomp
-  HeartGold/SoulSilver, source des adresses mémoire, symboles et
-  structures de données utilisés dans tout ce projet.
 - [ljtpetersen/platinum_archipelago](https://github.com/ljtpetersen/platinum_archipelago)
   (MIT) - référence architecturale pour la structuration d'un monde
   Archipelago Gen4 Pokémon.
