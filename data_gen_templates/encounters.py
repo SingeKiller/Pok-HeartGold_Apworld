@@ -1,23 +1,3 @@
-# data_gen_templates/encounters.py
-#
-# Turns `data_gen/encounters.toml` into `data/encounters.py` (task C7a, wild
-# encounters only -- trainer parties are a separate task, see
-# data_gen/encounters.toml's header note). Follows the same
-# load_toml -> dict-literal-repr pattern as `generate_regions` in
-# `data_gen_templates/regions.py`. See `data_gen/encounters.toml`'s header
-# for the source/extraction notes (map-code -> region resolution, the 9
-# dropped zones, HEARTGOLD/SOULSILVER version resolution, table shapes).
-#
-# Version resolution (2026-08-11 fix): 699 fields (across the 137 included
-# zones) carry a `{heartgold = ..., soulsilver = ...}` dual-value sub-table
-# in the toml instead of a plain scalar, wherever the decomp source actually
-# diverges between versions (see data_gen/encounters.toml's header). `_resolve`
-# picks the requested version's branch for such fields; plain scalars are
-# used as-is for both versions. `generate_encounters` builds two fully
-# resolved dicts, `ENCOUNTERS_HEARTGOLD` and `ENCOUNTERS_SOULSILVER`, with no
-# trace of the dual-value schema left in either -- callers never need to
-# know the toml has version-conditional data.
-
 from __future__ import annotations
 
 import sys
@@ -34,10 +14,6 @@ Version = Literal["heartgold", "soulsilver"]
 
 
 def _resolve(value: Any, version: Version) -> Any:
-    """Resolve a possibly dual-valued toml field for `version`. Dual fields
-    are `{heartgold = ..., soulsilver = ...}` inline sub-tables (see
-    data_gen/encounters.toml's header); anything else is a plain scalar and
-    is returned unchanged for both versions."""
     if isinstance(value, Mapping) and set(value.keys()) == {"heartgold", "soulsilver"}:
         return value[version]
     return value
@@ -146,10 +122,6 @@ def _build_encounters(
 ) -> dict[str, dict[str, Any]]:
     encounters: dict[str, dict[str, Any]] = {}
     for key, entry in encounters_toml.items():
-        # Defensive: same spirit as data_gen_templates/locations.py -- this
-        # file was machine-extracted but is hand-editable, so guard against
-        # a future edit introducing a dangling region reference (species
-        # references are checked slot-by-slot in _build_zone/_check_species).
         if key not in regions_toml:
             print(
                 f"warning: data_gen/encounters.toml: {key!r} does not match "
@@ -161,10 +133,6 @@ def _build_encounters(
 
 
 def generate_encounters() -> str:
-    """Build the contents of `data/encounters.py` from
-    `data_gen/encounters.toml`: `ENCOUNTERS_HEARTGOLD` and
-    `ENCOUNTERS_SOULSILVER`, each fully resolved for their version, plus
-    `ENCOUNTERS` as a HeartGold-compatible alias (see module header)."""
     encounters_toml = load_toml("encounters")
     regions_toml = load_toml("regions")
     species_toml = load_toml("species")

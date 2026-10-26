@@ -1,8 +1,3 @@
--- Loaded in every variant (flag aphintgame, PopTracker 0.26.2+).
--- On connect, every location of this slot is scouted WITHOUT creating hints
--- (LocationScouts with sendAsHint = 0). Each check carries a "?" item; click
--- it to show what is there, click again to hide it.
-
 SCOUTED = {}
 
 local function overlay(obj, text)
@@ -83,7 +78,6 @@ local function on_clear_spoiler(slot_data)
         end
         ids[#ids + 1] = location_id
     end
-    -- Only locations that exist in this seed can be scouted.
     if Archipelago.MissingLocations and Archipelago.CheckedLocations then
         local present = {}
         for _, id in ipairs(Archipelago.MissingLocations) do present[id] = true end

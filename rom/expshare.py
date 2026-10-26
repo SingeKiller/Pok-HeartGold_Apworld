@@ -1,28 +1,3 @@
-# rom/expshare.py
-#
-# Global Exp. Share and Exp. multiplier (v0.2.5): an in-place code patch of
-# ARM9 overlay 12, the battle engine. The source is patches/exp_share.s;
-# the bytes below are its armips output, embedded so that patching never
-# needs armips on the player's machine. Regenerate them with armips
-# whenever the .s file changes (tests/test_expshare.py re-assembles and
-# compares when armips is available).
-#
-# Two variants, picked by `global_exp_share`:
-#   - False: vanilla Exp. distribution, only scaled by the multiplier
-#     (BtlCmd_CalcExpGain only).
-#   - True: participants split the full (scaled) amount and every other
-#     party member that is not fainted and not an Egg gets half of it, as
-#     in the modern games (BtlCmd_CalcExpGain plus two sites in
-#     Task_GetExp).
-# The multiplier (a percentage) is a 4-byte literal inside the
-# BtlCmd_CalcExpGain patch, written separately.
-#
-# Overlay 12 is byte-identical between HeartGold and SoulSilver US except
-# for 7 bytes outside every range here, so one table serves both. Each
-# range is checked against its vanilla bytes before writing: a mismatch
-# (another ROM revision, or a patch applied twice) is a hard error rather
-# than a corrupted battle engine.
-
 from __future__ import annotations
 
 import struct
@@ -33,7 +8,6 @@ OVERLAY_LOAD_ADDRESS = 0x022378C0
 MULTIPLIER_MIN = 10
 MULTIPLIER_MAX = 1000
 
-# (address, vanilla hex, patched hex)
 _CALC_EXP_GAIN_VANILLA = (
     "002920d044080199201cb4f6f8e8291c9c310860281c9c300068002803d1281c01219c30"
     "01600099201cb4f6e8e8291ca0310860281ca0300068002819d10120a035286015e00199"
@@ -72,11 +46,10 @@ _MULTIPLIER_LITERAL_GLOBAL = 0x0223E7C8
 
 
 class ExpSharePatchError(Exception):
-    """The overlay does not hold the vanilla bytes this patch expects."""
+    pass
 
 
 def patch_overlay_data(data: bytes, global_exp_share: bool, multiplier: int) -> bytes:
-    """Return a copy of decompressed overlay 12 with the Exp. patch applied."""
     if not MULTIPLIER_MIN <= multiplier <= MULTIPLIER_MAX:
         raise ValueError(f"exp multiplier {multiplier} outside {MULTIPLIER_MIN}..{MULTIPLIER_MAX}")
     regions = _REGIONS_GLOBAL if global_exp_share else _REGIONS_VANILLA_SPLIT
@@ -97,5 +70,4 @@ def patch_overlay_data(data: bytes, global_exp_share: bool, multiplier: int) -> 
 
 
 def is_vanilla_setting(global_exp_share: bool, multiplier: int) -> bool:
-    """True when the options ask for vanilla behavior, so no patch is needed."""
     return not global_exp_share and multiplier == 100

@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-"""patch_gen.py
-
-Ground-item check mechanism proof of concept: assembles
-patches/ground_item_hook.s with armips and appends the result to a
-Pokemon HeartGold (US) ROM's ARM9 binary. Scaffolding only -- proves the
-armips + patch_gen.py + rom/ pipeline works end-to-end, but does not hook
-any real in-game call site yet (see NOTES.md). Also home to the species/
-move/trainer/encounter/item-substitution ROM-write orchestration used by
-the real Archipelago output path (output_patch.py).
-
-`armips` path read from the ARMIPS_PATH env var, falling back to
-ressources/armips/build/armips.exe.
-
-Usage:
-    python patch_gen.py --rom <path to vanilla HeartGold (US) .nds> --out <output .nds>
-"""
 
 from __future__ import annotations
 
@@ -31,6 +15,7 @@ from rom import badgegatedata as rom_badgegatedata
 from rom import deathlinkdata as rom_deathlinkdata
 from rom import encounterdata as rom_encounterdata
 from rom import expshare as rom_expshare
+from rom import foreignnamedata as rom_foreignnamedata
 from rom import giftflagdata as rom_giftflagdata
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
@@ -45,6 +30,7 @@ from rom import npcgiftgatedata as rom_npcgiftgatedata
 from rom import speciesdata as rom_speciesdata
 from rom import startlocation as rom_startlocation
 from rom import starterdata as rom_starterdata
+from rom import timedeventdata as rom_timedeventdata
 from rom import tmhmdata as rom_tmhmdata
 from rom import trainerdata as rom_trainerdata
 from rom import typechart as rom_typechart
@@ -56,36 +42,27 @@ PATCH_SOURCE = ROOT / "patches" / "ground_item_hook.s"
 ARMIPS_PATH_ENV_VAR = "ARMIPS_PATH"
 _DEFAULT_ARMIPS_PATH = ROOT / "ressources" / "armips" / "build" / "armips.exe"
 
-# Fixed EWRAM scratch address for the AP protocol struct -- see
-# patches/ground_item_hook.s's header comment.
 PROTOCOL_ADDRESS = 0x023FF800
 PROTOCOL_STRUCT_SIZE = 0x14
 PROTOCOL_MAGIC = b"HGAP"
 
 
 class ArmipsError(Exception):
-    """`armips` could not be run, or reported an assembly error."""
+    pass
 
 
 def armips_path() -> Path:
-    """Resolve the `armips` executable path: `ARMIPS_PATH` env var if set,
-    else this repository's own local build (see this module's docstring)."""
     raw = os.environ.get(ARMIPS_PATH_ENV_VAR)
     return Path(raw) if raw else _DEFAULT_ARMIPS_PATH
 
 
 def assemble_ground_item_hook(hook_load_address: int, *, armips_exe: Path | None = None,
                                protocol_address: int = PROTOCOL_ADDRESS) -> bytes:
-    """Render `patches/ground_item_hook.s` for the given load address and
-    assemble it with `armips`. Returns the raw assembled machine code
-    bytes (a flat binary, no headers) -- the caller decides where in the
-    ROM those bytes end up (see `apply_ground_item_hook` below)."""
     exe = armips_exe or armips_path()
     if not exe.is_file():
         raise ArmipsError(
             f"armips executable not found at {exe} -- set {ARMIPS_PATH_ENV_VAR} to "
-            "a valid armips build (see docs/architecture.md, '## ROM code "
-            "injection strategy')."
+            "a valid armips build."
         )
 
     source = PATCH_SOURCE.read_text(encoding="utf-8")
@@ -127,9 +104,6 @@ def assemble_ground_item_hook(hook_load_address: int, *, armips_exe: Path | None
 
 def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
                             protocol_address: int = PROTOCOL_ADDRESS) -> int:
-    """Assemble and append the ground-item hook scaffolding to rom's ARM9
-    binary in place. Returns the RAM address the appended code now lives
-    at. Does not wire up any call site."""
     load_address = rom.arm9_ram_address + len(rom.arm9)
     code = assemble_ground_item_hook(
         load_address, armips_exe=armips_exe, protocol_address=protocol_address
@@ -143,42 +117,31 @@ def apply_ground_item_hook(rom: HeartGoldRom, *, armips_exe: Path | None = None,
     return actual_address
 
 
-# -- Local item substitution ---------------------------------------------
-#
-# Plain NitroFS data edits (rom/eventscriptdata.py, rom/npcgiftdata.py,
-# rom/hiddenitemdata.py) -- no unknown ROM addresses involved, a different
-# risk profile from the ARM-hooks path above. Covers ground_item, npc_gift,
-# hm_tm, hidden_item. badge is out of scope (not an item at all).
-
-
-def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, str | None]) -> None:
-    """Apply a {location_key: item_key} mapping to `rom` in place, for
-    ground_item/npc_gift/hm_tm/hidden_item locations. Locations not
-    present in `substitutions` are left untouched.
-
-    `None` is the "empty" sentinel for a location whose item belongs to
-    another player: writes item id 0, so picking it up still fires
-    check-detection but never hands the player a real, unearned item.
-
-    hidden_item entries are batched into one write call -- see NOTES.md
-    for why (34 minutes vs. seconds for all 225 real locations)."""
+def apply_local_item_substitutions(
+    rom: HeartGoldRom, substitutions: dict[str, str | None], name_ids: dict[str, int] | None = None
+) -> None:
     from data.locations import LOCATIONS
+
+    from data.items import ITEMS
 
     hidden_item_substitutions: dict[str, str | None] = {}
 
     for location_key, item_key in substitutions.items():
+        if item_key is not None and ITEMS.get(item_key, {}).get("pocket") == "badge":
+            item_key = None
         location = LOCATIONS.get(location_key)
         if location is None:
             raise KeyError(f"unknown location key: {location_key!r}")
         location_type = location["type"]
+        name_id = (name_ids or {}).get(location_key, 0)
         if location_type == "ground_item":
             if item_key is None:
-                rom_eventscriptdata.write_ground_item_empty(rom, location_key)
+                rom_eventscriptdata.write_ground_item_empty(rom, location_key, name_id)
             else:
                 rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
         elif location_type == "npc_gift":
             if item_key is None:
-                rom_npcgiftdata.write_npc_gift_empty(rom, location_key)
+                rom_npcgiftdata.write_npc_gift_empty(rom, location_key, name_id)
             else:
                 rom_npcgiftdata.write_npc_gift_substitution(rom, location_key, item_key)
         elif location_type == "hidden_item":
@@ -187,9 +150,9 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             is_itemball = location["id"] in rom_eventscriptdata.BLOCK_INDEX_BY_ITEMBALL_FLAG_ID
             if item_key is None:
                 if is_itemball:
-                    rom_eventscriptdata.write_ground_item_empty(rom, location_key)
+                    rom_eventscriptdata.write_ground_item_empty(rom, location_key, name_id)
                 else:
-                    rom_npcgiftdata.write_npc_gift_empty(rom, location_key)
+                    rom_npcgiftdata.write_npc_gift_empty(rom, location_key, name_id)
             elif is_itemball:
                 rom_eventscriptdata.write_ground_item_substitution(rom, location_key, item_key)
             else:
@@ -205,62 +168,21 @@ def apply_local_item_substitutions(rom: HeartGoldRom, substitutions: dict[str, s
             )
 
     if hidden_item_substitutions:
-        rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions)
+        rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions, name_ids)
+
+
+def apply_foreign_item_names(rom: HeartGoldRom, names: dict[str, list]) -> dict[str, int]:
+    return rom_foreignnamedata.write_foreign_names(rom, {key: tuple(value) for key, value in names.items()})
 
 
 def apply_badge_neutralization(rom: HeartGoldRom) -> None:
-    """Neutralize every gym script's own vanilla `GiveBadge` call (see
-    rom/badgedata.py) -- for 10 of the 16, this also injects a brand-new
-    per-gym sentinel flag at that same site (rom.badgedata.
-    BADGE_SENTINEL_INJECTIONS). Unconditional -- always applied regardless
-    of this seed's fill result, unlike apply_local_item_substitutions
-    above."""
     rom_badgedata.write_all_badges_neutralized(rom)
 
 
 def apply_badge_gate_regating(rom: HeartGoldRom) -> None:
-    """Re-gate every gym Leader's own battle guard from `CheckBadge` onto
-    that Leader's per-gym sentinel flag (see rom/badgegatedata.py), so
-    holding a badge item no longer skips the fight and beating the Leader
-    no longer has to double as the HM-move unlock.
-
-    MUST be called immediately after apply_badge_neutralization above and
-    never on its own: 10 of the 15 regated gates depend on a sentinel flag
-    that only write_all_badges_neutralized injects (rom/badgegatedata.py's
-    own VERSION COUPLING note). Unconditional, same as badge
-    neutralization: never seed-dependent."""
     rom_badgegatedata.write_all_badge_gates_regated(rom)
 
 
-# Item id 0 ("None") is what write_npc_gift_empty/write_ground_item_empty/
-# write_hidden_item_substitutions already write for a location whose item
-# belongs to another player (see apply_local_item_substitutions above) --
-# picking it up previously showed a garbled "???" (task "Replace the ???
-# placeholder", 2026-08-15; msg_0222 entry 0 genuinely decodes to "None",
-# not blank -- the "???" was this game's own generic label for a picked-up
-# item id 0 shows in that specific dialogue context, not a missing/corrupt
-# string this project introduced). Unconditional, like badge neutralization
-# above: always applied regardless of this seed's fill result.
-#
-# Three banks, not one (real player report, 2026-08-22: a pickup still
-# showed "???" as its FIRST message and the patched text only as its
-# second). See rom/msgdata.py's ITEM_NAMES_INDEF_SUBFILE_INDEX comment for
-# which script command reaches which bank; the wording differs per bank
-# because the sentences that consume them differ grammatically:
-#
-#   222 (plain)  "Obtained the {0}!"                    scr_seq_0003
-#                "{PLAYER} put the {0} in the {1} Pocket."
-#   223 (indef)  "{PLAYER} found\n{0}!"                 scr_seq_0141/0145
-#                "{0} was in the rubble!" (capitalized) scr_seq_0146
-#   224 (plural) "Obtained the {0}!" / "put the {0}..." scr_seq_0003,
-#                reached only when the substituted site's own quantity
-#                field is greater than 1 (that field is never rewritten --
-#                see rom/eventscriptdata.py)
-#
-# 222's text keeps its trailing "!" (unchanged, live-confirmed reading
-# correctly in game). 223's and 224's deliberately do not: they land
-# mid-sentence in every one of their call sites, where a "!" would either
-# duplicate the sentence's own or cut it in half.
 PLACEHOLDER_ITEM_MSG_NO = 0
 PLACEHOLDER_ITEM_TEXT = "Item sent to another player!"
 PLACEHOLDER_ITEM_INDEF_TEXT = "an Item sent to another player"
@@ -268,43 +190,30 @@ PLACEHOLDER_ITEM_PLURAL_TEXT = "Items sent to another player"
 
 
 def apply_wing_monk_regate(rom: HeartGoldRom) -> None:
-    """The Bell Tower and Whirl Islands monks test a flag client.py sets
-    once the wing item is received (rom/wingmonkdata.py). Unconditional."""
     rom_wingmonkdata.write_wing_monk_regate(rom)
 
 
 def apply_gift_flags(rom: HeartGoldRom) -> None:
-    """A check flag for the 7 NPC gifts that set none the client can read
-    (rom/giftflagdata.py). Unconditional; must run after
-    apply_local_item_substitutions."""
     rom_giftflagdata.write_gift_flags(rom)
 
 
 def apply_deathlink_scripts(rom: HeartGoldRom) -> None:
-    """DeathLink through the game's own whiteout (rom/deathlinkdata.py).
-    Unconditional: inert unless the client sets the death flag."""
     rom_deathlinkdata.write_deathlink_scripts(rom)
 
 
+def apply_timed_events(rom: HeartGoldRom) -> None:
+    rom_timedeventdata.write_timed_events(rom)
+
+
 def apply_lighthouse_fix(rom: HeartGoldRom) -> None:
-    """Jasmine's first talk at the top of the lighthouse always comes
-    before the potion scene, so the way out opens (rom/lighthousedata.py).
-    Unconditional."""
     rom_lighthousedata.write_lighthouse_fix(rom)
 
 
 def apply_new_bark_east_exit_fix(rom: HeartGoldRom) -> None:
-    """Mom no longer walls off New Bark's east water between Clair's badge
-    and the box-art legendary (rom/newbarkexitdata.py). Unconditional."""
     rom_newbarkexitdata.write_new_bark_east_exit_open(rom)
 
 
 def apply_exp_settings(rom: HeartGoldRom, global_exp_share: bool, multiplier: int) -> None:
-    """global_exp_share / exp_multiplier: patch the battle engine's Exp.
-    code in overlay 12 (see rom/expshare.py and patches/exp_share.s). A
-    no-op for the vanilla settings, so the overlay is only rewritten when
-    something actually changes. Overlay 12 is also where rom/typechart.py
-    writes, so this reads the overlay fresh rather than caching it."""
     if rom_expshare.is_vanilla_setting(global_exp_share, multiplier):
         return
     data = rom.read_overlay(rom_expshare.OVERLAY_ID)
@@ -314,24 +223,10 @@ def apply_exp_settings(rom: HeartGoldRom, global_exp_share: bool, multiplier: in
 
 
 def apply_npc_gift_duplication_gate_fix(rom: HeartGoldRom) -> None:
-    """Patch every known NPC script whose own vanilla gate tests possession
-    of the original, pre-substitution item (see rom/npcgiftgatedata.py) -- unconditional, like apply_badge_
-    neutralization above: always applied regardless of this seed's fill
-    result, since the bug is in the gate itself, not in what item ends up
-    placed there."""
     rom_npcgiftgatedata.write_all_npc_gift_duplication_gates(rom)
 
 
 def apply_placeholder_text_fix(rom: HeartGoldRom) -> None:
-    """Replace all three item-name banks' entry for id 0 with a clearer
-    message than the vanilla default (see rom/msgdata.py for the binary
-    format, and the comment above for why one bank was not enough).
-
-    Each write is an independent append-to-a-different-sub-file: rom/
-    msgdata.write_message_text re-reads the narc from the ROM every call
-    and writes it straight back, so the three stack without interfering
-    (nothing is cached between calls, and no two of them touch the same
-    sub-file)."""
     for subfile_index, text in (
         (rom_msgdata.ITEM_NAMES_SUBFILE_INDEX, PLACEHOLDER_ITEM_TEXT),
         (rom_msgdata.ITEM_NAMES_INDEF_SUBFILE_INDEX, PLACEHOLDER_ITEM_INDEF_TEXT),
@@ -340,27 +235,13 @@ def apply_placeholder_text_fix(rom: HeartGoldRom) -> None:
         rom_msgdata.write_message_text(rom, subfile_index, PLACEHOLDER_ITEM_MSG_NO, text)
 
 
-# -- Species/move/trainer/encounter randomization ----------------------------
-#
-# Applies species.py's randomizer output to a ROM copy via the rom/*.py
-# write layers, every one round-trip verified against the real ROM.
-
-
 def apply_starter_randomization(rom: HeartGoldRom, starters: tuple[str, str, str]) -> None:
-    """Apply species.py's randomize_starters output (3 data/species.py
-    keys) to rom/starterdata.py's live-confirmed species[] address (task
-    "Randomize Starters", 2026-08-15 -- see that module's own docstring
-    for the derivation/live-verification writeup)."""
     from data.species import SPECIES
 
     raw_ids = tuple(SPECIES[key]["id"] for key in starters)
     rom_starterdata.write_starters(rom, raw_ids)
 
 
-# msg_0190 (choose_starter_app.c's own text bank): entries 1-3 are the
-# "So, you like X?" question for each of the 3 starter-choice slots,
-# entries 4-6 the "X is in this Poke Ball!" confirmation, same slot
-# order -- see NOTES.md for the color-code tradeoff.
 STARTER_SELECTION_QUESTION_MSG_NOS = (1, 2, 3)
 STARTER_SELECTION_CONFIRM_MSG_NOS = (4, 5, 6)
 _STARTER_SELECTION_QUESTION_TEMPLATES = (
@@ -370,15 +251,6 @@ _STARTER_SELECTION_QUESTION_TEMPLATES = (
 )
 _STARTER_SELECTION_CONFIRM_TEMPLATE = "{name}, the {type}-type Pokémon, is in this Poké Ball!"
 
-# data/species.py's `label` field is the raw decomp identifier, not
-# display text -- fine for the ~490 species whose real name has no
-# special characters (their label IS their display name, just upper-
-# cased), but a real bug for the handful that don't: a bare "_" has no
-# data/charmap.py entry at all (confirmed live, 2026-08-17 -- a real
-# generation crashed here), and this ROM's own font doesn't have the ♂/♀
-# glyphs vanilla Nidoran's names use either. Every non-alnum label this
-# project's species pool can actually produce, mapped to a charmap-safe
-# display form.
 _SPECIES_LABEL_DISPLAY_OVERRIDES: dict[str, str] = {
     "NIDORAN_F": "Nidoran-F",
     "NIDORAN_M": "Nidoran-M",
@@ -406,11 +278,6 @@ def _species_display_name(label: str) -> str:
 
 
 def apply_starter_selection_text_fix(rom: HeartGoldRom, starters: tuple[str, str, str]) -> None:
-    """Rewrite msg_0190's starter-choice question/confirmation text to
-    name the actually-randomized species for each slot instead of the
-    vanilla, hardcoded Chikorita/Cyndaquil/Totodile -- the species itself
-    was already correct (rom/starterdata.py), only this display text
-    lagged behind. A no-op when starters are still vanilla."""
     from species import VANILLA_STARTERS
 
     if tuple(starters) == VANILLA_STARTERS:
@@ -432,9 +299,6 @@ def apply_starter_selection_text_fix(rom: HeartGoldRom, starters: tuple[str, str
         )
 
 
-# Decomposition include/constants/pokemon.h's EvoMethod enum -- cross-
-# checked against a real evolution read live off the ROM (bulbasaur:
-# method 4 == EVO_LEVEL, matching this table).
 _EVOLUTION_METHOD_TO_RAW: dict[str, int] = {
     "friendship": 1,
     "friendship_day": 2,
@@ -464,16 +328,12 @@ _EVOLUTION_METHOD_TO_RAW: dict[str, int] = {
     "route217": 26,
 }
 
-# Evolution methods whose `param` is an item/move/species key rather than
-# a plain integer.
 _ITEM_PARAM_METHODS = {"stone", "trade_item", "item_day", "item_night", "stone_male", "stone_female"}
 _MOVE_PARAM_METHODS = {"has_move"}
 _SPECIES_PARAM_METHODS = {"other_party_mon"}
 
 
 def _encode_evolution_param(method: str, param: object) -> int:
-    """Convert one evolution's param into the raw u16 value
-    rom/evodata.py writes to the ROM."""
     if method in _ITEM_PARAM_METHODS:
         from data.items import ITEMS
 
@@ -490,10 +350,6 @@ def _encode_evolution_param(method: str, param: object) -> int:
 
 
 def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
-    """Apply `species.py`'s `randomize_trainer_parties`/
-    `scale_trainer_levels` output (`level`/`species` per party slot).
-    Trainers with an empty party (e.g. `data/trainers.py`'s `none` entry,
-    id 0) are skipped -- nothing to write."""
     for data in trainers.values():
         if not data["party"]:
             continue
@@ -502,10 +358,6 @@ def apply_trainer_randomization(rom: HeartGoldRom, trainers: dict) -> None:
 
 
 def default_moveset(learnset: list[tuple[int, int]], level: int) -> list[int]:
-    """The moves the game gives a mon that has no hand-picked moves
-    (src/pokemon.c, InitBoxMonMoveset): its level-up moves up to `level`, in
-    learnset order, a move already known skipped, the oldest dropped once
-    four are known. `learnset` is (level, raw move id) pairs."""
     moves: list[int] = []
     for learn_level, move_id in learnset:
         if learn_level > level:
@@ -519,14 +371,6 @@ def default_moveset(learnset: list[tuple[int, int]], level: int) -> list[int]:
 
 
 def apply_trainer_movesets(rom: HeartGoldRom, trainers: dict) -> None:
-    """Trainers with hand-picked moves (Gym Leaders and a few others) kept
-    them when their species was replaced, so a randomized mon fought with
-    its predecessor's moves (player report 2026-10-16: Bugsy's Koffing with
-    Scyther's Quick Attack, Leer, U-turn and Focus Energy). Every such slot
-    whose species changed now gets the moves the game gives a mon with no
-    hand-picked moves, from the learnsets as finally written: must run after
-    apply_evolution_and_stat_randomization (randomize_learnsets). A slot
-    that kept its species keeps its vanilla moves."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
     from data.trainers import TRAINERS
 
@@ -549,16 +393,6 @@ def apply_trainer_movesets(rom: HeartGoldRom, trainers: dict) -> None:
 
 
 def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
-    """Apply species.py's randomize_wild_encounters output (already
-    resolved to rom's declared version's own vanilla base data by
-    __init__.py's set_rules). Zones with no raw NARC entry (the 3
-    headbutt-only zones) are skipped, via the same
-    rom_encounterdata.zone_is_written predicate Dexsanity's own location
-    set is derived from -- the two must never disagree about what reaches
-    the ROM (see that module's "What actually reaches the ROM" section).
-    rom_encounterdata.write_zone_encounters picks g_enc_data.narc vs
-    s_enc_data.narc based on rom.version -- see that module's own notes
-    for why."""
     for zone_key, zone in encounters.items():
         if not rom_encounterdata.zone_is_written(zone_key):
             continue
@@ -567,32 +401,6 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
 
 
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
-    """Apply species.py's randomize_evolutions/randomize_base_stats/
-    randomize_species_types/neutralize_trapping_abilities/
-    randomize_learnsets output -- writes the evolution table, base-stats
-    table, types, abilities, and level-up learnset for every species.
-    Abilities are written unconditionally (data["abilities"] always
-    carries some value, the vanilla one when the matching option is off)
-    -- a harmless idempotent no-op, keeps this function option-agnostic.
-
-    The learnset write is different: skipped entirely for a species whose
-    target learnset already matches what's in the ROM (which is every
-    species, for every player, whenever randomize_learnsets is off, since
-    species["level_learnset"] is then just the untouched vanilla data) --
-    and, if a write *is* needed but the entry count doesn't match the
-    real ROM data (rom_learnsetdata.write_species_learnset's own safety
-    check; see that module's docstring for the real 4-byte-alignment-
-    padding bug this project already found and fixed once), that one
-    species' learnset is left vanilla with a warning instead of aborting
-    every other player's patch for an option they may never have
-    enabled. Verified empirically against both real HeartGold and
-    SoulSilver ROMs (2026-08-17): zero entry-count mismatches across all
-    505 species on either version, and wotbl.narc's own NitroFS path
-    (a/0/3/3) and byte layout are identical between the two -- but a
-    future data_gen/species.toml edit could still reintroduce one (data_
-    gen_templates/species.py's own _build_species silently *drops* an
-    unrecognized move-key entry rather than failing loudly), hence this
-    defensive skip rather than trusting that to stay true forever."""
     from data.moves import MOVES
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
@@ -634,14 +442,6 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
 
 
 def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
-    """Apply species.py's randomize_move_stats/randomize_move_types/
-    randomize_move_categories/disable_ohko_moves output. A move is routed
-    through
-    rom_movedata.write_ohko_neutralization instead of write_combat_stats
-    precisely when its vanilla effect was "one_hit_ko" but no longer is --
-    i.e. exactly the moves disable_ohko_moves touched. write_combat_stats
-    still runs unconditionally afterwards so `pp` ends up matching
-    whatever upstream randomization put there."""
     from data.moves import MOVES as VANILLA_MOVES
 
     for move_key, data in moves.items():
@@ -653,10 +453,6 @@ def apply_move_randomization(rom: HeartGoldRom, moves: dict) -> None:
 
 
 def apply_tm_hm_randomization(rom: HeartGoldRom, tm_hm_moves: dict) -> None:
-    """Apply species.py's randomize_tm_hm_moves output ({machine: move_key}).
-    HM01-HM08 entries are present in the dict (unchanged from vanilla by
-    construction) but rom_tmhmdata.write_tm_hm_moves ignores them
-    regardless -- see that function's own docstring."""
     from data.moves import MOVES
 
     machine_to_move_id = {machine: MOVES[move_key]["id"] for machine, move_key in tm_hm_moves.items()}
@@ -664,31 +460,14 @@ def apply_tm_hm_randomization(rom: HeartGoldRom, tm_hm_moves: dict) -> None:
 
 
 def apply_type_chart_randomization(rom: HeartGoldRom, type_chart: list) -> None:
-    """Apply species.py's randomize_type_chart output."""
     rom_typechart.write_type_chart(rom, type_chart)
 
 
 def apply_start_location(rom: HeartGoldRom, town_key: str) -> None:
-    """Apply randomize_start_location's chosen destination town (a
-    rom/startlocation.py TOWN_MAP_IDS key): Elm's Lab's own exit door
-    redirected to `town_key`, live-verified this project (see that
-    module's own docstring). Nothing before that door is touched -- the
-    intro plays out exactly as in vanilla."""
     rom_startlocation.write_start_location(rom, town_key)
 
 
 def stamp_start_location_revocation(packed: bytearray) -> int:
-    """Record, in the packed ROM's own cartridge header, where client.py
-    has to write to undo the redirect apply_start_location just made (see
-    rom/startlocation.py section 4). Returns the recorded offset.
-
-    Unlike every other apply_* function here this one takes the *packed*
-    bytes, not a HeartGoldRom: the value it records only exists once the
-    container has been serialized. It must therefore be the last thing
-    done to a ROM, after save_bytes() -- any further edit + re-serialize
-    would move the very word it points at. Call it only when
-    apply_start_location was called too; there is nothing to revoke
-    otherwise."""
     return rom_startlocation.stamp_revocation_record(packed)
 
 
@@ -709,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Patched ROM written to {args.out} -- ground_item_hook scaffolding "
         f"appended at ARM9 address 0x{hook_address:08X} (not yet hooked to "
-        "any call site; see docs/architecture.md)."
+        "any call site)."
     )
     return 0
 

@@ -1,7 +1,3 @@
--- Archipelago autotracking: items received light up, checked locations
--- are cleared (a gym badge check also lights up its leader), and the
--- seed's options and goal come from slot_data.
-
 local function set_toggle(code, value)
     local obj = Tracker:FindObjectForCode(code)
     if obj ~= nil then
@@ -49,7 +45,6 @@ local function on_clear(slot_data)
     set_toggle("opt_soulsilver", OPTIONS.soulsilver)
     set_toggle("opt_heartgold", not OPTIONS.soulsilver)
 
-    -- Goal banner stages: 0 unknown, 1 Elite Four, 2 Red, 2 + n for n badges.
     local goal = Tracker:FindObjectForCode("goal")
     if goal ~= nil then
         local stage = 0
@@ -68,10 +63,6 @@ local function on_clear(slot_data)
         goal.CurrentStage = stage
     end
 
-    -- Checks this seed does not have (Dexsanity species absent from its wild
-    -- tables, trainers or species left out by trainersanity_count /
-    -- dexsanity_count): neither missing nor checked on the server. Shown as
-    -- done so they stay out of the way.
     if Archipelago.MissingLocations and Archipelago.CheckedLocations then
         local present = {}
         for _, id in ipairs(Archipelago.MissingLocations) do present[id] = true end
@@ -86,7 +77,6 @@ local function on_clear(slot_data)
         end
     end
 
-    -- Already checked locations, when the server reports them.
     if Archipelago.CheckedLocations then
         for _, location_id in ipairs(Archipelago.CheckedLocations) do
             on_location(location_id)

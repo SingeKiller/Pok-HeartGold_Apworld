@@ -1,22 +1,3 @@
-# data_gen/type_chart.toml
-#
-# Vanilla type-effectiveness table. Source: src/battle/
-# overlay_12_0224E4FC.c's sTypeEffectiveness[][3] (ARM9 overlay 12), a
-# sparse (attacker, defender, multiplier) exception list walked linearly
-# by the battle engine's damage calc -- any (attacker, defender) pair NOT
-# listed here is an implicit "normal" (1x) matchup, never written here.
-#
-# Row ORDER is load-bearing, never re-sort this file: the entry with
-# special = "foresight_marker" is a sentinel the Foresight/Odor Sleuth/
-# Scrappy mechanic scans for (src/battle/overlay_12_0224E4FC.c's
-# ov12_02252054/damage-calc loop: `if (sTypeEffectiveness[i][0] ==
-# TYPE_FORESIGHT) { ... break; }`) -- it relies on the two real matchups
-# right after it (normal/ghost, fighting/ghost) being skipped when the scan
-# breaks there. `randomizable = false` marks that entry and the trailing
-# `end_table` sentinel -- species.py's randomize_type_chart must never touch
-# either one's own fields, only shuffle `multiplier` among randomizable=true
-# rows (never row order, never attacker/defender).
-
 [[entry]]
 attacker = "normal"
 defender = "rock"

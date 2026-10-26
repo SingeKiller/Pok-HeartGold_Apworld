@@ -1,17 +1,3 @@
-# output_patch.py
-#
-# HeartGoldWorld.generate_output() builds a HeartGoldProcedurePatch storing
-# this player's generated_* randomizer output plus local item substitutions
-# as JSON blobs inside a .appokehgss zip. Archipelago's own
-# Patch.create_rom_file later calls .patch(target) on whichever machine
-# actually has the ROM (not necessarily the one that ran generation),
-# applying everything via patch_gen.py's apply_* functions.
-#
-# Never embeds/transmits the vanilla ROM's own bytes -- patch() reads it
-# fresh from settings (HeartGoldSettings.heartgold_rom_file/
-# soulsilver_rom_file, see __init__.py) every time, same convention every
-# other ROM-patching Archipelago world follows.
-
 from __future__ import annotations
 
 import json
@@ -30,16 +16,7 @@ from rom.worldsignature import stamp_deathlink_scripts, stamp_slot_auth, stamp_w
 if TYPE_CHECKING:
     from __init__ import HeartGoldWorld
 
-# hidden_item history: see NOTES.md.
 _SUBSTITUTABLE_LOCATION_TYPES = ("ground_item", "npc_gift", "hm_tm", "hidden_item")
-
-# Read via pkgutil.get_data (loader-agnostic: works for both a loose dev
-# checkout and a zipimport-ed .apworld) rather than a plain filesystem
-# path, and rather than relying on World.world_version/AutoWorldRegister
-# internals (populated inconsistently between custom_worlds/ and a real
-# .apworld). Lets .patch() tell a player "wrong APWorld version" instead
-# of a raw KeyError on a field a newer/older generate_output() did or
-# didn't write. Exact-match, not a minimum-version floor -- see NOTES.md.
 
 
 def _installed_world_version() -> str:
@@ -53,9 +30,6 @@ def _installed_world_version() -> str:
     manifest = json.loads(data.decode("utf-8"))
     return manifest["world_version"]
 
-# options.GameVersion's int value -> the same version-name strings
-# rom.HeartGoldRom.version uses, so the two can be compared directly at
-# patch time (see .patch()'s version-mismatch check below).
 _VERSION_NAME_BY_OPTION_VALUE = {
     GameVersion.option_heartgold: "heartgold",
     GameVersion.option_soulsilver: "soulsilver",
@@ -65,8 +39,6 @@ _VERSION_NAME_BY_OPTION_VALUE = {
 class HeartGoldProcedurePatch(APAutoPatchInterface):
     game = "Pokemon HGSS Singe"
     hashes = [HEARTGOLD_US_MD5, SOULSILVER_US_MD5]
-    # Not .apheartgold (v0.2.5): ljtpetersen's hgss_archipelago world
-    # registers that extension too, and AutoPatchRegister keys on it.
     patch_file_ending = ".appokehgss"
     result_file_ending = ".nds"
 
@@ -80,14 +52,12 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
     def write_file(self, name: str, data: bytes) -> None:
         self.files[name] = data
 
-    def read_contents(self, opened_zipfile) -> dict[str, Any]:  # noqa: ANN001
+    def read_contents(self, opened_zipfile) -> dict[str, Any]:
         manifest = super().read_contents(opened_zipfile)
         for name in opened_zipfile.namelist():
             if name != self.manifest_path:
                 self.files[name] = opened_zipfile.read(name)
 
-        # Absent = a patch predating this check -- proceed rather than
-        # blocking on metadata that didn't exist yet.
         if "world_version.json" in self.files:
             generated_version = json.loads(self.files["world_version.json"])
             installed_version = _installed_world_version()
@@ -104,22 +74,15 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
         return manifest
 
-    def write_contents(self, opened_zipfile) -> None:  # noqa: ANN001
+    def write_contents(self, opened_zipfile) -> None:
         super().write_contents(opened_zipfile)
         for name, data in self.files.items():
             opened_zipfile.writestr(name, data)
 
     def patch(self, target: str) -> None:
-        """Called by Archipelago's own Patch.create_rom_file on whichever
-        machine has the player's real ROM."""
         self.read()
         declared_version = json.loads(self.get_file("game_version.json"))
 
-        # Two separate per-version settings (see HeartGoldSettings's own
-        # docstring, __init__.py) -- picks the one this patch was
-        # actually generated for, so a machine can have both a HeartGold
-        # and a SoulSilver ROM configured at once without reconfiguring
-        # host.yaml every time you switch which version you're testing.
         settings_group = get_settings().pokemon_heartgold_settings
         rom_path = (
             settings_group.soulsilver_rom_file
@@ -146,7 +109,6 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         species = json.loads(self.get_file("species.json"))
         patch_gen.apply_evolution_and_stat_randomization(rom, species)
 
-        # After the learnsets are final (randomize_learnsets).
         patch_gen.apply_trainer_movesets(rom, trainers)
 
         moves = json.loads(self.get_file("moves.json"))
@@ -167,14 +129,10 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
         patch_gen.apply_badge_neutralization(rom)
 
-        # Must stay directly after apply_badge_neutralization: the gates it
-        # installs read the sentinel flags that call injects (see
-        # rom/badgegatedata.py's own VERSION COUPLING note).
         patch_gen.apply_badge_gate_regating(rom)
 
         patch_gen.apply_npc_gift_duplication_gate_fix(rom)
 
-        # After apply_local_item_substitutions: copies the item operand it wrote.
         patch_gen.apply_gift_flags(rom)
 
         patch_gen.apply_wing_monk_regate(rom)
@@ -182,6 +140,8 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         patch_gen.apply_new_bark_east_exit_fix(rom)
 
         patch_gen.apply_lighthouse_fix(rom)
+
+        patch_gen.apply_timed_events(rom)
 
         patch_gen.apply_deathlink_scripts(rom)
 
@@ -195,17 +155,9 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
         patch_gen.apply_starter_randomization(rom, starters)
         patch_gen.apply_starter_selection_text_fix(rom, starters)
 
-        # Serialize once, then stamp the start-location revocation record
-        # into the finished image's own cartridge header before writing it
-        # out. Deliberately not rom.save(target): the record holds the
-        # absolute offset of a word inside a NitroFS file, which only
-        # exists once the container has actually been packed, and the
-        # header is the one region that can be edited afterwards without
-        # moving anything (see rom/startlocation.py section 4).
         packed = bytearray(rom.save_bytes())
         if start_location_town is not None:
             patch_gen.stamp_start_location_revocation(packed)
-        # Lets client.py recognize this world's ROMs (rom/worldsignature.py).
         stamp_world_signature(packed)
         stamp_deathlink_scripts(packed)
         stamp_slot_auth(packed, bytes.fromhex(json.loads(self.get_file("slot_auth.json"))))
@@ -214,40 +166,6 @@ class HeartGoldProcedurePatch(APAutoPatchInterface):
 
 
 def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
-    """{location_key: item_key} for every one of this player's own
-    ground_item/npc_gift/hm_tm/hidden_item locations.
-
-    A location whose item belongs to this same player, or to an item-link
-    group this player is a member of, gets its real item key --
-    ROM-substituted so picking it up hands over exactly that item. "Local"
-    here must match `__init__.py::_constrain_undetectable_locations`'s own
-    definition exactly: that function is what lets the fill algorithm place
-    an item-link item on one of the 30 undetectable locations
-    (location_flags.unsupported_location_keys(), no real savedata flag this
-    client can read) in the first place, on the assumption that ROM
-    substitution is the only delivery path for those specific locations
-    (no check-detection means no client-side remote-item delivery either).
-    Treating that same item-link item as "belongs to another player" here
-    would substitute it away as empty, permanently losing it for everyone in
-    the group (found via code audit, task M1.2).
-    A location whose item genuinely belongs to another player gets None:
-    leaving the vanilla item in the ROM would silently hand the player a
-    real, unearned item (found via a real playtest, see NOTES.md).
-    `patch_gen.apply_local_item_substitutions` writes the "empty"
-    substitution for None -- the location still fires check-detection,
-    grants nothing physically.
-
-    `remote_items` (options.RemoteItems, off by default, 2026-08-17): when
-    on, this player's own items get None too (same as another player's),
-    routing delivery through the normal network path
-    (client.py's _apply_received_items) instead of embedding them in the
-    ROM -- lets a corrupted/reset save recover everything on reconnect,
-    or a slot be shared between multiple players. The 30 undetectable
-    locations above are the one exception: ROM substitution is their
-    *only* possible delivery path regardless of remote_items, so they
-    keep their real item_key even then -- see location_flags.
-    build_locally_substituted_ap_location_ids's own docstring, which
-    client.py uses to recognize this same exception on the receiving end."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
     from location_flags import unsupported_location_keys
@@ -272,15 +190,6 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
             continue
         item_key = label_to_key.get(location.item.name)
         if item_key is None:
-            # Never silently skip this location (it used to, until
-            # 2026-08-22): omitting it from the dict makes
-            # patch_gen.apply_local_item_substitutions leave the site
-            # alone, which means the VANILLA item stays in the ROM and the
-            # player is handed a real, unearned item -- with no log, no
-            # raise and no way to notice. The only way to get here is a
-            # data/items.py `label` that no longer matches the AP item name
-            # it is supposed to mirror, i.e. a bug in this world, so fail
-            # generation loudly instead.
             raise RomError(
                 f"Location {location.name!r} was filled with this player's own item "
                 f"{location.item.name!r}, but no data/items.py entry has that label, so the "
@@ -289,6 +198,23 @@ def build_item_substitutions(world: HeartGoldWorld) -> dict[str, str | None]:
             )
         substitutions[location.name] = item_key
     return substitutions
+
+
+def build_foreign_item_names(world: HeartGoldWorld, substitutions: dict[str, str | None]) -> dict[str, list]:
+    from data.items import ITEMS
+
+    badge_labels = {data["label"] for data in ITEMS.values() if data.get("pocket") == "badge"}
+    native_ids = {data["label"]: data["id"] for data in ITEMS.values() if data.get("pocket") != "badge"}
+    names: dict[str, list] = {}
+    for location in world.multiworld.get_locations(world.player):
+        if location.item is None or location.name not in substitutions:
+            continue
+        if substitutions[location.name] is not None and location.item.name not in badge_labels:
+            continue
+        player = None if location.item.player == world.player else world.multiworld.get_player_name(location.item.player)
+        native_id = native_ids.get(location.item.name) if location.item.game == world.game else None
+        names[location.name] = [location.item.name, player, native_id]
+    return names
 
 
 def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
@@ -314,7 +240,11 @@ def generate_output(world: HeartGoldWorld, output_directory: str) -> None:
             }
         ).encode(),
     )
-    patch.write_file("item_substitutions.json", json.dumps(build_item_substitutions(world)).encode())
+    substitutions = build_item_substitutions(world)
+    patch.write_file("item_substitutions.json", json.dumps(substitutions).encode())
+    patch.write_file(
+        "foreign_item_names.json", json.dumps(build_foreign_item_names(world, substitutions)).encode()
+    )
 
     out_file_name = world.multiworld.get_out_file_name_base(world.player)
     patch.write(os.path.join(output_directory, f"{out_file_name}{patch.patch_file_ending}"))

@@ -1,11 +1,3 @@
-# data_gen_templates/locations.py
-#
-# Turns `data_gen/locations.toml` into `data/locations.py` (task C4, Johto).
-# Follows the same load_toml -> dict-literal-repr pattern as `generate_items`
-# in `data_gen_templates/items.py`. See `data_gen/locations.toml`'s header
-# for the source/extraction notes (ground_item/hidden_item/npc_gift/hm_tm/
-# badge methodology, and the v1-scope exclusions).
-
 from __future__ import annotations
 
 import sys
@@ -33,11 +25,6 @@ def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
         "type": entry["type"],
         "id": entry["id"],
     }
-    # original_item is absent for badge/event/trainer/dexsanity locations
-    # (see data_gen/locations.toml header); x/z and label are only present
-    # for a subset of location kinds; event is only present for type =
-    # 'event'; trainer is only present for type = 'trainer'; species is only
-    # present for type = 'dexsanity'.
     if "original_item" in entry:
         location["original_item"] = entry["original_item"]
     if "x" in entry:
@@ -52,16 +39,12 @@ def _build_location(entry: Mapping[str, Any]) -> dict[str, Any]:
         location["trainer"] = entry["trainer"]
     if "species" in entry:
         location["species"] = entry["species"]
-    # Only present where the NPC granting the check stands somewhere else in
-    # SoulSilver (the two wings, see data_gen/locations.toml).
     if "soulsilver_region" in entry:
         location["soulsilver_region"] = entry["soulsilver_region"]
     return location
 
 
 def generate_locations() -> str:
-    """Build the contents of `data/locations.py` from
-    `data_gen/locations.toml`."""
     locations_toml = load_toml("locations")
     regions_toml = load_toml("regions")
     items_toml = load_toml("items")
@@ -73,14 +56,6 @@ def generate_locations() -> str:
     for key, entry in locations_toml.items():
         location = _build_location(entry)
 
-        # Defensive: same spirit as data_gen_templates/items.py -- data_gen
-        # sources are hand-editable even though this file was originally
-        # machine-extracted from the decomp, so guard against a future edit
-        # introducing an unknown type, a dangling region/item reference, or a
-        # duplicate id within the same location type (ids are only meant to
-        # be unique per-type here, e.g. a ground_item and a badge may
-        # legitimately share a raw decomp id since they come from different
-        # decomp id spaces -- see data_gen/locations.toml's header).
         if location["type"] not in _VALID_TYPES:
             print(
                 f"warning: data_gen/locations.toml: {key}.type is "

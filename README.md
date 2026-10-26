@@ -6,19 +6,40 @@ Un monde [Archipelago](https://archipelago.gg) pour **Pokémon HeartGold
 et SoulSilver** (version US) : rencontres sauvages, équipes de dresseurs,
 évolutions, stats de base, stats des capacités, objets au sol (y compris
 les objets cachés), cadeaux PNJ, CT/CS et plus encore, tous randomisables
-et intégrés dans la logique du multiworld. Voir [docs/scope.md](docs/scope.md) pour le détail exact de
-ce qui est randomisé en v1 (et ce qui est prévu pour plus tard).
+et intégrés dans la logique du multiworld. Le détail de chaque version est
+dans le [CHANGELOG](CHANGELOG.md).
 
-LLM disclaimer: Utilisation d'IAA a des fin de perfectionnement et de teste du Harness
-relecture , correction et verification des teste manuellement.
-Tous les teste sont effectuer par moi même en jeux en solo pour une detections des bugs
+## Utilisation d'un LLM et travail manuel
+
+Ce projet est développé avec l'aide d'un LLM (un assistant de
+programmation basé sur l'IA), utilisé pour rédiger et analyser une
+partie du code, des données de logique et de la documentation. Rien
+n'est publié sans mon propre travail dessus :
+
+- **Relecture** de chaque modification avant publication.
+- **Lecture des fichiers principaux** :
+  - `client.py` : le client BizHawk (checks, livraison des objets,
+    DeathLink) ;
+  - `patch_gen.py`, `output_patch.py` et `rom/` : le patch de la ROM ;
+  - `data_gen/rules.toml`, `data_gen/regions.toml` et `locations.py` :
+    la logique ;
+  - `__init__.py` et `options.py` : la génération et les options YAML ;
+  - les README, le CHANGELOG et `docs/` : les textes publics.
+- **Vérifications** de la logique et des retours de joueurs avant chaque
+  correction.
+- **Tests en jeu** sur émulateur (BizHawk), sur HeartGold et SoulSilver.
+- **Retouches et corrections manuelles** : les bugs signalés sont
+  reproduits, le code est retouché et corrigé à la main quand il le faut,
+  puis revérifié en jeu avant d'être publié.
+
+J'assume la responsabilité de tout ce qui est publié ici. Signale tout
+problème dans les [issues GitHub](https://github.com/SingeKiller/Pok-HeartGold_Apworld/issues).
 
 ## Téléchargement
 
 - **`.apworld` (à installer directement dans Archipelago)** :
-  [dernière version](https://github.com/SingeKiller/Pok-HeartGold_Apworld/releases/latest/download/poke_hgss.apworld)
-  *(lien actif une fois la première release publiée, voir
-  [CHANGELOG.md](CHANGELOG.md) pour l'état actuel)*.
+  [dernière version](https://github.com/SingeKiller/Pok-HeartGold_Apworld/releases/latest/download/poke_hgss.apworld).
+  Le nom du jeu à mettre dans le YAML est `Pokemon HGSS Singe`.
 - **Code source complet** (pour builder ou modifier en local) :
   [.zip](https://github.com/SingeKiller/Pok-HeartGold_Apworld/archive/refs/heads/main.zip) ·
   [.tar.gz](https://github.com/SingeKiller/Pok-HeartGold_Apworld/archive/refs/heads/main.tar.gz)
@@ -49,15 +70,12 @@ Guide complet, pas à pas (BizHawk, connexion au serveur, dépannage) :
 
 Ce dépôt ne contient que le nécessaire pour builder, faire tourner ou
 modifier l'APWorld, pas les tests ni l'outillage de dev (gardés en local
-via `.gitignore`, voir [docs/architecture.md](docs/architecture.md)).
+via `.gitignore`).
 
 ```bash
 python data_gen.py   # régénère data/ depuis data_gen/
 python build.py      # produit poke_hgss.apworld à la racine
 ```
-
-Documentation complète de l'architecture et des choix techniques :
-[docs/architecture.md](docs/architecture.md).
 
 ## Remerciements
 
@@ -74,8 +92,7 @@ Ce projet s'appuie sur le travail de plusieurs projets open source :
   utilisée durant une bonne partie du développement pour le même rôle,
   avant la migration vers `apnds`.
 - [Kingcom/armips](https://github.com/Kingcom/armips) (MIT) - assembleur
-  ARM utilisé lors des essais de patch par hooks ARM (voir
-  [docs/architecture.md](docs/architecture.md)).
+  ARM utilisé pour les hooks ARM du patch de la ROM.
 - [ArchipelagoMW/Archipelago](https://github.com/ArchipelagoMW/Archipelago) -
   le randomizer multiworld sur lequel repose ce monde.
 - [DarthMDev/hgss_archipelago](https://github.com/DarthMDev/hgss_archipelago)

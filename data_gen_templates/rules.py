@@ -1,15 +1,3 @@
-# data_gen_templates/rules.py
-#
-# Turns `data_gen/rules.toml` into `data/rules.py` (task C6). Follows the
-# same load_toml -> dict-literal-repr pattern as `generate_regions` in
-# `data_gen_templates/regions.py`. Unlike the other `data_gen_templates/*.py`
-# modules, the actual rule-composition logic (expanding `[[exit_rule]]`
-# entries into directed region-pair Requirements) lives in the root-level
-# `data_gen_rules.py`, not here -- see that module's docstring for why.
-# See `data_gen/rules.toml`'s header for the source/extraction methodology
-# (decomp field_move.c badge table, zone_event object-sprite obstacle
-# evidence, and the documented, not-hidden limitations).
-
 from __future__ import annotations
 
 import sys
@@ -30,7 +18,6 @@ def _requirement_to_dict(requirement: Requirement) -> dict[str, Any]:
 
 
 def generate_rules() -> str:
-    """Build the contents of `data/rules.py` from `data_gen/rules.toml`."""
     rules_toml = load_toml("rules")
     regions_toml = load_toml("regions")
     items_toml = load_toml("items")
@@ -43,19 +30,10 @@ def generate_rules() -> str:
 
     exit_rules = build_exit_rules(exit_rule_entries, hm_badges, hm_items)
 
-    # `events` are granted by `type = "event"` data_gen/locations.toml
-    # locations (their own `event` field names the flag), not by a fixed
-    # table in this file the way badges are -- see this file's own header
-    # and locations.py's event_item_name.
     known_events = {
         entry["event"] for entry in locations_toml.values() if entry.get("type") == "event" and "event" in entry
     }
 
-    # Defensive: `data_gen/rules.toml` is hand-authored (not machine-extracted
-    # like most other data_gen/ sources -- see its header), so guard against
-    # a typo introducing a dangling region/item/badge/event reference. Same
-    # defensive spirit as data_gen_templates/regions.py and
-    # data_gen_templates/locations.py: warn, never crash or silently drop.
     known_items = set(items_toml)
     known_badges = set(badges)
     for (src, dst), requirement in exit_rules.items():

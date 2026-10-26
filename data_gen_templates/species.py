@@ -1,13 +1,3 @@
-# data_gen_templates/species.py
-#
-# Turns `data_gen/species.toml` into `data/species.py` (task C2). Follows the
-# same load_toml -> dict-literal-repr pattern as `generate_init` in
-# `data_gen_templates/__init__.py`. TM/HM machine numbers recorded in
-# `data_gen/species.toml` (`tms`/`hms`, matching the decomp's raw
-# `personal.json` numbering) are resolved here to move keys via
-# `data_gen/moves.toml`'s `[tm_hm]` table, so `data/species.py` is directly
-# usable without needing to cross-reference `data/moves.py` at runtime.
-
 from __future__ import annotations
 
 import sys
@@ -97,7 +87,6 @@ def _build_species(
 
 
 def generate_species() -> str:
-    """Build the contents of `data/species.py` from `data_gen/species.toml`."""
     species_toml = load_toml("species")
     moves_toml = load_toml("moves")
     tm_hm = moves_toml.get("tm_hm", {})

@@ -455,7 +455,7 @@ Pokemon HGSS Singe:
     # Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
     # move with no special effect, instead of an RNG-based instant KO.
     # 
-    # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    # A Nuzlocke aid, not a
     # randomizer -- this project does not enforce permadeath itself (that
     # stays honor-system, tracked externally), but an instant, uncounterable
     # KO is a bad interaction with a permadeath ruleset, so this option lets
@@ -471,7 +471,7 @@ Pokemon HGSS Singe:
     # whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
     # instead.
     # 
-    # A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    # A Nuzlocke aid, not a
     # randomizer -- an inescapable wild battle is a bad interaction with a
     # permadeath ruleset. Off by default (vanilla behavior unchanged).
     'false': 50
@@ -486,6 +486,39 @@ Pokemon HGSS Singe:
     # (Mid). Applied once per connection, directly to savedata -- can still
     # be changed freely afterward from the in-game Options menu like any
     # other setting. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  running_shoes_at_start:
+    # Start with the Running Shoes instead of waiting for the Cherrygrove
+    # Guide Gent's tour, which a random start can skip. Given by this
+    # client as soon as the save exists. Off by default (vanilla behavior
+    # unchanged).
+    'false': 50
+    'true': 0
+
+  map_card_at_start:
+    # Start with the Pokegear's Map Card instead of waiting for the
+    # Cherrygrove Guide Gent's tour, which a random start can skip. Given by
+    # this client as soon as the save exists. Off by default (vanilla
+    # behavior unchanged).
+    'false': 50
+    'true': 0
+
+  fly_points_at_start:
+    # Every Johto town is a Fly destination from the start, instead of
+    # only the towns already visited (Mt. Silver and Kanto stay as vanilla).
+    # Fly itself still needs HM02 and the Storm Badge. The logic does not
+    # count on it: flying to a town never visited can reach checks earlier
+    # than the logic expects. Off by default (vanilla behavior unchanged).
+    'false': 50
+    'true': 0
+
+  item_received_messages:
+    # Show a message on the BizHawk screen for each item received, with
+    # the name of the player who found it. A batch of many items at once
+    # (after a reload or on a new save) shows a single count instead. Off
+    # by default.
     'false': 50
     'true': 0
 
@@ -570,8 +603,7 @@ Pokemon HGSS Singe:
   trainersanity:
     # Add a check for every trainer battle won.
     # 
-    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    # a playable v1.
+    # Off by default.
     'false': 50
     'true': 0
 
@@ -588,8 +620,7 @@ Pokemon HGSS Singe:
     # it is deliberately looser than the game's real logic and unsafe to gate
     # anything mandatory behind.
     # 
-    # v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    # a playable v1.
+    # Off by default.
     'false': 50
     'true': 0
 

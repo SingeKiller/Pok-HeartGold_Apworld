@@ -1,13 +1,3 @@
-# options.py
-#
-# Archipelago option definitions for the HeartGold & SoulSilver world.
-# Every class docstring below is player-facing (shown in the generated
-# YAML template and the WebHost options page) -- do not trim those.
-#
-# Imports only from Options, never worlds.*, to avoid triggering
-# Archipelago's full world-plugin autoload before this project's own
-# World class is registered.
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -131,13 +121,6 @@ class StartingTown(Choice):
     option_olivine = 6
     option_ecruteak = 7
     option_mahogany = 8
-    # Value 9 was `lake_of_rage`, dropped 2026-08-24 (breaking change): the
-    # Lake of Rage map (T29) has exactly two warp anchors, and the ROM's own
-    # land_data collision says neither of them lands the player on a shore
-    # they can walk off. See rom/startlocation.py's TOWN_MAP_IDS comment for
-    # the full reading. The gap is left in place on purpose: renumbering
-    # `blackthorn` down to 9 would silently turn any stored numeric 10 into
-    # "no such option" and any stored 9 into Blackthorn.
     option_blackthorn = 10
     default = 1
 
@@ -275,7 +258,7 @@ class StartingMoney(Range):
 
     display_name = "Starting Money"
     range_start = 0
-    range_end = 5000  # capped well below MAX_MONEY (999999) to keep `random` sane
+    range_end = 5000
     default = 3000
 
 
@@ -457,8 +440,7 @@ class RemoteItems(Toggle):
 class Trainersanity(Toggle):
     """Add a check for every trainer battle won.
 
-    v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    a playable v1.
+    Off by default.
     """
 
     display_name = "Trainersanity"
@@ -477,8 +459,7 @@ class Dexsanity(Toggle):
     it is deliberately looser than the game's real logic and unsafe to gate
     anything mandatory behind.
 
-    v1 stretch goal (see docs/scope.md) -- off by default, not required for
-    a playable v1.
+    Off by default.
     """
 
     display_name = "Dexsanity"
@@ -566,7 +547,7 @@ class DisableOhkoMoves(Toggle):
     Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
     move with no special effect, instead of an RNG-based instant KO.
 
-    A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    A Nuzlocke aid, not a
     randomizer -- this project does not enforce permadeath itself (that
     stays honor-system, tracked externally), but an instant, uncounterable
     KO is a bad interaction with a permadeath ruleset, so this option lets
@@ -583,7 +564,7 @@ class DisableTrappingAbilities(Toggle):
     whose *only* ability traps (e.g. Wobbuffet's Shadow Tag) gets Run Away
     instead.
 
-    A Nuzlocke aid (see docs/scope.md's "Nuzlocke mode" section), not a
+    A Nuzlocke aid, not a
     randomizer -- an inescapable wild battle is a bad interaction with a
     permadeath ruleset. Off by default (vanilla behavior unchanged)."""
 
@@ -598,6 +579,43 @@ class FastTextSpeed(Toggle):
     other setting. Off by default (vanilla behavior unchanged)."""
 
     display_name = "Fast Text Speed"
+
+
+class RunningShoesAtStart(Toggle):
+    """Start with the Running Shoes instead of waiting for the Cherrygrove
+    Guide Gent's tour, which a random start can skip. Given by this
+    client as soon as the save exists. Off by default (vanilla behavior
+    unchanged)."""
+
+    display_name = "Running Shoes at Start"
+
+
+class MapCardAtStart(Toggle):
+    """Start with the Pokegear's Map Card instead of waiting for the
+    Cherrygrove Guide Gent's tour, which a random start can skip. Given by
+    this client as soon as the save exists. Off by default (vanilla
+    behavior unchanged)."""
+
+    display_name = "Map Card at Start"
+
+
+class FlyPointsAtStart(Toggle):
+    """Every Johto town is a Fly destination from the start, instead of
+    only the towns already visited (Mt. Silver and Kanto stay as vanilla).
+    Fly itself still needs HM02 and the Storm Badge. The logic does not
+    count on it: flying to a town never visited can reach checks earlier
+    than the logic expects. Off by default (vanilla behavior unchanged)."""
+
+    display_name = "Fly Points at Start"
+
+
+class ItemReceivedMessages(Toggle):
+    """Show a message on the BizHawk screen for each item received, with
+    the name of the player who found it. A batch of many items at once
+    (after a reload or on a new save) shows a single count instead. Off
+    by default."""
+
+    display_name = "Item Received Messages"
 
 
 class GlobalExpShare(Toggle):
@@ -711,6 +729,10 @@ class HeartGoldOptions(PerGameCommonOptions):
     disable_trapping_abilities: DisableTrappingAbilities
 
     fast_text_speed: FastTextSpeed
+    running_shoes_at_start: RunningShoesAtStart
+    map_card_at_start: MapCardAtStart
+    fly_points_at_start: FlyPointsAtStart
+    item_received_messages: ItemReceivedMessages
     global_exp_share: GlobalExpShare
     exp_multiplier: ExpMultiplier
     skip_battle_animations: SkipBattleAnimations
@@ -777,6 +799,10 @@ OPTION_GROUPS = [
         "Quality of Life",
         [
             FastTextSpeed,
+            RunningShoesAtStart,
+            MapCardAtStart,
+            FlyPointsAtStart,
+            ItemReceivedMessages,
             GlobalExpShare,
             ExpMultiplier,
             SkipBattleAnimations,

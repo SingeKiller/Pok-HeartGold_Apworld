@@ -5,17 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.2.6] - 2026-10-26
 
 **Logic overhaul.** Every map was walked on the ROM's own collision data
 (HeartGold and SoulSilver US, identical results) and every story lock was
 checked against the game's scripts. Seeds generated with v0.2.5 keep
 working with their own apworld; generate new seeds with this one.
 
+### Added
+- **New option `running_shoes_at_start`** (off by default). The Running
+  Shoes are given as soon as the save exists, instead of on the
+  Cherrygrove Guide Gent's tour, which a random start can skip. Done by
+  the client, no new patch needed.
+- **New option `map_card_at_start`** (off by default). Same for the
+  Pokegear's Map Card, the tour's other gift. Client only.
+- **New option `fly_points_at_start`** (off by default). Every Johto
+  town is a Fly destination from the start (Mt. Silver and Kanto stay as
+  in the game); Fly still needs HM02 and the Storm Badge. Not part of the
+  logic: flying somewhere new can reach checks early. Client only.
+- **New option `item_received_messages`** (off by default). Each item
+  received shows a message on the BizHawk screen, such as "Received Mask
+  Shard from Bob"; a batch of more than 3 at once (a reload, a new save)
+  shows "Received 12 items" instead. Client only.
+- **Web tracker map redrawn after the game's own Town Map**: every town,
+  route and cave sits on the Pokegear's own grid, the north is land and
+  the sea runs along the south coast and through the sea routes, as in
+  the game (it used to show inland lakes and bays that do not exist).
+  Sea routes are drawn in blue.
+- **Web tracker, detailed maps (first example: New Bark Town, the
+  player's house and Prof. Elm's lab and house)**: clicking New Bark on
+  the map opens its plan, drawn from the game's own tiles, with a square
+  on each check where it sits and a circle on each door or staircase;
+  click a circle to go through, the trail above leads back.
+- **Web tracker icons**: key items and HMs show their in-game icon, badges
+  their in-game shape (gold once owned), Gym Leaders their picture, all
+  taken from your ROM when the tracker is built.
+- **Web tracker: Gym Leaders can be ticked and unticked by hand**, connected
+  or not.
+- **New option `require_flash`** (off by default): dark caves need TM70
+  in logic.
+- **New options `trainersanity_count` and `dexsanity_count`**: only that
+  many trainers or species (drawn at random) become checks.
+- Item groups for hints: `HMs`, `Field Moves`, `Johto Badges`, `Kanto
+  Badges`, `Badges`, `Wings`, and one per field move (`Surf`, `Cut`, ...).
+
 ### Fixed
 - **Places reachable in logic that the game does not let you reach.**
   Tohjo Falls needs Surf and Waterfall both ways; Mt. Mortar's inner
-  floors need Surf plus Strength or Waterfall (some spots Rock Climb);
+  floors need Surf and Waterfall (some spots Rock Climb), B1F's boulder
+  only opening the way back out;
   Cerulean Cave needs Surf first; Victory Road needs Strength from the
   gate; Slowpoke Well B2F needs Surf and Strength; Dark Cave, Whirl
   Islands, Ruins of Alph, Union Cave, Seafoam Islands, Mt. Silver, Routes
@@ -188,62 +226,165 @@ working with their own apworld; generate new seeds with this one.
   barrier stayed. The first talk now always comes first (re-patched ROM),
   and the client opens the barrier on any ROM once the potion is owned:
   a player already stuck saves and reloads.
+- **Logic checked against the game's own scripts and encounter data** (new seeds):
+  - Dexsanity no longer counts tables the game never rolls: the
+    Bug-Catching Contest map (the contest has its own list), Mt. Moon
+    Square's Clefairy room (only Monday or Tuesday night) and the three
+    Sinjoh copies of the Ruins of Alph hall;
+  - Unown, wherever a seed puts it, and anything in the Alph hall need one
+    Alph puzzle solved first (no encounter at all before);
+  - Cherrygrove's secret headbutt trees need Rock Climb and Surf, Route
+    38's Rock Climb; on Routes 39 and 42 and outside Mt. Silver, which tree
+    gives which table depends on the trainer id, so the logic asks for the
+    worst case (Rock Climb, Surf, Surf);
+  - the Ice Path B1F Iron needs Strength (the ice only stops next to it
+    against a pushed boulder);
+  - Route 26's fisherman Scott is reached over the bridge, without Surf.
+- **Weekday and night events are now permanent** (re-patched ROM): the
+  weekday siblings are always there and always hand over their item
+  (Monica's Sharp Beak, Tuscany's TwistedSpoon, Arthur's Hard Stone,
+  Frieda's Poison Barb, Santos's Soft Sand, Sunny's Magnet). Wesley is the
+  exception: he only stands on the Lake of Rage on a real Wednesday after
+  the Rocket Hideout, because the game lowers the lake that day, so his
+  Black Belt check now asks for the Red Scale and the Hideout in logic and
+  only ever holds a non-required item. The Celadon Condominiums roof man gives the Spell Tag at any
+  hour, Blaine no longer leaves his gym on Tuesdays nor Sabrina hers on
+  Fridays once their badge item is owned, and the Union Cave Lapras comes
+  every day (still once a day). Events where another NPC would take the
+  place (Bug-Catching Contest, Mt. Moon's Clefairy, gym leaders' phone
+  rematches) keep their schedule.
+- **More fixes from the game's own scripts** (2026-10-17):
+  - Route 5's TM64 trade needs a Rage Candy Bar in the Bag, which the logic
+    now asks for (the Bar is progression);
+  - Tuscany only stands on Route 29 once the Zephyr Badge is owned;
+  - Falkner (Mondays), Brock (12:00-14:59), Erika (weekends), Janine and
+    Misty (16:00-17:59) no longer leave their gym when a badge item arrives
+    early (re-patched ROM);
+  - HM05 was reported on first entering the Rocket hideout's B2F, the
+    Flame Plate's flag was cleared every day, and Whitney's badge flag at
+    the hand-over: all three are now read from story values that stay set.
+    Client update only;
+  - evolutions: Leafeon and Glaceon (Leaf and Dawn Stone), Magnezone and
+    Probopass (conversion level) can happen in HGSS, Clamperl reaches
+    Gorebyss again (by personality, as Wurmple), Eevee keeps both
+    time evolutions with `keep_method`, `any_method` no longer hands out
+    methods that never fire, and with randomized learnsets a species that
+    evolves by knowing a move always learns it;
+  - the client repairs three more story locks: a Kimono dance declined
+    after fighting Ho-Oh or Lugia, the Ecruteak rival scene undone by the
+    Burned Tower, and a box legendary knocked out or fled from (it shows
+    up again instead of waiting for the next Hall of Fame).
+- **Caves walked again with real boulder pushes, ice slides and the falls
+  between floors** (new seeds):
+  - Mt. Mortar's inside (2F, the north end of the back room, B1F's far
+    corner) needs Surf and Waterfall: B1F's boulder only opens the way
+    back out;
+  - Ice Path 1F's Protein and PP Up (Blackthorn side) and B1F's hidden
+    Revive (next to the Iron) need Strength from Route 44;
+  - Route 47's White Flute and hidden Stardust need Surf, which a Cianwood
+    start does not give for free;
+  - Victory Road 3F's hidden Zinc needs Rock Smash (a cracked rock stands
+    on the only tile facing it).
+- **Five more checks placed on the map and walked again** (new seeds):
+  Route 32's TM05 is behind its Cut tree, the Route 28 house behind
+  Route 28's Cut tree, the Route 27 house and Dark Cave's Black Glasses
+  across water (Surf), and the Ruins of Alph north-east second room needs
+  an Escape Rope, which Goldenrod Department Store 2F sells without a
+  badge.
+- **Olivine Gym's TM23 now waits for Amphy too** (player report): Jasmine
+  only comes back to her gym once Amphy is healed, and she gives TM23
+  after her battle, like the badge (new seeds).
+- **Goldenrod Department Store B1F's Amulet Coin** (player report): a
+  child stands in the only way to it until the Director gives the Card
+  Key in the Underground Warehouse, so it is reached from the warehouse
+  door, behind the Basement Key (new seeds).
+- **Trackers: the MooMoo Farm checks are shown as conditional** ("7 Oran
+  Berries"), since feeding the sick Miltank cannot be part of the logic.
+- **Logic loosened where the map allows it** (new seeds): Ice Path B2F's
+  Max Potion and hidden Carbos are reached by falling through B1F's holes,
+  without Strength; Ice Path B3F (NeverMeltIce) no longer asks for Rock
+  Smash, its cracked rock blocks nothing; Monica's Sharp Beak on Route 40
+  only needs the shore, not Surf.
+- **Badges found on the ground or given by an NPC** (likely behind the
+  "Bag data looks wrong" reports): the pickup read "Obtained the !" and left
+  a nameless item in the Bag. The site now holds the empty item, like
+  another player's item; the badge itself still arrives as before. Needs
+  the ROM re-patched with this apworld (same seed).
+- **Blackthorn Gym's TM59 check gave a plain TM59**: Clair hands it over
+  in the Dragon's Den on the way out of the shrine, and that copy was never
+  replaced, so the item placed there was lost. Both copies now give the
+  placed item. Needs the ROM re-patched with this apworld (same seed).
+- **Super Rod, Coin Case and Basement Key could be lost for good**:
+  answering "No" to the Route 12 fisherman or to the Celadon Game Corner
+  man, or losing to Petrel at the Radio Tower, already counted the gift as
+  given. The check is now only marked once the item is handed over. Needs
+  the ROM re-patched with this apworld (same seed); a gift already lost on
+  an older save stays lost.
+- **Own items lost after reloading an older save** (client update only):
+  the client kept forcing the "gift already given" flags of eight NPC gifts
+  (Blue Card, Basement Key, Card Key, Squirtbottle, Super Rod, GB Sounds,
+  Coin Case, HM06), so on a save from before the gift the NPC refused it
+  while the server's copy was skipped as already given. These NPCs now give
+  again. Also: `/restore_power` (with `magnet_train` off) now delivers the
+  Power Plant manager's TM57 through the server instead of losing it, and
+  beating Falkner before visiting Mr. Pokemon no longer sends the Mystery
+  Egg check early.
+- **Another player's hidden items hid part of the Items pocket**: each one
+  picked up left an invisible entry, and Items-pocket items obtained after
+  it stayed out of the Bag list. Needs the ROM re-patched with this apworld
+  (same seed); an existing invisible entry goes away when the client next
+  writes an Items-pocket item.
+- **Slowpoke Well sealed for good** (client update only, works on
+  existing saves): talking to Kurt before the Rocket scene at Azalea's
+  Route 33 side (reaching Azalea from Ilex Forest, or starting there) let
+  that scene bring the well's guard back after Kurt had already sent him
+  away, and nothing removed him again. The scene now counts as played once
+  Kurt has left, and a guard already back is sent away again.
+- **Elm's lab scenes lost by playing out of order** (client update only,
+  works on existing saves): beating Falkner after visiting Mr. Pokemon but
+  before going back to the lab erased the Mystery Egg scene (Route 30
+  stayed blocked, Joey and the catching tutorial never came), and the same
+  could erase the scene after Clair's shrine test (Master Ball, the Kimono
+  bell chain). A scene still owed now plays on the next visit to the lab,
+  the Egg first.
+- **Item delivery hardened** (client update only):
+  - an item written into the Bag at the very moment a battle started was
+    wiped by the battle's end with nothing noticing; it now comes again;
+  - the delivered-item count goes into the save together with each item,
+    so losing the connection mid-delivery no longer hands items out twice;
+  - a battle that changed nothing (a wild one fled at once) no longer
+    keeps the client watching for 30 minutes: once you stand elsewhere it
+    is over, and an item used meanwhile is no longer given back as wiped;
+  - items given back after a battle wiped them no longer use up your
+    `/resend` allowance; `/resend` leaves key items and HMs alone (they come
+    back on their own, a second Pass only stacked) and knows "Magnet Train
+    Pass";
+  - `/restore_power` asks you to load your save first instead of being
+    forgotten, and says when the Power Plant is restored;
+  - checks sent while the connection was down are sent again;
+  - a bad Pokedex read no longer holds every check back in a seed without
+    Dexsanity;
+  - the client warns when the seed was generated by another version of
+    this apworld (new seeds carry their version).
+- **A full Items pocket refused every pickup of another player's item**
+  (client update only): the client now leaves the last Items-pocket slot
+  free for what you find in the game, and its "pocket is full" message says
+  that later items wait too and that the PC can take items. Up to 32 items
+  (16 before) can now arrive past one held back by a full pocket.
+- **DeathLink**: a received death could, very rarely, leave a stray
+  "Repel wore off" message for later. Client update only.
+- **Patching is about 50 s faster**: the hidden item table is read once
+  instead of once per item.
 - **Randomized trainers kept their old Pokemon's moves** (player report:
   Bugsy's Koffing with Scyther's U-turn and Focus Energy). Gym Leaders and
   the other trainers with hand-picked moves now give a replaced Pokemon
   the moves it knows at its level, from its own (possibly randomized)
   learnset. Needs the ROM re-patched with this apworld (same seed).
 
-### Added
-- **Web tracker map redrawn after the game's own Town Map**: every town,
-  route and cave sits on the Pokegear's own grid, the north is land and
-  the sea runs along the south coast and through the sea routes, as in
-  the game (it used to show inland lakes and bays that do not exist).
-  Sea routes are drawn in blue.
-- **Web tracker, detailed maps (first example: New Bark Town, the
-  player's house and Prof. Elm's lab and house)**: clicking New Bark on
-  the map opens its plan, drawn from the game's own tiles, with a square
-  on each check where it sits and a circle on each door or staircase;
-  click a circle to go through, the trail above leads back.
-- **Web tracker icons**: key items and HMs show their in-game icon, badges
-  their in-game shape (gold once owned), Gym Leaders their picture, all
-  taken from your ROM when the tracker is built.
-- **Web tracker: Gym Leaders can be ticked and unticked by hand**, connected
-  or not.
-- **New option `require_flash`** (off by default): dark caves need TM70
-  in logic.
-- **New options `trainersanity_count` and `dexsanity_count`**: only that
-  many trainers or species (drawn at random) become checks.
-- Item groups for hints: `HMs`, `Field Moves`, `Johto Badges`, `Kanto
-  Badges`, `Badges`, `Wings`, and one per field move (`Surf`, `Cut`, ...).
-
-##  2026-09-18 (tag v0.2.5)
+## [v0.2.5] - 2026-09-18
 
 **Breaking release.** Seeds generated with v0.2.4 or earlier cannot be
 played with this version: finish them with the v0.2.4-hotfix apworld.
-
-### Changed
-- **Renamed so it can be installed next to the other HGSS world.** The
-  game is now called `Pokemon HGSS Singe`, the file is `poke_hgss.apworld`
-  and the default YAML is `docs/Poke_HGSS.yaml`. Update your YAML: both the
-  `game:` line and the options section header become `Pokemon HGSS Singe`.
-  Patch files now end in `.appokehgss` (the other world also uses
-  `.apheartgold`). Your `host.yaml` ROM paths do not change.
-- **No more slot name to type.** The patched ROM now carries an
-  identifier of your slot, and the BizHawk Client logs in with it on its
-  own. Until now the client waited for you to type your slot name, and
-  nothing was sent or received until you did.
-- **The BizHawk Client only attaches to ROMs patched by this world.**
-  Patching now stamps a signature into the ROM header, and the client
-  ignores unpatched ROMs and ROMs from other HGSS worlds.
-
-- **The Bell Tower and Whirl Islands monks now let you through with the
-  wing in your Bag**, wherever it came from (the Rainbow Wing for the Bell
-  Tower, the Silver Wing for Lugia's chamber). Until now they only moved
-  once the NPC who hands the wing out in the unrandomized game had done so.
-  The wing that game's Pewter City old man gives also makes the other
-  version's legendary appear, as that handover does. Both wings are
-  progression items again.
 
 ### Added
 - **New option `global_exp_share`** (off by default). Every party member
@@ -284,6 +425,29 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   With the option off, the Power Plant manager's TM57 check is lost
   afterwards.
 
+### Changed
+- **Renamed so it can be installed next to the other HGSS world.** The
+  game is now called `Pokemon HGSS Singe`, the file is `poke_hgss.apworld`
+  and the default YAML is `docs/Poke_HGSS.yaml`. Update your YAML: both the
+  `game:` line and the options section header become `Pokemon HGSS Singe`.
+  Patch files now end in `.appokehgss` (the other world also uses
+  `.apheartgold`). Your `host.yaml` ROM paths do not change.
+- **No more slot name to type.** The patched ROM now carries an
+  identifier of your slot, and the BizHawk Client logs in with it on its
+  own. Until now the client waited for you to type your slot name, and
+  nothing was sent or received until you did.
+- **The BizHawk Client only attaches to ROMs patched by this world.**
+  Patching now stamps a signature into the ROM header, and the client
+  ignores unpatched ROMs and ROMs from other HGSS worlds.
+
+- **The Bell Tower and Whirl Islands monks now let you through with the
+  wing in your Bag**, wherever it came from (the Rainbow Wing for the Bell
+  Tower, the Silver Wing for Lugia's chamber). Until now they only moved
+  once the NPC who hands the wing out in the unrandomized game had done so.
+  The wing that game's Pewter City old man gives also makes the other
+  version's legendary appear, as that handover does. Both wings are
+  progression items again.
+
 ### Fixed
 - **NPC gifts expected before the NPC actually gives them** (audit of all
   92 NPC gifts against the game's scripts). Each of these could hold a
@@ -321,7 +485,9 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   Elixir Surf (read from the game's collision data, same in both
   versions).
 
-##  2026-09-17 (tag v0.2.4-hotfix, same world_version, compatible with existing 0.9.0 seeds)
+## [v0.2.4-hotfix] - 2026-09-17
+
+Compatible with seeds generated with v0.2.4 (same APWorld version).
 
 ### Fixed
 - **Cliff Edge Gate no longer requires Rock Climb.** The gate between
@@ -397,7 +563,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   location was never handed over there. ROM fix: games in progress get it
   by re-opening their .apheartgold file with this version.
 
-## 2026-08-24
+## [v0.2.4] - 2026-08-24
 
 ### Added
 - **New option `magnet_train`** (on by default). The Magnet Train between
@@ -432,19 +598,34 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   to let you leave town before you own a Pokemon. Only the lab's exit door
   is redirected now, which is the point of the option, and that one
   redirection is undone as soon as you have used it (see below).
-
-### Removed
-- **`lake_of_rage` as a `starting_town` (breaking change to existing YAML
-  files).** The Lake of Rage map has exactly two doors, and both of them are
-  on the bank ringed by the water. Reading the game's own collision data
-  settles it: the path down from Route 43 opens onto the other shore, the
-  one with Pryce and the hidden Full Restore, so there is no door on the map
-  that can drop you somewhere you are able to walk away from. A player who
-  started there was stranded, and moving the arrival point to the map's only
-  other door would have stranded them just the same. Rather than ship a
-  start that has to be guessed at, the town is no longer offered. The other
-  nine remain. A YAML that still lists `lake_of_rage` under `starting_town`
-  will fail to generate: pick another town, or set the option to `random`.
+- **`extra_route_blockers` no longer does anything.** Its whole purpose
+  was to remove the Route 46 -> Route 45 edge above, which turns out not
+  to exist in the real game; correcting it closes that shortcut for
+  everyone, whether the option is on or off. The option is kept for now
+  so existing YAML files keep loading unchanged, and generation is
+  identical either way.
+- **Holding a badge and holding its HM is now all you need to use that HM
+  outside battle.** Gym Leaders no longer gate any field ability: beating
+  a Leader unlocks nothing by itself, and receiving a badge item unlocks
+  its move immediately, wherever in the multiworld that badge was placed.
+  A Leader you already hold the badge for is still fightable, and still
+  awards whatever item the fill put at their location. Their win cutscene
+  now runs exactly once.
+- **TM70 (Flash) is no longer randomized** and is now a `progression`
+  item instead of `useful`. Flash never gates any exit in this project's
+  own logic (see `data_gen/rules.toml`'s `[hm_badges]` header), but it's a
+  genuinely useful tool for navigating dark caves, so it's pinned to
+  always teach Flash and placed more accessibly by the fill rather than
+  risk shuffling it onto an unrelated move.
+- **Breaking `host.yaml` change**: the single `rom_file` setting is now
+  two separate settings, `heartgold_rom_file` and `soulsilver_rom_file`
+  (real player report: one shared setting made it impossible to
+  configure both a HeartGold and a SoulSilver ROM at the same time, since
+  it always defaulted to a "HeartGold"-named file even when pointed at a
+  SoulSilver ROM). An existing `rom_file:` entry in your `host.yaml` is
+  now ignored -- set `heartgold_rom_file`/`soulsilver_rom_file` instead
+  (only the one(s) matching the game_version(s) you actually generate for
+  are required).
 
 ### Fixed
 - **Elm's Lab kept sending you to your starting town forever.** With
@@ -483,7 +664,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   and Route 43, Fuchsia and Routes 15, 18 and 19, Viridian and Route 1, the
   two halves of Route 2 and of Route 16, Route 29 and Route 46, the Ruins
   of Alph and Routes 32 and 36, Violet and Routes 31 and 36, Routes 11 and
-  12, and Cianwood and Route 47. Together with the two removed in 0.8.0
+  12, and Cianwood and Route 47. Together with the two removed earlier in this release
   (Azalea and Route 34, Routes 32 and 33), that is every connection of this
   kind the graph had. None of them opened anything on their own, but each
   would have silently cancelled any requirement placed on the building it
@@ -576,18 +757,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   Thunder, Rainbow, Soul, Marsh and Volcano together. Nothing reachable at
   the very start of the game changes; sphere 0 is untouched, all of this
   sits deep in Kanto. Seeds must be regenerated to benefit.
-
-##  2026-08-22
-
-### Removed
-- **`extra_route_blockers` (breaking change to existing YAML files).** The
-  option existed only to delete one Route 46 to Route 45 connection from
-  the region graph. That connection was itself a modeling error, fixed in
-  0.7.1, so the option had become a no-op whose description promised
-  something it no longer did. A YAML that still lists this option will
-  fail to generate: remove the line.
-
-### Fixed
 - **The region graph let the logic believe half of Johto was reachable
   with nothing.** Three separate errors, all found by checking the graph
   against the game's real maps. Azalea Town and Route 34 were joined by a
@@ -639,8 +808,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
 - **An unrecognized item name left the original item in the ROM instead of
   reporting the problem.** Generation now fails with a message naming the
   location and the item.
-
-### Fixed (Dexsanity)
 - **Dexsanity could lock a key item behind the very Pokemon that key item
   unlocks.** Player report: a seed became unwinnable because the
   Squirtbottle was placed on the Tropius Dexsanity check, Tropius only
@@ -665,10 +832,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   Dexsanity checks a seed creates now varies from seed to seed, which is
   normal and expected. No client update is needed, and existing seeds are
   unaffected (they must be regenerated to benefit).
-
-##  2026-08-19
-
-### Fixed
 - **One bad memory read could send dozens of checks you never made, with
   no way to take them back.** Player report: the game froze while picking
   up a hidden item in Ilex Forest, the save was reloaded, and the very
@@ -705,27 +868,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   pointing the right way, what a brand new save can reach drops from 197
   regions to 112, and the badges obtainable with zero items from 7 back
   to 3 (Violet, Azalea, Goldenrod).
-
-### Changed
-- **`extra_route_blockers` no longer does anything.** Its whole purpose
-  was to remove the Route 46 -> Route 45 edge above, which turns out not
-  to exist in the real game; correcting it closes that shortcut for
-  everyone, whether the option is on or off. The option is kept for now
-  so existing YAML files keep loading unchanged, and generation is
-  identical either way.
-
-##  2026-08-19
-
-### Changed
-- **Holding a badge and holding its HM is now all you need to use that HM
-  outside battle.** Gym Leaders no longer gate any field ability: beating
-  a Leader unlocks nothing by itself, and receiving a badge item unlocks
-  its move immediately, wherever in the multiworld that badge was placed.
-  A Leader you already hold the badge for is still fightable, and still
-  awards whatever item the fill put at their location. Their win cutscene
-  now runs exactly once.
-
-### Fixed
 - **Gym Leaders could still be re-fought forever, and four of them could
   permanently softlock the mid-game story.** Root cause: one single
   savedata bit (`PlayerProfile.johtoBadges`/`kantoBadges`) was doing two
@@ -757,21 +899,12 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   her badge-and-TM sequence re-entered forever. Her guard now tests her
   own hand-over progress variable instead. If you are mid-seed and stuck
   in this loop, regenerate.
-- Corrects the 0.6.7 entry below, which claimed "the Leader is only
+- Corrects an earlier entry of this release, which claimed "the Leader is only
   re-fightable until genuinely beaten". That was not accurate: until this
   version a Leader stopped being re-fightable only once the matching badge
   *item* had also been received, which in a multiworld may happen long
   after the fight, or never in the case of a Leader whose badge is placed
   behind their own gym.
-
-### Note
-- Seeds generated before this version keep the old behaviour and the bugs
-  above. Regenerate the patch to pick this up; the ROM patch and the
-  client changed together and are expected to match.
-
-## 2026-08-19
-
-### Fixed
 - **One full Bag pocket froze the delivery of every later received item,
   permanently.** Root cause: `_apply_received_items` tracked delivery
   progress with a single contiguous counter over `ctx.items_received`, and
@@ -791,10 +924,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   to the existing counter, so a client restart re-delivers none of them
   and loses none of the still-pending ones. A failed guarded write still
   stops the tick and retries, unchanged.
-
-## 2026-08-18
-
-### Fixed
 - **The BizHawk client's GameWatcher task could die permanently and
   silently.** Real player report. Root cause: `game_watcher`'s own
   trainer-id read (used to make its per-save applied-item-count key
@@ -824,24 +953,9 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   old check occupied so nothing else in that script shifts. If you
   generated a seed before this version and one of these 8 locations is
   duplicating its item, regenerate.
-
-### Known gap (documented, not fixed)
-- Player's House 1F's front door stays redirected to Elm's Lab for the
-  entire playthrough, even long after picking a starter. This is a
-  permanent, static ROM edit applied once at generation time (see
-  rom/startlocation.py's own docstring for the investigation into why a
-  runtime reversion isn't possible without an ASM hook: the underlying
-  `WarpEvent` record is re-read fresh from NitroFS into transient RAM
-  every time the map loads, not a persistent savedata struct this client
-  could patch and have it stick). Accepted as-is rather than shipping an
-  unverified partial fix.
-
-##  2026-08-18
-
-### Fixed
-- **The other 10 gym badges from 0.6.6 are now fixed too** (Bugsy, Morty,
-  Chuck, Jasmine, Pryce, Brock, Misty, Erika, Janine, Sabrina). 0.6.6 fixed
-  6 of the 16 gym Leaders' badge-completion/re-fight-forever bug by reusing
+- **The other 10 gym badges are now fixed too** (Bugsy, Morty, Chuck,
+  Jasmine, Pryce, Brock, Misty, Erika, Janine, Sabrina). An earlier build
+  of this release fixed 6 of the 16 gym Leaders' badge-completion/re-fight-forever bug by reusing
   a pre-existing savedata flag already set in that Leader's own win
   sequence; the other 10 had no safe, reusable flag to find (every
   candidate either belonged to that gym's own TM hand-out check or was
@@ -854,10 +968,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   re-fightable until genuinely beaten, and the badge location actually
   completes. If you generated a seed before this version and need these
   10 badges to actually complete, regenerate.
-
-##  2026-08-18
-
-### Fixed
 - **Gym Leaders were re-fightable forever, replaying their entire win
   cutscene every time** (real player report). Root cause: check-detection
   for a gym Leader assumed defeating them set the same engine flag every
@@ -883,10 +993,6 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   state (re-fightable, check never completes) until a real fix is found.
   If you generated a seed before this version and need gym badge checks
   to actually complete, regenerate.
-
-##  2026-08-18
-
-### Fixed
 - **Ilex Forest soft-lock.** Real player report: stuck at Ilex Forest with
   no way forward. Root cause: the 12 item locations physically past the
   map's own Cut tree (`ilex_forest_x_attack`, `_antidote`, `_ether`,
@@ -910,19 +1016,7 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   (received-item count: only distrusts the server-stored count before this
   session has counted anything locally itself, and only when the starter
   hasn't been picked yet).
-
-### Changed
-- **TM70 (Flash) is no longer randomized** and is now a `progression`
-  item instead of `useful`. Flash never gates any exit in this project's
-  own logic (see `data_gen/rules.toml`'s `[hm_badges]` header), but it's a
-  genuinely useful tool for navigating dark caves, so it's pinned to
-  always teach Flash and placed more accessibly by the fill rather than
-  risk shuffling it onto an unrelated move.
-
-## 2026-08-17
-
-### Fixed
-- **0.6.3's own Elm's Lab entrance-position fix was itself broken.** 0.6.3
+- **v0.2.3's own Elm's Lab entrance-position fix was itself broken.** v0.2.3
   moved where the player lands when warping into Elm's Lab (away from the
   door, to stop a "walk straight back out if you hold a direction"
   annoyance) to `(4, 9)` -- untested at release. Further live testing
@@ -933,26 +1027,60 @@ played with this version: finish them with the v0.2.4-hotfix apworld.
   confirmed -- something about this specific warp record's position data
   is read by more than just where-you-land. Reverted to the exact
   vanilla entrance position: the "walk back out if holding a direction
-  through the transition" annoyance from before 0.6.3 is back, but the
+  through the transition" annoyance from before v0.2.3 is back, but the
   Lab is once again always fully usable. If you generated a seed with
-  0.6.3 and are using `randomize_start_location`, regenerate with this
+  v0.2.3 and are using `randomize_start_location`, regenerate with this
   version.
 
-### Changed
-- **Breaking `host.yaml` change**: the single `rom_file` setting is now
-  two separate settings, `heartgold_rom_file` and `soulsilver_rom_file`
-  (real player report: one shared setting made it impossible to
-  configure both a HeartGold and a SoulSilver ROM at the same time, since
-  it always defaulted to a "HeartGold"-named file even when pointed at a
-  SoulSilver ROM). An existing `rom_file:` entry in your `host.yaml` is
-  now ignored -- set `heartgold_rom_file`/`soulsilver_rom_file` instead
-  (only the one(s) matching the game_version(s) you actually generate for
-  are required).
+### Removed
+- **`lake_of_rage` as a `starting_town` (breaking change to existing YAML
+  files).** The Lake of Rage map has exactly two doors, and both of them are
+  on the bank ringed by the water. Reading the game's own collision data
+  settles it: the path down from Route 43 opens onto the other shore, the
+  one with Pryce and the hidden Full Restore, so there is no door on the map
+  that can drop you somewhere you are able to walk away from. A player who
+  started there was stranded, and moving the arrival point to the map's only
+  other door would have stranded them just the same. Rather than ship a
+  start that has to be guessed at, the town is no longer offered. The other
+  nine remain. A YAML that still lists `lake_of_rage` under `starting_town`
+  will fail to generate: pick another town, or set the option to `random`.
+- **`extra_route_blockers` (breaking change to existing YAML files).** The
+  option existed only to delete one Route 46 to Route 45 connection from
+  the region graph. That connection was itself a modeling error, fixed
+  earlier in this release, so the option had become a no-op whose description promised
+  something it no longer did. A YAML that still lists this option will
+  fail to generate: remove the line.
 
-##  2026-08-17
+### Note
+- Seeds generated before this version keep the old behaviour and the bugs
+  above. Regenerate the patch to pick this up; the ROM patch and the
+  client changed together and are expected to match.
+
+## [v0.2.3] - 2026-08-17
+
+### Added
+- **`remote_items`**: off by default. When on, your own items are never
+  written directly into the ROM -- you always receive them from the
+  server instead, the same way you already receive other players' items.
+  Lets you restart a corrupted save without losing progress (the server
+  just resends everything you already found), or share a save file
+  between multiple people.
+
+### Changed
+- **`randomize_menu_unlocks` split into 7 independent toggles** (user
+  request): `randomize_bag`, `randomize_trainer_card`, `randomize_pokedex`,
+  `randomize_pokegear`, `randomize_save_button`, `randomize_options_button`,
+  each pickable on its own instead of from one combined list.
+- **Added `randomize_bicycle`**: the Bicycle can now also be turned into a
+  real, shufflable AP item instead of always being handed over for free at
+  Goldenrod's Bike Shop -- previously a documented gap, never tracked as a
+  location at all.
+- Rewrote every option added tonight to be shorter and more direct for
+  players configuring their own YAML; regenerated the default template
+  (`docs/Pokemon HGSS.yaml`) to match.
 
 ### Fixed
-Emergency patch, same day as 0.6.2, following a real live playtest of
+Emergency fix, following a real live playtest of
 `randomize_start_location`.
 - **Save button not working at all, and Bag/Save/Options disappearing
   entirely after quitting and relaunching**, on a `randomize_start_location`
@@ -979,7 +1107,7 @@ Emergency patch, same day as 0.6.2, following a real live playtest of
 
 ### Removed
 - **`randomize_bag`/`randomize_trainer_card`/`randomize_pokedex`/
-  `randomize_options_button`** (all four, added just yesterday in 0.6.2):
+  `randomize_options_button`** (all four, added earlier in this release):
   a live playtest found the compiled Start Menu's own icon-confirm
   dispatch breaks whenever any pause-menu icon is unavailable while icons
   after it in the menu's own ring order (Save, Options) are visible --
@@ -990,54 +1118,10 @@ Emergency patch, same day as 0.6.2, following a real live playtest of
   client-side fix exists without an ASM hook, which this project avoids on
   principle. Bag/Trainer Card/Pokedex/Save/Options are all once again
   always unconditionally granted by their own real vanilla trigger, like
-  before 0.6.2. `randomize_bicycle` is unaffected (a real Bag item, not a
+  in v0.2.2. `randomize_bicycle` is unaffected (a real Bag item, not a
   pause-menu icon) and remains a working toggle.
 
-### Added
-- **`remote_items`**: off by default. When on, your own items are never
-  written directly into the ROM -- you always receive them from the
-  server instead, the same way you already receive other players' items.
-  Lets you restart a corrupted save without losing progress (the server
-  just resends everything you already found), or share a save file
-  between multiple people.
-
-## [0.6.2] - 2026-08-17
-
-### Changed
-- **`randomize_menu_unlocks` split into 7 independent toggles** (user
-  request): `randomize_bag`, `randomize_trainer_card`, `randomize_pokedex`,
-  `randomize_pokegear`, `randomize_save_button`, `randomize_options_button`,
-  each pickable on its own instead of from one combined list.
-- **Added `randomize_bicycle`**: the Bicycle can now also be turned into a
-  real, shufflable AP item instead of always being handed over for free at
-  Goldenrod's Bike Shop -- previously a documented gap, never tracked as a
-  location at all.
-- Rewrote every option added tonight to be shorter and more direct for
-  players configuring their own YAML; regenerated the default template
-  (`docs/Pokemon HGSS.yaml`) to match.
-
-## [0.6.1] - 2026-08-17
-
-### Fixed
-Code review caught these before anything in 0.6.0 shipped -- see
-`docs/scope.md`'s "Code review fixes" entry for the full writeup.
-- `randomize_menu_unlocks` locations were self-checking: receiving the
-  item auto-completed the player's own location for it, with no real
-  in-game action, and a genuine vanilla trigger landing at the wrong
-  moment could be lost permanently. Detection and gating are now handled
-  atomically by the same function.
-- `johto_only` combined with `sphere_based_trainer_leveling` crashed
-  generation (`KeyError`) after a full multiworld fill.
-- `randomize_learnsets`'s ROM write ran unconditionally for every player,
-  not just those who enabled it -- now skipped whenever unchanged, and
-  degrades gracefully instead of crashing on a future data mismatch.
-  Also verified safe on a real SoulSilver ROM (previously unverified).
-- A write-guard race in `_apply_start_location_flags` (start-location
-  menu-unlock grant) could clobber a flag that changed mid-write.
-- A latent crash in `set_rules` if a future exit rule ever targeted an
-  edge `extra_route_blockers` removes.
-
-## [0.6.0] - 2026-08-17
+## [v0.2.2] - 2026-08-16
 
 ### Added
 - **`randomize_start_location`'s region graph is now logic-integrated**,
@@ -1058,10 +1142,6 @@ Code review caught these before anything in 0.6.0 shipped -- see
   learns at each level-up slot (the level itself stays vanilla). Purely
   cosmetic to this project's own logic -- no region-access rule depends
   on level-up movesets, only on owning HM items.
-
-## [0.5.0] - 2026-08-17
-
-### Added
 - **`randomize_start_location`**: skip the New Bark Town origin story and
   spawn directly inside Elm's Lab instead. The real, vanilla 3-way starter
   choice still plays out exactly as normal (Elm's own lab script, not a
@@ -1072,21 +1152,7 @@ Code review caught these before anything in 0.6.0 shipped -- see
   is pre-advanced past his first New Bark/Cherrygrove checkpoint so he
   doesn't wait forever for an encounter that will never happen. Off by
   default. Known gap: the region graph still treats New Bark as the fixed
-  logical origin regardless of this option -- see `docs/scope.md`.
-
-### Fixed
-- **Randomized starters whose display label is a raw decomp identifier**
-  (Nidoran-M/F, Mr. Mime, Ho-Oh, Mime Jr., Porygon-Z, and the Deoxys/
-  Wormadam/Giratina/Shaymin/Rotom alternate forms) crashed the
-  starter-selection text patch with a charmap error whenever
-  `randomize_starters` happened to land on one of them. A pre-existing
-  bug, never triggered before since no earlier seed had picked one of
-  these species; fixed with a small display-name override table plus
-  regression tests covering every affected species.
-
-## [0.4.0] - 2026-08-17
-
-### Added
+  logical origin regardless of this option.
 - **`randomize_move_categories`**: shuffle each damaging move's Physical/
   Special category (a real, engine-honored per-move split in Generation
   IV). Status moves are never touched either direction.
@@ -1107,10 +1173,6 @@ Code review caught these before anything in 0.6.0 shipped -- see
   added to the item pool, and `goal_badge_count` is silently capped at 8
   for the `n_badges` goal. Johto's own Elite Four and the post-game Red
   fight on Mount Silver are unaffected.
-
-## [0.3.3] - 2026-08-16
-
-### Added
 - **`dexsanity_trigger`** option: choose whether Dexsanity checks fire on
   catching a species (`catch`, default, unchanged) or on merely
   encountering it (`encounter`, reads the Pokedex's `seenSpecies`
@@ -1119,10 +1181,37 @@ Code review caught these before anything in 0.6.0 shipped -- see
   methods (land, surf, rock smash, old/good/super rod, headbutt) count
   toward Dexsanity at all. Defaults to every method (no behaviour
   change).
-
-## [0.3.2] - 2026-08-17
+- **Legendarysanity** option: turns catching Ho-Oh (Bell Tower) and Lugia
+  (Whirl Islands) into real checks, alongside `trainersanity`/`dexsanity`.
+  Off by default -- both stay exactly vanilla (same place, same
+  post-Elite Four requirement) when off, matching how other Pokemon
+  Archipelago worlds treat static legendary encounters.
 
 ### Fixed
+Code review caught these before release.
+- `randomize_menu_unlocks` locations were self-checking: receiving the
+  item auto-completed the player's own location for it, with no real
+  in-game action, and a genuine vanilla trigger landing at the wrong
+  moment could be lost permanently. Detection and gating are now handled
+  atomically by the same function.
+- `johto_only` combined with `sphere_based_trainer_leveling` crashed
+  generation (`KeyError`) after a full multiworld fill.
+- `randomize_learnsets`'s ROM write ran unconditionally for every player,
+  not just those who enabled it -- now skipped whenever unchanged, and
+  degrades gracefully instead of crashing on a future data mismatch.
+  Also verified safe on a real SoulSilver ROM (previously unverified).
+- A write-guard race in `_apply_start_location_flags` (start-location
+  menu-unlock grant) could clobber a flag that changed mid-write.
+- A latent crash in `set_rules` if a future exit rule ever targeted an
+  edge `extra_route_blockers` removes.
+- **Randomized starters whose display label is a raw internal identifier**
+  (Nidoran-M/F, Mr. Mime, Ho-Oh, Mime Jr., Porygon-Z, and the Deoxys/
+  Wormadam/Giratina/Shaymin/Rotom alternate forms) crashed the
+  starter-selection text patch with a charmap error whenever
+  `randomize_starters` happened to land on one of them. A pre-existing
+  bug, never triggered before since no earlier seed had picked one of
+  these species; fixed with a small display-name override table plus
+  regression tests covering every affected species.
 - **Receiving a badge from another location before physically reaching
   that gym could permanently skip the fight.** Every gym Leader's own
   field script gates its battle behind "do you already have my badge",
@@ -1134,16 +1223,7 @@ Code review caught these before anything in 0.6.0 shipped -- see
   Fixed client-side -- the badge bit is now only written once the
   player has genuinely beaten that Leader, no ROM patch needed.
 
-## [0.3.1] - 2026-08-16
-
-### Added
-- **Legendarysanity** option: turns catching Ho-Oh (Bell Tower) and Lugia
-  (Whirl Islands) into real checks, alongside `trainersanity`/`dexsanity`.
-  Off by default -- both stay exactly vanilla (same place, same
-  post-Elite Four requirement) when off, matching how other Pokemon
-  Archipelago worlds treat static legendary encounters.
-
-## [0.3.0] - 2026-08-16
+## [v0.2.1] - 2026-08-16
 
 ### Added
 - **Real badge randomization.** Badges are now tradeable/shufflable AP
@@ -1179,7 +1259,7 @@ Code review caught these before anything in 0.6.0 shipped -- see
 ### Changed
 - **Renamed the world from "Pokemon HeartGold" to "Pokemon HGSS"**
   (built file is now `pokemon_hgss.apworld`), reflecting that it has
-  supported both HeartGold and SoulSilver ROMs since 0.1.1. The patch
+  supported both HeartGold and SoulSilver ROMs since v0.1.1. The patch
   file extension (`.apheartgold`) and local settings key are
   deliberately unchanged for backward compatibility.
 - The starter-choice screen now shows the actually-randomized species'
@@ -1199,8 +1279,7 @@ Code review caught these before anything in 0.6.0 shipped -- see
   goal at sphere 0/1 with effectively no items owned.
 
 ### Planned for a future release
-Not implemented yet -- see `docs/scope.md`'s "v3" section for the full
-investigation notes on each:
+Not implemented yet:
 - Trainer level matching (scale your Pokemon's level to a trainer's
   strongest, with a configurable offset) -- blocked on live battle-state
   detection, needs a real ARM code hook this project has no toolchain for.
@@ -1213,14 +1292,14 @@ investigation notes on each:
   blockers beyond the existing HM/badge/item gates -- not yet
   investigated, no blocker identified so far.
 
-## [0.2.0] - 2026-08-12
+## [v0.2.0] - 2026-08-12
 
 ### Added
 - **Universal Tracker (`tracker.apworld`) support.** UT can now re-generate
   a HeartGold slot locally and track it, with no YAML needed from whoever
   is tracking (`ut_can_gen_without_yaml`): `fill_slot_data` publishes every
   world option under a new nested `options` key, and a UT re-run restores
-  them before building the region graph. Seeds from 0.1.4 and earlier still
+  them before building the region graph. Seeds from v0.1.4 and earlier still
   track correctly -- their flat `goal`/`goal_badge_count` keys are the only
   slot data that affects logic, and are read as a fallback. A tracker re-run
   also skips the ROM-only species/move/trainer randomization, which has no
@@ -1238,19 +1317,17 @@ investigation notes on each:
   `apnds.lz.compress_code` can't shrink the post-secure-area data (rare):
   it now falls back to writing that region uncompressed and zeroing
   `SDK_COMPRESSED_STATIC_END`, matching the game's own boot-time no-op
-  path for a zero value there (verified directly against the decomp's
-  `crt0.s`, community-suggested).
+  path for a zero value there (community-suggested).
 
 ### Removed
 - **QoL options (`fast_text_speed`, `skip_battle_animations`), shipped
   and reverted the same day.** Live BizHawk testing showed neither option
   actually changed anything in-game. The in-word `Options` bitfield
   packing order the write relied on was never independently confirmed
-  against a live session before shipping -- see `docs/scope.md` for the
-  post-mortem. May return once someone can verify the real bit layout
+  against a live session before shipping. May return once someone can verify the real bit layout
   live.
 
-## [0.1.4] - 2026-08-11
+## [v0.1.4] - 2026-08-11
 
 ### Fixed
 - **v0.1.3 broke every real install.** `compatible_version` was removed
@@ -1268,7 +1345,7 @@ investigation notes on each:
   through the module's own loader instead, verified against an actual
   zipimport-loaded module this time, not just the dev test harness.
 
-## [0.1.3] - 2026-08-11
+## [v0.1.3] - 2026-08-11
 
 ### Added
 - `start_inventory_from_pool` is now supported: items named there are
@@ -1309,7 +1386,7 @@ investigation notes on each:
   SoulSilver cartridge's own game code. Both fixed and live-verified
   against real HeartGold and SoulSilver ROMs.
 
-## [0.1.2] - 2026-08-11
+## [v0.1.2] - 2026-08-11
 
 ### Fixed
 - Generation no longer fails with `FillError: No more spots to place N
@@ -1320,15 +1397,15 @@ investigation notes on each:
   guards against. Reported and fixed by community contributor
   gerbiljames.
 
-## [0.1.1] - 2026-08-11
+## [v0.1.1] - 2026-08-11
 
 ### Added
 - SoulSilver support: a US SoulSilver ROM is now accepted alongside
   HeartGold (dual-MD5 validation), same world, same options.
 - Hidden items are randomized again, reconnected after root-causing and
   fixing the boot issue that previously disabled them (a stale ARM9
-  decompression end-marker left over from any size-changing ROM edit --
-  see `docs/architecture.md`). Live-confirmed on real HeartGold and
+  decompression end-marker left over from any size-changing ROM edit).
+  Live-confirmed on real HeartGold and
   SoulSilver ROMs via BizHawk (225 hidden_item substitutions each).
 - New optional toggles: trainer level scaling (`trainer_level_scaling`),
   move type randomization (`randomize_move_types`), species type
@@ -1367,7 +1444,7 @@ investigation notes on each:
   (e.g. `data/`) is missing entirely at build time, instead of silently
   packaging an incomplete `.apworld`.
 
-## [0.1.0] - 2026-08-11
+## [v0.1.0] - 2026-08-11
 
 ### Added
 - Archipelago world: items, locations, regions, and logic rules for
@@ -1384,10 +1461,10 @@ investigation notes on each:
   GitHub Actions workflow.
 - Setup guide and game info page for the Archipelago WebHost.
 
-### Known limitations (see `docs/scope.md`)
+### Known limitations
 - Starters are not randomized (no patchable source found in the ROM).
 - Hidden items are not randomized (ROM substitution disabled pending an
-  unresolved boot issue -- see `docs/architecture.md`).
+  unresolved boot issue).
 - Gym badges are not randomized (HGSS represents them as a save-data
   flag, not a bag item).
 - Trainersanity/Dexsanity are exposed as YAML options but currently do

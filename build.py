@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""build.py
-
-Pure-Python fallback to build the Pokemon HGSS Singe `.apworld` on platforms
-without `make` (e.g. plain Windows). Produces a `<module>.apworld` zip at
-the repository root, packaged from the paths whitelisted in `.apignore`,
-plus `archipelago.json` as the manifest.
-
-For a real release, prefer Archipelago's own "Build APWorlds" launcher
-component instead (drop this repo into a local Archipelago checkout's
-`worlds/` folder first) -- it stamps manifest fields (`compatible_version`)
-this script just copies through verbatim from `archipelago.json`. This
-script exists for CI (no full Archipelago checkout available there) and
-quick local builds without installing one.
-
-Usage:
-    python build.py
-"""
 
 from __future__ import annotations
 
@@ -29,22 +12,14 @@ APIGNORE_PATH = ROOT / ".apignore"
 MANIFEST_PATH = ROOT / "archipelago.json"
 
 
-# Fixed rather than derived from archipelago.json's "game" (v0.2.5): the
-# game name is "Pokemon HGSS Singe" but the package is published as
-# poke_hgss.apworld. Must match the CI's WORLD_MODULE.
 MODULE_NAME = "poke_hgss"
 
 
 def module_name() -> str:
-    """The apworld module/folder name (see MODULE_NAME)."""
     return MODULE_NAME
 
 
 def whitelisted_paths() -> list[Path]:
-    """Parse `.apignore` and return the repo-relative paths to include.
-    Directories (trailing "/") are expanded recursively. Raises
-    RuntimeError if a whitelisted directory doesn't exist at all (e.g.
-    data/ deleted by a stale test run -- see NOTES.md)."""
     paths: list[Path] = []
     for raw_line in APIGNORE_PATH.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -71,13 +46,10 @@ def whitelisted_paths() -> list[Path]:
     return paths
 
 
-# Stamped at build time, not hand-authored in source -- see NOTES.md for
-# why archipelago.json itself omits it.
 _COMPATIBLE_VERSION = 7
 
 
 def build() -> Path:
-    """Build the .apworld and return its path."""
     name = module_name()
     out_path = ROOT / f"{name}.apworld"
     included = 0
@@ -91,7 +63,7 @@ def build() -> Path:
                 print(f"warning: skipping missing whitelisted path: {path.relative_to(ROOT)}", file=sys.stderr)
                 continue
             if path == MANIFEST_PATH:
-                continue  # written below, with compatible_version stamped in
+                continue
             arcname = f"{name}/{path.relative_to(ROOT).as_posix()}"
             zf.write(path, arcname)
             included += 1

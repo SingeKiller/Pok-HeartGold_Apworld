@@ -1,9 +1,3 @@
-# data_gen_templates/moves.py
-#
-# Turns `data_gen/moves.toml` into `data/moves.py` (task C2). Follows the
-# same load_toml -> dict-literal-repr pattern as `generate_init` in
-# `data_gen_templates/__init__.py`.
-
 from __future__ import annotations
 
 import sys
@@ -27,7 +21,6 @@ def _build_move(key: str, entry: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def generate_moves() -> str:
-    """Build the contents of `data/moves.py` from `data_gen/moves.toml`."""
     moves_toml = load_toml("moves")
     tm_hm = moves_toml.get("tm_hm", {})
 
@@ -37,13 +30,6 @@ def generate_moves() -> str:
             continue
         moves[key] = _build_move(key, entry)
 
-    # Defensive: `[tm_hm]` machine-number -> move-key entries should always
-    # resolve to a move that's actually present above. This should never
-    # trigger given `data_gen/moves.toml` is machine-extracted from the same
-    # decomp source, but data_gen sources are hand-editable, so guard against
-    # a future edit introducing a dangling reference (see docs/architecture.md
-    # Spike 3, the ITEM_EXPLORER_KIT gap, for why this project treats decomp-
-    # derived data as reliable but not 100% trustworthy).
     for machine, move_key in tm_hm.items():
         if move_key not in moves:
             print(

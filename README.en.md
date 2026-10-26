@@ -6,19 +6,38 @@ An [Archipelago](https://archipelago.gg) world for **Pokémon HeartGold
 and SoulSilver** (US version): wild encounters, trainer parties,
 evolutions, base stats, move stats, ground items (including hidden
 items), NPC gifts, HMs/TMs, and more, all randomizable and integrated
-into multiworld logic. See [docs/scope.md](docs/scope.md)
-for the exact v1 scope (and what's planned for later).
+into multiworld logic. What each version changed is in the
+[CHANGELOG](CHANGELOG.md).
 
-LLM Disclaimer :  LLM use for this project , ( IAA ) for test Harness powerfull
-all retake , test and reviews is did by myself
-i test in game all game play in HeartGold and SoulSilver for detect Bug
+## Use of an LLM and manual work
+
+This project is developed with the help of an LLM (an AI coding
+assistant), used to write and analyse part of the code, the logic data
+and the documentation. Nothing is published without my own work on it:
+
+- **Review** of every change before it is published.
+- **Reading of the main files**:
+  - `client.py`: the BizHawk client (checks, item delivery, DeathLink);
+  - `patch_gen.py`, `output_patch.py` and `rom/`: the ROM patch;
+  - `data_gen/rules.toml`, `data_gen/regions.toml` and `locations.py`:
+    the logic;
+  - `__init__.py` and `options.py`: generation and the YAML options;
+  - the READMEs, the CHANGELOG and `docs/`: the public texts.
+- **Checks** of the logic and of player reports before each fix.
+- **In-game testing** on an emulator (BizHawk), on both HeartGold and
+  SoulSilver.
+- **Manual edits and fixes**: reported bugs are reproduced, the code is
+  edited and fixed by hand where needed, then checked again in game
+  before it is published.
+
+I take responsibility for everything published here. Please report any
+problem in the [GitHub issues](https://github.com/SingeKiller/Pok-HeartGold_Apworld/issues).
 
 ## Download
 
 - **`.apworld` (install directly into Archipelago)**:
-  [latest release](https://github.com/SingeKiller/Pok-HeartGold_Apworld/releases/latest/download/poke_hgss.apworld)
-  *(link goes live once the first release is published, see
-  [CHANGELOG.md](CHANGELOG.md) for the current state)*.
+  [latest release](https://github.com/SingeKiller/Pok-HeartGold_Apworld/releases/latest/download/poke_hgss.apworld).
+  The game name to use in the YAML is `Pokemon HGSS Singe`.
 - **Full source code** (to build or modify locally):
   [.zip](https://github.com/SingeKiller/Pok-HeartGold_Apworld/archive/refs/heads/main.zip) ·
   [.tar.gz](https://github.com/SingeKiller/Pok-HeartGold_Apworld/archive/refs/heads/main.tar.gz)
@@ -46,16 +65,12 @@ troubleshooting): [docs/setup_en.md](docs/setup_en.md).
 ## Building / modifying locally
 
 This repository only contains what's needed to build, run, or modify the
-APWorld, not tests or dev tooling (kept locally via `.gitignore`, see
-[docs/architecture.md](docs/architecture.md)).
+APWorld, not tests or dev tooling (kept locally via `.gitignore`).
 
 ```bash
 python data_gen.py   # regenerates data/ from data_gen/
 python build.py      # produces poke_hgss.apworld at the repo root
 ```
-
-Full architecture and design-decision documentation:
-[docs/architecture.md](docs/architecture.md).
 
 ## Acknowledgments
 
@@ -71,8 +86,7 @@ This project builds on the work of several open source projects:
   used for the same role through most of development, before the
   migration to `apnds`.
 - [Kingcom/armips](https://github.com/Kingcom/armips) (MIT) - ARM
-  assembler used while prototyping an ARM-hook patching approach (see
-  [docs/architecture.md](docs/architecture.md)).
+  assembler used for the ROM patch's ARM hooks.
 - [ArchipelagoMW/Archipelago](https://github.com/ArchipelagoMW/Archipelago) -
   the multiworld randomizer this world is built for.
 - [DarthMDev/hgss_archipelago](https://github.com/DarthMDev/hgss_archipelago)

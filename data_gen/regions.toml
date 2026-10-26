@@ -1,86 +1,3 @@
-# data_gen/regions.toml
-#
-# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored),
-# task C4 (Johto region graph) + task C5 (Kanto region graph, see
-# docs/scope.md v1). Machine-extracted; see this repo's C4/C5 handoff notes
-# for the extraction methodology summary.
-#
-# Scope: Johto (248 maps) + Kanto (202 maps): routes, towns, and
-# dungeon/interior floors. Region keys use a consistent convention
-# (lowercased include/constants/maps.h MAP_* constant, minus the MAP_
-# prefix), so the two halves of the graph link up purely by key name --
-# no region in this file was renamed when C5 added Kanto. A handful of
-# Johto regions (Mount Silver and its cave, Victory Road, Tohjo Falls) are,
-# per the game's own map graph, only reachable via Kanto-side regions
-# (Route 28, Route 22's reception gate, Route 27) -- those Johto `exits`
-# entries, dangling since C4, are now resolved by C5's Kanto regions.
-#
-# Kanto's own scope boundary (verified directly against
-# include/constants/maps.h, not assumed): decomp map-code prefixes T01-T11
-# (towns), R01-R18/R22/R24-R28 (routes -- note R19/20/21 don't exist as
-# such, R23 doesn't exist at all, and R29+ is Johto), W19-W21 (water
-# routes), and dungeons D01 (Diglett's Cave), D02 (Mt. Moon, incl. the
-# Square sidequest floors), D03 (Cerulean Cave), D05 (Rock Tunnel), D10
-# (Pal Park), D11 (Seafoam Islands, including the relocated Cinnabar Gym
-# floor D11R0106), D46 (Viridian Forest), D48 (Cliff Edge Gate), D50 (Cliff
-# Cave), D52 (Embedded Tower); plus P01 (the S.S. Aqua ferry, which
-# straddles Olivine/Johto and Vermilion/Kanto and has no clean single-side
-# home, modeled here as its own set of regions). Explicitly v2/out of
-# scope and left as dangling `exits` targets, per docs/scope.md and this
-# repo's C4/C5 task notes: D47 Safari Zone (incl. its Fuchsia-adjacent
-# gate), D49 Pokeathlon Dome, D32/D31/C11 Battle Frontier (and its unused
-# decomp leftovers), the WiFi Plaza/Union Room/GTS-adjacent non-map
-# sentinel ids, and Sinjoh Ruins (D51, a Mystery Gift-only event area with
-# no normal-play warp into it at all, decomp-verified). A further 5 decomp
-# maps explicitly named `_UNUSED` (Route 5/9/20's unused variants, Saffron
-# Unused, Seafoam Islands Unused) were checked and confirmed to have zero
-# incoming warps anywhere in the decomp (unlike C4's
-# national_park_unused_gatehouse, which despite its name *was*
-# warp-reachable and had to be included) -- genuinely dead data, excluded.
-#
-# `exits` is the *raw* connection graph only (no access rules -- HM/badge/
-# item gating -- attached yet; that's task C6).
-#
-# Methodology (two decomp sources, both mechanical):
-#   1. files/fielddata/eventdata/zone_event/*.json `warps` arrays: indoor
-#      door/staircase connections (each entry's `header` field is the
-#      destination map). Symmetrized (a warp back is assumed) since this
-#      stage only models undirected raw connectivity.
-#   2. files/fielddata/mapmatrix/map_matrix/map_matrix_0000_EVERYWHERE.bin:
-#      the shared outdoor-overworld grid (see src/map_matrix.c's
-#      MapMatrix_MapMatrixData_Load for the binary format -- width/height/
-#      section-flags/name header followed by a width*height u16 `headers`
-#      array of MAP_* ids, row-major). Adjacent grid cells with different,
-#      non-zero map ids give real outdoor route<->route/town continuity
-#      that `warps` doesn't capture (that's door-only). This is how e.g.
-#      route_29's connections to new_bark/cherrygrove/route_46 were found
-#      (C4), and e.g. route_9's connection to Cerulean/route_10, which has
-#      no zone_event warps at all, was found (C5).
-#   3. Hand patches (not decomp-warp-derived, documented as such): the 4
-#      Ruins of Alph Unown-puzzle hidden rooms (entered/exited via a
-#      scripted mid-puzzle warp, not a static door tile, so it doesn't
-#      appear in zone_event's `warps`) are linked back to their matching
-#      entrance room; the Goldenrod <-> Saffron magnet train (a cutscene
-#      warp, not a walk-in door, on *both* ends -- neither
-#      T25R0502/goldenrod_magnet_train_station_2f nor
-#      T11R0602/saffron_magnet_train_station_2f has any `warps` entry at
-#      all) is linked the same way, and since 2026-08-23 each city's two
-#      platform maps (with train / without train, T25R0502+T25R0503 and
-#      T11R0602+T11R0603) are merged into that single with-train region
-#      too, since they are one place in two script-selected states and the
-#      1F staircase only ever reached the empty one (see the
-#      goldenrod_magnet_train_station_2f comment). Elevators whose own zone_event `warps`
-#      entry is a raw placeholder id (4095, meaning "script picks the
-#      floor at runtime", not a real map) get their `exits` built
-#      reverse-only, as the union of every floor whose own `warps` targets
-#      that elevator (e.g. celadon_department_store_elevator,
-#      celadon_condominiums_left_elevator/right_elevator,
-#      saffron_silph_co_elevator) -- same pattern C4 used for Goldenrod's
-#      department store/radio tower elevators and Olivine Lighthouse's.
-#
-# `map_code` is the decomp's own map identifier (e.g. 'R29', 'T22GYM0101',
-# 'D36R0101'), kept for cross-referencing against the decomp/ROM.
-
 [sprout_tower_1f]
 map_code = 'D15R0101'
 exits = [
@@ -298,58 +215,6 @@ exits = [
     'goldenrod_radio_tower_observation_deck',
 ]
 
-# Anchor block for the 2026-08-23 gatehouse sweep, third and final pass.
-# Fourteen more `A <-> B` pairs each doubled the gatehouse that joins them;
-# the user checked all fourteen buildings one by one on an interactive
-# in-game map and found no outdoor crossing beside any of them, so every
-# one of those direct edges is gone on both sides:
-#   ecruteak  <-> route_38       route_38_ecruteak_gatehouse
-#   ecruteak  <-> route_42       route_42_ecruteak_gatehouse
-#   goldenrod <-> route_35       route_35_goldenrod_gatehouse
-#   mahogany  <-> route_43       route_43_mahogany_gatehouse
-#   fuchsia   <-> route_15       route_15_fuchsia_gatehouse
-#   viridian  <-> route_1        viridian_route_1_gatehouse
-#   saffron   <-> route_5        route_5_saffron_gatehouse
-#   saffron   <-> route_6        route_6_saffron_gatehouse
-#   saffron   <-> route_7        route_7_saffron_gatehouse
-#   saffron   <-> route_8        route_8_saffron_gatehouse
-#   route_2   <-> route_2_east   route_2_southeast_gatehouse
-#   route_29  <-> route_46       route_29_route_46_gatehouse
-#   route_32  <-> ruins_of_alph  route_32_ruins_of_alph_gatehouse
-#   route_36  <-> ruins_of_alph  route_36_ruins_of_alph_gatehouse
-# Same method-2 false positive as azalea <-> route_34 (2026-08-22) and as
-# the Kanto and Violet pairs corrected earlier the same day (see their own
-# blocks and this file's header): mapmatrix adjacency is undirected and
-# cannot tell two maps that merely sit next to each other on the overworld
-# grid from two maps a player can actually walk between.
-#
-# Preventive, and measured as such before it was applied: none of the
-# fourteen gatehouses carries a data_gen/rules.toml rule today, so each
-# path simply runs through the building instead and sphere 0 does not move
-# (65 regions, badges zephyr + hive, 123 non-Dexsanity locations, before
-# and after). See the [route_31] block for why an honest graph is worth it
-# anyway: a gate on any of these gatehouses only bites once the edge beside
-# it is gone, the way the Secret Potion gate only started biting once
-# cianwood <-> route_47 went.
-#
-# With this pass every gatehouse-shaped pair the census knew about is
-# resolved: fourteen here, and nine before it (azalea <-> route_34 and
-# route_32 <-> route_33 on 2026-08-22, then route_11 <-> route_12,
-# route_16 <-> route_16_east, fuchsia <-> route_18, fuchsia <-> route_19,
-# cianwood <-> route_47, violet <-> route_31 and violet <-> route_36 on
-# 2026-08-23).
-#
-# What is deliberately KEPT is a different motif, and the difference is
-# worth stating because a naive "A and B are joined both directly and
-# through some third region C" scan still flags it: the Elite Four rooms
-# doubled by the entrance hall each of them opens back onto, Mount Mortar's
-# 1F halves doubled by its 2F and B1F, and route_10 <-> route_10_south
-# doubled by Rock Tunnel. In all three, C is not a gatehouse standing
-# between two outdoor maps that the mapmatrix wrongly reported as adjacent:
-# it is another floor or another room of the same building, and every one
-# of those edges is a real door a player walks through. Removing them would
-# be inventing geography, not correcting it. Same for the department store
-# and Global Terminal elevators, which a scan like that flags by the dozen.
 [ruins_of_alph]
 map_code = 'D24R0101'
 exits = [
@@ -365,7 +230,6 @@ exits = [
     'violet',
 ]
 
-# Ruins of Alph's exterior patches, see data_gen/rules.toml (2026-09-23).
 [ruins_of_alph_south]
 map_code = 'D24R0101'
 exits = [
@@ -682,14 +546,6 @@ exits = [
     'team_rocket_headquarters_b2f',
 ]
 
-# Split in two at the map's own Cut tree (task: Ilex Forest soft-lock fix,
-# 2026-08-18, player report + Debugger root-cause). `ilex_forest` (Azalea
-# side) holds the Cut Master and the HM01 pickup, both freely reachable;
-# `ilex_forest_north` (Route 34 side) holds every other item in the forest,
-# all physically past the tree in vanilla. Both share map_code D36R0101 --
-# same real map, two AP regions -- since only data_gen/rules.toml's own
-# exit_rule (see its "Cut (hive badge)" entry) actually gates the crossing,
-# nothing else in this codebase keys off map_code for region identity.
 [ilex_forest]
 map_code = 'D36R0101'
 exits = [
@@ -729,6 +585,11 @@ exits = [
 map_code = 'D37R0103'
 exits = [
     'goldenrod_department_store_elevator',
+]
+
+[goldenrod_department_store_basement_door]
+map_code = 'D37R0103'
+exits = [
     'goldenrod_tunnel_warehouse',
 ]
 
@@ -742,23 +603,14 @@ exits = [
 [goldenrod_tunnel_warehouse]
 map_code = 'D37R0105'
 exits = [
-    'goldenrod_department_store_basement',
+    'goldenrod_department_store_basement_door',
     'goldenrod_tunnel_b2f',
 ]
 
-# Mount Mortar walked on its collision data (2026-09-23, tools/mapwalk.py),
-# from each of its Route 42 mouths. The front of 1F and the south end of
-# the back room need nothing. The rest of the back room needs Strength,
-# Rock Climb or Surf + Waterfall; the inside (2F, the north end of the back
-# room and B1F's far corner) needs Surf with Strength or Waterfall; B1F's
-# lake needs Surf. `mount_mortar_waterfall` is the Surf + Waterfall way in,
-# a routing region that holds no check. The Rock Climb wall on Route 42
-# (`route_42_cliff`) leads to two upper ledges of the cave.
 [mount_mortar_1f_entrance]
 map_code = 'D38R0101'
 exits = [
     'mount_mortar_1f_back',
-    'mount_mortar_1f_back_inner',
     'mount_mortar_1f_back_south',
     'mount_mortar_b1f',
     'mount_mortar_waterfall',
@@ -827,27 +679,6 @@ exits = [
     'mount_mortar_2f',
 ]
 
-# The Blackthorn exit moved off 1F on 2026-08-23 (user verification in
-# game): the real trip is route_44 -> 1F -> B1F -> (Strength boulders)
-# -> B2F -> Blackthorn, and Blackthorn -> Route 44 needs nothing, the
-# boulders stay where they fell.
-#
-# 1F does hold a Blackthorn door in the decomp's own warp table (zone_event
-# 117_D39R0101.json, warp 1 at (55, 40)), so this is not a mapmatrix
-# artifact -- it is the same one-map-two-places case as `ilex_forest` and
-# `route_46`, and the ROM's own collision data says so outright. Flooding
-# D39R0101's land_data (NitroFS a/0/6/5, matrix 132) from the Route 44 door
-# at (11, 58) reaches 725 tiles, the B1F ladder at (55, 7) among them, and
-# does NOT reach the Blackthorn door at (55, 40) or the second B1F ladder
-# at (55, 20): those two sit together in a separate, ice-floored chamber on
-# the same map. B1F and B2F are each cut in two the same way (B1F: the
-# ladder to 1F-west and the ladder down to B2F on one side, the ladder to
-# 1F-east and the other B2F ladder on the other; B2F likewise), which is
-# the boulder puzzle itself. Rather than split three floors into six
-# regions for one crossing, the Blackthorn edge is carried by `ice_path_b2f`
-# -- the floor a player must actually reach before the Blackthorn-side
-# chamber opens up -- and the Strength gate on B1F -> B2F is what stands
-# between Route 44 and Blackthorn.
 [ice_path_1f]
 map_code = 'D39R0101'
 exits = [
@@ -860,6 +691,7 @@ map_code = 'D39R0102'
 exits = [
     'ice_path_1f',
     'ice_path_b2f',
+    'ice_path_b2f_west',
 ]
 
 [ice_path_b2f]
@@ -867,7 +699,15 @@ map_code = 'D39R0103'
 exits = [
     'blackthorn',
     'ice_path_b1f',
+    'ice_path_b2f_west',
     'ice_path_b3f',
+]
+
+[ice_path_b2f_west]
+map_code = 'D39R0103'
+exits = [
+    'ice_path_b1f',
+    'ice_path_b2f',
 ]
 
 [ice_path_b3f]
@@ -1013,7 +853,6 @@ exits = [
     'route_31',
 ]
 
-# Dark Cave's patches, see data_gen/rules.toml's "Dark Cave" section.
 [dark_cave_route_31_side_water]
 map_code = 'D42R0102'
 exits = [
@@ -1121,10 +960,6 @@ exits = [
     'tohjo_falls_hidden_room',
 ]
 
-# Tohjo Falls (D45R0101) walked on its collision data: the west mouth
-# (`tohjo_falls`, from `route_27`) and the east mouth (`tohjo_falls_east`, from
-# `route_27_east`) only meet over the waterfall (Surf + Waterfall, both ways).
-# `tohjo_falls_pool` is the Moon Stone's bank, Surf from the east side.
 [tohjo_falls_east]
 map_code = 'D45R0101'
 exits = [
@@ -1145,11 +980,6 @@ exits = [
     'tohjo_falls',
 ]
 
-# Route 29's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_46` edge is gone since 2026-08-23,
-# `route_29_route_46_gatehouse` is the only crossing. Note this is the
-# southern half of Route 46 only, the half the split of 2026-08-22 left
-# attached to this key.
 [route_29]
 map_code = 'R29'
 exits = [
@@ -1182,8 +1012,6 @@ exits = [
     'route_30_north',
 ]
 
-# Johto story locks read from the decomp's scripts and checked on the map
-# (2026-09-23); see data_gen/rules.toml's "Story locks, 2026-09-23".
 [route_30_north]
 map_code = 'R30'
 exits = [
@@ -1210,19 +1038,6 @@ exits = [
     'route_30',
 ]
 
-# The route_31 <-> violet pair had a direct edge until 2026-08-23 (user
-# verification on an interactive in-game map): there is none, the gatehouse
-# below is the only crossing. Same method-2 false positive as the four
-# Kanto gatehouse pairs corrected the same day, and as the violet <->
-# route_36 pair (see [violet]).
-#
-# Purely preventive, and measured as such before it was applied: no rule in
-# data_gen/rules.toml gates either of these two gatehouses, so the path
-# simply runs through the building instead and sphere 0 does not move (65
-# regions, badges zephyr + hive, 123 non-Dexsanity locations, before and
-# after). The point is to make the graph honest so that a future gate on
-# either gatehouse actually bites, the way the Secret Potion gate only
-# started biting once cianwood <-> route_47 went (see [route_47]).
 [route_31]
 map_code = 'R31'
 exits = [
@@ -1238,20 +1053,6 @@ exits = [
     'violet',
 ]
 
-# The route_32 <-> route_33 pair had a direct edge until 2026-08-22 (user
-# verification on an interactive in-game map): there is none, Union Cave is
-# the only way through. Textbook false positive of this file's method 2
-# (see the header): mapmatrix adjacency is undirected and cannot tell two
-# routes that merely sit next to each other on the overworld grid from two
-# routes an actual player can walk between. Removed on both sides so that
-# the crossing has to go through `union_cave_1f`, which is what a future
-# HM gate on Union Cave would key off (an edge like this one silently
-# cancels such a gate, exactly as the old route_46 -> dark_cave edge
-# cancelled the Squirtbottle gate).
-#
-# The direct `ruins_of_alph` edge went the same way on 2026-08-23, as part
-# of the fourteen-pair gatehouse sweep (see [ruins_of_alph]):
-# `route_32_ruins_of_alph_gatehouse` is the only crossing.
 [route_32]
 map_code = 'R32'
 exits = [
@@ -1316,9 +1117,6 @@ exits = [
     'union_cave_1f',
 ]
 
-# The `azalea` side of this edge is gone since 2026-08-22 -- see the
-# [azalea] block's own comment for the evidence. Route 34 reaches Azalea
-# only southwards through the Ilex Forest gatehouse.
 [route_34]
 map_code = 'R34'
 exits = [
@@ -1347,9 +1145,6 @@ exits = [
     'route_34',
 ]
 
-# Route 35's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `goldenrod` edge is gone since 2026-08-23,
-# `route_35_goldenrod_gatehouse` is the only crossing.
 [route_35]
 map_code = 'R35'
 exits = [
@@ -1381,36 +1176,6 @@ exits = [
     'route_35',
 ]
 
-# Route 36 is split in three AP regions around its Sudowoodo (obj_R36_usokky,
-# overworld tile x=415 z=246, whose script scr_seq_0243_R36.s carries the
-# `HasItem ITEM_SQUIRTBOTTLE` check). Corrected 2026-09-27 from the ROM's
-# own collision data (tools/mapwalk.py with the tree as a wall, HeartGold
-# and SoulSilver identical, and player reports): the tree is a three-way
-# fork, open to the east, south and north (its west tile is a wall). Until
-# then Route 36 had two halves, east and west, split on the mapmatrix cell
-# seam at x=415/416, and Route 37 hung off the west half with no rule:
-# Goldenrod -> Route 35 or the National Park -> Route 37 -> Ecruteak was in
-# logic without the Squirtbottle.
-#   - `route_36` (east, x 416-447): the Violet gatehouse and the Ruins of
-#     Alph gatehouse; the side reached first from Violet. data_gen/
-#     encounters.toml's `route_36` zone key stays attached to it for the
-#     headbutt trees (the grass table is moved, see locations.py's
-#     DEXSANITY_ZONE_METHOD_REGIONS).
-#   - `route_36_west` (south of the tree, x 374-415): Route 35, the National
-#     Park gatehouse and all of the route's grass.
-#   - `route_36_north` (north of the tree, x 388-415 z 224-245): the only
-#     way onto Route 37.
-# Every edge between two of them crosses the tree, so each carries the
-# Squirtbottle in data_gen/rules.toml. Watering it removes it for good, so
-# all three edges are two-way. All three keep map_code R36; nothing in this
-# codebase keys off map_code for region identity.
-#
-# The direct `violet` exit is gone since 2026-08-23 (user verification on an
-# interactive in-game map): `violet_route_36_gatehouse` is the only crossing.
-# See the [route_31] block for the shared rationale of this preventive pair.
-# The direct `ruins_of_alph` edge went the same way on 2026-08-23, as part
-# of the fourteen-pair gatehouse sweep (see [ruins_of_alph]):
-# `route_36_ruins_of_alph_gatehouse` is the only crossing.
 [route_36]
 map_code = 'R36'
 exits = [
@@ -1459,9 +1224,6 @@ exits = [
     'route_36_north',
 ]
 
-# Route 38's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `ecruteak` edge is gone since 2026-08-23,
-# `route_38_ecruteak_gatehouse` is the only crossing.
 [route_38]
 map_code = 'R38'
 exits = [
@@ -1506,10 +1268,6 @@ exits = [
     'route_39_moomoo_farm_house',
 ]
 
-# Route 42's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `ecruteak` edge is gone since 2026-08-23,
-# `route_42_ecruteak_gatehouse` is the only crossing. The `mahogany` edge
-# on the other end is untouched, that one is plain open road.
 [route_42]
 map_code = 'R42'
 exits = [
@@ -1520,9 +1278,6 @@ exits = [
     'route_42_pond',
 ]
 
-# Route 42's pond (two items, Surf) and the Rock Climb wall above the
-# cave (`route_42_cliff`: the Dubious Disc and the cave's upper ledges),
-# walked on the ROM's collision data on 2026-09-23.
 [route_42_pond]
 map_code = 'R42'
 exits = [
@@ -1544,11 +1299,6 @@ exits = [
     'route_42',
 ]
 
-# Route 43's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `mahogany` edge is gone since 2026-08-23,
-# `route_43_mahogany_gatehouse` is the only crossing. `route_43_gatehouse`
-# (R43R0201) is a different, dead-end building further up the route and is
-# not part of this pair.
 [route_43]
 map_code = 'R43'
 exits = [
@@ -1570,34 +1320,6 @@ exits = [
     'route_43',
 ]
 
-# The direct `blackthorn` edge was REMOVED on 2026-08-24 (reported the day
-# before, applied here). It was a method-2 mapmatrix false positive, same
-# family as the route_32 <-> route_33, azalea <-> route_34 and cianwood <->
-# route_47 pairs already removed (see their comments). The two maps do sit
-# side by side on the EVERYWHERE grid -- Route 44 occupies matrix cells
-# (17..19, 5), Blackthorn (20..21, 4..5), so they share the x=639/640 seam
-# over z=160..191 -- but every tile of Route 44's own last two columns
-# (x=638 and x=639) across that whole seam is impassable in the ROM's
-# land_data (terrain word 0x8000, collision bit set), so nobody walks
-# between them. The Ice Path is the only crossing, which is what the
-# 2026-08-23 Ice Path fix above is about: while this edge stood, the
-# Strength gate that fix put between Route 44 and Blackthorn was walked
-# around in one step and was dead data.
-#
-# The cut is what makes that gate bite, so it is not a cosmetic tidy-up.
-# Measured on the regenerated graph (full inventory minus Strength, versus
-# full inventory), it moves exactly 16 regions and 47 non-Dexsanity checks
-# behind Strength: `blackthorn` and its 7 interiors (including
-# `blackthorn_gym`), `dragons_den_entrance`/`dragons_den`/
-# `dragons_den_shrine` -- so the Rising Badge, whose location lives in the
-# shrine, not in the gym, and therefore Waterfall -- plus
-# `dark_cave_route_45_side`, `route_45`, `route_46_north`, `ice_path_b2f`
-# and `ice_path_b3f`. Sphere 0 does not move at all (65 regions,
-# {zephyr, hive}, 123 free checks): all 16 sat behind the Ilex Forest Cut
-# gate already. Blackthorn keeps two ways in, both real and both behind the
-# same HM: `ice_path_b2f` (the boulder puzzle itself) and `route_45`, which
-# is only entered through Dark Cave's far side and costs Rock Smash plus
-# Strength. Verified that nothing became unreachable with a full inventory.
 [route_44]
 map_code = 'R44'
 exits = [
@@ -1612,39 +1334,6 @@ exits = [
     'route_44',
 ]
 
-# route_45 -> route_46: hand patch (task M0.4, same category as this
-# file's other documented hand patches above), one-way only. The mapmatrix
-# adjacency this pair was extracted from (method 2 above) is inherently
-# undirected and can't express the ledges between the two, and the
-# direction was modeled backwards until 2026-08-19. The real geography:
-# Route 45 is the mountain route hanging below Blackthorn, Route 46 is
-# below it again, just above Route 29. The player comes DOWN from Route 45
-# into Route 46, and the ledges never let them climb back up (community
-# playtest report, krez, 2026-08-19: from Route 46's southern section the
-# ledges block the way up, and entering its northern section through Dark
-# Cave does not help either, since Route 45 has ledges of its own; no
-# vanilla mechanism, HM or otherwise, reverses a ledge drop in any
-# mainline Pokemon game).
-#
-# The inverted edge was not cosmetic: it opened new_bark -> route_29 ->
-# route_46 -> route_45 -> blackthorn, putting the entire back half of
-# Johto (Blackthorn, Mahogany, Ecruteak, Burned Tower) in sphere 1 and
-# bypassing the Squirtbottle gate in rules.toml, which is itself correct
-# but only guards Ecruteak's other entrances.
-#
-# Route 46 is itself split in two AP regions since 2026-08-22 (user
-# verification on an interactive in-game map), same technique and same
-# reason as the `ilex_forest`/`ilex_forest_north` split above: a ledge cuts
-# the real R46 map in half, and the mapmatrix adjacency this graph was
-# extracted from (method 2 in this file's header) cannot see it, so a
-# single `route_46` region invented the phantom path route_29 ->
-# route_46 -> dark_cave_route_31_side. Dark Cave's Route 46 entrance is
-# NORTH of the ledge, i.e. unreachable from Route 29. `route_46` is the
-# southern section (Route 29 side, the gatehouse), `route_46_north` is the
-# northern one (Dark Cave side, under Route 45), and both keep map_code
-# R46 since nothing in this codebase keys off map_code for region identity.
-# route_45 -> route_46_north therefore replaces the old route_45 ->
-# route_46: the drop from Route 45 lands north of the ledge.
 [route_45]
 map_code = 'R45'
 exits = [
@@ -1660,20 +1349,12 @@ exits = [
     'route_45',
 ]
 
-# Route 46's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_29` edge is gone since 2026-08-23,
-# `route_29_route_46_gatehouse` is the only crossing.
 [route_46]
 map_code = 'R46'
 exits = [
     'route_29_route_46_gatehouse',
 ]
 
-# The internal route_46_north -> route_46 edge is the ledge itself, one way
-# only (downhill, north to south), for the same reason the route_45 ->
-# route_46_north drop above is: no vanilla mechanism climbs a ledge back
-# up. It grants no new access (the southern section is already reachable
-# straight from Route 29), it is modeled to keep the map faithful.
 [route_46_north]
 map_code = 'R46'
 exits = [
@@ -1681,20 +1362,6 @@ exits = [
     'route_46',
 ]
 
-# The cianwood <-> route_47 pair had a direct edge until 2026-08-23 (user
-# verification on an interactive in-game map): there is none, the Cliff Edge
-# Gate is the only crossing. Same method-2 false positive as the
-# route_32 <-> route_33, azalea <-> route_34 and route_11 <-> route_12 pairs
-# (see their comments and this file's header): mapmatrix adjacency is
-# undirected and cannot tell two maps that merely sit next to each other on
-# the overworld grid from two maps a player can walk between.
-#
-# This one mattered as much as azalea <-> route_34 did: it walked around
-# `cliff_edge_gate` in a single step, so data_gen/rules.toml's Secret Potion
-# gate on that gatehouse (verrou A9) was logically inert -- it was written
-# on 2026-08-23 and reported as such the same day. Removing the edge on both
-# sides is what makes it bite, and it puts Route 47, Route 48, the Safari
-# Zone and the Embedded Tower behind the Secret Potion.
 [route_47]
 map_code = 'R47'
 exits = [
@@ -1839,10 +1506,6 @@ exits = [
     'cherrygrove',
 ]
 
-# Violet's half of the two 2026-08-23 phantom-edge removals: the direct
-# `route_31` and `route_36` exits both doubled a gatehouse that is in fact
-# the only way through (user verification on an interactive in-game map).
-# See the [route_31] block for the evidence and for the measured impact.
 [violet]
 map_code = 'T22'
 exits = [
@@ -1930,24 +1593,6 @@ exits = [
     'violet',
 ]
 
-# Azalea had a direct `route_34` edge until 2026-08-22 (user verification on
-# an interactive in-game map): there is none, Ilex Forest is the only way
-# through. Same false positive of this file's method 2 as the route_32 <->
-# route_33 pair below, and decomp-confirmed twice over: neither
-# 035_R34.json nor 071_T23.json has a single warp to the other map (R34's
-# only outdoor-ish warps are its Ilex Forest gatehouse and the Day Care,
-# T23's are its own buildings plus its own Ilex Forest gatehouse), and the
-# mapmatrix cells that produced the edge are merely side by side on the
-# grid (R34 occupies (11,12)/(11,13)/(11,14), Azalea (12,14)/(13,14), so
-# only the (11,14)/(12,14) pair touches). Ilex Forest itself has no
-# mapmatrix cell at all -- it is an indoor-style map with its own matrix --
-# which is exactly why the grid makes the two look adjacent.
-#
-# This one mattered more than the others: with it in place, the real route
-# azalea -> azalea_ilex_forest_gatehouse -> ilex_forest -> [Cut] ->
-# ilex_forest_north -> route_34_ilex_forest_gatehouse -> route_34 was
-# bypassable in one step, so the Ilex Forest Cut gate (rules.toml) gated
-# nothing at all and Goldenrod plus half of Johto sat in sphere 0.
 [azalea]
 map_code = 'T23'
 exits = [
@@ -2012,8 +1657,6 @@ exits = [
     'azalea',
 ]
 
-# Cianwood's half of the 2026-08-23 removal of the phantom
-# cianwood <-> route_47 edge -- see the [route_47] block for the evidence.
 [cianwood]
 map_code = 'T24'
 exits = [
@@ -2084,10 +1727,6 @@ exits = [
     'cianwood',
 ]
 
-# Goldenrod's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_35` edge is gone since 2026-08-23,
-# `route_35_goldenrod_gatehouse` is the only crossing. The `route_34` edge
-# to the south stays, that side of the city opens straight onto the route.
 [goldenrod]
 map_code = 'T25'
 exits = [
@@ -2154,21 +1793,6 @@ exits = [
     'goldenrod_magnet_train_station_2f',
 ]
 
-# The Magnet Train platform is ONE place in two script-selected states:
-# T25R0502 is the platform with the train standing at it, T25R0503 the same
-# platform with the train away (the station attendant's own script warps you
-# to whichever matches the train's current position). The C4/C5 static warp
-# extraction saw them as two unrelated maps, so the graph ended up with the
-# staircase from 1F landing only on the empty variant (a dead end) while the
-# with-train variant only had the hand-patched cutscene warp to Saffron --
-# leaving the whole rail link unreachable from anywhere (see
-# tests/test_rules.py's old KNOWN_PRE_EXISTING_UNREACHABLE_REGIONS).
-# Merged 2026-08-23 into a single region per city, keyed on the with-train
-# map since that is the one the cross-city cutscene warp actually targets;
-# T25R0503/T11R0603 are folded into it and no longer have regions of their
-# own (neither holds any data_gen/locations.toml location). The Goldenrod
-# <-> Saffron ride itself is gated on the Magnet Train Pass, see
-# data_gen/rules.toml.
 [goldenrod_magnet_train_station_2f]
 map_code = 'T25R0502'
 exits = [
@@ -2373,11 +1997,6 @@ exits = [
     'olivine',
 ]
 
-# Ecruteak's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): both direct edges, `route_38` to the west and
-# `route_42` to the east, are gone since 2026-08-23, their two gatehouses
-# are the only crossings. The `route_37` edge to the north stays, that one
-# has no gatehouse at all.
 [ecruteak]
 map_code = 'T27'
 exits = [
@@ -2452,10 +2071,6 @@ exits = [
     'ecruteak',
 ]
 
-# Mahogany's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_43` edge is gone since 2026-08-23,
-# `route_43_mahogany_gatehouse` is the only crossing. `route_42` to the
-# west and `route_44` to the east stay, neither has a gatehouse.
 [mahogany]
 map_code = 'T28'
 exits = [
@@ -2507,31 +2122,6 @@ exits = [
     'mahogany',
 ]
 
-# Split in two at the lake itself (task: Lake of Rage start-location
-# soft-lock fix, 2026-08-23, player report + user verification on an
-# interactive in-game map), same technique and same reason as the
-# `ilex_forest`/`ilex_forest_north` and `route_46`/`route_46_north` splits
-# above: T29 is one decomp map but not one walkable place, and the
-# mapmatrix adjacency this graph was extracted from (method 2 in this
-# file's header) cannot see the water in between.
-#
-# `lake_of_rage` is the shore the Route 43 path opens onto, with the
-# Fishing Guru's house on it; `lake_of_rage_north` is everything on the far
-# side of the water, starting with the Hidden Power house. Both keep
-# map_code T29 since nothing in this codebase keys off map_code for region
-# identity. The crossing is Surf, in data_gen/rules.toml.
-#
-# Corroborated directly against the real US ROM's own collision data
-# (NitroFS a/0/6/5 land_data, terrain-attribute block at offset 0x14 of
-# each 32x32 map block named by matrix 0's model table -- the same
-# EVERYWHERE matrix method 2 uses): T29's six blocks hold 524 walk-on
-# tiles, and they form SIX mutually disconnected patches, not one shore.
-# The Hidden Power house's own front yard is a 16-tile patch (x 496-499,
-# z 43-47) fenced by impassable scenery on two sides and by open lake water
-# (terrain byte 0x10) on the other two -- which is exactly the soft-lock a
-# player hit on 2026-08-23: `randomize_start_location` drops them at this
-# map's warp anchor 0, and anchor 0 IS that house's door at (497, 42), see
-# rom/startlocation.py.
 [lake_of_rage]
 map_code = 'T29'
 exits = [
@@ -2547,14 +2137,6 @@ exits = [
     'lake_of_rage',
 ]
 
-# The far shore(s). Named `north` after the Hidden Power house's own bank,
-# following `ilex_forest_north`/`route_46_north`, but it stands for every
-# patch of T29 that has to be swum to, not only the northern one: the
-# ROM-collision census above also puts the TM43 islet (x 504-507, z 34-35),
-# the Choice Specs / Max Potion patch (x 538-543, z 36-38) and the Red
-# Flute islet (x 486-491, z 72-74) across the water, and none of them
-# touches any other patch on foot. Their locations live here, see
-# data_gen/locations.toml.
 [lake_of_rage_north]
 map_code = 'T29'
 exits = [
@@ -2574,9 +2156,6 @@ exits = [
     'lake_of_rage',
 ]
 
-# The `route_44` edge was removed here too on 2026-08-24, same cut, same
-# evidence -- see the comment on [route_44] above for the collision reading
-# and for the measured consequence.
 [blackthorn]
 map_code = 'T30'
 exits = [
@@ -2667,7 +2246,7 @@ map_code = 'W40'
 exits = [
     'olivine',
     'route_40_battle_frontier_gatehouse',
-    'route_41',
+    'route_40_water',
 ]
 
 [route_40_battle_frontier_gatehouse]
@@ -2677,11 +2256,18 @@ exits = [
     'route_40',
 ]
 
+[route_40_water]
+map_code = 'W40'
+exits = [
+    'route_40',
+    'route_41',
+]
+
 [route_41]
 map_code = 'W41'
 exits = [
     'cianwood',
-    'route_40',
+    'route_40_water',
     'route_41_islets',
     'whirl_islands_1f',
 ]
@@ -2741,10 +2327,6 @@ exits = [
     'mount_moon_square',
 ]
 
-# Cerulean Cave walked on the ROM's collision data (2026-09-23): once
-# inside (the mouth is on `cerulean_river`, Surf), every floor needs Surf,
-# and its cracked rocks and one Rock Climb wall only guard corners, split off
-# as `*_rocks` / `cerulean_cave_b1f_cliff`.
 [cerulean_cave_1f]
 map_code = 'D03R0101'
 exits = [
@@ -2998,10 +2580,6 @@ exits = [
     'ss_aqua_1f',
 ]
 
-# Route 1's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `viridian` edge is gone since 2026-08-23,
-# `viridian_route_1_gatehouse` is the only crossing. The `pallet` edge at
-# the other end stays, Pallet Town has no gatehouse.
 [route_1]
 map_code = 'R01'
 exits = [
@@ -3009,15 +2587,6 @@ exits = [
     'viridian_route_1_gatehouse',
 ]
 
-# Route 2's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_2_east` edge is gone since
-# 2026-08-23. The two halves of Route 2 really are joined by two separate
-# indoor routes and by nothing else (user verification on an interactive
-# in-game map): Viridian Forest
-# (route_2_viridian_forest_south_gatehouse -> viridian_forest ->
-# route_2_viridian_forest_north_gatehouse) and the south-east gatehouse
-# (route_2_southeast_gatehouse). Both are modeled and both survive the
-# removal, which is what the direct edge was standing in for.
 [route_2]
 map_code = 'R02'
 exits = [
@@ -3026,12 +2595,6 @@ exits = [
     'viridian',
 ]
 
-# Route 2's two Cut trees (2026-09-23, collision data): one between the
-# Viridian side and the patch south of the south-east gatehouse
-# (`route_2_southeast`, the Elixir), one on the east side between the
-# Diglett's Cave exit (`route_2_east`) and the part that leads on to Pewter
-# City and the Viridian Forest's north gatehouse (`route_2_north`). Coming
-# from Diglett's Cave, the whole west of Kanto is therefore behind Cut.
 [route_2_southeast]
 map_code = 'R02'
 exits = [
@@ -3112,9 +2675,6 @@ exits = [
     'route_3_pokecenter_1f',
 ]
 
-# Route 4 is one-way toward Cerulean (a ledge just west of the town,
-# 2026-09-23, collision data): Cerulean has no exit back into it, so Route
-# 4, Mt. Moon, Route 3 and Pewter are only reached from the west.
 [route_4]
 map_code = 'R04'
 exits = [
@@ -3123,12 +2683,6 @@ exits = [
     'route_3',
 ]
 
-# Saffron's four approaches (Routes 5, 6, 7 and 8) each had a direct city
-# edge beside their gatehouse until 2026-08-23; all four are gone, part of
-# the fourteen-pair gatehouse sweep (see [ruins_of_alph]). Saffron is
-# walled all the way round in vanilla, its four gatehouses are its only
-# doors. `route_5_underground_path_gate` is a separate building, the
-# Cerulean end of the Underground Path to Route 6.
 [route_5]
 map_code = 'R05'
 exits = [
@@ -3229,19 +2783,6 @@ exits = [
     'route_9',
 ]
 
-# route_10 <-> route_10_power_plant_repaired: removed 2026-08-24 (Kanto
-# story locks pass, verrou D3). Before this, both power plant siblings hung
-# off route_10 in parallel with no edge between them, which is why "no rule
-# can be posed" here (event census note): a player entering "repaired"
-# straight from route_10 never had to pass through "broken" first, so
-# nothing could gate reaching FLAG_RESTORED_POWER's own region. In vanilla
-# there is exactly one physical door -- which map loads depends on
-# FLAG_RESTORED_POWER -- so the two-sibling-region split is already a
-# compromise; the fix keeps it but removes the shortcut, replacing this edge
-# with route_10_power_plant_broken -> route_10_power_plant_repaired below,
-# matching the real `Warp MAP_ROUTE_10_POWER_PLANT_REPAIRED`
-# (scr_seq_0196_R10R0202.s:48) taken from inside the broken map's own
-# script.
 [route_10]
 map_code = 'R10'
 exits = [
@@ -3274,27 +2815,12 @@ exits = [
     'route_10_south',
 ]
 
-# Reached only from route_10_power_plant_broken now (see that region's own
-# comment) -- walking back out to route_10 is still free, only the
-# direct-from-route_10 shortcut is gone.
 [route_10_power_plant_repaired]
 map_code = 'R10R0201'
 exits = [
     'route_10',
 ]
 
-# route_10_power_plant_broken -> route_10_power_plant_repaired: added
-# 2026-08-24, one way only (no vanilla mechanism warps back into the broken
-# map once fixed). Ungated here on purpose -- the machine_part fetch quest
-# behind it (Route 24 Rocket, gated on having visited this broken map at
-# least once per scr_seq_0196_R10R0202.s:27-29, then on beating the
-# Vermilion Gym Rocket per scr_seq_0760_T04GYM0101.s:116/122) is vanilla-only
-# by product decision, not modeled item-by-item; the same way the six Johto
-# story locks above only record their own end state. The real gate this
-# edge produces is graph position: power_plant_restored_event
-# (data_gen/locations.toml) is now two hops from route_10 instead of
-# reachable in one, which is what lets the Kanto guerite/Snorlax locks below
-# hang off it at all.
 [route_10_power_plant_broken]
 map_code = 'R10R0202'
 exits = [
@@ -3315,15 +2841,6 @@ exits = [
     'route_10_pokecenter_1f',
 ]
 
-# The route_11 <-> route_12 pair had a direct edge until 2026-08-23 (user
-# verification on an interactive in-game map): there is none, the gatehouse
-# below is the only crossing. Same method-2 false positive as the
-# route_32 <-> route_33 and azalea <-> route_34 pairs corrected on
-# 2026-08-22 (see their comments and this file's header): mapmatrix
-# adjacency is undirected and cannot tell two routes that merely sit next to
-# each other on the overworld grid from two routes a player can walk
-# between. Removed on both sides so the crossing has to go through
-# `route_19_route_12_gatehouse`.
 [route_11]
 map_code = 'R11'
 exits = [
@@ -3339,10 +2856,6 @@ exits = [
     'vermilion',
 ]
 
-# Misleading key, kept for stability: R11R0101 is the gatehouse between
-# Routes 11 and 12, not one on Route 19 (the Route 19 gatehouse is
-# W19R0101 / `route_19_fuchsia_gatehouse` further down). The name comes
-# from the decomp's own MAP_ROUTE_19_ROUTE_12_GATEHOUSE constant.
 [route_19_route_12_gatehouse]
 map_code = 'R11R0101'
 exits = [
@@ -3362,18 +2875,6 @@ exits = [
     'route_19_route_12_gatehouse',
 ]
 
-# Three patches of R12 that the pier does not reach on foot (2026-09-17,
-# read from the real HeartGold ROM's land_data: terrain attributes at
-# 0x14 + the u16 extra-section length stored at 0x12, which is 0x88 for
-# these blocks, not a fixed 0x14). `route_12` itself is the pier, walkable
-# from Lavender all the way to Route 13 and to the Route 11 gatehouse
-# (user-verified on the map). Crossings are in data_gen/rules.toml.
-#   - cut_pocket (x 1410-1413, z 332-334, Calcium): its only link to the
-#     pier is row 334, closed by the cuttable tree at (1414, 334).
-#   - flute_pocket (x 1410-1417, z 346-348, Yellow Flute): water on the
-#     pier side, and the cuttable tree at (1414, 348) inside it.
-#   - elixir_islet (x 1415-1417, z 302, hidden Elixir): walls on three
-#     sides, water on the fourth.
 [route_12_cut_pocket]
 map_code = 'R12'
 exits = [
@@ -3413,24 +2914,12 @@ exits = [
     'route_15',
 ]
 
-# Route 14's only tall grass (x 1345-1350, z 385-390), with the Lucky Punch
-# woman in it, is closed off by the cuttable tree at (1345, 391): read from
-# the real HeartGold and SoulSilver ROMs' land_data on 2026-09-17 (same
-# method as [route_12]). The rest of the route, west strip included, is
-# walkable from both Route 13 and Route 15. Route 14's wild land encounters
-# are therefore behind Cut too (locations.py's
-# DEXSANITY_ZONE_METHOD_REGIONS).
 [route_14_grass]
 map_code = 'R14'
 exits = [
     'route_14',
 ]
 
-# Route 15's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `fuchsia` edge is gone since 2026-08-23,
-# `route_15_fuchsia_gatehouse` is the only crossing. This is the pair the
-# 2026-08-23 Kanto pass had left standing as REPORTED, NOT CHANGED (see
-# [fuchsia]); the user's map check has now cleared it.
 [route_15]
 map_code = 'R15'
 exits = [
@@ -3445,16 +2934,6 @@ exits = [
     'route_15',
 ]
 
-# `route_16` is the Cycling Road's own northern half (decomp map R16),
-# `route_16_east` the Celadon-side plaza (R16R0301, its own map). The direct
-# route_16 <-> route_16_east edge is gone since 2026-08-23 (user
-# verification on an interactive in-game map): the gatehouse below is the
-# only way between them, exactly as its two warps say (376_R16R0201.json:
-# x=1 -> MAP_ROUTE_16, x=10 -> MAP_ROUTE_16_EAST). Same method-2 mapmatrix
-# false positive as the azalea <-> route_34 and route_32 <-> route_33 pairs
-# corrected on 2026-08-22, and it mattered for the same reason: the
-# gatehouse carries the Cycling Road's `PlayerOnBikeCheck` (verrou D8, see
-# data_gen/rules.toml), which a direct edge silently cancelled.
 [route_16]
 map_code = 'R16'
 exits = [
@@ -3490,25 +2969,6 @@ exits = [
     'route_18',
 ]
 
-# Route 18 and its gatehouse, rebuilt 2026-08-23 (user verification on an
-# interactive in-game map). The real topology is
-# route_17 -> route_18 -> [gatehouse] -> fuchsia, but the extraction had it
-# as a dead end hanging off a shortcut: `route_18_gatehouse` led back to
-# `route_18` and nowhere else, while a direct route_18 <-> fuchsia mapmatrix
-# edge carried all the traffic. Two things caused that:
-#   - R18R0101's own warps both name MAP_ROUTE_18 (378_R18R0101.json: x=1 ->
-#     anchor 0, x=10 -> anchor 2), because R18 is a single decomp map that
-#     straddles its own gatehouse, so method 1 could only ever produce a
-#     self-loop;
-#   - R18's eastern, post-gatehouse strip is grid-adjacent to Fuchsia, so
-#     method 2 attached that adjacency to the whole of `route_18`, the same
-#     undirected false positive as azalea <-> route_34 (2026-08-22).
-# Modeled with the gatehouse as the seam (its Fuchsia-side door standing in
-# for R18's short eastern strip, which holds no location of its own) rather
-# than by splitting R18 in two the way [route_36] was: all 3 of Route 18's
-# locations sit on the Cycling Road side, so the split would add a region
-# with nothing in it. `route_17 <-> route_18` stays direct and free, the
-# Cycling Road descent being one continuous stretch.
 [route_18]
 map_code = 'R18'
 exits = [
@@ -3601,20 +3061,12 @@ exits = [
     'tohjo_falls',
 ]
 
-# Route 27 split in three (2026-09-23, walked on the ROM's own collision
-# data with tools/mapwalk.py). `route_27` is the New Bark side, reached with
-# Surf. The rest of the route (its trainers, the house, the way to Route 26)
-# is `route_27_east`: from New Bark it is only reached through Tohjo Falls
-# (Surf + Waterfall), and coming back west needs nothing but Surf (one-way
-# ledges, then the sea). `route_27_whirlpool_pocket` (TM02, Bird Keeper Jose)
-# sits behind the whirlpools south of the route, reached from the east side.
 [route_27_east]
 map_code = 'R27'
 exits = [
     'route_26',
     'route_27',
     'route_27_east_surf',
-    'route_27_house',
     'route_27_whirlpool_pocket',
     'tohjo_falls_east',
 ]
@@ -3623,6 +3075,7 @@ exits = [
 map_code = 'R27'
 exits = [
     'route_27_east',
+    'route_27_house',
 ]
 
 [route_27_whirlpool_pocket]
@@ -3634,7 +3087,7 @@ exits = [
 [route_27_house]
 map_code = 'R27R0101'
 exits = [
-    'route_27_east',
+    'route_27_east_surf',
 ]
 
 [route_28]
@@ -3643,29 +3096,21 @@ exits = [
     'mount_silver',
     'route_22_pokemon_league_reception_gate',
     'route_28_cut_pocket',
-    'route_28_house',
 ]
 
 [route_28_cut_pocket]
 map_code = 'R28'
 exits = [
     'route_28',
+    'route_28_house',
 ]
 
 [route_28_house]
 map_code = 'R28R0101'
 exits = [
-    'route_28',
+    'route_28_cut_pocket',
 ]
 
-# The direct route_19 <-> fuchsia edge is gone since 2026-08-23 (user
-# verification on an interactive in-game map, and decomp-confirmed): W19's
-# only two warps are both to the gatehouse (088_W19.json, x=1203/1204
-# z=453), and the beach right below them is walled off by 4 SPRITE_STOP
-# barriers plus 2 workmen at z=457/458 until the Volcano Badge (verrou D7,
-# see data_gen/rules.toml). A method-2 mapmatrix adjacency between W19's
-# northern strip and Fuchsia made that whole blockade -- and Routes 19, 20
-# and the Seafoam Islands with it -- free to walk around.
 [route_19]
 map_code = 'W19'
 exits = [
@@ -3674,7 +3119,6 @@ exits = [
     'route_19_sea',
 ]
 
-# Routes 19-21 and the Seafoam Islands, see data_gen/rules.toml (Verrou D7).
 [route_19_sea]
 map_code = 'W19'
 exits = [
@@ -3758,11 +3202,6 @@ exits = [
     'pallet',
 ]
 
-# Viridian's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]): the direct `route_1` edge is gone since 2026-08-23,
-# `viridian_route_1_gatehouse` is the only crossing south. `route_2` to the
-# north and `route_22` to the west stay: Route 2's own gatehouses are both
-# further up the route, and Route 22's is on the League side.
 [viridian]
 map_code = 'T02'
 exits = [
@@ -3841,7 +3280,6 @@ exits = [
     'route_3',
 ]
 
-# Pewter City's and Route 3's cracked-rock corners (2026-09-23, collision data).
 [pewter_rocks]
 map_code = 'T03'
 exits = [
@@ -3906,9 +3344,6 @@ exits = [
     'route_9',
 ]
 
-# Cerulean's river, north-west of the town, which the Cerulean Cave mouth
-# opens onto (2026-09-23, collision data): Surf, also for the hidden Nugget
-# in the water.
 [cerulean_river]
 map_code = 'T04'
 exits = [
@@ -4289,16 +3724,6 @@ exits = [
     'celadon',
 ]
 
-# Fuchsia's two southern neighbours are reached through their gatehouses
-# only since 2026-08-23: the direct `route_18` and `route_19` edges were
-# mapmatrix false positives (see those two blocks for the evidence), and
-# `route_18_gatehouse` took the place of the first.
-#
-# The `route_15` edge, reported but left alone by that pass pending the
-# user's own map check, went the same way later on 2026-08-23 once the
-# check came back: it is part of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph]), so all three of Fuchsia's route neighbours are now
-# reached through their gatehouse.
 [fuchsia]
 map_code = 'T08'
 exits = [
@@ -4392,11 +3817,6 @@ exits = [
     'victory_road_3f',
 ]
 
-# The Elite Four is a corridor (2026-09-27 logic audit, zone_event warps
-# 271_T10R0101.json to 277_T10R0701.json): the entrance's only door leads to
-# Will's room, and every room's other door leads to the next one; their way
-# back all lands on the entrance's Will door. It used to be a hub with a
-# door into every room.
 [pokemon_league_entrance]
 map_code = 'T10R0101'
 exits = [
@@ -4445,10 +3865,6 @@ exits = [
     'pokemon_league_lance_room',
 ]
 
-# Saffron's half of the fourteen-pair gatehouse sweep (see
-# [ruins_of_alph] for the sweep and [route_5] for this city's four pairs):
-# all four direct route edges are gone since 2026-08-23, the city is
-# entered through its four gatehouses only.
 [saffron]
 map_code = 'T11'
 exits = [
@@ -4485,8 +3901,6 @@ exits = [
     'saffron_magnet_train_station_2f',
 ]
 
-# Saffron's half of the 2026-08-23 platform merge -- see the
-# goldenrod_magnet_train_station_2f comment for the full rationale.
 [saffron_magnet_train_station_2f]
 map_code = 'T11R0602'
 exits = [

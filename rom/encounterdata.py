@@ -1,28 +1,3 @@
-# rom/encounterdata.py
-#
-# Read/write access to the wild encounter tables: per-map grass/surf/
-# rock-smash/fishing/headbutt species slots.
-#
-# NitroFS paths a/0/3/7 (HeartGold, g_enc_data.narc) and a/1/3/6
-# (SoulSilver, s_enc_data.narc) -- both present in every HGSS ROM
-# regardless of version, but which one the compiled game code actually
-# reads at runtime is a compile-time #ifdef HEARTGOLD choice, not a
-# runtime one -- see NOTES.md for the live verification and why every
-# function here picks its path from rom.version (`_nitrofs_path_for`)
-# rather than hardcoding HEARTGOLD_NITROFS_PATH.
-#
-# data/encounters.py's ENCOUNTERS table has 137 zones, fewer than either
-# NARC's 142 sub-files -- some maps were filtered out during data_gen
-# extraction. Raw index mapping resolved for 134/137 zones via
-# gs_enc_data.json's own array order (see NOTES.md); the 3 unmatched
-# zones have a headbutt table only, no land/surf/rock_smash/fishing entry
-# to patch at all.
-#
-# Struct: Decomposition include/wild_encounter.h's EncounterData, 0xC4 =
-# 196 bytes, confirmed against the real ROM's entry size. Species fields
-# throughout are raw species indices (data/species_index.py's
-# SPECIES_KEY_TO_RAW_INDEX).
-
 from __future__ import annotations
 
 import struct
@@ -37,24 +12,16 @@ EXPECTED_ENTRY_COUNT = 142
 
 
 def _nitrofs_path_for(rom: HeartGoldRom) -> str:
-    """The NitroFS path this rom's own compiled game code actually reads
-    at runtime for wild encounters. rom.version is None (already-patched
-    ROM, expect_vanilla=False) falls back to HeartGold rather than
-    guessing."""
     if rom.version == "soulsilver":
         return SOULSILVER_NITROFS_PATH
     return HEARTGOLD_NITROFS_PATH
 
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
-    """Every wild-encounter zone entry as a raw bytes blob, in on-disk
-    order, from rom's own version-appropriate table."""
     return rom.read_narc(_nitrofs_path_for(rom)).files
 
 
 def write_all(rom: HeartGoldRom, entries: Sequence[bytes]) -> None:
-    """Replace every wild-encounter zone entry. `entries` must have
-    exactly as many elements as the table currently has."""
     path = _nitrofs_path_for(rom)
     narc = rom.read_narc(path)
     if len(entries) != len(narc.files):
@@ -68,21 +35,16 @@ def write_all(rom: HeartGoldRom, entries: Sequence[bytes]) -> None:
 
 
 def read_entry(rom: HeartGoldRom, index: int) -> bytes:
-    """Read a single wild-encounter zone entry by its raw NARC sub-file
-    index."""
     return rom.read_narc(_nitrofs_path_for(rom)).files[index]
 
 
 def write_entry(rom: HeartGoldRom, index: int, data: bytes) -> None:
-    """Replace a single wild-encounter zone entry by its raw NARC
-    sub-file index."""
     path = _nitrofs_path_for(rom)
     narc = rom.read_narc(path)
     narc.files[index] = data
     rom.write_narc(path, narc)
 
 
-# Byte offsets within one 196-byte EncounterData entry.
 _LAND_SPECIES_MORN_OFFSET = 0x14
 _LAND_SPECIES_DAY_OFFSET = 0x2C
 _LAND_SPECIES_NITE_OFFSET = 0x44
@@ -92,12 +54,9 @@ _ROCK_SMASH_SLOTS_OFFSET = 0x78
 _OLD_ROD_SLOTS_OFFSET = 0x80
 _GOOD_ROD_SLOTS_OFFSET = 0x94
 _SUPER_ROD_SLOTS_OFFSET = 0xA8
-_ENCOUNTER_DATA_SLOT_SIZE = 4  # EncounterDataSlot{u8 min; u8 max; u16 species;}
+_ENCOUNTER_DATA_SLOT_SIZE = 4
 _ENCOUNTER_DATA_SLOT_SPECIES_OFFSET = 2
 
-# Capacity of each slot array -- writing past these would land in the
-# next field entirely, silently, so every write path checks against these
-# rather than trusting zone's own slot counts.
 _SURF_SLOT_CAPACITY = 5
 _ROCK_SMASH_SLOT_CAPACITY = 2
 _FISHING_SLOT_CAPACITY = 5
@@ -129,50 +88,24 @@ def _write_slot_array_species(
         struct.pack_into("<H", entry, offset, species_index[slot["species"]])
 
 
-# --- What actually reaches the ROM (single source of truth) ----------------
-#
-# Dexsanity's location set and its access rules are derived from these two
-# predicates, exactly like patch_gen.apply_encounter_randomization is, so
-# the logic can never claim a species is catchable in a table this module
-# never writes. Before this existed (bug found 2026-08-22 on a real, dead
-# seed), species.species_encounter_methods counted every slot of
-# data/encounters.py -- including the headbutt tables write_zone_encounters
-# below does not touch and the 3 zones with no NARC entry at all -- so 55 to
-# 59 of a `zone_method_mapping` seed's ~460 Dexsanity locations were for
-# species that appear nowhere in the produced ROM. See docs/scope.md.
-#
-# Headbutt tables are written too since v0.2.5 (write_headbutt_tables
-# below), from their own NARC and keyed by their own index, so the
-# per-method answer lives in zone_method_is_written.
 WRITTEN_ENCOUNTER_METHODS = frozenset(
     {"land", "surf", "rock_smash", "old_rod", "good_rod", "super_rod", "headbutt"}
 )
 
 
 def zone_is_written(zone_key: str) -> bool:
-    """Whether `zone_key` (a data/encounters.py key) has a raw NARC entry
-    for write_zone_encounters below to overwrite at all. False for the 3
-    headbutt-only zones (azalea/pewter/route_16), which have no
-    land/surf/rock_smash/fishing entry -- see this module's header."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
 
     return zone_key in ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
 
 
 def zone_method_is_written(zone_key: str, method: str) -> bool:
-    """Whether a species placed in `zone_key`'s `method` table (a
-    species.py encounter-method name) actually ends up in the patched
-    ROM."""
     if method in ("headbutt", "headbutt_secret"):
         return zone_key in HEADBUTT_ZONE_KEY_TO_MEMBER
     return method in WRITTEN_ENCOUNTER_METHODS and zone_is_written(zone_key)
 
 
 def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
-    """Overwrite one zone's species fields in place (land morn/day/nite,
-    surf, rock_smash, and old/good/super rod fishing), leaving every
-    rate/level byte untouched. Headbutt tables live in their own NARC and
-    are written by write_headbutt_tables below."""
     from data.encounter_zone_index import ENCOUNTER_ZONE_KEY_TO_RAW_INDEX
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
@@ -215,30 +148,6 @@ def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     write_entry(rom, raw_index, bytes(entry))
 
 
-# --- Headbutt trees (v0.2.5) -------------------------------------------------
-#
-# NitroFS a/2/5/2 (decomp files/arc/headbutt.json, NARC_arc_headbutt), one
-# member per map id, read by src/field/headbutt.c with the player's current
-# map id. Same file name for both versions: unlike g_enc/s_enc, the version
-# difference is baked into each ROM's own copy (headbutt.json.txt's
-# #ifdef HEARTGOLD), so the path is the same and the contents differ.
-#
-# Member layout (include/field/headbutt.h, HeadbuttEncounterData): u16
-# regular tree count, u16 secret tree count, then three 6-slot tables
-# (common, rare, secret) of HeadbuttSlot {u16 species; u8 min; u8 max;},
-# then the tree coordinates. Only the species words are rewritten.
-#
-# Which table a regular tree uses depends on the last digit of the trainer
-# id (headbutt.c's sRareTreeLUT_*). With a single regular tree some ids get
-# only the common table and others only the rare one, but every map listed
-# here has at least 2 regular trees, and for 2 or more every id reaches
-# both tables, so every slot below is catchable whatever the save's id
-# (asserted against the real ROMs in tests/test_encounters_headbutt.py).
-# Secret trees always use the secret table.
-#
-# Keys are data/encounters.py zone keys, values the member index (= map
-# id). D47 (the one map with trees that data_gen does not extract) is left
-# vanilla.
 HEADBUTT_NITROFS_PATH = "a/2/5/2"
 HEADBUTT_SLOTS_PER_TABLE = 6
 _HEADBUTT_HEADER_SIZE = 4
@@ -266,7 +175,6 @@ HEADBUTT_ZONE_KEY_TO_MEMBER: dict[str, int] = {
 
 
 def headbutt_tree_counts(member: bytes) -> tuple[int, int]:
-    """(regular, secret) tree counts of one raw headbutt member."""
     regular, secret = struct.unpack_from("<HH", member, 0)
     return regular, secret
 
@@ -276,9 +184,6 @@ def _headbutt_species_offset(tier_index: int, slot_index: int) -> int:
 
 
 def write_headbutt_tables(rom: HeartGoldRom, encounters: dict) -> None:
-    """Overwrite the species of every headbutt table in `encounters`
-    (species.py output, zones without a "headbutt" entry skipped), levels
-    and tree coordinates untouched. One NARC read and one write in total."""
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
 
     narc = rom.read_narc(HEADBUTT_NITROFS_PATH)

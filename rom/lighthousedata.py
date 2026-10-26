@@ -1,27 +1,3 @@
-# rom/lighthousedata.py
-#
-# Olivine Lighthouse top floor (2026-10-16, player report: after curing
-# Amphy, Jasmine leaves but the door stays shut, the player is stuck).
-#
-# Talking to Jasmine (scr_seq_0066_D27R0107.s, scr_seq_D27R0107_000) tests
-# FLAG_GOT_SECRETPOTION first and only then VAR_SCENE_LIGHTHOUSE_JASMINE:
-#
-#   GoToIfSet FLAG_GOT_SECRETPOTION, _00B5     ; hand the potion over
-#   Compare VAR_SCENE_LIGHTHOUSE_JASMINE, 0
-#   GoToIfEq _0062                             ; first talk
-#
-# The first talk (_0062) is the only place that opens the way out
-# (HidePerson obj_D27R0107_stop, SetFlag FLAG_UNK_1D8, which hides that
-# barrier on every later load). In vanilla the pharmacist hands the potion
-# over only after that first talk; here it can be owned before the player
-# ever reaches the top, and the potion scene ends with Jasmine gone and the
-# barrier still standing. The two tests swap places (same 24 bytes, jump
-# offsets recomputed), so the first talk always comes first and the potion
-# is handed over on the next one. Byte-identical on HeartGold and
-# SoulSilver US. The client also sets FLAG_UNK_1D8 once the potion is
-# owned (client.py, _repair_story_vars), which frees a player already stuck
-# on an older ROM after a save and reload.
-
 from __future__ import annotations
 
 import struct
@@ -34,7 +10,6 @@ LIGHTHOUSE_TOP_FILE = 66
 FLAG_GOT_SECRETPOTION = 0xB9
 VAR_SCENE_LIGHTHOUSE_JASMINE = 0x40A5
 
-# From the script start: PlaySE (4), LockAll (2), FacePlayer (2).
 _TESTS_SHIFT = 8
 _FIRST_TALK = 0x62
 _HAND_OVER = 0xB5
@@ -47,7 +22,7 @@ _EQUAL = 1
 
 
 class LighthousePatchError(Exception):
-    """The script does not hold the expected vanilla instructions."""
+    pass
 
 
 def _goto_if(position: int, condition: int, target: int) -> bytes:

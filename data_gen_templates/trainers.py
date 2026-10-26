@@ -1,12 +1,3 @@
-# data_gen_templates/trainers.py
-#
-# Turns `data_gen/trainers.toml` into `data/trainers.py` (task C7b). Follows
-# the same load_toml -> dict-literal-repr pattern as `generate_items` in
-# `data_gen_templates/items.py`. See `data_gen/trainers.toml`'s header for
-# the source/extraction notes (trainers.json/trainers.h cross-reference,
-# battle_type/ai_flags/double_battle semantics, and the "messages" flavor
-# text left out of scope).
-
 from __future__ import annotations
 
 import sys
@@ -119,8 +110,6 @@ def _build_trainer(
 
 
 def generate_trainers() -> str:
-    """Build the contents of `data/trainers.py` from
-    `data_gen/trainers.toml`."""
     trainers_toml = load_toml("trainers")
     species_keys = set(load_toml("species"))
     move_keys = {k for k in load_toml("moves") if k != "tm_hm"}
@@ -131,11 +120,6 @@ def generate_trainers() -> str:
     for key, entry in trainers_toml.items():
         trainer = _build_trainer(key, entry, species_keys, move_keys, item_keys)
 
-        # Defensive: same spirit as data_gen_templates/items.py -- guard
-        # against a future hand-edit of data_gen/trainers.toml introducing a
-        # duplicate numeric id (the trainers.h TRAINER_* index space is
-        # gapless/collision-free by construction, see data_gen/trainers.toml's
-        # header, but data_gen sources are hand-editable).
         existing = seen_ids.get(trainer["id"])
         if existing is not None:
             print(

@@ -1,20 +1,3 @@
-# data_gen/charmap.toml
-#
-# Source: ressources/Decomposition/pokeheartgold/charmap.txt (read-only,
-# gitignored), HGSS's own character-code table (HEXCODE=<character>
-# format). Only the printable ASCII-equivalent subset is extracted here
-# (letters, digits, space, common punctuation) -- the full file has
-# ~2900 entries, almost all Japanese kana/kanji this project's own
-# EN-only injected text (task "Replace the ??? placeholder", 2026-08-15)
-# will never need. Maps character -> HGSS's own internal 16-bit
-# character code (used by rom/msgdata.py to encode new message text).
-#
-# Two non-ASCII additions (starter-selection text fix, 2026-08-15): the
-# game's own small "e" used in "Pokemon" (0x0188) and its own curly
-# apostrophe (0x01B3, used instead of a straight quote) -- both taken
-# directly from real decoded vanilla message text (msg_0190), not
-# guessed.
-
 [charmap]
 "0" = 0x0121
 "1" = 0x0122

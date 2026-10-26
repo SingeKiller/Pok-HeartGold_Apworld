@@ -1,20 +1,3 @@
-# data_gen/species_index.toml
-#
-# Source: ressources/Decomposition/pokeheartgold/files/poketool/personal/
-# personal.json (baseStats array) -- this array's own index order is the
-# real raw personal.narc/evo.narc sub-file index (a/0/0/2, a/0/3/4; both
-# NARCs are index-aligned with each other and with this array, confirmed
-# against the real ROM: both have exactly 508 entries). Index 0 is the
-# engine's "no species" placeholder (baseStats[0].species == "NONE"); indices
-# 494/495 ("EGG"/"BAD_EGG") are engine-reserved and have no data/species.py
-# key. Every one of data/species.py's 505 real entries matches exactly one
-# of the other 505 named baseStats entries by label -- generated once by
-# matching SPECIES[key]["label"] against personal.json's baseStats[i].species
-# (see docs/architecture.md's "## M4.5" section for the verification this
-# ran: 505/505 matched, exactly 3 unmatched raw entries (NONE/EGG/BAD_EGG),
-# as expected). Resolves the open question rom/speciesdata.py's own
-# docstring flagged (508 raw vs 505 modeled entries, mapping unknown).
-
 [raw_index]
 bulbasaur = 1
 ivysaur = 2

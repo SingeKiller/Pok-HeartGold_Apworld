@@ -1,16 +1,11 @@
 # .apignore
 #
-# Lists what should be included in the final .apworld (everything else is
-# excluded). Read by build.py / Makefile.
+# Lists what goes into the final .apworld (everything else is excluded).
+# Read by build.py / Makefile.
 #
 # Format: "**" excludes everything by default; a line starting with "!/"
 # re-includes a repository-root-relative path. A trailing "/" means the
 # whole directory is included recursively; otherwise it's a single file.
-#
-# NOTE: most of the paths below don't exist yet (repository bootstrap /
-# tooling stage, see CLAUDE.md task C0). They describe the target package
-# layout from docs/architecture.md so the build tooling doesn't need to
-# change again once those files land.
 
 **
 !/__init__.py
@@ -28,7 +23,9 @@
 !/location_flags.py
 !/LICENSE
 !/data/
-!/patches/
+!/patches/exp_share.s
+!/patches/ground_item_hook.s
+!/patches/shop_purchase_hook.s
 !/rom/
 !/apnds/
 !/apnds_version.txt

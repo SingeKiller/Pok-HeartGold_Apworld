@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""data_gen_rules.py
-
-Helpers for composing/validating HGSS region-exit access rules from
-data_gen/rules.toml. Kept separate from data_gen_templates/rules.py since
-this logic is reused by tests/test_rules.py, not just the one-shot
-data_gen.py generation pass. Takes hm_badges/hm_items as plain dict
-arguments rather than hardcoding HGSS-specific names -- all game data
-stays in data_gen/rules.toml.
-"""
 
 from __future__ import annotations
 
@@ -17,14 +8,6 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Requirement:
-    """A single (AND-combined) access requirement: own every item in
-    `items` (a `data_gen/items.toml` key each), hold every badge in
-    `badges` (a `data_gen/rules.toml` `[badges]` key each), and have
-    triggered every scenario flag in `events` (a locked progression event
-    granted by a `type = "event"` `data_gen/locations.toml` location, for a
-    vanilla story gate with no bag item or badge behind it, e.g. having
-    defeated the Elite Four)."""
-
     items: tuple[str, ...] = ()
     badges: tuple[str, ...] = ()
     events: tuple[str, ...] = ()
@@ -34,16 +17,6 @@ class Requirement:
 
 
 def hm_requirement(hm: str, hm_badges: Mapping[str, str], hm_items: Mapping[str, str]) -> Requirement:
-    """Build the Requirement for field-using a given HM: the HM's own bag
-    item (`hm_items`, to know/teach the move at all) plus the badge vanilla
-    requires to use it in the field (`hm_badges`, if any -- absent for e.g.
-    Flash, which has no badge requirement, see `data_gen/rules.toml`'s
-    header). Raises KeyError for an `hm` missing from `hm_items` (a rules
-    author typo -- caught eagerly here rather than silently producing an
-    incomplete rule; `data_gen_templates/rules.py` is the defensive,
-    warn-not-crash layer for *data* problems, this is a programmer-error
-    guard for the composition helpers themselves).
-    """
     items = (hm_items[hm],)
     badge = hm_badges.get(hm)
     badges = (badge,) if badge is not None else ()
@@ -51,8 +24,6 @@ def hm_requirement(hm: str, hm_badges: Mapping[str, str], hm_items: Mapping[str,
 
 
 def combine(*requirements: Requirement) -> Requirement:
-    """AND-combine several Requirements into one (deduplicated,
-    order-preserving)."""
     items: list[str] = []
     badges: list[str] = []
     events: list[str] = []
@@ -74,9 +45,6 @@ def build_exit_rule_requirement(
     hm_badges: Mapping[str, str],
     hm_items: Mapping[str, str],
 ) -> Requirement:
-    """Build the combined (AND) Requirement for one `data_gen/rules.toml`
-    `[[exit_rule]]` entry: each of its `hms` field-moves (see
-    `hm_requirement`) AND its own bare `items`/`badges` lists."""
     parts = [hm_requirement(hm, hm_badges, hm_items) for hm in entry.get("hms", [])]
     extra_items = tuple(entry.get("items", []))
     extra_badges = tuple(entry.get("badges", []))
@@ -87,9 +55,6 @@ def build_exit_rule_requirement(
 
 
 def expand_directed_pairs(entry: Mapping[str, object]) -> list[tuple[str, str]]:
-    """Expand one `[[exit_rule]]` entry's `from`/`to`/`bidirectional` into
-    the directed (from, to) region-key pair(s) it applies to. `bidirectional`
-    defaults to True (matches `data_gen/rules.toml`'s documented default)."""
     src = entry["from"]
     dst = entry["to"]
     if entry.get("bidirectional", True):
@@ -102,11 +67,6 @@ def build_exit_rules(
     hm_badges: Mapping[str, str],
     hm_items: Mapping[str, str],
 ) -> dict[tuple[str, str], Requirement]:
-    """Build the full `{(from, to): Requirement}` mapping for every
-    `[[exit_rule]]` entry in `data_gen/rules.toml`. Later entries for the
-    same directed pair overwrite earlier ones (no duplicate directed pairs
-    are expected in `data_gen/rules.toml`; `data_gen_templates/rules.py` is
-    responsible for warning if that ever happens)."""
     rules: dict[tuple[str, str], Requirement] = {}
     for entry in exit_rules_toml:
         requirement = build_exit_rule_requirement(entry, hm_badges, hm_items)
@@ -121,11 +81,6 @@ def is_satisfied(
     owned_badges: Sequence[str] | set[str],
     owned_events: Sequence[str] | set[str] = (),
 ) -> bool:
-    """True if `owned_items`/`owned_badges`/`owned_events` together satisfy
-    every item, badge, and event `requirement` demands (AND semantics).
-    Used both by `tests/test_rules.py` (graph connectivity with a full
-    inventory) and intended for reuse by a future world-logic `rules.py`
-    traversal check."""
     owned_items_set = owned_items if isinstance(owned_items, set) else set(owned_items)
     owned_badges_set = owned_badges if isinstance(owned_badges, set) else set(owned_badges)
     owned_events_set = owned_events if isinstance(owned_events, set) else set(owned_events)
@@ -142,11 +97,6 @@ def validate_requirement(
     known_badges: Sequence[str] | None = None,
     known_events: Sequence[str] | None = None,
 ) -> list[str]:
-    """Return human-readable warning strings for any item/badge/event
-    referenced by `requirement` that isn't in
-    `known_items`/`known_badges`/`known_events`. Never raises -- defensive,
-    same spirit as this repo's other `data_gen_templates/*.py`
-    dangling-reference warnings (see e.g. `data_gen_templates/regions.py`)."""
     warnings: list[str] = []
     if known_items is not None:
         known_items_set = set(known_items)

@@ -1,70 +1,3 @@
-# data_gen/trainers.toml
-#
-# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored).
-#   - files/poketool/trainer/trainers.json: top-level "trainers" array,
-#     738 entries (index 0..737), each with battle type (whether the
-#     trainer has custom held items and/or custom movesets), class, a
-#     personal name, up to 4 usable battle items (e.g. Full Restore),
-#     AI flags, double-battle flag and a party of 0-6 Pokemon. 738 is the
-#     real count found in the decomp (see docs/architecture.md Spike 3),
-#     confirmed against include/constants/trainers.h's TRAINER_* constants
-#     (TRAINER_NONE=0 .. TRAINER_PARTNER_RIVAL_3=737, LAST_TRAINER_INDEX=740
-#     is a loose upper bound in the header, not an exact count -- verified
-#     programmatically that indices 0..737 are gapless and collision-free
-#     after lowercasing, so every trainers.json entry has exactly one
-#     canonical name to key off).
-#   - include/constants/trainers.h: TRAINER_* id constants, used verbatim
-#     (lowercased) as the [section] key below, e.g. TRAINER_RIVAL_SILVER ->
-#     [rival_silver]. Index 0 is TRAINER_NONE, a reserved empty placeholder
-#     entry (empty party, no class identity of its own beyond a leftover
-#     TRAINERCLASS_PKMN_TRAINER_ETHAN tag) -- not a real battle, included
-#     here anyway for exhaustivity/fidelity with the decomp's own table.
-#   - include/constants/trainer_class.h: TRAINERCLASS_* id constants;
-#     trainer_class below is the class string already embedded in
-#     trainers.json (stripped of the TRAINERCLASS_ prefix, lowercased).
-#
-# Field notes:
-#   - battle_type: one of "mon" (level-up moves, no held item),
-#     "mon_moves" (custom moveset), "mon_item" (held item, level-up
-#     moves) or "mon_item_moves" (held item + custom moveset) -- decoded
-#     from trainers.json's TRTYPE_* type field.
-#   - label: the trainer's personal name as shown in battle text, with the
-#     {TRNAME} class-name placeholder (present in most, not all, entries --
-#     e.g. the Battle Frontier facility heads and the Union Cave rematch
-#     quartet Cheryl/Riley/Buck/Marley/Mira have no placeholder) stripped.
-#   - ai_flags: raw AI_FLAG_* bitmask (include/battle/trainer_ai.h) used by
-#     the vanilla battle AI; kept as an opaque int here, useful as a rough
-#     difficulty signal (higher/more flags set roughly tracks smarter play)
-#     without decoding every individual bit for this data-extraction task.
-#   - double_battle: true if this trainer fights as part of a double battle
-#     (trainers.json's "double" field is 0 or 2 in this decomp -- the
-#     partner-count encoding documented in include/trainer_data.h's
-#     TrainerGender enum; collapsed to a bool here since no entry uses any
-#     other value).
-#   - usable_items: the trainer's own battle-usable items (e.g. Red's 4x
-#     Full Restore), as item keys resolving into data_gen/items.toml -- NOT
-#     the same as a party Pokemon's held item.
-#   - party[].species / .moves / .held_item resolve into data_gen/species.
-#     toml / moves.toml / items.toml keys (SPECIES_/MOVE_/ITEM_ prefix
-#     stripped, lowercased -- same convention as those files). Verified
-#     programmatically that every reference resolves (no gap like items.
-#     toml's documented ITEM_EXPLORER_KIT case was found for trainers).
-#   - party[].difficulty: the raw "IV scale parameter" (0-255, see
-#     include/trainer_data.h's TrainerMonSpecies struct comment), not a
-#     literal DV/IV value -- kept as-is, useful as a difficulty signal.
-#   - party[].gender_override / .ability_override: omitted (absent key)
-#     when off, otherwise "male"/"female" or "first"/"second".
-#   - party[].held_item: omitted (absent key) when the party slot has no
-#     held item (ITEM_NONE) or the battle_type doesn't carry held items.
-#   - party[].moves: omitted (absent key) when battle_type doesn't carry a
-#     custom moveset (the Pokemon uses its level-up moveset instead, see
-#     data_gen/species.toml's level_learnset).
-#
-# Out of scope for this extraction (not needed for logic/difficulty):
-#   trainers.json's per-trainer "messages" array (intro/win/lose flavor
-#   text) -- pure flavor text, not needed for rules/logic; left for a
-#   future client/text task if ever needed.
-
 [none]
 id = 0
 trainer_class = "pkmn_trainer_ethan"
@@ -18499,4 +18432,3 @@ level = 56
 difficulty = 250
 capsule = 0
 moves = ["dark_pulse", "sludge_bomb", "shadow_ball", "confuse_ray"]
-

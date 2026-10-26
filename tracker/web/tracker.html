@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HGSS Singe tracker</title>
-<!-- Template: tracker_gen.py inlines logic.js and the generated data and
-     writes the result to poke_hgss_tracker.html. -->
 <style>
 :root {
   --bg: #1b1d22; --panel: #23262c; --tile: #2a2d34; --line: #3a3e46; --text: #e8e8e8;
@@ -165,7 +163,6 @@ const T = (key) => TEXT[S.lang][key];
 const UI = (key) => DATA.ui[S.lang][key];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// -- state -------------------------------------------------------------------
 function options() {
   const o = (S.slotData && S.slotData.options) || {};
   const flag = (v) => v === 1 || v === true;
@@ -180,7 +177,6 @@ function options() {
     legendarysanity: S.slotData ? flag(o.legendarysanity) : true, bicycle: S.slotData ? flag(o.randomize_bicycle) : true,
   };
 }
-// Manual marks are for offline play; once connected the server is the truth.
 const owned = (code) => S.received.has(code) || (!S.slotData && S.manualItems.has(code));
 const isDone = (id) => S.checked.has(id) || (!S.slotData && S.manualChecks.has(id));
 
@@ -194,14 +190,11 @@ function visible(id, opts) {
   })[rule] !== false);
 }
 
-// A click on a Leader tile overrides what the badge checks say, connected
-// or not (Leaders are display only, the logic never reads them).
 function leaderBeaten(code) {
   if (code in S.leaderMarks) return S.leaderMarks[code];
   return Object.entries(DATA.leader_locations).some(([id, c]) => c === code && isDone(Number(id)));
 }
 
-// -- rendering -------------------------------------------------------------
 function statusOf(ids, logic) {
   let left = 0, ok = 0;
   for (const id of ids) {
@@ -225,8 +218,10 @@ function checkRow(id, name, logic, extra = "") {
   const done = isDone(id);
   const state = done ? null : logic(id);
   const dot = done ? "d-done" : state === null ? "d-unk" : state ? "d-ok" : "d-bad";
+  const cond = DATA.checks[id] && DATA.conditional && DATA.conditional[DATA.checks[id].key];
+  const label = cond ? `${name} (${cond[S.lang]})` : name;
   return `<div class="row click${done ? " done" : ""}" data-check="${id}">${extra}<span class="dot ${dot}"></span>` +
-    `<span class="nm" title="${esc(name)}">${esc(name)}</span>${revealHtml(id)}</div>`;
+    `<span class="nm" title="${esc(label)}">${esc(label)}</span>${revealHtml(id)}</div>`;
 }
 
 function node(key, label, ids, logic, inner, level = 1, count = true) {
@@ -296,9 +291,6 @@ function renderRegion(region, logic, opts, trainers) {
   return html || `<div class="empty">${T("empty")}</div>`;
 }
 
-// Where this seed put each species comes from slot data ("dexsanity_logic"):
-// one entry per place, any one is enough. Without it (offline, or a seed
-// generated before 2026-10-04) the answer is unknown (null), not "in logic".
 function dexLogic(logic) {
   const sources = S.slotData && S.slotData.dexsanity_logic;
   return (id) => {
@@ -361,9 +353,6 @@ function renderMap(logic, opts) {
   return map + `<div class="map-panel">${panel}</div>`;
 }
 
-// Detailed map of one place (prototype: New Bark Town and its buildings):
-// the ROM's own walls, floor, water and grass, a circle on every door or
-// staircase (click it to go through), a square on every check.
 function planName(code) {
   const p = DATA.detail[code];
   return p ? p.name[S.lang] : code;
@@ -447,7 +436,6 @@ function setStatus(text, cls) {
   document.getElementById("status-dot").className = "dot " + cls;
 }
 
-// -- Archipelago connection --------------------------------------------------
 function send(packets) { if (socket && socket.readyState === 1) socket.send(JSON.stringify(packets)); }
 
 function uuid() {
@@ -541,7 +529,6 @@ function disconnect() {
   render();
 }
 
-// -- events ------------------------------------------------------------------
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-leader],[data-plan],[data-spot],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area]");
   if (!el) return;

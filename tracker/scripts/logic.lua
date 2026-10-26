@@ -1,8 +1,3 @@
--- Reachability logic, a Lua port of regions.py/rules.py/locations.py.
--- DATA comes from scripts/data.lua (generated). The whole graph is solved
--- once per state change and cached: PopTracker evaluates every section's
--- rule after each change, so each call below is a table lookup.
-
 OPTIONS = {
     soulsilver = false,
     johto_only = false,
@@ -66,8 +61,6 @@ local function rule_passes(rule, events)
     return true
 end
 
--- Every gate of an entry (location or event) at once, as in
--- locations._story_gate_rules.
 local function gates_pass(entry, reachable, events)
     for _, code in ipairs(entry.items or {}) do
         if not has(code) then
@@ -147,8 +140,6 @@ function has_event(name)
     return state().events[name] == true
 end
 
--- Section access rule: "$loc|<location key>". Mirrors create_locations:
--- the Dowsing Machine rule plus every gate.
 function loc(key)
     local entry = DATA.locations[key]
     if entry == nil then
@@ -161,13 +152,15 @@ function loc(key)
     if entry.type == "hidden_item" and OPTIONS.hidden_items_require_dowsing_machine and not has("dowsing_mchn") then
         return false
     end
-    return gates_pass(entry, s.reachable, s.events)
+    if not gates_pass(entry, s.reachable, s.events) then
+        return false
+    end
+    if DATA.conditional and DATA.conditional[key] then
+        return AccessibilityLevel and AccessibilityLevel.Inspect or true
+    end
+    return true
 end
 
--- Dexsanity: where this seed put each species comes from slot data
--- ("dexsanity_logic", set by autotracking.lua): one entry per place, any
--- one is enough. Without it (offline, or a seed generated before
--- 2026-10-04) the answer is unknown: shown as "inspect", not as in logic.
 DEXSANITY_LOGIC = nil
 
 function dex(location_id)

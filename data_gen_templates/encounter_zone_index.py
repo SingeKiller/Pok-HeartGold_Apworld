@@ -1,11 +1,3 @@
-# data_gen_templates/encounter_zone_index.py
-#
-# Turns `data_gen/encounter_zone_index.toml` into
-# `data/encounter_zone_index.py` (task M4.5): `data/encounters.py` zone key
-# -> real raw NitroFS sub-file index in `g_enc_data.narc` (a/0/3/7). See
-# `data_gen/encounter_zone_index.toml`'s own header for how this mapping
-# was derived and verified.
-
 from __future__ import annotations
 
 from . import GENERATED_FILE_HEADER, load_toml

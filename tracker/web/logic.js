@@ -1,8 +1,3 @@
-// Reachability logic for the web tracker, a JavaScript port of
-// tracker/scripts/logic.lua (itself a port of regions.py/rules.py/
-// locations.py). DATA is the generated data (tracker_gen.py); `has(code)`
-// tells whether an item is owned. The graph is solved once per state.
-
 function createLogic(DATA, has, options) {
   function regionOf(entry) {
     return options.soulsilver && entry.ss_region ? entry.ss_region : entry.region;
@@ -24,8 +19,6 @@ function createLogic(DATA, has, options) {
     return true;
   }
 
-  // Every gate of an entry (location or event) at once, as in
-  // locations._story_gate_rules.
   function gatesPass(entry, reachable, events) {
     if (entry.items && !entry.items.every((code) => has(code))) return false;
     if (entry.regions) {
@@ -72,7 +65,6 @@ function createLogic(DATA, has, options) {
 
   const state = solve();
 
-  // Mirrors create_locations: the Dowsing Machine rule plus every gate.
   function loc(key) {
     const entry = DATA.locations[key];
     if (entry === undefined) return false;
@@ -80,7 +72,8 @@ function createLogic(DATA, has, options) {
     if (entry.type === "hidden_item" && options.hidden_items_require_dowsing_machine && !has("dowsing_mchn")) {
       return false;
     }
-    return gatesPass(entry, state.reachable, state.events);
+    if (!gatesPass(entry, state.reachable, state.events)) return false;
+    return DATA.conditional && DATA.conditional[key] ? null : true;
   }
 
   return { loc, state };

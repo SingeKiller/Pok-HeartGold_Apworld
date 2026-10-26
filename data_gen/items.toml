@@ -1,88 +1,3 @@
-# data_gen/items.toml
-#
-# Source: ressources/Decomposition/pokeheartgold (read-only, gitignored).
-#   - include/constants/items.h: ITEM_* id/name constants. Item ids span
-#     0 (ITEM_NONE) to 536 (ITEM_ENIGMA_STONE), 537 possible slots, of which
-#     22 (ids 113-134) are explicit ITEM_UNUSED_* reserved placeholders (a
-#     documented Gen III->IV artifact, contest/frontier items dropped
-#     between Emerald and Diamond/Pearl) and correctly have no entry here.
-#   - files/itemtool/itemdata/item_data.csv: per-item price and
-#     fieldPocket (bag pocket/category). 514 rows (513 real items +
-#     ITEM_NONE), see docs/architecture.md Spike 3.
-#
-# Gap (documented, not a bug): ITEM_EXPLORER_KIT (id 428) has a constant in
-# items.h but no matching row in item_data.csv, so it has no price/pocket
-# data to extract and is intentionally absent below -- machine-extracted
-# from the same decomp source, this data_gen_templates/items.py warns at
-# generation time if a *future* re-extraction still cannot resolve it, same
-# defensive spirit as data_gen/moves.toml's tm_hm cross-references.
-#
-# item_data.csv has no description/display-name field (only the ITEM_*
-# constant name and stats); unlike species/moves, no in-decomp text table
-# was extracted for item names/descriptions here (files/msgdata/msg is 828
-# binary .gmm message files with no per-item index found in this pass) --
-# label below is therefore the bare constant name (ITEM_MASTER_BALL ->
-# "MASTER_BALL"), matching data_gen/species.toml and data_gen/moves.toml's
-# own label convention, and there is no description field. A handful of
-# labels below preserve genuine double-underscore/trailing-underscore
-# artifacts present in the decomp's own constant names (e.g. ITEM_EXP__SHARE,
-# ITEM_GUARD_SPEC_, ITEM_S_S__TICKET) -- faithfully reproduced, not typos
-# introduced here.
-#
-# Badges: HGSS (a Gen II remake) tracks the 16 Johto/Kanto gym badges as
-# save-data flags (include/constants/badge.h, BADGE_ZEPHYR..BADGE_EARTH),
-# NOT as ITEM_* bag items -- there is no ITEM_*_BADGE constant anywhere in
-# items.h, unlike ressources/platinum_archipelago (a Gen IV game, where
-# badges ARE items with their own ITEM_* constants). **Implemented anyway
-# as real AP items (task "Badges comme vrais items AP", 2026-08-15):** the
-# 16 badge_* entries below are synthetic -- id 9000+badge index (per
-# data_gen/rules.toml's own [badges] table, badge.h's own BADGE_ZEPHYR=0..
-# BADGE_EARTH=15 order), well clear of the real 0-536 ITEM_* range, and
-# pocket = "badge" (a synthetic pocket, deliberately absent from
-# save_layout.POCKET_KEY_TO_BAG_FIELD so client.py's normal Bag-write
-# dispatch skips these automatically -- receiving one instead sets the
-# matching bit directly in PlayerProfile.johtoBadges/kantoBadges, see
-# client.py's own badge-delivery code and rom/badgedata.py for how the
-# vanilla gym scripts' own GiveBadge call is neutralized so it can't also
-# grant the (possibly wrong, vanilla) badge locally and double up with
-# whatever this synthetic item actually places there).
-#
-# pocket: lowercased items.h POCKET_* constant (items/medicine/balls/
-# tm_hm/berries/mail/battle_items/key_items), i.e. the game's own bag
-# category, not an Archipelago concept.
-#
-# classification: a first-pass Archipelago progression/useful/filler
-# classification (not an in-game concept), refined further once locations/
-# rules are modeled in a later task:
-#   - progression: the 8 HMs (movement-gating, required per project plan)
-#     plus a conservatively small, independently-verifiable set of Key
-#     Items that gate story/traversal progress in vanilla HGSS: the
-#     Bicycle, the 3 fishing rods, Secretpotion (Red Gyarados/Team Rocket
-#     questline), Squirtbottle (Route 36 tree), Card Key + Basement Key
-#     (Team Rocket hideout), Mystery Egg (Elm's starting fetch quest) and
-#     the S.S. Ticket (boat to Kanto). Extended 2026-08-23 by the decomp
-#     verrou census with the 3 Key Items whose [[exit_rule]] entries were
-#     added the same day (data_gen/rules.toml): the Magnet Train Pass, the
-#     Rainbow Wing (Bell Tower) and the Silver Wing (Lugia's chamber). An
-#     item an access rule depends on MUST be progression, or the fill is
-#     free to place it behind its own gate.
-#   - filler: berries, medicine, battle items, mail, TM-adjacent commons,
-#     the non-Master balls, and a set of Key Item constants
-#     (e.g. ITEM_GALACTIC_KEY, ITEM_POFFIN_CASE, ITEM_SEAL_CASE/BAG,
-#     ITEM_OLD_CHARM, ITEM_RED_CHAIN, ITEM_POINT_CARD, ITEM_JOURNAL,
-#     ITEM_FASHION_CASE, ITEM_MEMBER_CARD, ITEM_AZURE_FLUTE,
-#     ITEM_MAGMA_STONE, ITEM_COUPON_1/2/3) that exist with full CSV stats
-#     rows only because HGSS shares its item-system engine/table layout
-#     with Platinum, but are not obtainable/usable in HGSS itself (no Team
-#     Galactic, Poffins, or Pokemon Contests in Johto/Kanto) -- vestigial
-#     constants, not real HGSS content.
-#   - useful: everything else, including Master Ball and the 92 TMs.
-# This progression list does not attempt to resolve every one of the 65
-# Key Items' exact quest-blocking status from decomp script/event-flag
-# tracing (out of scope for a data-extraction task); items left "useful"
-# by default may be revisited once docs/architecture.md's region/rules
-# layer exists.
-
 [master_ball]
 id = 1
 label = "MASTER_BALL"
@@ -669,8 +584,6 @@ id = 84
 label = "WATER_STONE"
 price = 2100
 pocket = "items"
-# progression (2026-09-23): using one in the Ruins of Alph's south-west
-# chamber opens its back room, see data_gen/rules.toml.
 classification = "progression"
 
 [leaf_stone]
@@ -2708,13 +2621,6 @@ id = 397
 label = "TM70"
 price = 1000
 pocket = "tm_hm"
-# progression, not useful (user request, 2026-08-18): TM70 always
-# teaches Flash now (species.randomize_tm_hm_moves pins it, same as
-# HM01-08), a genuinely useful field tool for dark caves. No region-
-# access rule anywhere actually requires it (see data_gen/rules.toml's
-# own [hm_badges] header -- Flash never gates an exit), but marking it
-# progression biases the fill algorithm toward placing it earlier/more
-# accessibly rather than as arbitrary late-game filler.
 classification = "progression"
 
 [tm71]
@@ -3298,9 +3204,6 @@ price = 0
 pocket = "key_items"
 classification = "useful"
 
-# Both wings are progression again since v0.2.5: each monk tests a flag the
-# client sets once the wing item is received (rom/wingmonkdata.py), and
-# data_gen/rules.toml's Bell Tower and Lugia chamber edges require them.
 [silver_wing]
 id = 482
 label = "SILVER_WING"
@@ -3460,7 +3363,7 @@ id = 504
 label = "RAGECANDYBAR"
 price = 0
 pocket = "key_items"
-classification = "useful"
+classification = "progression"
 
 [data_card_01]
 id = 505
@@ -3686,9 +3589,6 @@ price = 0
 pocket = "key_items"
 classification = "useful"
 
-# Badge items (task "Badges comme vrais items AP", 2026-08-15) -- see this
-# file's header for the synthetic id/pocket rationale. Order/index matches
-# data_gen/rules.toml's own [badges] table (badge.h's own numeric order).
 [badge_zephyr]
 id = 9000
 label = "ZEPHYR BADGE"

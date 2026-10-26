@@ -1,34 +1,8 @@
-# regions.py
-#
-# Builds the Archipelago region graph (Region + Entrance) from the generated
-# data/regions.py. Locations are attached separately by
-# locations.create_locations; access rules by rules.py.
-
 from __future__ import annotations
 
 from BaseClasses import MultiWorld, Region
 from data.regions import REGIONS
 
-# `johto_only` option support. Derived (not hand-curated) by a graph
-# flood-fill from `new_bark` over data/regions.py's own exits, blocking the
-# 4 real Johto<->Kanto crossing edges: `viridian <-> route_22` (the
-# Indigo Plateau/Victory Road approach doubles as the Kanto mainland
-# border -- Route 22 itself and everything beyond it toward Indigo
-# Plateau/Mount Silver stays Johto-side, only Viridian and beyond is
-# Kanto), `cerulean <-> route_24` (the Bill's-house/Nugget-Bridge
-# approach), the S.S. Aqua ferry's Olivine-side gate (`items =
-# ["s_s_ticket"]` in data_gen/rules.toml), and, since the 2026-08-23
-# Magnet Train fix, `goldenrod_magnet_train_station_2f <->
-# saffron_magnet_train_station_2f` (the rail link, gated on the Magnet
-# Train Pass -- before that fix each city's platform was split across two
-# regions and the link was unreachable from either end, so it crossed
-# nothing). Notably NOT numeric-map-code-
-# based: Kanto/Johto towns and routes are numbered from the same shared
-# T*/R* pools (e.g. indigo_plateau is T10, in the "Kanto" numeric range,
-# but is genuinely Johto's own Elite Four complex) -- only real graph
-# topology reliably separates them. To re-derive after a data_gen/
-# regions.toml change: BFS from "new_bark" blocking the 4 edges above,
-# the unreached region set is this constant.
 KANTO_REGION_KEYS: frozenset[str] = frozenset(
     {
         "celadon", "celadon_condominiums_1f", "celadon_condominiums_2f", "celadon_condominiums_3f",
@@ -77,7 +51,6 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
         "vermilion_pokemon_fan_club", "vermilion_south_house", "viridian", "viridian_forest",
         "viridian_gym", "viridian_northeast_house", "viridian_pokecenter_1f", "viridian_pokecenter_b1f",
         "viridian_pokemart", "viridian_route_1_gatehouse", "viridian_trainer_house_1f", "viridian_trainer_house_b1f",
-        # Sub-regions carved out of Kanto maps on 2026-09-23 (map walk).
         "cerulean_cave_1f_rocks", "cerulean_cave_2f_rocks", "cerulean_cave_b1f_cliff", "cerulean_cave_b1f_rocks",
         "cerulean_gym_surf", "cerulean_river", "cinnabar_island_volcano", "diglett_cave_rock_climb",
         "pewter_rocks", "rock_tunnel_b1f_rock_climb", "rock_tunnel_b1f_rock_smash", "route_10_south_strength",
@@ -89,23 +62,6 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
 )
 
 def johto_only_excluded_region_keys(soulsilver: bool) -> frozenset[str]:
-    """`johto_only`'s full exclusion set: KANTO_REGION_KEYS plus every
-    Johto region that can no longer be reached once Kanto is gone.
-
-    Without Kanto, the items those locations hold in the unrandomized game
-    are not in the pool either (create_items only adds the original items of
-    created locations), and neither are the story events granted there. So
-    a region behind one of them is unreachable in logic: the Pewter-side
-    wing (Bell Tower 2F and up in SoulSilver, the Lugia chamber in
-    HeartGold), everything behind Rock Climb (HM08 comes from Oak in Pallet
-    Town, the Earth Badge from Blue), the League gate's Route 22 and Mt.
-    Silver sides (a visit to Viridian, Blue beaten), a Ruins of Alph
-    chamber whose key item comes from Kanto. Leaving them in would create
-    locations no logic can ever reach.
-
-    Derived, not hardcoded (2026-09-23; was the wing case only): drop the
-    excluded regions' items and events, flood-fill from New Bark with what
-    is left, exclude what the flood misses, repeat until nothing changes."""
     from data.items import ITEMS
     from data.locations import LOCATIONS
     from data.rules import EXIT_RULES
@@ -159,13 +115,6 @@ def create_regions(
     *,
     excluded_region_keys: frozenset[str] = frozenset(),
 ) -> dict[str, Region]:
-    """Create one Region per data/regions.py entry not in
-    `excluded_region_keys` (`johto_only`'s KANTO_REGION_KEYS, or empty)
-    and connect them per each entry's exits. An exit pointing at a region
-    key outside v1 scope (Pokeathlon Dome, Safari Zone gate, Battle
-    Frontier, Union Room -- see docs/scope.md) or excluded this way is
-    skipped: no Entrance is created, exactly as a real player would find a
-    dead end there."""
     regions: dict[str, Region] = {
         name: Region(name, player, multiworld) for name in REGIONS if name not in excluded_region_keys
     }

@@ -1,23 +1,4 @@
 #!/usr/bin/env python3
-"""tracker_gen.py
-
-Builds the PopTracker pack for Pokemon HGSS Singe from this world's own data
-(data/, regenerated first) into build/poptracker/, and zips it as
-poke_hgss_poptracker.zip at the repository root.
-
-The web tracker's map tab is drawn from the game's own overworld data, so
-it needs a vanilla HeartGold (US) ROM (HEARTGOLD_ROM_PATH) and the decomp's
-map constants (ressources/Decomposition); without them the page has no map.
-
-One variant per language (fr, en; names from tracker/i18n_fr.json), each
-with its own folder: PopTracker reads ./<variant>/<file> before ./<file>.
-The places, Pokedex and trainers are lists drawn as map images, one pin
-per row. Archipelago must be importable (ARCHIPELAGO_PATH, default
-../archipelago) because locations.py uses it.
-
-Usage:
-    python tracker_gen.py
-"""
 
 from __future__ import annotations
 
@@ -41,7 +22,18 @@ OUT = ROOT / "build" / "poptracker"
 STATIC = ROOT / "tracker"
 ZIP_PATH = ROOT / "poke_hgss_poptracker.zip"
 WEB_PATH = ROOT / "poke_hgss_tracker.html"
-MAPS_H = ROOT / "ressources/Decomposition/pokeheartgold/include/constants/maps.h"
+
+
+def _map_sources() -> Path:
+    override = os.environ.get("HGSS_MAP_SOURCES")
+    if override:
+        return Path(override)
+    found = sorted(ROOT.glob("ressources/*/*/include/constants/maps.h"))
+    return found[0].parents[2] if found else ROOT / "ressources"
+
+
+SOURCES = _map_sources()
+MAPS_H = SOURCES / "include/constants/maps.h"
 PACK_VERSION = "0.1.0"
 
 OUTDOOR_CODE = re.compile(r"^(R\d\d|T\d\d|W\d\d)$")
@@ -53,14 +45,12 @@ BADGE_ORDER = [
     "zephyr", "hive", "plain", "fog", "storm", "mineral", "glacier", "rising",
     "boulder", "cascade", "thunder", "rainbow", "soul", "marsh", "volcano", "earth",
 ]
-# Gym leaders in BADGE_ORDER; each one lights up when its badge check is done.
 LEADERS = {
     "en": ["Falkner", "Bugsy", "Whitney", "Morty", "Chuck", "Jasmine", "Pryce", "Clair",
            "Brock", "Misty", "Lt. Surge", "Erika", "Janine", "Sabrina", "Blaine", "Blue"],
     "fr": ["Albert", "Hector", "Blanche", "Mortimer", "Chuck", "Jasmine", "Frédo", "Sandra",
            "Pierre", "Ondine", "Major Bob", "Erika", "Jeannine", "Morgane", "Auguste", "Blue"],
 }
-# Shown in the grid even when no logic rule reads them.
 EXTRA_KEY_ITEMS = [
     "old_rod", "good_rod", "super_rod", "dowsing_mchn", "bicycle",
     "rainbow_wing", "silver_wing", "clear_bell", "tidal_bell",
@@ -70,7 +60,6 @@ OPTION_TOGGLES = [
     "opt_power_plant_tm", "opt_soulsilver", "opt_heartgold",
 ]
 SECTION_TYPES = {"ground_item", "hidden_item", "hm_tm", "npc_gift", "badge", "trainer", "static_pokemon"}
-# Outdoor maps listed with the caves and towers rather than the towns.
 NOT_A_TOWN = {"T29", "T31"}
 DEX_PAGES = [(1, 151), (152, 251), (252, 386), (387, 493)]
 UI = {
@@ -103,7 +92,6 @@ def pretty(key: str) -> str:
 
 
 def lua(value, indent: int = 0) -> str:
-    """Python value -> Lua literal."""
     pad = "  " * indent
     if value is None:
         return "nil"
@@ -146,7 +134,6 @@ def build() -> Path:
     for path in (STATIC / "scripts").glob("*.lua"):
         shutil.copy(path, OUT / "scripts" / path.name)
 
-    # -- tracked items ------------------------------------------------------
     rule_items = {code for rule in EXIT_RULES.values() for code in rule["items"]}
     gate_items = {code for codes in loc_mod._ITEM_GATED_LOCATIONS.values() for code in codes}
     hm_codes = [f"hm0{i}" for i in range(1, 9)]
@@ -176,7 +163,6 @@ def build() -> Path:
             return LEADERS[lang][leader_codes.index(code)]
         return item_name(code, lang)
 
-    # -- areas --------------------------------------------------------------
     def parent_area(region: str) -> str:
         seen, queue = {region}, deque([region])
         while queue:
@@ -190,8 +176,6 @@ def build() -> Path:
         return REGIONS[region]["map_code"]
 
     def area_key(region: str) -> str:
-        """Towns and routes: their outdoor map code. Caves, towers, forests
-        and the S.S. Aqua: one "site" per map family (D36*, P01*)."""
         code = REGIONS[region]["map_code"]
         if code[0] in "DP":
             return "S:" + code[:3]
@@ -218,8 +202,6 @@ def build() -> Path:
         return en_names[code]
 
     def row_label(code: str, lang: str) -> str:
-        """List row: "Azuria (Cerulean)" in French, the name alone in English
-        or when both are the same (routes)."""
         name = area_name(code, lang)
         return name if name == en_names[code] or code[0] in "RW" else f"{name} ({en_names[code]})"
 
@@ -231,7 +213,6 @@ def build() -> Path:
         return "dungeons"
 
     def sub_place(key: str, lang: str) -> str:
-        """Where inside its area a check is, e.g. "gym" or "b2f"."""
         region = LOCATIONS[key]["region"]
         base = en_names[area_key(region)].lower().replace(" ", "_").replace(".", "").replace("'", "")
         rest = region.split(base, 1)[1].strip("_") if base in region else region
@@ -242,14 +223,10 @@ def build() -> Path:
         if lang == "fr" and fr["words"].get(rest):
             return fr["words"][rest]
         if lang == "fr":
-            # Map-walk pockets ("surf", "rock_climb", "b1f_rocks"...): word by
-            # word, "rock_smash" / "rock_climb" first as they are one move.
             text = rest.replace("rock_smash", "rocksmash").replace("rock_climb", "rockclimb")
             words = {**fr["words"], "rocksmash": "Éclate-Roc", "rockclimb": "Escalade"}
             parts = [words.get(w, w.upper() if re.fullmatch(r"b?\d+f", w) else w) for w in text.split("_")]
             return " ".join(p for p in parts if p)
-        # The Japanese Game Corner map is never reached in the US games; its
-        # TM78 is sent on entering the Game Corner itself (client.py).
         return "Game Corner" if rest == "game_corner_jp" else pretty(rest)
 
     def trainer_class(data) -> str:
@@ -274,7 +251,6 @@ def build() -> Path:
         elif kind == "static_pokemon":
             name = data["label"].split(" - ", 1)[-1]
         elif data.get("original_item") in ("rainbow_wing", "silver_wing"):
-            # HeartGold and SoulSilver hand the two wings out at swapped spots.
             name = f"{item_name('rainbow_wing', lang)} / {item_name('silver_wing', lang)}"
         elif kind == "npc_gift" and lang == "en" and " - " in data.get("label", ""):
             name = data["label"].split(" - ", 1)[1]
@@ -311,7 +287,6 @@ def build() -> Path:
         for sub in ("items", "maps", "layouts", "locations", "images/items", "images/maps"):
             (root / sub).mkdir(parents=True, exist_ok=True)
 
-        # page -> {column title (None: untitled) -> [(name, check count)]}
         locations_json, location_sections, pages = [], {}, defaultdict(dict)
 
         def add_location(name, keys, map_locations, visibility=None):
@@ -378,7 +353,6 @@ def build() -> Path:
             })
             location_sections[location_ids[key]] = f"@{name}/{label}"
 
-        # Each list page is a map: columns of rows, the pin left of each name.
         maps_json = []
         for page, columns in pages.items():
             spots = _draw_list_page(columns, root / f"images/maps/{page}.png", page.startswith("dex_"))
@@ -394,7 +368,6 @@ def build() -> Path:
             json.dumps(locations_json, indent=1, ensure_ascii=False), encoding="utf-8")
         sections_by_lang[lang] = location_sections
 
-        # -- items ------------------------------------------------------------
         _draw_item_icons(root, tracked + leader_codes, lambda code: tile_text(code, lang))
         goal_stages = [f"{ui['goal']} : {ui['unknown']}", f"{ui['goal']} : {ui['e4']}",
                        f"{ui['goal']} : {ui['red']}"] + [
@@ -423,14 +396,12 @@ def build() -> Path:
         ]
         (root / "items/items.json").write_text(json.dumps(items_json, indent=1, ensure_ascii=False), encoding="utf-8")
 
-        # -- layouts ------------------------------------------------------------
         def grid(title, codes, per_row=16):
             return [{"type": "text", "text": title, "margin": "4,6,4,1"},
                     {"type": "itemgrid", "item_margin": "2", "item_width": 54, "item_height": 45,
                      "h_alignment": "left",
                      "rows": [codes[i:i + per_row] for i in range(0, len(codes), per_row)]}]
 
-        # Everything the player owns across the top, the check pages below.
         header = {
             "type": "array", "orientation": "vertical", "margin": "6,4",
             "content": [{"type": "item", "item": "goal", "width": 260, "height": 38, "h_alignment": "left"}]
@@ -469,9 +440,7 @@ def build() -> Path:
         (root / "layouts/broadcast.json").write_text(json.dumps(broadcast_layout, indent=1, ensure_ascii=False),
                                                      encoding="utf-8")
 
-    # -- logic data ------------------------------------------------------------
     def add_gates(key, entry):
-        # Every gate applies at once, as in locations._story_gate_rules.
         if key in loc_mod._ITEM_GATED_LOCATIONS:
             entry["items"] = list(loc_mod._ITEM_GATED_LOCATIONS[key])
         if key in loc_mod.REGION_GATED_LOCATIONS:
@@ -502,6 +471,7 @@ def build() -> Path:
         },
         "events": events,
         "locations": lua_locations,
+        "conditional": CONDITIONAL_CHECKS,
         "magnet_train_dropped_regions": {k: True for k in sorted(loc_mod.MAGNET_TRAIN_DROPPED_GATE_REGIONS)},
         "johto_only_excluded_hg": {k: True for k in sorted(reg_mod.johto_only_excluded_region_keys(False))},
         "johto_only_excluded_ss": {k: True for k in sorted(reg_mod.johto_only_excluded_region_keys(True))},
@@ -518,7 +488,6 @@ def build() -> Path:
         "-- Generated by tracker_gen.py, do not edit.\nDATA = " + lua(data_lua) + "\n", encoding="utf-8"
     )
 
-    # -- web tracker ---------------------------------------------------------------
     def check_entry(key):
         return {"key": key, "type": LOCATIONS[key]["type"], "vis": visibility_of(key),
                 "name": {lang: section_name(key, lang) for lang in LANGS}}
@@ -537,7 +506,8 @@ def build() -> Path:
     web = {
         "logic": {k: data_lua[k] for k in ("regions", "exit_rules", "events", "locations",
                                            "johto_only_excluded_hg", "johto_only_excluded_ss", "dark_entries",
-                                           "magnet_train_dropped_regions")},
+                                           "magnet_train_dropped_regions", "conditional")},
+        "conditional": CONDITIONAL_CHECKS,
         "item_codes": data_lua["item_codes"],
         "hms": hm_codes, "badges": badge_codes, "keys": key_codes, "leaders": leader_codes,
         "leader_locations": data_lua["leader_locations"],
@@ -579,9 +549,6 @@ def build() -> Path:
     return ZIP_PATH
 
 
-# -- images -----------------------------------------------------------------
-
-
 def _font(size: int):
     from PIL import ImageFont
 
@@ -594,7 +561,6 @@ def _font(size: int):
 
 
 def _fit(draw, text: str, width: int, size: int):
-    """Largest font (down to 10px) at which text fits width, else truncated."""
     while size > 10 and draw.textlength(text, font=_font(size)) > width:
         size -= 1
     font = _font(size)
@@ -604,8 +570,6 @@ def _fit(draw, text: str, width: int, size: int):
 
 
 def _wrap(draw, text: str, width: int, height: int, size: int, minimum: int = 9):
-    """Greedy word wrap (also after "-" and "'") at the largest font size,
-    down to minimum, whose lines fit the box."""
     parts = re.findall(r"[^ '’-]+['’-]?", text)
     while True:
         font, lines = _font(size), []
@@ -623,10 +587,6 @@ def _wrap(draw, text: str, width: int, height: int, size: int, minimum: int = 9)
 
 
 def _draw_list_page(columns, dest, dex: bool) -> dict:
-    """A list page as a map image: titled columns of rows (a long column
-    wraps into several), a pin spot left of each name. The canvas always
-    holds a full column of rows, so short lists keep the same row size.
-    Returns {(column title, row index): pin centre}."""
     from PIL import Image, ImageDraw
 
     row_h, col_w, per_col, size = (24, 200, 30, 14) if dex else (28, 300, 24, 15)
@@ -660,8 +620,6 @@ def _draw_list_page(columns, dest, dex: bool) -> dict:
 
 
 def _draw_item_icons(root, codes, text_of) -> None:
-    """Header tiles: a dark tile with the name, green when owned (img) and
-    grey when not (disabled_img), drawn at 2x the grid's 60x50 cell."""
     from PIL import Image, ImageDraw
 
     styles = {
@@ -703,17 +661,19 @@ def _draw_reveal_icon(root) -> None:
     img.save(root / "images/items/reveal.png")
 
 
+CONDITIONAL_CHECKS = {
+    "route_39_moomoo_farm_house_tm83": {"fr": "7 Baies Oran", "en": "7 Oran Berries"},
+    "route_39_moomoo_farm_stable_seal_case": {"fr": "7 Baies Oran", "en": "7 Oran Berries"},
+}
+
 SITE_NAMES = {"S:D23": "Radio Tower", "S:D35": "Rocket HQ", "S:P01": "S.S. Aqua", "S:D37": "Underground"}
 
 
-MAP_UNIT = 16  # map units per Pokegear map cell
-PGMAP_C = ROOT / "ressources/Decomposition/pokeheartgold/src/application/pokegear/map/pokegear_map.c"
+MAP_UNIT = 16
+PGMAP_C = SOURCES / "src/application/pokegear/map/pokegear_map.c"
 
 
 def _pokegear_cells():
-    """{map code: [(x, y), ...]} from the game's own Pokegear map layout
-    (sLocationSpecs in src/application/pokegear/map/pokegear_map.c: each
-    map's cell, width and height on the 45 x 18 cell Town Map)."""
     consts = {}
     for line in MAPS_H.read_text().splitlines():
         m = re.match(r"#define (MAP_\w+)\s+\d+\s+//\s+MAP_(\w+)", line)
@@ -732,20 +692,12 @@ def _pokegear_cells():
 
 
 def _web_map(areas, code_regions, parent_area):
-    """Pokegear-style map for the web tracker, laid out exactly like the
-    game's own Town Map (_pokegear_cells): land and sea behind, towns as
-    boxes, routes as road segments between cell centres, caves and towers as
-    dots on their own cell, or around the town or route they open onto.
-    The drawing is ours; only the cell layout comes from the game. None
-    without the decomp sources."""
     if not MAPS_H.is_file() or not PGMAP_C.is_file():
-        print("no decomp sources: the web tracker gets no map")
+        print("no map sources: the web tracker gets no map")
         return None
     from PIL import Image, ImageDraw, ImageFilter
 
     spec = _pokegear_cells()
-    # Areas are keyed by outdoor map code or "S:<family>"; a family's cells
-    # are those of any of its maps listed in the table (D42R0101 -> S:D42).
     area_cells = {}
     for code in areas:
         if code.startswith("S:"):
@@ -756,12 +708,6 @@ def _web_map(areas, code_regions, parent_area):
     width = max(x for cells in spec.values() for x, _ in cells) + 3
     height = max(y for cells in spec.values() for _, y in cells) + 3
 
-    # Background, drawn after the Town Map's own look: the whole north is
-    # land (mountains, forests), the sea is the band along the south coast
-    # plus the straits the sea routes run through. Column by column, land
-    # runs from the top down to the southernmost mainland place (one column
-    # of slack either side), islands are drawn on their own, sea routes are
-    # carved out, and the result is rounded off.
     islands = {"T09", "D11R0101", "D40R0101", "P01R0301"}
     mainland = [c for key, cells in spec.items() if key[:1] != "W" and key not in islands for c in cells]
     sea_cells = [c for key, cells in spec.items() if key[:1] == "W" for c in cells]
@@ -789,8 +735,6 @@ def _web_map(areas, code_regions, parent_area):
     def land_mask(grow, blur):
         layer = raster([(x, y) for x, bottom in coast.items() for y in range(0, bottom + 1)], grow)
         layer.paste(255, mask=raster(mainland, grow))
-        # A sea route is open water down to the southern sea; the islands
-        # out in it are islets.
         layer.paste(0, mask=raster({(x, y2) for x, y in sea_cells for y2 in range(y, height)}, 0))
         layer.paste(255, mask=raster(island_cells, grow - 3))
         return smooth(layer, blur)
@@ -822,9 +766,6 @@ def _web_map(areas, code_regions, parent_area):
         elif code[0] in "RW" and cells:
             segments = []
             steps = ((1, 0), (0, 1), (-1, 0), (0, -1))
-            # One road through the route's cells (a tree, so a 3 x 2 block
-            # like Route 47 is a path, not a grid), from where it meets
-            # another place.
             own = set(cells)
             starts = [c for c in cells if any(owner.get((c[0] + dx, c[1] + dy)) not in (None, code) for dx, dy in steps)]
             seen = {(starts or cells)[0]}
@@ -851,8 +792,6 @@ def _web_map(areas, code_regions, parent_area):
             own = [c for c in cells if c not in owner]
             ring = 0.0
             if not own:
-                # No cell of its own (or under a town's box): around the
-                # town or route it opens onto.
                 parent = parent_area(code_regions[code][0])
                 own = area_cells.get(parent) or cells
                 if own:
@@ -862,7 +801,6 @@ def _web_map(areas, code_regions, parent_area):
                 points = [centre(c) for c in own]
                 shapes[code] = {"kind": "site", "at": [sum(p[0] for p in points) / len(points),
                                                        sum(p[1] for p in points) / len(points)], "ring": ring}
-    # Dots around the same place share its ring, spread out on it.
     spots = defaultdict(list)
     for code, shape in shapes.items():
         if shape["kind"] == "site":
@@ -876,10 +814,6 @@ def _web_map(areas, code_regions, parent_area):
             "bg": "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")}
 
 
-# Detailed maps (prototype, 2026-09-23: New Bark Town, the player's house
-# and Prof. Elm's lab and house). Each is drawn from the ROM's own tiles
-# (walls, floor, water, grass), with a circle on every door or staircase
-# leading to another map and a square on every check where it sits.
 DETAIL_MAPS = {
     "T20": {"fr": "Bourg Geon", "en": "New Bark Town"},
     "T20R0101": {"fr": "Labo du Prof. Orme", "en": "Prof. Elm's Lab"},
@@ -887,21 +821,17 @@ DETAIL_MAPS = {
     "T20R0201": {"fr": "Maison du joueur 1F", "en": "Player's House 1F"},
     "T20R0202": {"fr": "Maison du joueur 2F", "en": "Player's House 2F"},
 }
-# NPC gifts: which object hands the item over (scr_seq_0843_T20R0101.s:
-# Elm's script 000 gives the S.S. Ticket and the Everstone, script 003 the
-# aide's Potions).
 DETAIL_GIFT_OBJECTS = {
     "new_bark_elms_lab_1f_everstone": "obj_T20R0101_doctor",
     "new_bark_elms_lab_1f_s_s_ticket": "obj_T20R0101_doctor",
     "new_bark_elms_lab_1f_potion": "obj_T20R0101_assistantm",
 }
 SURF_BEHAVIOURS = {16, 17, 18, 19, 20, 21, 25, 42, 80, 81, 82, 83, 115, 120, 124}
-ZONE_EVENTS = ROOT / "ressources/Decomposition/pokeheartgold/files/fielddata/eventdata/zone_event"
-MAP_HEADERS = ROOT / "ressources/Decomposition/pokeheartgold/src/data/map_headers.h"
+ZONE_EVENTS = SOURCES / "files/fielddata/eventdata/zone_event"
+MAP_HEADERS = SOURCES / "src/data/map_headers.h"
 
 
 def _detail_maps(location_ids, code_regions):
-    """{map code: plan} for DETAIL_MAPS; None without a ROM."""
     rom_path = os.environ.get("HEARTGOLD_ROM_PATH")
     if not rom_path or not MAP_HEADERS.is_file():
         return None
@@ -937,7 +867,6 @@ def _detail_maps(location_ids, code_regions):
         return struct.unpack_from("<1024H", raw, 0x14 + struct.unpack_from("<H", raw, 0x12)[0])
 
     def tiles_of(code):
-        """{(x, y): tile} in the map's own event coordinates."""
         const = next(c for c, (_, k) in consts.items() if k == code)
         block = headers_src[headers_src.index(f"[{const}] = {{"):]
         index = int(re.search(r"map_matrix_(\d+)_", block).group(1))
@@ -960,8 +889,6 @@ def _detail_maps(location_ids, code_regions):
         tiles = tiles_of(code)
         warps = [(w["x"], w["z"], code_of_const.get(w["header"])) for w in events.get("warps", [])]
         warp_at = {(x, z) for x, z, _ in warps}
-        # The walkable area reached from the doors; anything else in the
-        # map's 32 x 32 block is the void around a room.
         reached = set(warp_at)
         queue = deque(warp_at)
         while queue:
@@ -1012,11 +939,9 @@ def _detail_maps(location_ids, code_regions):
     return plans
 
 
-# Gym Leader trainer classes (include/constants/trainer_class.h), in
-# BADGE_ORDER: their front picture is a/0/5/8 member class * 5.
 LEADER_CLASSES = (66, 67, 70, 72, 75, 74, 73, 76, 98, 103, 104, 105, 106, 107, 108, 110)
-ITEM_C = ROOT / "ressources/Decomposition/pokeheartgold/src/item.c"
-ITEMS_H = ROOT / "ressources/Decomposition/pokeheartgold/include/constants/items.h"
+ITEM_C = SOURCES / "src/item.c"
+ITEMS_H = SOURCES / "include/constants/items.h"
 
 
 def _nitro_palette(raw, base=0, count=16):
@@ -1028,7 +953,6 @@ def _nitro_palette(raw, base=0, count=16):
 
 
 def _nitro_tiles(raw, first_tile, tiles_wide, tiles_high, palette):
-    """An image from 4bpp 8 x 8 tiles laid out in order (1D mapping)."""
     from PIL import Image
 
     raw = bytes(raw)
@@ -1048,11 +972,6 @@ def _nitro_tiles(raw, first_tile, tiles_wide, tiles_high, palette):
 
 
 def _web_icons(item_ids):
-    """{tile code: PNG data URI} for the web tracker's header, from the
-    ROM: item icons (a/0/1/8, the table in src/item.c), the Trainer
-    Card's badge sprites (a/0/4/9 member 46, 12 frames per badge, tinted
-    gold) and the Gym Leaders' pictures (a/0/5/8, the first 64 x 64 cell).
-    None without a ROM."""
     rom_path = os.environ.get("HEARTGOLD_ROM_PATH")
     if not rom_path or not ITEM_C.is_file():
         return None
@@ -1097,7 +1016,6 @@ def _web_icons(item_ids):
 
 
 def _site_name(region_keys) -> str:
-    """Readable name for a cave/tower/forest family of regions."""
     name = min(region_keys, key=len)
     name = re.sub(r"_(b?\d+f.*|entrance.*|outside|room.*|chamber.*|route_\d+_side|lower.*|upper.*)$", "", name)
     return pretty(name)
