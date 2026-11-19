@@ -6,6 +6,7 @@ import logging
 import os
 import pkgutil
 import struct
+import time
 from typing import TYPE_CHECKING
 
 import worlds._bizhawk as bizhawk
@@ -22,7 +23,7 @@ from location_flags import (
     build_flag_id_to_ap_location_id,
     build_locally_substituted_ap_location_ids,
 )
-from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE
+from rom import HEARTGOLD_US_ID_CODE, SOULSILVER_US_ID_CODE, shopdata
 from rom.deathlinkdata import FLAG_AP_DEATHLINK, FLAG_AP_DEATHLINK_WHITEOUT, FLAG_AP_WHITED_OUT
 from rom.startlocation import (
     REVOCATION_RECORD_ROM_OFFSET,
@@ -109,6 +110,7 @@ _PLAYERDATA_CHUNK_ID = 1
 _PLAYERDATA_PROFILE_OFFSET = 4
 
 _PLAYERDATA_OPTIONS_OFFSET = 0
+_OPTIONS_UNLOCK_MASK = 0x30
 _PROFILE_MONEY_OFFSET = 20
 _PROFILE_JOHTO_BADGES_OFFSET = 26
 _PROFILE_KANTO_BADGES_OFFSET = 31
@@ -246,6 +248,20 @@ async def _array_headers_still_valid(ctx: BizHawkClientContext, array_headers_ad
 _APPLIED_ITEM_COUNT_KEY_TEMPLATE = "pokemon_heartgold_applied_item_count_{team}_{slot}_{trainer_id}"
 
 _STARTING_MONEY_APPLIED_KEY_TEMPLATE = "pokemon_heartgold_starting_money_applied_{team}_{slot}_{trainer_id}"
+_POSITION_KEY_TEMPLATE = "pokemon_hgss_singe_position_{team}_{slot}"
+_POSITION_INTERVAL_SECONDS = 0.5
+_POSITION_RETRY_SECONDS = 5.0
+_PLAYER_SCAN_START = 0x02270000
+_PLAYER_SCAN_END = 0x023E0000
+_MAIN_RAM_START = 0x02000000
+_MAIN_RAM_END = 0x02400000
+_FIELD_SYSTEM_SCAN_RANGES = ((_PLAYER_SCAN_START, _PLAYER_SCAN_END), (0x02100000, _PLAYER_SCAN_START))
+_FIELD_SYSTEM_SIZE = 0x44
+_FIELD_SYSTEM_LOCATION_OFFSET = 0x20
+_FIELD_SYSTEM_PLAYER_AVATAR_OFFSET = 0x40
+_PLAYER_AVATAR_MAP_OBJECT_OFFSET = 0x30
+_PLAYER_LOCAL_ID = 0xFF
+_PLAYER_OBJECT_SIZE = 0x7C
 
 _DELIVERED_AHEAD_KEY_TEMPLATE = "pokemon_heartgold_delivered_ahead_{team}_{slot}_{trainer_id}"
 
@@ -287,6 +303,11 @@ _POKEGEAR_CARDS_WORD_OFFSET = 4
 _POKEGEAR_MAP_CARD_BIT = 1 << 25
 
 _JOHTO_FLY_POINT_FLAGS = range(0x9BB, 0x9C6)
+_KANTO_TOWN_FLY_POINT_FLAGS = (0x9B0, 0x9B1, 0x9B2, 0x9B3, 0x9B4, 0x9B5, 0x9B6, 0x9B7, 0x9B8, 0x9BA)
+_POKEGEAR_MAP_UNLOCK_SHIFT = 27
+_POKEGEAR_MAP_UNLOCK_MASK = 3 << _POKEGEAR_MAP_UNLOCK_SHIFT
+_POKEGEAR_MAP_UNLOCK_KANTO = 2
+_VAR_ECRUTEAK_BILL_SCENE = 0x410D
 
 _START_GIFTS = {
     "running_shoes_at_start": (_LOCAL_FIELD_DATA_CHUNK_ID, _LOCAL_FIELD_DATA_HAS_RUNNING_SHOES_OFFSET, 1),
@@ -320,6 +341,7 @@ _CERULEAN_CHAIN_VAR = 0x411C
 _CERULEAN_CHAIN_VAR_VALUE = 1
 _CERULEAN_CHAIN_FLAGS_TO_CLEAR = (0x254,)
 _VAR_BASE = 0x4000
+_VAR_SCENE_CHERRYGROVE = 0x4073
 
 _BADGE_THUNDER_INDEX = 10
 _FLAG_HIDE_VERMILION_GYM_STOPS = 0x31A
@@ -330,6 +352,8 @@ _THUNDER_BADGE_WITHHELD_MAP_IDS = (_MAP_VERMILION, _MAP_VERMILION_GYM)
 _GOAL_ELITE_FOUR = 0
 _GOAL_CHAMPION_RED = 1
 _GOAL_N_BADGES = 2
+_GOAL_POKEDEX = 4
+_GOAL_LEGENDARY_HUNT = 5
 _JOHTO_BADGE_COUNT = 8
 _FLAG_GAME_CLEAR = 0x964
 _FLAG_RED_DEFEATED = 0x25F
@@ -361,6 +385,15 @@ _AZALEA_SCENE_NPC_FLAGS = (0x271, 0x272)
 _STORY_FLAGS_SPAN = 0x50
 _MIDGAME_LEADER_BADGE_KEYS = (
     "ecruteak_gym_badge", "cianwood_gym_badge", "olivine_gym_badge", "mahogany_gym_leader_room_badge",
+)
+_VAR_SS_AQUA_VOYAGE = 0x40CB
+_SS_AQUA_QUEST_DONE = 6
+_SS_AQUA_VOYAGE_DONE = 7
+_SS_AQUA_SHIP_MAP_IDS = frozenset({307, 308, 309, 310, 311, 328, 329})
+_VAR_KANTO_LEADERS_BEATEN = 0x4135
+_KANTO_LEADER_BADGE_KEYS = (
+    "pewter_gym_badge", "cerulean_gym_badge", "vermilion_gym_badge", "celadon_gym_badge",
+    "fuchsia_gym_badge", "saffron_gym_badge", "seafoam_islands_cinnabar_gym_badge", "viridian_gym_badge",
 )
 
 _VAR_AP_ITEMS_APPLIED = 0x416C
@@ -486,6 +519,53 @@ def _build_location_key_to_ap_id() -> dict[str, int]:
 
 
 _LOCATION_KEY_TO_AP_ID = _build_location_key_to_ap_id()
+
+
+def _build_legendary_goal_flags() -> tuple[int, ...]:
+    from locations import LEGENDARY_GOAL_EXTRA_SITES, LEGENDARY_GOAL_JOHTO_KEYS
+
+    flags = [flag_id_for_location(key) for key in LEGENDARY_GOAL_JOHTO_KEYS]
+    flags += [extra["flag"] for extra in LEGENDARY_GOAL_EXTRA_SITES.values()]
+    return tuple(flags)
+
+
+_LEGENDARY_GOAL_FLAG_IDS = _build_legendary_goal_flags()
+
+_VAR_SHOP_BOUGHT = 0x416A
+_SHOP_SLOTS = tuple(
+    (carrier, _LOCATION_KEY_TO_AP_ID[f"{shopdata.TOWN_MART_LISTS[index]}_shop_item_{slot + 1}"], index)
+    for (index, slot), carrier in shopdata.slot_carriers().items()
+)
+_SHOP_CARRIER_BIT = {carrier: bit for bit, (carrier, _, _) in enumerate(_SHOP_SLOTS)}
+_SHOP_LIST_READ_SIZE = 32
+_SHOP_MAP_IDS = {
+    "cherrygrove_pokemart": 68,
+    "ecruteak_pokemart": 79,
+    "violet_pokemart": 157,
+    "azalea_pokemart": 165,
+    "olivine_pokemart": 227,
+    "blackthorn_pokemart": 292,
+    "vermilion_pokemart": 360,
+    "saffron_pokemart": 409,
+    "cerulean_pokemart": 426,
+    "lavender_pokemart": 433,
+    "pewter_pokemart": 474,
+    "fuchsia_pokemart": 478,
+    "viridian_pokemart": 500,
+}
+_SHOP_AP_IDS_BY_MAP = {
+    map_id: tuple(ap_id for _, ap_id, index in _SHOP_SLOTS if shopdata.TOWN_MART_LISTS[index] == key)
+    for key, map_id in _SHOP_MAP_IDS.items()
+}
+
+
+def _is_shop_carrier(ctx: BizHawkClientContext, ap_id: int) -> bool:
+    write_info = _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(ap_id)
+    return (
+        write_info is not None
+        and write_info[0] in _SHOP_CARRIER_BIT
+        and bool(ctx.slot_data.get("shopsanity", False))
+    )
 _TM57_AP_ID = _LOCATION_KEY_TO_AP_ID["route_10_power_plant_broken_tm57"]
 
 
@@ -569,6 +649,10 @@ def _pokedex_read_looks_sane(pokedex_bytes: bytes) -> bool:
     return not any(is_flag_set(pokedex_bytes, bit) for bit in _DEXSANITY_UNUSED_BITS)
 
 
+def _pokedex_caught_count(pokedex_bytes: bytes) -> int:
+    return sum(is_flag_set(pokedex_bytes, bit) for bit in range(_DEXSANITY_UNUSED_BITS.start))
+
+
 def _flag_in_byte(value: int, flag_id: int) -> bool:
     return bool(value & (1 << flag_byte_and_bit(flag_id)[1]))
 
@@ -602,6 +686,23 @@ async def _announce_received(ctx, received) -> None:
             await bizhawk.display_message(ctx.bizhawk_ctx, message)
     except (bizhawk.RequestFailedError, bizhawk.SyncError):
         pass
+
+
+def _sent_item_message(ctx, args: dict) -> str | None:
+    if args.get("type") != "ItemSend":
+        return None
+    item = args.get("item")
+    receiving = args.get("receiving")
+    if item is None or receiving is None:
+        return None
+    item_id, finder = (item.item, item.player) if hasattr(item, "item") else (item[0], item[2])
+    if finder != ctx.slot or receiving == ctx.slot:
+        return None
+    try:
+        name = ctx.item_names.lookup_in_slot(item_id, receiving)
+    except Exception:
+        name = str(item_id)
+    return f"Sent {name} to {ctx.player_names.get(receiving, receiving)}"
 
 
 def _item_display_name(ctx, item_id: int) -> str:
@@ -731,6 +832,39 @@ def cmd_restore_power(self) -> None:
         logger.info("The Power Plant manager's TM57 check is sent too; its item arrives through the server.")
 
 
+def cmd_report(self) -> None:
+    """Print a short state report to paste when asking for help."""
+    ctx = self.ctx
+    if ctx.game != HeartGoldClient.game or not isinstance(ctx.client_handler, HeartGoldClient):
+        logger.warning("This command only works while playing Pokemon HGSS Singe.")
+        return
+    if not ctx.server or not ctx.slot:
+        logger.warning("Connect to the server first.")
+        return
+    if not ctx.client_handler._known_trainer_id:
+        logger.warning("Load your save in the game first, then type /report again.")
+        return
+    ctx.client_handler._report_requested = True
+    logger.info("Building the report, it shows up in a moment.")
+
+
+_GOAL_NAMES = {
+    _GOAL_ELITE_FOUR: "Elite Four",
+    _GOAL_CHAMPION_RED: "Champion Red",
+    _GOAL_N_BADGES: "Badges",
+    _GOAL_POKEDEX: "Pokedex",
+    _GOAL_LEGENDARY_HUNT: "Legendary Hunt",
+}
+
+
+def _legendaries_caught(flags_bytes: bytes) -> int:
+    return sum(1 for flag_id in _LEGENDARY_GOAL_FLAG_IDS if is_flag_set(flags_bytes, flag_id))
+
+
+def _on_off(value) -> str:
+    return "on" if value else "off"
+
+
 _OFFLINE_WARNING_TICKS = 5
 
 
@@ -765,11 +899,16 @@ class HeartGoldClient(BizHawkClient):
     _start_location_revocation_target: tuple[int, int] | None
     _start_location_revocation_probed: bool
     _goal_pending: bool
+    _pokedex_goal_progress: int | None
+    _legendary_goal_progress: int | None
 
     def __init__(self) -> None:
         super().__init__()
+        self._sent_messages: list[str] = []
         self.local_checked_locations = set()
         self._pending_check_batch = None
+        self._pokedex_goal_progress = None
+        self._legendary_goal_progress = None
         self.bag_base_address = None
         self.flags_array_address = None
         self.pokedex_caught_species_address = None
@@ -783,6 +922,7 @@ class HeartGoldClient(BizHawkClient):
         self._ignore_next_death_link = False
         self._death_link_tag_set = False
         self._death_link_queued = False
+        self._unlock_queued = False
         self._death_link_stalled_ticks = 0
         self._rom_has_deathlink_scripts = False
         self._reported_deathlink_old_rom = False
@@ -791,6 +931,8 @@ class HeartGoldClient(BizHawkClient):
         self._start_location_revocation_target = None
         self._start_location_revocation_probed = False
         self._offline_ticks = 0
+        self._rom_game: str | None = None
+        self._report_requested = False
         self._reset_save_scoped_progress()
 
     def _warn_if_offline(self, ctx: BizHawkClientContext) -> None:
@@ -834,7 +976,11 @@ class HeartGoldClient(BizHawkClient):
             ctx.command_processor.commands["pending"] = cmd_pending
         if "resend" not in ctx.command_processor.commands:
             ctx.command_processor.commands["resend"] = cmd_resend
+        if "report" not in ctx.command_processor.commands:
+            ctx.command_processor.commands["report"] = cmd_report
 
+        self._rom_game = "HeartGold" if bytes(id_code) == HEARTGOLD_US_ID_CODE else "SoulSilver"
+        self._report_requested = False
         ctx.game = self.game
         ctx.items_handling = 0b111
         ctx.want_slot_data = True
@@ -855,6 +1001,7 @@ class HeartGoldClient(BizHawkClient):
         self._ignore_next_death_link = False
         self._death_link_tag_set = False
         self._death_link_queued = False
+        self._unlock_queued = False
         self._rom_has_deathlink_scripts = bytes(deathlink_tag) == DEATHLINK_SCRIPTS_TAG
         self._reported_deathlink_old_rom = False
         self._known_trainer_id = None
@@ -879,6 +1026,11 @@ class HeartGoldClient(BizHawkClient):
         self._battle_counter: int | None = None
         self._battle: dict | None = None
         self._battle_receipts: list[tuple[int, str, int, int]] = []
+        self._location_address: int | None = None
+        self._field_system_address: int | None = None
+        self._field_system_retry_at = 0.0
+        self._position_sent: tuple[int, int, int] | None = None
+        self._position_sent_at = 0.0
         self._tick_receipts: list[tuple[int, str, int, int]] = []
         self._tick = 0
         self._last_check_send_tick = 0
@@ -892,8 +1044,12 @@ class HeartGoldClient(BizHawkClient):
         self._qol_applied = False
         self._start_gifts_done = set()
         self._fly_points_done = False
+        self._shop_bought_ap_ids: frozenset[int] = frozenset()
+        self._shop_hints_sent: set[int] = set()
         self._known_tm_quantities = None
         self._goal_pending = False
+        self._pokedex_goal_progress = None
+        self._legendary_goal_progress = None
 
     async def _ensure_addresses_located(self, ctx: BizHawkClientContext) -> bool:
         if self._manual_bag_base_override is not None and self._manual_flags_array_override is not None:
@@ -966,6 +1122,49 @@ class HeartGoldClient(BizHawkClient):
             )
         self._qol_applied = True
 
+    async def _apply_kanto_fly_map(self, ctx: BizHawkClientContext) -> None:
+        if self.flags_array_address is None or self._array_headers_address is None:
+            return
+        first = flag_byte_and_bit(_KANTO_TOWN_FLY_POINT_FLAGS[0])[0]
+        last = flag_byte_and_bit(_KANTO_TOWN_FLY_POINT_FLAGS[-1])[0]
+        flags = (await bizhawk.read(ctx.bizhawk_ctx, [(self.flags_array_address + first, last - first + 1, "ARM9 System Bus")]))[0]
+        visited = any(
+            flags[flag_byte_and_bit(flag)[0] - first] & (1 << flag_byte_and_bit(flag)[1]) for flag in _KANTO_TOWN_FLY_POINT_FLAGS
+        )
+        if not visited:
+            return
+        dynamic_region_base = self._array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
+        address = (
+            dynamic_region_base
+            + await _chunk_offset(ctx, self._array_headers_address, _POKEGEAR_CHUNK_ID)
+            + _POKEGEAR_CARDS_WORD_OFFSET
+        )
+        current = (await bizhawk.read(ctx.bizhawk_ctx, [(address, 4, "ARM9 System Bus")]))[0]
+        (word,) = struct.unpack("<I", bytes(current))
+        if (word & _POKEGEAR_MAP_UNLOCK_MASK) >> _POKEGEAR_MAP_UNLOCK_SHIFT >= _POKEGEAR_MAP_UNLOCK_KANTO:
+            return
+        word = word & ~_POKEGEAR_MAP_UNLOCK_MASK | _POKEGEAR_MAP_UNLOCK_KANTO << _POKEGEAR_MAP_UNLOCK_SHIFT
+        await bizhawk.guarded_write(
+            ctx.bizhawk_ctx,
+            [(address, struct.pack("<I", word), "ARM9 System Bus")],
+            [(address, bytes(current), "ARM9 System Bus")],
+        )
+
+    async def _apply_start_location_scene_vars(self, ctx: BizHawkClientContext) -> None:
+        if self.flags_array_address is None or not bool(ctx.slot_data.get("randomize_start_location", False)):
+            return
+        if ctx.slot_data.get("starting_town") != "ecruteak":
+            return
+        address = self.flags_array_address - FLAGS_ARRAY_OFFSET + (_VAR_ECRUTEAK_BILL_SCENE - _VAR_BASE) * 2
+        current = (await bizhawk.read(ctx.bizhawk_ctx, [(address, 2, "ARM9 System Bus")]))[0]
+        if struct.unpack("<H", bytes(current))[0] != 0:
+            return
+        await bizhawk.guarded_write(
+            ctx.bizhawk_ctx,
+            [(address, struct.pack("<H", 1), "ARM9 System Bus")],
+            [(address, bytes(current), "ARM9 System Bus")],
+        )
+
     async def _apply_start_gifts(self, ctx: BizHawkClientContext) -> None:
         if self._array_headers_address is None:
             return
@@ -986,6 +1185,103 @@ class HeartGoldClient(BizHawkClient):
                 ctx.bizhawk_ctx,
                 [(address, struct.pack("<I", value | bits), "ARM9 System Bus")],
                 [(address, bytes(current), "ARM9 System Bus")],
+            )
+
+    async def _track_shop(self, ctx: BizHawkClientContext) -> None:
+        shopsanity = bool(ctx.slot_data.get("shopsanity", False))
+        randomized = bool(ctx.slot_data.get("randomize_shop_items", False))
+        if not shopsanity:
+            self._shop_bought_ap_ids = frozenset()
+        if not shopsanity and not randomized:
+            return
+        if self.flags_array_address is None or self.bag_base_address is None or self._deliveries_held():
+            return
+        mask_address = self.flags_array_address - FLAGS_ARRAY_OFFSET + (_VAR_SHOP_BOUGHT - _VAR_BASE) * 2
+        mask_bytes, bag_bytes = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [(mask_address, 4, "ARM9 System Bus"), (self.bag_base_address, BAG_SIZE, "ARM9 System Bus")],
+        )
+        mask = int.from_bytes(bytes(mask_bytes), "little")
+        found = set()
+        pocket_writes = []
+        owned_once = set()
+        if randomized:
+            pockets = ["TMsHMs", "keyItems"] if ctx.slot_data.get("shop_key_items", False) else ["TMsHMs"]
+            for name in pockets:
+                offset, count = BAG_POCKET_OFFSETS[name]
+                pocket = bytes(bag_bytes[offset : offset + count * 4])
+                owned_once |= {struct.unpack_from("<HH", pocket, i * 4)[0] for i in range(count)} - {0}
+        for offset, count in BAG_POCKET_OFFSETS.values() if shopsanity else ():
+            pocket = bytes(bag_bytes[offset : offset + count * 4])
+            entries = [struct.unpack_from("<HH", pocket, i * 4) for i in range(count)]
+            carriers = {item_id for item_id, _ in entries if item_id in _SHOP_CARRIER_BIT}
+            if not carriers:
+                continue
+            found |= carriers
+            kept = [entry for entry in entries if entry[0] not in _SHOP_CARRIER_BIT]
+            kept += [(0, 0)] * (count - len(kept))
+            new_pocket = b"".join(struct.pack("<HH", *entry) for entry in kept)
+            pocket_writes.append((self.bag_base_address + offset, pocket, new_pocket))
+        new_mask = mask
+        for carrier in found:
+            new_mask |= 1 << _SHOP_CARRIER_BIT[carrier]
+        if new_mask != mask:
+            if not await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(mask_address, new_mask.to_bytes(4, "little"), "ARM9 System Bus")],
+                [(mask_address, bytes(mask_bytes), "ARM9 System Bus")],
+            ):
+                return
+        for address, old, new in pocket_writes:
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx, [(address, new, "ARM9 System Bus")], [(address, old, "ARM9 System Bus")]
+            )
+        if shopsanity:
+            self._shop_bought_ap_ids = frozenset(
+                ap_id for bit, (_, ap_id, _) in enumerate(_SHOP_SLOTS) if new_mask >> bit & 1
+            )
+        bought = {carrier for bit, (carrier, _, _) in enumerate(_SHOP_SLOTS) if shopsanity and new_mask >> bit & 1}
+        await self._hide_shop_items(ctx, bought | owned_once)
+
+    async def _hint_shop(self, ctx: BizHawkClientContext) -> None:
+        if not bool(ctx.slot_data.get("shopsanity", False)) or len(self._shop_hints_sent) == len(_SHOP_AP_IDS_BY_MAP):
+            return
+        map_id = await self._current_map_id(ctx)
+        ap_ids = _SHOP_AP_IDS_BY_MAP.get(map_id)
+        if ap_ids is None or map_id in self._shop_hints_sent:
+            return
+        missing = [ap_id for ap_id in ap_ids if ap_id in ctx.missing_locations]
+        if missing:
+            await ctx.send_msgs([{"cmd": "LocationScouts", "locations": missing, "create_as_hint": 2}])
+        self._shop_hints_sent.add(map_id)
+
+    async def _hide_shop_items(self, ctx: BizHawkClientContext, hidden: set[int]) -> None:
+        if not hidden:
+            return
+        table = (
+            await bizhawk.read(
+                ctx.bizhawk_ctx, [(shopdata.POINTER_TABLE, 4 * shopdata.LIST_COUNT, "ARM9 System Bus")]
+            )
+        )[0]
+        pointers = struct.unpack(f"<{shopdata.LIST_COUNT}I", bytes(table))
+        indices = sorted(shopdata.TOWN_MART_LISTS)
+        lists = await bizhawk.read(
+            ctx.bizhawk_ctx, [(pointers[index], _SHOP_LIST_READ_SIZE, "ARM9 System Bus") for index in indices]
+        )
+        for index, raw in zip(indices, lists):
+            values = struct.unpack(f"<{_SHOP_LIST_READ_SIZE // 2}H", bytes(raw))
+            if shopdata.TERMINATOR not in values:
+                continue
+            items = list(values[: values.index(shopdata.TERMINATOR)])
+            kept = [item for item in items if item not in hidden]
+            if kept == items:
+                continue
+            length = (len(items) + 1) * 2
+            new = struct.pack(f"<{len(items) + 1}H", *kept, *([shopdata.TERMINATOR] * (len(items) + 1 - len(kept))))
+            await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(pointers[index], new, "ARM9 System Bus")],
+                [(pointers[index], bytes(raw)[:length], "ARM9 System Bus")],
             )
 
     async def _apply_fly_points(self, ctx: BizHawkClientContext) -> None:
@@ -1074,9 +1370,7 @@ class HeartGoldClient(BizHawkClient):
             byte_index, bit_index = flag_byte_and_bit(flag_id)
             touched_bytes[byte_index] = (await _byte_at(byte_index)) | (1 << bit_index)
 
-        vars_array_address = self.flags_array_address - 736
-        var_scene_cherrygrove_index = 0x73
-        var_address = vars_array_address + var_scene_cherrygrove_index * 2
+        var_address = self.flags_array_address - FLAGS_ARRAY_OFFSET + (_VAR_SCENE_CHERRYGROVE - _VAR_BASE) * 2
         var_bytes = (await bizhawk.read(ctx.bizhawk_ctx, [(var_address, 2, "ARM9 System Bus")]))[0]
         (var_scene_cherrygrove,) = struct.unpack("<H", bytes(var_bytes))
 
@@ -1130,6 +1424,7 @@ class HeartGoldClient(BizHawkClient):
         dynamic_region_base = self._array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
         chunk_offset = await _chunk_offset(ctx, self._array_headers_address, _LOCAL_FIELD_DATA_CHUNK_ID)
         address = dynamic_region_base + chunk_offset + _LOCAL_FIELD_DATA_CURRENT_MAP_ID_OFFSET
+        self._location_address = address
         return bytes((await bizhawk.read(ctx.bizhawk_ctx, [(address, 16, "ARM9 System Bus")]))[0])
 
     async def _revoke_start_location_redirect(self, ctx: BizHawkClientContext) -> None:
@@ -1382,18 +1677,49 @@ class HeartGoldClient(BizHawkClient):
         self._ignore_next_death_link = True
         await ctx.send_death(f"{ctx.player_names[ctx.slot]} whited out!")
 
+    async def _track_unlock_button(self, ctx: BizHawkClientContext) -> None:
+        if (
+            not bool(ctx.slot_data.get("unlock_button", False))
+            or self.playerdata_profile_address is None
+            or self.flags_array_address is None
+        ):
+            return
+        options_address = self.playerdata_profile_address - _PLAYERDATA_PROFILE_OFFSET + _PLAYERDATA_OPTIONS_OFFSET
+        safari_byte, safari_bit = flag_byte_and_bit(_FLAG_SYS_SAFARI)
+        current, safari = await bizhawk.read(
+            ctx.bizhawk_ctx,
+            [(options_address, 2, "ARM9 System Bus"), (self.flags_array_address + safari_byte, 1, "ARM9 System Bus")],
+        )
+        (value,) = struct.unpack("<H", bytes(current))
+        if not value & _OPTIONS_UNLOCK_MASK:
+            return
+        if not await bizhawk.guarded_write(
+            ctx.bizhawk_ctx,
+            [(options_address, struct.pack("<H", value & ~_OPTIONS_UNLOCK_MASK), "ARM9 System Bus")],
+            [(options_address, bytes(current), "ARM9 System Bus")],
+        ):
+            return
+        if safari[0] & (1 << safari_bit):
+            logger.warning("Unlock: not available in the Safari Zone.")
+            return
+        self._unlock_queued = True
+        logger.info("Unlock: you will return to your last Pokemon Center on your next step.")
+
     async def _receive_death_link(self, ctx: BizHawkClientContext) -> None:
-        if not bool(ctx.slot_data.get("death_link", False)) or self.flags_array_address is None:
+        death_link = bool(ctx.slot_data.get("death_link", False))
+        unlock_button = bool(ctx.slot_data.get("unlock_button", False))
+        if (not death_link and not unlock_button) or self.flags_array_address is None:
             return
 
-        if self._previous_death_link is None:
-            self._previous_death_link = ctx.last_death_link
-        elif ctx.last_death_link != self._previous_death_link:
-            self._previous_death_link = ctx.last_death_link
-            if self._ignore_next_death_link:
-                self._ignore_next_death_link = False
-            else:
-                self._death_link_queued = True
+        if death_link:
+            if self._previous_death_link is None:
+                self._previous_death_link = ctx.last_death_link
+            elif ctx.last_death_link != self._previous_death_link:
+                self._previous_death_link = ctx.last_death_link
+                if self._ignore_next_death_link:
+                    self._ignore_next_death_link = False
+                else:
+                    self._death_link_queued = True
 
         if self._death_link_queued and not self._rom_has_deathlink_scripts:
             self._death_link_queued = False
@@ -1420,7 +1746,7 @@ class HeartGoldClient(BizHawkClient):
         )
         value, repel_steps = raw_flags[0], raw_repel[0]
         writes, guards = [], []
-        arming = self._death_link_queued and not raw_safari[0] & (1 << safari_bit)
+        arming = (self._death_link_queued or self._unlock_queued) and not raw_safari[0] & (1 << safari_bit)
         if arming:
             flag_set = value | (1 << flag_byte_and_bit(FLAG_AP_DEATHLINK)[1])
             writes.append((address, bytes([flag_set]), "ARM9 System Bus"))
@@ -1437,6 +1763,8 @@ class HeartGoldClient(BizHawkClient):
         if self._death_link_queued and _flag_in_byte(value, FLAG_AP_DEATHLINK):
             self._death_link_queued = False
             logger.info("DeathLink: you will white out on your next step.")
+        if self._unlock_queued and _flag_in_byte(value, FLAG_AP_DEATHLINK):
+            self._unlock_queued = False
 
     async def _roamer_repel_address(self, ctx: BizHawkClientContext) -> int | None:
         if self._array_headers_address is None:
@@ -1444,6 +1772,26 @@ class HeartGoldClient(BizHawkClient):
         dynamic_region_base = self._array_headers_address - _SAVE_COUNTER_SIZE - _DYNAMIC_REGION_SIZE
         chunk_offset = await _chunk_offset(ctx, self._array_headers_address, _ROAMER_CHUNK_ID)
         return dynamic_region_base + chunk_offset + _ROAMER_REPEL_STEPS_OFFSET
+
+    def on_package(self, ctx: BizHawkClientContext, cmd: str, args: dict) -> None:
+        if cmd != "PrintJSON" or not bool(ctx.slot_data and ctx.slot_data.get("item_received_messages", False)):
+            return
+        message = _sent_item_message(ctx, args)
+        if message is not None:
+            self._sent_messages.append(message)
+
+    async def _announce_sent(self, ctx: BizHawkClientContext) -> None:
+        if not self._sent_messages:
+            return
+        messages = self._sent_messages
+        self._sent_messages = []
+        if len(messages) > _RECEIVED_MESSAGES_PER_TICK:
+            messages = [f"Sent {len(messages)} items"]
+        try:
+            for message in messages:
+                await bizhawk.display_message(ctx.bizhawk_ctx, message)
+        except (bizhawk.RequestFailedError, bizhawk.SyncError):
+            pass
 
     async def game_watcher(self, ctx: BizHawkClientContext) -> None:
         if ctx.server is None or ctx.server.socket.closed:
@@ -1455,7 +1803,10 @@ class HeartGoldClient(BizHawkClient):
         self._warn_on_version_mismatch(ctx)
 
         try:
-            if not await self._ensure_addresses_located(ctx):
+            located = await self._ensure_addresses_located(ctx)
+            if self._report_requested:
+                await self._write_report(ctx, located)
+            if not located:
                 return
 
             trainer_id_bytes = (
@@ -1485,8 +1836,12 @@ class HeartGoldClient(BizHawkClient):
             await self._apply_qol_options(ctx)
             await self._apply_start_gifts(ctx)
             await self._apply_fly_points(ctx)
+            await self._track_shop(ctx)
+            await self._hint_shop(ctx)
             await self._apply_starting_money(ctx, money_applied_key)
             await self._apply_start_location_flags(ctx)
+            await self._apply_start_location_scene_vars(ctx)
+            await self._apply_kanto_fly_map(ctx)
             await self._revoke_start_location_redirect(ctx)
             await self._apply_start_location_blackout_spawn(ctx)
             await self._apply_power_plant_prerestored(ctx)
@@ -1494,6 +1849,7 @@ class HeartGoldClient(BizHawkClient):
             await self._restore_reusable_tms(ctx)
             await self._update_death_link_tag(ctx)
             await self._send_death_link_on_whiteout(ctx)
+            await self._track_unlock_button(ctx)
             await self._receive_death_link(ctx)
             await self._check_locations(ctx)
             await self._repair_story_vars(ctx)
@@ -1504,8 +1860,75 @@ class HeartGoldClient(BizHawkClient):
                 await self._process_resends(ctx)
                 await self._catch_battle_started_mid_tick(ctx)
             await self._apply_pending_badges(ctx)
+            await self._report_position(ctx)
         except bizhawk.RequestFailedError:
             pass
+
+    async def _player_object_from(self, ctx: BizHawkClientContext, field_system: int, location: int) -> int | None:
+        raw = bytes((await bizhawk.read(ctx.bizhawk_ctx, [(field_system, _FIELD_SYSTEM_SIZE, "ARM9 System Bus")]))[0])
+        if struct.unpack_from("<I", raw, _FIELD_SYSTEM_LOCATION_OFFSET)[0] != location:
+            return None
+        avatar = struct.unpack_from("<I", raw, _FIELD_SYSTEM_PLAYER_AVATAR_OFFSET)[0]
+        if not _MAIN_RAM_START <= avatar < _MAIN_RAM_END:
+            return None
+        pointer = bytes((await bizhawk.read(ctx.bizhawk_ctx, [(avatar + _PLAYER_AVATAR_MAP_OBJECT_OFFSET, 4, "ARM9 System Bus")]))[0])
+        player = struct.unpack("<I", pointer)[0]
+        return player if _MAIN_RAM_START <= player < _MAIN_RAM_END else None
+
+    async def _find_field_system(self, ctx: BizHawkClientContext, location: int) -> int | None:
+        needle = struct.pack("<I", location)
+        for start, end in _FIELD_SYSTEM_SCAN_RANGES:
+            data = await _read_chunked(ctx, start, end - start, "ARM9 System Bus")
+            at = data.find(needle)
+            while at >= 0:
+                candidate = start + at - _FIELD_SYSTEM_LOCATION_OFFSET
+                if at % 4 == 0 and at >= _FIELD_SYSTEM_LOCATION_OFFSET and await self._player_object_from(ctx, candidate, location):
+                    return candidate
+                at = data.find(needle, at + 1)
+        return None
+
+    async def _report_position(self, ctx: BizHawkClientContext) -> None:
+        now = time.monotonic()
+        if now - self._position_sent_at < _POSITION_INTERVAL_SECONDS:
+            return
+        self._position_sent_at = now
+        position = await self._current_position(ctx)
+        location = self._location_address
+        if position is None or location is None:
+            return
+        map_id = struct.unpack_from("<i", position)[0]
+        player = None
+        if self._field_system_address is not None:
+            player = await self._player_object_from(ctx, self._field_system_address, location)
+        if player is None:
+            if now < self._field_system_retry_at:
+                return
+            self._field_system_address = await self._find_field_system(ctx, location)
+            if self._field_system_address is None:
+                self._field_system_retry_at = now + _POSITION_RETRY_SECONDS
+                return
+            player = await self._player_object_from(ctx, self._field_system_address, location)
+            if player is None:
+                return
+        raw = bytes((await bizhawk.read(ctx.bizhawk_ctx, [(player, _PLAYER_OBJECT_SIZE, "ARM9 System Bus")]))[0])
+        local_id, x, z = struct.unpack_from("<I", raw, 8)[0], struct.unpack_from("<I", raw, 0x64)[0], struct.unpack_from("<I", raw, 0x6C)[0]
+        if local_id != _PLAYER_LOCAL_ID or x >= 2048 or z >= 2048:
+            return
+        sent = (map_id, x, z)
+        if sent == self._position_sent:
+            return
+        self._position_sent = sent
+        await ctx.send_msgs(
+            [
+                {
+                    "cmd": "Set",
+                    "key": _POSITION_KEY_TEMPLATE.format(team=ctx.team, slot=ctx.slot),
+                    "default": {},
+                    "want_reply": False,
+                    "operations": [{"operation": "replace", "value": {"map": map_id, "x": x, "z": z}}],
+                }
+            ]
+        )
 
     def _warn_on_version_mismatch(self, ctx: BizHawkClientContext) -> None:
         generated = ctx.slot_data.get("world_version")
@@ -1518,6 +1941,79 @@ class HeartGoldClient(BizHawkClient):
                 f"This seed was generated with Pokemon HGSS Singe {generated}, but this client is {installed}. "
                 "Use the same version as the seed to avoid lost or repeated items."
             )
+
+    async def _write_report(self, ctx: BizHawkClientContext, located: bool) -> None:
+        slot_data = ctx.slot_data or {}
+        options = slot_data.get(SLOT_DATA_OPTIONS_KEY) or {}
+        game = self._rom_game or ("SoulSilver" if options.get("game_version") == 1 else "HeartGold")
+        checked = set(getattr(ctx, "checked_locations", None) or ())
+        received = len(ctx.items_received)
+        pending = len(self.pending_item_indices(ctx))
+        badges = len({item.item for item in ctx.items_received if item.item in _AP_ITEM_ID_TO_BADGE_INDEX})
+        goal = int(slot_data.get("goal", _GOAL_ELITE_FOUR))
+        goal_line = f"Goal: {_GOAL_NAMES.get(goal, goal)}, {badges} badges received"
+        if goal == _GOAL_N_BADGES:
+            required = int(slot_data.get("goal_badge_count", 16))
+            if options.get("johto_only"):
+                required = min(required, _JOHTO_BADGE_COUNT)
+            goal_line += f" of {required} needed"
+        elif goal == _GOAL_POKEDEX:
+            required = int(slot_data.get("goal_pokedex_count", 150))
+            caught = "unknown" if self._pokedex_goal_progress is None else self._pokedex_goal_progress
+            goal_line = f"Goal: {_GOAL_NAMES[goal]}, {caught} / {required} species caught"
+        elif goal == _GOAL_LEGENDARY_HUNT:
+            required = int(slot_data.get("goal_legendary_count", 3))
+            caught = "unknown" if self._legendary_goal_progress is None else self._legendary_goal_progress
+            goal_line = f"Goal: {_GOAL_NAMES[goal]}, {caught} / {required} legendaries caught"
+        lines = [
+            "Pokemon HGSS Singe report",
+            f"Versions: client {_installed_world_version() or 'unknown'}, "
+            f"seed {slot_data.get('world_version') or 'unknown'}, game {game}",
+        ]
+        if located and self.flags_array_address is not None:
+            vars_address = self.flags_array_address - FLAGS_ARRAY_OFFSET
+            vars_bytes = bytes(
+                (await bizhawk.read(ctx.bizhawk_ctx, [(vars_address, FLAGS_ARRAY_OFFSET, "ARM9 System Bus")]))[0]
+            )
+
+            def var(var_id: int) -> int:
+                return struct.unpack_from("<H", vars_bytes, (var_id - _VAR_BASE) * 2)[0]
+
+            map_id = await self._current_map_id(ctx)
+            kanto_checks = sum(1 for key in _KANTO_LEADER_BADGE_KEYS if _LOCATION_KEY_TO_AP_ID.get(key) in checked)
+            lines.append(f"Save: located, map {'unknown' if map_id is None else map_id}")
+            story = (
+                f"Story: Kanto leaders {var(_VAR_KANTO_LEADERS_BEATEN)} "
+                f"(badge checks {kanto_checks}/{len(_KANTO_LEADER_BADGE_KEYS)}), "
+                f"midgame badges {var(_VAR_MIDGAME_BADGES)}, Rocket takeover {var(_VAR_SCENE_ROCKET_TAKEOVER)}, "
+                f"S.S. Aqua {var(_VAR_SS_AQUA_VOYAGE)}, Elm's Lab {var(_VAR_SCENE_ELMS_LAB)}"
+            )
+        else:
+            lines.append("Save: not found in memory")
+            story = None
+        lines += [
+            f"Items: {received} received, {received - pending} applied, {pending} pending",
+            f"Checks: {len(checked)} / {len(checked) + len(ctx.missing_locations)}",
+            goal_line,
+        ]
+        if story is not None:
+            lines.append(story)
+        lines.append(
+            "Options: "
+            + ", ".join(
+                f"{name} {_on_off(value)}"
+                for name, value in (
+                    ("shopsanity", slot_data.get("shopsanity")),
+                    ("remote_items", slot_data.get("remote_items")),
+                    ("magnet_train", slot_data.get("magnet_train")),
+                    ("death_link", slot_data.get("death_link")),
+                    ("unlock_button", slot_data.get("unlock_button")),
+                    ("johto_only", options.get("johto_only")),
+                )
+            )
+        )
+        self._report_requested = False
+        logger.info("\n".join(lines))
 
     def _accept_trainer_id(self, trainer_id: int) -> bool:
         if trainer_id == self._known_trainer_id:
@@ -1653,6 +2149,7 @@ class HeartGoldClient(BizHawkClient):
             self._gifts_never_given |= {_TM57_AP_ID}
         flagged |= self._gifts_never_given
         flagged |= {_COMPANION_AP_LOCATION_IDS[i] for i in flagged if i in _COMPANION_AP_LOCATION_IDS}
+        flagged |= self._shop_bought_ap_ids
         newly_checked = flagged & set(ctx.missing_locations)
         if _GAME_CORNER_JP_TM78_AP_ID in ctx.missing_locations:
             if await self._current_map_id(ctx) == _MAP_GOLDENROD_GAME_CORNER:
@@ -1718,6 +2215,7 @@ class HeartGoldClient(BizHawkClient):
             return bool(flags_bytes[byte_index] & (1 << bit_index))
 
         writes = []
+        checked = getattr(ctx, "checked_locations", None) or set()
         clair_scene_done = flag(_FLAG_ELMS_LAB_CLAIR_SCENE_DONE)
         if var(_VAR_SCENE_MR_POKEMONS_HOUSE) == 1:
             if var(_VAR_SCENE_ELMS_LAB) != 3:
@@ -1726,9 +2224,15 @@ class HeartGoldClient(BizHawkClient):
             writes.append((_VAR_SCENE_ELMS_LAB, 8))
         if var(_VAR_SCENE_ROCKET_TAKEOVER) < 2 and var(_VAR_MIDGAME_BADGES) > 4:
             ids = _LOCATION_KEY_TO_AP_ID
-            checked = getattr(ctx, "checked_locations", None) or set()
             beaten = sum(1 for key in _MIDGAME_LEADER_BADGE_KEYS if ids.get(key) in checked)
             writes.append((_VAR_MIDGAME_BADGES, beaten))
+        kanto_beaten = sum(1 for key in _KANTO_LEADER_BADGE_KEYS if _LOCATION_KEY_TO_AP_ID.get(key) in checked)
+        if var(_VAR_KANTO_LEADERS_BEATEN) < kanto_beaten:
+            writes.append((_VAR_KANTO_LEADERS_BEATEN, kanto_beaten))
+        if var(_VAR_SS_AQUA_VOYAGE) == _SS_AQUA_QUEST_DONE:
+            map_id = await self._current_map_id(ctx)
+            if map_id is not None and map_id not in _SS_AQUA_SHIP_MAP_IDS:
+                writes.append((_VAR_SS_AQUA_VOYAGE, _SS_AQUA_VOYAGE_DONE))
         if (
             (var(_VAR_SCENE_ELMS_LAB) >= 9 or clair_scene_done)
             and var(_VAR_DANCE_THEATER) < 4
@@ -1818,6 +2322,29 @@ class HeartGoldClient(BizHawkClient):
                 required = min(required, _JOHTO_BADGE_COUNT)
             received = {item.item for item in ctx.items_received if item.item in _AP_ITEM_ID_TO_BADGE_INDEX}
             reached = len(received) >= required
+        elif goal == _GOAL_POKEDEX:
+            if self.pokedex_caught_species_address is None:
+                return
+            raw = (
+                await bizhawk.read(
+                    ctx.bizhawk_ctx,
+                    [(self.pokedex_caught_species_address, _POKEDEX_CAUGHT_SPECIES_SIZE, "ARM9 System Bus")],
+                )
+            )[0]
+            pokedex_bytes = bytes(raw)
+            if not _pokedex_read_looks_sane(pokedex_bytes):
+                return
+            self._pokedex_goal_progress = _pokedex_caught_count(pokedex_bytes)
+            reached = self._pokedex_goal_progress >= int(ctx.slot_data.get("goal_pokedex_count", 150))
+            if reached and not goal_seen_last_tick:
+                self._goal_pending = True
+                return
+        elif goal == _GOAL_LEGENDARY_HUNT:
+            self._legendary_goal_progress = _legendaries_caught(flags_bytes)
+            reached = self._legendary_goal_progress >= int(ctx.slot_data.get("goal_legendary_count", 3))
+            if reached and not goal_seen_last_tick:
+                self._goal_pending = True
+                return
         elif goal == _GOAL_CHAMPION_RED:
             reached = False
             if is_flag_set(flags_bytes, _FLAG_RED_DEFEATED):
@@ -1941,6 +2468,9 @@ class HeartGoldClient(BizHawkClient):
                 continue
 
             write_info = None if already_delivered_locally else _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(next_item.item)
+            if write_info is not None and _is_shop_carrier(ctx, next_item.item):
+                logger.info(f"{_item_display_name(ctx, next_item.item)} has no use in this game, skipped.")
+                write_info = None
             if write_info is None:
                 self._delivered_ahead.add(index)
                 index += 1
@@ -2017,6 +2547,7 @@ class HeartGoldClient(BizHawkClient):
             await self._store_applied_item_count(ctx, applied_key, delivered_ahead_key)
         if received and bool(ctx.slot_data.get("item_received_messages", False)):
             await _announce_received(ctx, received)
+        await self._announce_sent(ctx)
 
     async def _read_battle_starts(self, ctx: BizHawkClientContext) -> int | None:
         if self.gamestats_address is None:
@@ -2173,7 +2704,7 @@ class HeartGoldClient(BizHawkClient):
         for index, item in enumerate(ctx.items_received):
             if index >= self._applied_item_count and index not in self._delivered_ahead:
                 continue
-            if item.item not in _KEPT_ITEM_AP_IDS:
+            if item.item not in _KEPT_ITEM_AP_IDS or _is_shop_carrier(ctx, item.item):
                 continue
             write_info = _AP_ITEM_ID_TO_BAG_WRITE_INFO.get(item.item)
             if write_info is not None:

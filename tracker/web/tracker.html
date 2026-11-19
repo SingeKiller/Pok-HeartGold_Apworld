@@ -9,12 +9,12 @@
   --bg: #1b1d22; --panel: #23262c; --tile: #2a2d34; --line: #3a3e46; --text: #e8e8e8;
   --muted: #9a9ca3; --faint: #6c6f76; --accent: #fac775;
   --ok: #639922; --ok-bg: #1f3a12; --ok-line: #3b6d11; --ok-text: #97c459;
-  --bad: #e24b4a; --part: #ef9f27; --done: #888780; --link: #85b7eb;
+  --bad: #e24b4a; --part: #ef9f27; --done: #888780; --link: #85b7eb; --seq: #e6d34a;
 }
 :root[data-theme="light"] {
   --bg: #f4f3ef; --panel: #ffffff; --tile: #ffffff; --line: #d9d7d0; --text: #1f1f1d;
   --muted: #5f5e5a; --faint: #a3a29c; --accent: #854f0b;
-  --ok-bg: #eaf3de; --ok-line: #97c459; --ok-text: #27500a; --link: #185fa5;
+  --ok-bg: #eaf3de; --ok-line: #97c459; --ok-text: #27500a; --link: #185fa5; --seq: #b89c00;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; }
@@ -62,6 +62,7 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
 .ct { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .d-ok { background: var(--ok); } .d-bad { background: var(--bad); } .d-part { background: var(--part); }
+.d-seq { background: var(--seq); }
 .d-unk { background: transparent; box-shadow: inset 0 0 0 2px var(--part); }
 .d-done { background: var(--done); }
 .chev { width: 14px; flex: none; color: var(--faint); font-size: 11px; transition: transform .12s; }
@@ -89,18 +90,65 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
 .map .sel { stroke: #fff36b; stroke-width: 2; }
 .s-ok { fill: var(--ok); stroke: var(--ok); } .s-bad { fill: var(--bad); stroke: var(--bad); }
 .s-part { fill: var(--part); stroke: var(--part); } .s-done { fill: var(--done); stroke: var(--done); }
+.s-seq { fill: var(--seq); stroke: var(--seq); }
 .s-none { fill: #f4f4f4; stroke: #f4f4f4; }
 .map .sea { stroke: #9cc8f0; }
-.plan svg { width: 100%; max-height: 70vh; display: block; border-radius: 8px; background: #20242b; }
-.plan .w { fill: #5b4a36; } .plan .f { fill: #d9c9a3; } .plan .g { fill: #8fc46a; } .plan .h2o { fill: #5a9fe0; }
-.plan .door { fill: #20242b; stroke: #ffb347; stroke-width: 2.2; }
-.plan .door.go { cursor: pointer; fill: #ffb347; }
+.plan svg { display: block; margin: 0 auto; border-radius: 8px; background: #20242b; }
+.zoombar { display: flex; gap: 6px; align-items: center; margin: 0 0 6px; flex-wrap: wrap; }
+.zoombar button { padding: 2px 10px; min-width: 32px; }
+.zoombar .hint { font-size: 12px; color: var(--muted); }
+.zoomwrap { overflow: auto; max-height: 72vh; border-radius: 8px; background: #20242b; cursor: grab; touch-action: none; }
+.zoomwrap.drag { cursor: grabbing; }
+.zoomwrap.camera { height: 72vh; }
+.zoomwrap svg { display: block; margin: 0 auto; }
+.plan .door text { fill: #0b1a24; font-size: 13px; font-weight: 800; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.plan .door:not(.go) text { fill: #3fd0ff; }
+.plan .nb { fill: transparent; cursor: pointer; }
+.plan .nb:hover { fill: rgba(255, 255, 255, 0.16); stroke: #ffffff; stroke-width: 2; }
+.doors { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 2px; font-size: 13px; }
+.doors .dk { display: inline-flex; align-items: center; gap: 6px; }
+.doors .dk.go { cursor: pointer; }
+.doors .dk.go:hover .dn { color: var(--accent); text-decoration: underline; }
+.doors .num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 10px;
+  background: #3fd0ff; color: #0b1a24; font-size: 11px; font-weight: 800; border: 2px solid #06222e; }
+.doors .dk:not(.go) .num { background: transparent; color: #3fd0ff; border: 2px solid #3fd0ff; }
+.world .area rect { fill: transparent; stroke: none; }
+.world .area.s-ok rect { fill: rgba(99, 190, 123, 0.2); } .world .area.s-part rect { fill: rgba(250, 199, 117, 0.24); }
+.world .area.s-bad rect { fill: rgba(226, 75, 74, 0.18); } .world .area.s-done rect { fill: rgba(120, 120, 128, 0.38); }
+.world .area.s-seq rect { fill: rgba(230, 211, 74, 0.24); }
+.world .area:hover rect { fill: rgba(255, 255, 255, 0.18); }
+.world .area.sel rect { fill: rgba(255, 243, 107, 0.30); }
+.world .edge { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1.2; fill: none; vector-effect: non-scaling-stroke; pointer-events: none; }
+.world .lbl { font-size: calc(13px * var(--k, 1)); font-weight: 700; fill: #fff; stroke: #1b1d22; stroke-width: calc(3.5px * var(--k, 1)); paint-order: stroke;
+  text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.world .site { stroke: #1b1d22; stroke-width: 2.5px; cursor: pointer; vector-effect: non-scaling-stroke; }
+.world .site.sel { stroke: #fff36b; }
+.world .me { fill: #ff4fd8; stroke: #fff; stroke-width: 3px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.plan .door { fill: rgba(10, 12, 16, 0.78); stroke: #3fd0ff; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.plan .door.go { cursor: pointer; fill: #3fd0ff; stroke: #06222e; }
 .plan .chk { stroke: #111; stroke-width: 1.2; cursor: pointer; }
 .plan .chk.sel { stroke: #fff36b; stroke-width: 2.4; }
+.plan-link .nm { font-weight: 600; }
+.dexpill { flex: none; font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.dexpill.full { border-color: var(--done); color: var(--text); background: var(--tile); }
+.dexpill[data-missing] { cursor: pointer; }
+.dexpill[data-missing]:hover { border-color: var(--accent); }
+.dexpill.open { border-color: var(--accent); color: var(--accent); }
+.missing { border-left: 2px solid var(--accent); margin: 2px 0 6px 4px; padding-left: 4px; }
+
+.crumbs button.on { border-color: #ffb347; color: #ffb347; }
+.plan .me { fill: #ff4fd8; stroke: #fff; stroke-width: 2.5; }
+.plan-link .ct { color: var(--muted); }
 .crumbs { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
 .crumbs button { background: none; border: 1px solid var(--line); color: inherit; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
 .map-panel { margin-top: 8px; }
 @media (max-width: 600px) { .conn input { width: 120px; } }
+body.broadcast .top, body.broadcast .tabs, body.broadcast .legend { display: none; }
+body.broadcast .wrap { max-width: none; padding: 6px 8px; }
+#broadcast-exit { display: none; position: fixed; top: 6px; right: 6px; z-index: 50; opacity: 0.2; }
+#broadcast-exit:hover, #broadcast-exit:focus { opacity: 1; }
+body.broadcast #broadcast-exit { display: block; }
 </style>
 </head>
 <body>
@@ -114,6 +162,7 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
       <button id="connect"></button>
       <span class="status"><span class="dot" id="status-dot"></span><span id="status"></span></span>
     </div>
+    <button id="broadcast"></button>
     <button id="theme" title="Theme">&#9680;</button>
     <div class="lang"><button data-lang="fr">FR</button><button data-lang="en">EN</button></div>
   </div>
@@ -123,6 +172,7 @@ input { font: inherit; color: var(--text); background: var(--tile); border: 1px 
   <div class="legend" id="legend"></div>
   <div class="panel" id="view"></div>
 </div>
+<button id="broadcast-exit">&#10005;</button>
 <script>
 /*__LOGIC__*/
 </script>
@@ -132,14 +182,20 @@ const GAME = "Pokemon HGSS Singe";
 const TEXT = {
   fr: { connect: "Connexion", disconnect: "Déconnexion", offline: "Hors ligne (suivi manuel)",
     connecting: "Connexion...", online: "Connecté", refused: "Refusé : ", lost: "Connexion perdue",
-    accessible: "accessible", partial: "partiel", blocked: "bloqué", done: "fait", note: "? = voir l'objet placé",
+    accessible: "accessible", partial: "partiel", blocked: "bloqué", done: "fait", sequence: "hors logique", broadcast: "Diffusion", broadcastHint: "Vue épurée pour les streams (ou ouvre le fichier avec #diffusion à la fin)", broadcastExit: "Quitter la vue diffusion", note: "? = voir l'objet placé",
     all: "Tous", left: "Restants", me: "moi", unknown: "inconnu", goalUnknown: "Objectif : connecte-toi",
-    empty: "Rien à afficher", map: "Carte", mapHint: "Clique sur une ville, une route ou une grotte" },
+    empty: "Rien à afficher", map: "Carte", mapHint: "Clique sur une ville, une route ou une grotte",
+    npcs: "PNJ", openPlan: "Voir le plan", follow: "Suivre mon personnage", you: "Toi",
+    fit: "Ajuster", zoomHint: "Molette pour zoomer, glisser pour se déplacer, clic sur une zone pour y entrer (aussi les zones voisines sur un plan)",
+    dexShort: "Pokédex", mapChecks: "Checks", mapDex: "Pokédex sauvage", complete: "complété", incomplete: "à faire", showMissing: "clic pour voir ce qui manque", doors: "Entrées", unknownExit: "Sortie variable" },
   en: { connect: "Connect", disconnect: "Disconnect", offline: "Offline (manual tracking)",
     connecting: "Connecting...", online: "Connected", refused: "Refused: ", lost: "Connection lost",
-    accessible: "accessible", partial: "partial", blocked: "blocked", done: "done", note: "? = show the placed item",
+    accessible: "accessible", partial: "partial", blocked: "blocked", done: "done", sequence: "out of logic", broadcast: "Broadcast", broadcastHint: "Clean view for streams (or open the file with #broadcast at the end)", broadcastExit: "Leave the broadcast view", note: "? = show the placed item",
     all: "All", left: "Remaining", me: "me", unknown: "unknown", goalUnknown: "Goal: connect first",
-    empty: "Nothing to show", map: "Map", mapHint: "Click a town, route or cave" },
+    empty: "Nothing to show", map: "Map", mapHint: "Click a town, route or cave",
+    npcs: "NPCs", openPlan: "Open map", follow: "Follow my character", you: "You",
+    fit: "Fit", zoomHint: "Wheel to zoom, drag to move, click an area to enter it (neighbouring areas on a plan too)",
+    dexShort: "Pokédex", mapChecks: "Checks", mapDex: "Wild Pokédex", complete: "completed", incomplete: "to do", showMissing: "click to show what is missing", doors: "Entrances", unknownExit: "Variable exit" },
 };
 
 const store = {
@@ -151,9 +207,14 @@ const S = {
   lang: store.get("lang", "fr"), tab: store.get("tab", "johto"), theme: store.get("theme", "dark"),
   dexFilter: "all", trainerFilter: "all",
   open: new Set(store.get("open", ["johto", "kanto", "johto/towns", "johto/dungeons", "johto/routes",
-    "kanto/towns", "kanto/dungeons", "kanto/routes", "tr/johto", "tr/kanto"])),
+    "kanto/towns", "kanto/dungeons", "kanto/routes", "tr/johto", "tr/kanto", "npc/johto", "npc/kanto"])),
   manualItems: new Set(store.get("manualItems", [])), manualChecks: new Set(store.get("manualChecks", [])),
   leaderMarks: store.get("leaderMarks", {}), plan: null, planTrail: [], planSpot: null,
+  follow: store.get("follow", false), pos: null, posKey: null, followCode: null,
+  broadcast: ["#diffusion", "#broadcast"].includes(location.hash),
+  zoom: store.get("zoom", {}), view: {}, world: store.get("world", "johto_kanto"), centerMe: false,
+  followTile: store.get("followTile", 32),
+  mapMode: store.get("mapMode", "checks"), showMissing: new Set(),
   received: new Set(), checked: new Set(), present: null, slotData: null, slot: null,
   players: {}, gamesBySlot: {}, itemNames: {}, scouted: {}, revealed: new Set(),
 };
@@ -166,6 +227,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 function options() {
   const o = (S.slotData && S.slotData.options) || {};
   const flag = (v) => v === 1 || v === true;
+  const pick = (name) => o[name] !== undefined ? o[name] : S.slotData[name];
   let origin = "new_bark";
   if (S.slotData && S.slotData.randomize_start_location && S.slotData.starting_town) origin = S.slotData.starting_town;
   return {
@@ -173,8 +235,11 @@ function options() {
     magnet_train: !(o.magnet_train === 0 || o.magnet_train === false),
     hidden_items_require_dowsing_machine: flag(o.hidden_items_require_dowsing_machine), origin,
     require_flash: flag(o.require_flash),
+    counts: { elite_four_badges: S.slotData && S.slotData.elite_four_badges, blue_kanto_leaders: S.slotData && S.slotData.blue_kanto_leaders, red_badges: S.slotData && S.slotData.red_badges },
     trainersanity: S.slotData ? flag(o.trainersanity) : true, dexsanity: S.slotData ? flag(o.dexsanity) : true,
-    legendarysanity: S.slotData ? flag(o.legendarysanity) : true, bicycle: S.slotData ? flag(o.randomize_bicycle) : true,
+    legendarysanity: S.slotData ? flag(o.legendarysanity) : true, shopsanity: S.slotData ? flag(o.shopsanity) : true,
+    game_corner_prizes: S.slotData ? flag(pick("game_corner_prizes")) : true, apricorn_trees: S.slotData ? flag(pick("apricorn_trees")) : true,
+    bug_contest: S.slotData ? flag(pick("bug_contest")) : true, bicycle: S.slotData ? flag(o.randomize_bicycle) : true,
   };
 }
 const owned = (code) => S.received.has(code) || (!S.slotData && S.manualItems.has(code));
@@ -185,7 +250,8 @@ function visible(id, opts) {
   const check = DATA.checks[id];
   if (!check) return true;
   return check.vis.every((rule) => ({
-    opt_trainersanity: opts.trainersanity, opt_legendarysanity: opts.legendarysanity, opt_bicycle: opts.bicycle,
+    opt_trainersanity: opts.trainersanity, opt_legendarysanity: opts.legendarysanity, opt_shopsanity: opts.shopsanity, opt_bicycle: opts.bicycle,
+    opt_game_corner_prizes: opts.game_corner_prizes, opt_apricorn_trees: opts.apricorn_trees, opt_bug_contest: opts.bug_contest,
     opt_power_plant_tm: !opts.magnet_train, opt_kanto: !opts.johto_only, opt_dexsanity: opts.dexsanity,
   })[rule] !== false);
 }
@@ -196,15 +262,23 @@ function leaderBeaten(code) {
 }
 
 function statusOf(ids, logic) {
-  let left = 0, ok = 0;
+  let left = 0, ok = 0, seq = 0;
   for (const id of ids) {
     if (isDone(id)) continue;
     left++;
-    if (logic(id)) ok++;
+    const state = logic(id);
+    if (state === "seq") seq++;
+    else if (state) ok++;
   }
   if (left === 0) return "d-done";
   if (ok === left) return "d-ok";
-  return ok === 0 ? "d-bad" : "d-part";
+  if (seq === left) return "d-seq";
+  return ok + seq === 0 ? "d-bad" : "d-part";
+}
+
+function relaxedOptions(opts) {
+  return { ...opts, require_flash: false, hidden_items_require_dowsing_machine: false,
+    counts: { ...(opts.counts || {}), elite_four_badges: 0 } };
 }
 
 function revealHtml(id) {
@@ -217,19 +291,19 @@ function revealHtml(id) {
 function checkRow(id, name, logic, extra = "") {
   const done = isDone(id);
   const state = done ? null : logic(id);
-  const dot = done ? "d-done" : state === null ? "d-unk" : state ? "d-ok" : "d-bad";
+  const dot = done ? "d-done" : state === null ? "d-unk" : state === "seq" ? "d-seq" : state ? "d-ok" : "d-bad";
   const cond = DATA.checks[id] && DATA.conditional && DATA.conditional[DATA.checks[id].key];
   const label = cond ? `${name} (${cond[S.lang]})` : name;
   return `<div class="row click${done ? " done" : ""}" data-check="${id}">${extra}<span class="dot ${dot}"></span>` +
     `<span class="nm" title="${esc(label)}">${esc(label)}</span>${revealHtml(id)}</div>`;
 }
 
-function node(key, label, ids, logic, inner, level = 1, count = true) {
+function node(key, label, ids, logic, inner, level = 1, count = true, extra = "") {
   const done = ids.filter(isDone).length;
   const open = S.open.has(key);
   return `<div class="node lvl${level}${open ? "" : " closed"}"><div class="row click" data-toggle="${esc(key)}">` +
     `<span class="chev">&#9660;</span><span class="dot ${statusOf(ids, logic)}"></span>` +
-    `<span class="nm">${esc(label)}</span>${count ? `<span class="ct">${done} / ${ids.length}</span>` : ""}</div>` +
+    `<span class="nm">${esc(label)}</span>${extra}${count ? `<span class="ct">${done} / ${ids.length}</span>` : ""}</div>` +
     `<div class="kids">${open ? inner() : ""}</div></div>`;
 }
 
@@ -266,11 +340,65 @@ function renderHeader(opts) {
     text = `${UI("goal")} : ${UI("badges_goal").replace("{n}", need)}`;
     prog = `${DATA.badges.filter(owned).length} / ${need}`;
   }
+  if (goal === 4) text = `${UI("goal")} : ${UI("goal_pokedex")} (${S.slotData.goal_pokedex_count})`;
+  if (goal === 5) text = `${UI("goal")} : ${UI("goal_legendary")} (${S.slotData.goal_legendary_count})`;
   document.getElementById("goal").textContent = text;
   document.getElementById("goal-prog").textContent = prog;
 }
 
+function dexOn(opts) {
+  if (S.present) return DATA.dex.some((d) => S.present.has(d.id));
+  return !!opts.dexsanity;
+}
+
+function dexAreas(opts) {
+  const out = {};
+  if (!dexOn(opts)) return out;
+  const add = (area, id) => { if (area && visible(id, opts)) (out[area] = out[area] || new Set()).add(id); };
+  const sources = S.slotData && S.slotData.dexsanity_logic;
+  if (sources) {
+    for (const [id, rows] of Object.entries(sources)) for (const row of rows) add(DATA.region_area[row[0]], Number(id));
+  } else {
+    for (const [area, ids] of Object.entries(DATA.dex_area || {})) for (const id of ids) add(area, id);
+  }
+  return out;
+}
+
+function statusPill(ids, label, key, nodeKey) {
+  if (!ids || !ids.length) return "";
+  const done = ids.filter(isDone).length;
+  const complete = done === ids.length;
+  const open = S.showMissing.has(key);
+  return `<span class="dexpill${complete ? " full" : ""}${open ? " open" : ""}" data-missing="${esc(key)}" data-node="${esc(nodeKey)}"` +
+    ` title="${esc(label + " : " + T(complete ? "complete" : "showMissing"))}">${esc(label)} ${done}/${ids.length}${complete ? " \u2713" : ""}</span>`;
+}
+
+function dexPill(code, set, nodeKey) {
+  return set && set.size ? statusPill([...set], T("dexShort"), "dex/" + code, nodeKey) : "";
+}
+
+function trainerPill(area, opts, nodeKey) {
+  return area ? statusPill(area.trainers.filter((id) => visible(id, opts)), UI("trainers"), "tr/" + area.code, nodeKey) : "";
+}
+
+function missingRows(code, set, area, opts, logic) {
+  let html = "";
+  if (S.showMissing.has("dex/" + code) && set) {
+    const rule = dexLogic(logic);
+    html += [...set].filter((id) => !isDone(id)).map((id) => {
+      const d = DATA.dex.find((e) => e.id === id);
+      return d ? checkRow(id, d.name[S.lang], rule, `<span class="num">#${String(d.num).padStart(3, "0")}</span>`) : "";
+    }).join("");
+  }
+  if (S.showMissing.has("tr/" + code) && area) {
+    html += area.trainers.filter((id) => visible(id, opts) && !isDone(id))
+      .map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("");
+  }
+  return html ? `<div class="missing">${html}</div>` : "";
+}
+
 function renderRegion(region, logic, opts, trainers) {
+  const dex = trainers ? {} : dexAreas(opts);
   const areas = DATA.areas.filter((a) => a.region === region);
   const idsOf = (a) => (trainers ? a.trainers : a.checks).filter((id) => visible(id, opts));
   const cats = trainers ? [["all", null]] : [["towns", "towns"], ["dungeons", "dungeons"], ["routes", "routes"]];
@@ -282,7 +410,8 @@ function renderRegion(region, logic, opts, trainers) {
       const ids = idsOf(a).filter((id) => !onlyLeft || !isDone(id));
       const key = `${trainers ? "tr/" : ""}${region}/${a.code}`;
       return node(key, placeLabel(a), ids, logic,
-        () => ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join(""), 2);
+        () => missingRows(a.code, dex[a.code], a, opts, logic) + ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join(""),
+        2, true, dexPill(a.code, dex[a.code], key) + trainerPill(a, opts, key));
     }).join("");
     if (!uiKey) return places();
     const all = list.flatMap(idsOf);
@@ -291,13 +420,16 @@ function renderRegion(region, logic, opts, trainers) {
   return html || `<div class="empty">${T("empty")}</div>`;
 }
 
+let currentLogicState = null;
+
 function dexLogic(logic) {
   const sources = S.slotData && S.slotData.dexsanity_logic;
+  const state = logic && logic.state ? logic.state : currentLogicState && currentLogicState.state;
   return (id) => {
     const list = sources && sources[String(id)];
-    if (!list) return null;
-    return list.some(([region, items, regions]) => logic.state.reachable[region] === true &&
-      (items || []).every((code) => owned(code)) && (regions || []).every((r) => logic.state.reachable[r] === true));
+    if (!list || !state) return null;
+    return list.some(([region, items, regions]) => state.reachable[region] === true &&
+      (items || []).every((code) => owned(code)) && (regions || []).every((r) => state.reachable[r] === true));
   };
 }
 
@@ -309,7 +441,76 @@ function renderDex(opts, logic) {
   return `<div class="chips">${chips}</div>${rows || `<div class="empty">${T("empty")}</div>`}`;
 }
 
+function renderWorld(logic, opts, W) {
+  const M = W.map;
+  const byCode = Object.fromEntries(DATA.areas.map((a) => [a.code, a]));
+  const idsOf = (a) => a.checks.concat(a.trainers).filter((id) => visible(id, opts));
+  const dex = dexAreas(opts);
+  const dexMode = S.mapMode === "dex" && Object.keys(dex).length > 0;
+  const dexRule = dexLogic(logic);
+  const cls = (code) => {
+    if (dexMode) {
+      const ids = dex[code] ? [...dex[code]] : [];
+      return ids.length ? "s-" + statusOf(ids, (id) => dexRule(id) !== false).slice(2) : "s-none";
+    }
+    const a = byCode[code];
+    const ids = a ? idsOf(a) : [];
+    return ids.length ? "s-" + statusOf(ids, logic).slice(2) : "s-none";
+  };
+  const nameOf = (code) => {
+    const a = byCode[code];
+    if (a) return placeLabel(a);
+    const info = M.areas[code] || M.sites[code];
+    return info ? info.name[S.lang] : code;
+  };
+  const tip = (code) => {
+    const a = byCode[code];
+    const ids = a ? idsOf(a) : [];
+    const d = dex[code] ? [...dex[code]] : [];
+    const tr = a ? a.trainers.filter((id) => visible(id, opts)) : [];
+    const state = (list, label) => list.length ? ` | ${label} ${T(list.every(isDone) ? "complete" : "incomplete")}` : "";
+    return `<title>${esc(nameOf(code))}${ids.length ? ` ${ids.filter(isDone).length} / ${ids.length}` : ""}` +
+      `${esc(state(d, T("dexShort")) + state(tr, UI("trainers")))}</title>`;
+  };
+  let svg = `<image href="${M.img}" width="${M.w}" height="${M.h}" preserveAspectRatio="none"/>`;
+  svg += Object.entries(M.areas).map(([code, a]) => `<g class="hit area ${cls(code)}${S.mapSel === code ? " sel" : ""}" data-area="${code}">` +
+    tip(code) + a.cells.map(([x, y]) => `<rect x="${x}" y="${y}" width="32" height="32"/>`).join("") + `</g>`).join("");
+  svg += `<path class="edge" d="${M.edges.map((e) => `M${e[0]} ${e[1]}L${e[2]} ${e[3]}`).join("")}"/>`;
+  svg += Object.entries(M.areas).filter(([code]) => /^T/.test(code)).map(([code, a]) => {
+    const cx = a.cells.reduce((s, c) => s + c[0], 0) / a.cells.length + 16;
+    const cy = a.cells.reduce((s, c) => s + c[1], 0) / a.cells.length + 16;
+    return `<text class="lbl" x="${cx}" y="${cy}">${esc(a.name[S.lang])}</text>`;
+  }).join("");
+  svg += Object.entries(M.sites).map(([code, s]) => `<circle class="hit site ${cls(code)}${S.mapSel === code ? " sel" : ""}"` +
+    ` data-area="${code}" cx="${s.at[0] + 0.5}" cy="${s.at[1] + 0.5}" r="7">${tip(code)}</circle>`).join("");
+  if (S.pos && overworldIds.has(S.pos.map)) {
+    svg += `<circle class="me" cx="${S.pos.x - M.x0 + 0.5}" cy="${S.pos.z - M.y0 + 0.5}" r="9"><title>${esc(T("you"))}</title></circle>`;
+  }
+  const shown = (DATA.worlds || []).filter((w) => !w.hidden && w.map);
+  const tabs = shown.length > 1 ? shown.map((w) => `<button data-world="${w.key}" class="${w.key === W.key ? "on" : ""}">${esc(w.name[S.lang])}</button>`).join("") : "";
+  const modes = Object.keys(dex).length ? [["checks", T("mapChecks")], ["dex", T("mapDex")]].map(([k, label]) =>
+    `<button data-mapmode="${k}" class="${(dexMode ? "dex" : "checks") === k ? "on" : ""}">${esc(label)}</button>`).join("") : "";
+  const bar = `<div class="crumbs">${tabs}${modes}${followButton()}</div>`;
+  const plans = (DATA.area_plans && DATA.area_plans[S.mapSel]) || [];
+  const a = byCode[S.mapSel];
+  let panel = `<div class="empty">${T("mapHint")}</div>`;
+  if (S.mapSel && (a || plans.length)) {
+    const link = plans.length ? `<div class="crumbs">` + plans.map((code) =>
+      `<button data-goplan="${code}" data-town="${plans[0]}">${esc(planName(code))}</button>`).join("") + `</div>` : "";
+    const ids = a ? idsOf(a) : [];
+    const key = "map/" + S.mapSel;
+    S.open.add(key);
+    panel = link + (a ? node(key, nameOf(S.mapSel), ids, logic,
+      () => missingRows(S.mapSel, dex[S.mapSel], a, opts, logic) + (ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("") ||
+        `<div class="empty">${T("empty")}</div>`), 0, true, dexPill(S.mapSel, dex[S.mapSel], key) + trainerPill(a, opts, key)) :
+      `<div class="empty">${esc(nameOf(S.mapSel))}</div>`);
+  }
+  return bar + `<div class="world">${zoomBox("world", M.w, M.h, svg, "world")}</div><div class="map-panel">${panel}</div>`;
+}
+
 function renderMap(logic, opts) {
+  const worlds = (DATA.worlds || []).filter((w) => !w.hidden && w.map);
+  if (worlds.length) return renderWorld(logic, opts, worlds.find((w) => w.key === S.world) || worlds[0]);
   const M = DATA.map;
   const byCode = Object.fromEntries(DATA.areas.map((a) => [a.code, a]));
   const idsOf = (a) => a.checks.concat(a.trainers).filter((id) => visible(id, opts));
@@ -346,12 +547,208 @@ function renderMap(logic, opts) {
     const ids = idsOf(a);
     const key = "map/" + a.code;
     S.open.add(key);
-    panel = node(key, placeLabel(a), ids, logic,
+    const plans = (DATA.area_plans && DATA.area_plans[a.code]) || [];
+    const link = plans.length ? `<div class="crumbs">` + plans.map((code) =>
+      `<button data-goplan="${code}" data-town="${plans[0]}">${esc(planName(code))}</button>`).join("") + `</div>` : "";
+    panel = link + node(key, placeLabel(a), ids, logic,
       () => ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("") ||
         `<div class="empty">${T("empty")}</div>`, 0);
   }
-  return map + `<div class="map-panel">${panel}</div>`;
+  const bar = followButton() ? `<div class="crumbs">${followButton()}</div>` : "";
+  return bar + map + `<div class="map-panel">${panel}</div>`;
 }
+
+const planOfId = {};
+for (const [code, plan] of Object.entries(DATA.detail || {})) for (const id of plan.ids || []) planOfId[id] = code;
+const overworldIds = new Set((DATA.overworld && DATA.overworld.ids) || []);
+
+function planAt(pos) {
+  if (!pos || !DATA.detail) return null;
+  let id = pos.map;
+  const ow = DATA.overworld;
+  if (ow && overworldIds.has(id)) {
+    const cx = Math.floor(pos.x / 32), cz = Math.floor(pos.z / 32);
+    if (cx >= 0 && cz >= 0 && cx < ow.w && cz < ow.h) id = ow.ids[cz * ow.w + cx];
+  }
+  return planOfId[id] || null;
+}
+
+function trailFor(code) {
+  const area = DATA.plan_area && DATA.plan_area[code];
+  const main = area && DATA.area_plans && DATA.area_plans[area] ? DATA.area_plans[area][0] : code;
+  return main === code ? [code] : [main, code];
+}
+
+function followButton() {
+  return DATA.position_key ? `<button data-follow="1" class="${S.follow ? "on" : ""}">${esc(T("follow"))}</button>` : "";
+}
+
+function onPosition(value) {
+  if (!value || typeof value.map !== "number") return;
+  S.pos = value;
+  const code = planAt(value);
+  if (S.follow && code && code !== S.followCode) {
+    S.followCode = code;
+    S.tab = "map"; S.plan = code; S.planTrail = trailFor(code); S.planSpot = null;
+    render();
+    return;
+  }
+  if (S.follow && code === S.plan && S.tab === "map" && moveCamera()) return;
+  render();
+}
+
+const PLAN_UNIT = 16, FOLLOW_TILE = 32, FOLLOW_TILE_MIN = 12, FOLLOW_TILE_MAX = 96;
+
+function cameraOn(box) {
+  return box.dataset.zkey === "plan" && S.follow && S.pos && DATA.detail[S.plan] && planAt(S.pos) === S.plan;
+}
+
+function cameraTarget() {
+  const P = DATA.detail[S.plan];
+  return [(S.pos.x - P.x0) * PLAN_UNIT + PLAN_UNIT / 2, (S.pos.z - P.y0) * PLAN_UNIT + PLAN_UNIT / 2];
+}
+
+function moveCamera() {
+  const box = document.querySelector('.zoomwrap[data-zkey="plan"]');
+  const me = box && box.querySelector(".me");
+  if (!box || !me || !box.classList.contains("camera")) return false;
+  const [cx, cy] = cameraTarget();
+  me.setAttribute("cx", cx);
+  me.setAttribute("cy", cy);
+  const scale = S.followTile / PLAN_UNIT;
+  glide(box, cx * scale, cy * scale);
+  return true;
+}
+
+let glideId = 0;
+
+function glide(box, left, top) {
+  const id = ++glideId;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { box.scrollLeft = left; box.scrollTop = top; return; }
+  const x0 = box.scrollLeft, y0 = box.scrollTop, start = performance.now(), span = 220;
+  const step = (now) => {
+    if (id !== glideId) return;
+    const k = Math.min(1, (now - start) / span), e = k * (2 - k);
+    box.scrollLeft = x0 + (left - x0) * e;
+    box.scrollTop = y0 + (top - y0) * e;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  setTimeout(() => { if (id === glideId) { box.scrollLeft = left; box.scrollTop = top; } }, span + 80);
+}
+
+const ZOOM_MIN = 1, ZOOM_MAX = 12;
+let drag = null, dragMoved = false;
+
+function zoomOf(key) { return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(S.zoom[key]) || 1)); }
+
+function zoomBox(key, w, h, svg, cls) {
+  return `<div class="zoombar"><button data-zoom="${key}:out">&#8722;</button><button data-zoom="${key}:fit">${esc(T("fit"))}</button>` +
+    `<button data-zoom="${key}:in">+</button><span class="hint">${esc(T("zoomHint"))}</span></div>` +
+    `<div class="zoomwrap ${cls}" data-zkey="${key}" data-w="${w}" data-h="${h}">` +
+    `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg></div>`;
+}
+
+function sizeBox(box, z) {
+  const w = Number(box.dataset.w), h = Number(box.dataset.h);
+  const maxH = window.innerHeight * 0.72;
+  const fit = Math.min(box.clientWidth / w, maxH / h);
+  const svg = box.querySelector("svg");
+  if (cameraOn(box)) {
+    const scale = S.followTile / PLAN_UNIT;
+    box.classList.add("camera");
+    svg.style.width = `${w * scale}px`;
+    svg.style.height = `${h * scale}px`;
+    svg.style.margin = `${box.clientHeight / 2}px ${box.clientWidth / 2}px`;
+    box.style.setProperty("--k", 1 / scale);
+    return scale;
+  }
+  box.classList.remove("camera");
+  svg.style.margin = "";
+  svg.style.width = `${w * fit * z}px`;
+  svg.style.height = `${h * fit * z}px`;
+  box.style.setProperty("--k", 1 / (fit * z));
+  return fit * z;
+}
+
+function applyZoom() {
+  document.querySelectorAll(".zoomwrap").forEach((box) => {
+    const key = box.dataset.zkey;
+    const scale = sizeBox(box, zoomOf(key));
+    const view = S.view[key];
+    if (box.classList.contains("camera")) {
+      const [cx, cy] = cameraTarget();
+      box.scrollLeft = cx * scale;
+      box.scrollTop = cy * scale;
+    } else if (view && view.code === (key === "plan" ? S.plan : S.world)) {
+      box.scrollLeft = view.cx * scale - box.clientWidth / 2;
+      box.scrollTop = view.cy * scale - box.clientHeight / 2;
+    }
+    box.addEventListener("scroll", () => rememberView(box), { passive: true });
+  });
+  S.centerMe = false;
+}
+
+function rememberView(box) {
+  const key = box.dataset.zkey;
+  const w = Number(box.dataset.w);
+  const scale = box.querySelector("svg").getBoundingClientRect().width / w;
+  if (!scale) return;
+  S.view[key] = { code: key === "plan" ? S.plan : S.world,
+    cx: (box.scrollLeft + box.clientWidth / 2) / scale, cy: (box.scrollTop + box.clientHeight / 2) / scale };
+}
+
+function zoomAt(box, factor, clientX, clientY) {
+  const key = box.dataset.zkey;
+  if (box.classList.contains("camera")) {
+    S.followTile = Math.min(FOLLOW_TILE_MAX, Math.max(FOLLOW_TILE_MIN, S.followTile * factor));
+    store.set("followTile", S.followTile);
+    const scale = sizeBox(box, 1);
+    const [cx, cy] = cameraTarget();
+    box.scrollLeft = cx * scale;
+    box.scrollTop = cy * scale;
+    return;
+  }
+  const before = zoomOf(key);
+  const after = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, before * factor));
+  if (after === before) return;
+  const rect = box.getBoundingClientRect();
+  const px = clientX === undefined ? box.clientWidth / 2 : clientX - rect.left;
+  const py = clientY === undefined ? box.clientHeight / 2 : clientY - rect.top;
+  const oldScale = box.querySelector("svg").getBoundingClientRect().width / Number(box.dataset.w);
+  const cx = (box.scrollLeft + px) / oldScale, cy = (box.scrollTop + py) / oldScale;
+  S.zoom[key] = after; store.set("zoom", S.zoom);
+  const scale = sizeBox(box, after);
+  box.scrollLeft = cx * scale - px;
+  box.scrollTop = cy * scale - py;
+  rememberView(box);
+}
+
+document.addEventListener("wheel", (e) => {
+  const box = e.target.closest && e.target.closest(".zoomwrap");
+  if (!box) return;
+  e.preventDefault();
+  zoomAt(box, e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY);
+}, { passive: false });
+
+document.addEventListener("pointerdown", (e) => {
+  const box = e.target.closest && e.target.closest(".zoomwrap");
+  if (!box || e.button !== 0) return;
+  drag = { box, x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop };
+  dragMoved = false;
+});
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!dragMoved && Math.abs(dx) + Math.abs(dy) > 5) { dragMoved = true; drag.box.classList.add("drag"); }
+  if (dragMoved) { drag.box.scrollLeft = drag.left - dx; drag.box.scrollTop = drag.top - dy; }
+});
+document.addEventListener("pointerup", () => {
+  if (drag) drag.box.classList.remove("drag");
+  drag = null;
+});
+window.addEventListener("resize", () => applyZoom());
 
 function planName(code) {
   const p = DATA.detail[code];
@@ -361,61 +758,116 @@ function planName(code) {
 function renderPlan(logic, opts) {
   const P = DATA.detail[S.plan];
   const U = 16;
-  let svg = "";
-  const cls = { "#": "w", ".": "f", '"': "g", "~": "h2o", "D": "f" };
-  P.rows.forEach((row, y) => {
-    let x = 0;
-    while (x < row.length) {
-      let end = x;
-      while (end < row.length && row[end] === row[x]) end++;
-      if (cls[row[x]]) svg += `<rect class="${cls[row[x]]}" x="${x * U}" y="${y * U}" width="${(end - x) * U}" height="${U}"/>`;
-      x = end;
+  let svg = `<image href="${P.img}" x="0" y="0" width="${P.w * U}" height="${P.h * U}" preserveAspectRatio="none" style="image-rendering:pixelated"/>`;
+  const ow = DATA.overworld;
+  if (P.x0 !== undefined && ow) {
+    for (let cz = Math.max(0, Math.floor(P.y0 / 32)); cz * 32 < P.y0 + P.h && cz < ow.h; cz++) {
+      for (let cx = Math.max(0, Math.floor(P.x0 / 32)); cx * 32 < P.x0 + P.w && cx < ow.w; cx++) {
+        const code = planOfId[ow.ids[cz * ow.w + cx]];
+        if (!code || code === S.plan || !DATA.detail[code]) continue;
+        const x = Math.max(cx * 32, P.x0) - P.x0, y = Math.max(cz * 32, P.y0) - P.y0;
+        const x1 = Math.min(cx * 32 + 32, P.x0 + P.w) - P.x0, y1 = Math.min(cz * 32 + 32, P.y0 + P.h) - P.y0;
+        svg += `<rect class="nb" data-nb="${code}" x="${x * U}" y="${y * U}" width="${(x1 - x) * U}" height="${(y1 - y) * U}">` +
+          `<title>${esc(planName(code))}</title></rect>`;
+      }
     }
-  });
+  }
+  const doorKeys = [];
+  for (const w of P.warps) if (!doorKeys.includes(w.to || "")) doorKeys.push(w.to || "");
+  const doorName = (to) => to ? planName(to) : T("unknownExit");
   svg += P.warps.map((w) => {
     const go = w.to && DATA.detail[w.to];
-    return `<circle class="door${go ? " go" : ""}" ${go ? `data-plan="${w.to}"` : ""} cx="${w.x * U + U / 2}" cy="${w.y * U + U / 2}"` +
-      ` r="${U * 0.42}"><title>${esc(planName(w.to))}</title></circle>`;
+    const n = doorKeys.indexOf(w.to || "") + 1;
+    return `<g class="door${go ? " go" : ""}" ${go ? `data-plan="${w.to}"` : ""}><circle cx="${w.x * U + U / 2}" cy="${w.y * U + U / 2}"` +
+      ` r="${U * 0.62}"/><text x="${w.x * U + U / 2}" y="${w.y * U + U / 2}">${n}</text><title>${n}. ${esc(doorName(w.to))}</title></g>`;
   }).join("");
   const spots = P.checks.map((c) => ({ ...c, ids: c.ids.filter((id) => DATA.checks[id] && visible(id, opts)) }))
     .filter((c) => c.ids.length);
   svg += spots.map((c, i) => {
-    const names = c.ids.map((id) => DATA.checks[id].name[S.lang]).join(" / ");
+    const names = (c.npc ? c.npc[S.lang] + " : " : "") + c.ids.map((id) => DATA.checks[id].name[S.lang]).join(" / ");
     return `<rect class="chk s-${statusOf(c.ids, logic).slice(2)}${S.planSpot === i ? " sel" : ""}" data-spot="${i}"` +
       ` x="${c.x * U + 2}" y="${c.y * U + 2}" width="${U - 4}" height="${U - 4}" rx="2"><title>${esc(names)}</title></rect>`;
   }).join("");
+  if (S.pos && planAt(S.pos) === S.plan && P.x0 !== undefined) {
+    svg += `<circle class="me" cx="${(S.pos.x - P.x0) * U + U / 2}" cy="${(S.pos.z - P.y0) * U + U / 2}" r="${U * 0.45}">` +
+      `<title>${esc(T("you"))}</title></circle>`;
+  }
   const crumbs = `<div class="crumbs"><button data-plan="">&#8592; ${esc(T("map"))}</button>` +
-    S.planTrail.map((code) => `<button data-plan="${code}">${esc(planName(code))}</button>`).join("<span>&#8250;</span>") + `</div>`;
+    S.planTrail.map((code) => `<button data-plan="${code}">${esc(planName(code))}</button>`).join("<span>&#8250;</span>") +
+    followButton() + `</div>`;
   const shown = S.planSpot === null ? spots : spots.filter((_, i) => i === S.planSpot);
   const ids = shown.flatMap((c) => c.ids);
   const panel = ids.length ? ids.map((id) => checkRow(id, DATA.checks[id].name[S.lang], logic)).join("")
     : `<div class="empty">${T("empty")}</div>`;
-  return `${crumbs}<div class="plan"><svg viewBox="0 0 ${P.w * U} ${P.h * U}" xmlns="http://www.w3.org/2000/svg">${svg}</svg></div>` +
+  const legend = doorKeys.length ? `<div class="doors"><b>${esc(T("doors"))} :</b>` + doorKeys.map((to, i) => {
+    const go = to && DATA.detail[to];
+    return `<span class="dk${go ? " go" : ""}" ${go ? `data-plan="${to}"` : ""}><span class="num">${i + 1}</span>` +
+      `<span class="dn">${esc(doorName(to))}</span></span>`;
+  }).join("") + `</div>` : "";
+  return `${crumbs}<div class="plan">${zoomBox("plan", P.w * U, P.h * U, svg, "")}</div>${legend}` +
     `<div class="map-panel">${panel}</div>`;
+}
+
+function renderNpcs(logic, opts) {
+  const towns = DATA.npc_towns || [];
+  const html = ["johto", "kanto"].map((r) => {
+    const list = towns.filter((t) => t.region === r).map((t) => {
+      const places = t.plans.map((code) => {
+        const npcs = DATA.detail[code].npcs
+          .map((n) => ({ name: n.name, ids: n.ids.filter((id) => DATA.checks[id] && visible(id, opts)) }))
+          .filter((n) => n.ids.length);
+        return { code, npcs, ids: npcs.flatMap((n) => n.ids) };
+      }).filter((p) => p.ids.length);
+      return { t, places, ids: places.flatMap((p) => p.ids) };
+    }).filter((x) => x.ids.length)
+      .sort((a, b) => a.t.name[S.lang].localeCompare(b.t.name[S.lang], S.lang, { sensitivity: "base" }));
+    if (!list.length) return "";
+    return node(`npc/${r}`, r === "johto" ? "Johto" : "Kanto", list.flatMap((x) => x.ids), logic, () => list.map((x) =>
+      node(`npc/${x.t.town}`, x.t.name[S.lang], x.ids, logic, () => x.places.map((p) =>
+        `<div class="row click plan-link" data-goplan="${p.code}" data-town="${x.t.town}"><span class="nm">${esc(planName(p.code))}</span>` +
+        `<span class="ct">${esc(T("openPlan"))} &#8250;</span></div>` +
+        p.npcs.map((n) => n.ids.map((id) => checkRow(id, `${n.name[S.lang]} : ${DATA.checks[id].name[S.lang]}`, logic)).join("")).join("")
+      ).join(""), 1)).join(""), 0);
+  }).join("");
+  return html || `<div class="empty">${T("empty")}</div>`;
 }
 
 function render() {
   document.documentElement.lang = S.lang;
   document.documentElement.dataset.theme = S.theme;
+  document.body.classList.toggle("broadcast", S.broadcast);
+  const broadcastButton = document.getElementById("broadcast");
+  broadcastButton.textContent = T("broadcast");
+  broadcastButton.title = T("broadcastHint");
+  document.getElementById("broadcast-exit").title = T("broadcastExit");
   document.querySelectorAll(".lang button").forEach((b) => b.classList.toggle("on", b.dataset.lang === S.lang));
   const opts = options();
   const logicState = createLogic(DATA.logic, owned, opts);
-  const logic = (id) => logicState.loc(DATA.checks[id].key);
+  const relaxedState = createLogic(DATA.logic, owned, relaxedOptions(opts));
+  currentLogicState = logicState;
+  const logic = (id) => {
+    const key = DATA.checks[id].key;
+    const strict = logicState.loc(key);
+    return strict !== false ? strict : relaxedState.loc(key) ? "seq" : false;
+  };
   renderHeader(opts);
 
   const tabs = [["johto", "Johto"], ["kanto", "Kanto"], ["dex", UI("pokedex")], ["trainers", UI("trainers")]];
-  if (DATA.map) tabs.unshift(["map", T("map")]);
+  if (DATA.npc_towns && DATA.npc_towns.length) tabs.splice(2, 0, ["npcs", T("npcs")]);
+  if (DATA.map || (DATA.worlds || []).some((w) => !w.hidden && w.map)) tabs.unshift(["map", T("map")]);
   document.getElementById("tabs").innerHTML = tabs.map(([key, label]) =>
     `<button data-tab="${key}" class="${S.tab === key ? "on" : ""}">${esc(label)}</button>`).join("");
   document.getElementById("legend").innerHTML =
-    [["d-ok", "accessible"], ["d-part", "partial"], ["d-bad", "blocked"], ["d-done", "done"]]
+    [["d-ok", "accessible"], ["d-seq", "sequence"], ["d-part", "partial"], ["d-bad", "blocked"], ["d-done", "done"]]
       .map(([c, k]) => `<span><span class="dot ${c}" style="display:inline-block"></span> ${T(k)}</span>`).join("") +
     `<span class="note">${T("note")}</span>`;
 
   let html;
-  if (S.tab === "map" && DATA.map && S.plan && DATA.detail && DATA.detail[S.plan]) html = renderPlan(logic, opts);
-  else if (S.tab === "map" && DATA.map) html = renderMap(logic, opts);
+  const hasMap = DATA.map || (DATA.worlds || []).some((w) => !w.hidden && w.map);
+  if (S.tab === "map" && hasMap && S.plan && DATA.detail && DATA.detail[S.plan]) html = renderPlan(logic, opts);
+  else if (S.tab === "map" && hasMap) html = renderMap(logic, opts);
   else if (S.tab === "dex") html = renderDex(opts, logicState);
+  else if (S.tab === "npcs") html = renderNpcs(logic, opts);
   else if (S.tab === "trainers") {
     const chips = ["all", "left"].map((f) => `<button data-trf="${f}" class="${S.trainerFilter === f ? "on" : ""}">${T(f)}</button>`).join("");
     const regions = ["johto", "kanto"].map((r) => {
@@ -426,6 +878,7 @@ function render() {
     html = `<div class="chips">${chips}</div>${regions || `<div class="empty">${T("empty")}</div>`}`;
   } else html = renderRegion(S.tab, logic, opts, false);
   document.getElementById("view").innerHTML = html;
+  applyZoom();
 
   const btn = document.getElementById("connect");
   btn.textContent = socket ? T("disconnect") : T("connect");
@@ -490,6 +943,10 @@ function onPacket(p, slot) {
     setStatus(T("online"), "d-ok");
     send([{ cmd: "GetDataPackage", games: [...new Set(Object.values(S.gamesBySlot))] },
       { cmd: "LocationScouts", locations: [...S.present], create_as_hint: 0 }]);
+    if (DATA.position_key) {
+      S.posKey = DATA.position_key.replace("{team}", p.team).replace("{slot}", p.slot);
+      send([{ cmd: "SetNotify", keys: [S.posKey] }, { cmd: "Get", keys: [S.posKey] }]);
+    }
     render();
   } else if (p.cmd === "ReceivedItems") {
     if (p.index === 0) S.received = new Set();
@@ -507,6 +964,10 @@ function onPacket(p, slot) {
     }
     for (const id of Object.keys(S.scouted)) S.scouted[id].item = itemName(S.scouted[id].raw, S.scouted[id].player);
     render();
+  } else if (p.cmd === "Retrieved") {
+    if (S.posKey && p.keys && p.keys[S.posKey]) onPosition(p.keys[S.posKey]);
+  } else if (p.cmd === "SetReply") {
+    if (S.posKey && p.key === S.posKey) onPosition(p.value);
   } else if (p.cmd === "LocationInfo") {
     for (const item of p.locations) {
       S.scouted[item.location] = { raw: item.item, player: item.player, mine: item.player === S.slot,
@@ -530,8 +991,9 @@ function disconnect() {
 }
 
 document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-leader],[data-plan],[data-spot],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area]");
+  const el = e.target.closest("[data-reveal],[data-toggle],[data-check],[data-item],[data-leader],[data-plan],[data-spot],[data-tab],[data-lang],[data-dexf],[data-trf],[data-area],[data-goplan],[data-follow],[data-zoom],[data-world],[data-mapmode],[data-missing],[data-nb]");
   if (!el) return;
+  if (dragMoved) { dragMoved = false; return; }
   const d = el.dataset;
   if (d.reveal) {
     const id = Number(d.reveal);
@@ -556,6 +1018,29 @@ document.addEventListener("click", (e) => {
       S.plan = d.plan;
     }
     S.planSpot = null;
+  } else if (d.nb) {
+    S.plan = d.nb; S.planTrail = trailFor(d.nb); S.planSpot = null;
+    if (DATA.plan_area && DATA.plan_area[d.nb]) S.mapSel = DATA.plan_area[d.nb];
+  } else if (d.zoom) {
+    const [key, how] = d.zoom.split(":");
+    const box = document.querySelector(`.zoomwrap[data-zkey="${key}"]`);
+    if (how === "fit" && box && box.classList.contains("camera")) { S.followTile = FOLLOW_TILE; store.set("followTile", S.followTile); }
+    else if (how === "fit") { S.zoom[key] = 1; store.set("zoom", S.zoom); delete S.view[key]; }
+    else if (box) { zoomAt(box, how === "in" ? 1.5 : 1 / 1.5); return; }
+  } else if (d.missing) {
+    S.showMissing.has(d.missing) ? S.showMissing.delete(d.missing) : S.showMissing.add(d.missing);
+    if (d.node) S.open.add(d.node);
+  } else if (d.mapmode) {
+    S.mapMode = d.mapmode; store.set("mapMode", S.mapMode);
+  } else if (d.world) {
+    S.world = d.world; store.set("world", S.world); S.mapSel = null;
+  } else if (d.follow) {
+    S.follow = !S.follow; store.set("follow", S.follow); S.followCode = null;
+    if (S.follow && S.pos) { onPosition(S.pos); return; }
+  } else if (d.goplan) {
+    S.tab = "map"; store.set("tab", S.tab);
+    S.mapSel = d.town; S.plan = d.goplan; S.planSpot = null;
+    S.planTrail = d.goplan === d.town ? [d.town] : [d.town, d.goplan];
   } else if (d.spot !== undefined) {
     S.planSpot = S.planSpot === Number(d.spot) ? null : Number(d.spot);
   } else if (d.leader) {
@@ -563,13 +1048,19 @@ document.addEventListener("click", (e) => {
     store.set("leaderMarks", S.leaderMarks);
   } else if (d.tab) { S.tab = d.tab; store.set("tab", S.tab); }
   else if (d.lang) { S.lang = d.lang; store.set("lang", S.lang); }
-  else if (d.area && DATA.detail && DATA.detail[d.area]) { S.mapSel = d.area; S.plan = d.area; S.planTrail = [d.area]; S.planSpot = null; }
+  else if (d.area && S.tab === "map" && DATA.area_plans && DATA.area_plans[d.area]) {
+    const plans = DATA.area_plans[d.area];
+    S.mapSel = d.area; S.plan = plans[0]; S.planTrail = [plans[0]]; S.planSpot = null;
+  }
   else if (d.area) S.mapSel = S.mapSel === d.area ? null : d.area;
   else if (d.dexf) S.dexFilter = d.dexf;
   else if (d.trf) S.trainerFilter = d.trf;
   render();
 });
 document.getElementById("connect").addEventListener("click", () => (socket ? disconnect() : connect()));
+const setBroadcast = (on) => { S.broadcast = on; render(); };
+document.getElementById("broadcast").addEventListener("click", () => setBroadcast(true));
+document.getElementById("broadcast-exit").addEventListener("click", () => setBroadcast(false));
 document.getElementById("theme").addEventListener("click", () => {
   S.theme = S.theme === "dark" ? "light" : "dark"; store.set("theme", S.theme); render();
 });
@@ -580,6 +1071,7 @@ document.getElementById("slot").value = store.get("slot", "");
 }));
 setStatus(T("offline"), "d-done");
 render();
+if (S.broadcast && document.getElementById("slot").value) connect();
 </script>
 </body>
 </html>

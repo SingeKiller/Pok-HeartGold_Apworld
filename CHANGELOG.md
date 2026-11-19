@@ -5,6 +5,176 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.7] - 2026-11-19
+
+New seeds needed (APWorld version 0.12.0). Seeds generated with v0.2.6 keep
+working with their own apworld.
+
+### Added
+- **New option `shopsanity`** (off by default). The 13 town Poke Marts each
+  sell 2 Archipelago items (26 checks), shown with the Archipelago icon and
+  bought once.
+- **New option `randomize_shop_items`** (off by default). Poke Mart stock is
+  randomized; the first slot stays a consumable, TMs and HMs can be on sale,
+  one at a time.
+- **New option `shop_key_items`** (off by default). Key items can be sold too
+  (1000 for a progression item, 500 otherwise).
+- When a shop option is on, winning a wild battle gives a little money (20).
+- **New option `unlock_button`** (on by default). The SOUND row of the in-game
+  Options screen becomes UNLOCK: turning it on sends you back to the last
+  Pokemon Center, healed, to get out of any stuck spot.
+- **New option `hidden_item_markers`** (off by default). A small marker shows
+  where each hidden item is; the item itself does not move.
+- **New option `forget_hm_moves`** (on by default). An HM move can be replaced
+  like any other move when a Pokemon learns a new one; HMs are never used up,
+  so it can be taught again.
+- **New option `elite_four_badges`** (0 to 16, default 8). How many badges,
+  from Johto or Kanto, the logic expects before the Pokemon League (it used
+  to want the 8 Johto badges). The League door itself checks nothing, as in
+  the original game.
+- **New option `blue_kanto_leaders`** (0 to 7, default 7). How many other
+  Kanto Leaders Blue, on Cinnabar Island, wants beaten before he waits in the
+  Viridian Gym.
+- **New option `randomize_trades`** (off by default). The 9 in-game trades
+  offer a random Pokemon, named after its species, and ask for a species of
+  this seed's wild Pokemon. Loans and gifts are not changed.
+- With `randomize_wild_pokemon` on, the swarm species, the night fishing
+  species and the radio sound species are randomized too (never in logic),
+  and the AREA page of the Pokedex shows where each species lives in the
+  seed.
+- The Jade Orb is now in logic: Oak only needs this version's legendary.
+- Escape Rope logic for the Ruins of Alph north-east hidden room.
+- **Web tracker**:
+  - a real top-down plan of every map (448), drawn from your ROM, with each
+    check on its tile, numbered doors with a legend, zoom and drag;
+  - the world map is rendered from the ROM; click an area to open its plan,
+    and on a plan click a neighbouring area to open it;
+  - NPC tab: the NPCs that hold a check, town by town;
+  - "Follow my character": the BizHawk client sends your position and the
+    tracker opens the plan you are on and keeps you centred, at a fixed
+    distance you set with the zoom, the map gliding as you walk;
+  - Pokedex and Trainers counters next to each area; click one to list only
+    what is missing;
+  - doors drawn bigger and brighter;
+  - a yellow state for checks the logic does not expect yet but the game
+    allows (League door before the badge count, dark caves without Flash,
+    hidden items without the Dowsing Machine), in the PopTracker pack too;
+  - a broadcast view for streams: a button, or open the file with
+    `#broadcast` (or `#diffusion`) at the end of its address; it reconnects
+    by itself with the saved server and slot.
+- **PopTracker pack rebuilt**: a World tab, then a tab for every town, route,
+  dungeon and building plan with each check at its place and numbered doors;
+  with autotracking, the tab of the area you are in opens by itself.
+- **New option `similar_strength_trainers`** (off by default). With
+  `randomize_trainers`, each trainer Pokemon is replaced by a species whose
+  base stat total is within 15% of the original.
+- **New option `randomize_abilities`** (off by default). Every species gets
+  random abilities (one or two, as in vanilla); Wonder Guard, Forecast and
+  Multitype are never given, and `disable_trapping_abilities` still applies
+  afterwards.
+- **Shop hints.** With `shopsanity` on, entering a town Poke Mart hints its
+  unchecked Archipelago slots once: you see what each slot holds and for
+  whom before buying.
+- **New `/report` client command.** It prints a short state report
+  (versions, save and map, items, checks, goal, key story values, main
+  options) to paste when asking for help. It holds no player name and no
+  server address.
+- **New goal `legendary_hunt`** with the option `goal_legendary_count`
+  (1 to 6, default 3): win by catching that many fixed legendary Pokemon
+  (Ho-Oh, Lugia, Zapdos, Mewtwo, Articuno, Moltres). Mewtwo, Articuno and
+  Moltres are expected after the Elite Four and Blue. Works with
+  `legendarysanity` and `randomize_static_pokemon`.
+- **New goal `pokedex`** with the option `goal_pokedex_count` (default 150):
+  win by catching that many species. Only species that can be caught in the
+  wild in your seed count, and the number is lowered to what is available
+  (for example with `johto_only`).
+- **New option `red_badges`** (default 16, the original behaviour): how many
+  of the 16 badges Prof. Oak wants before opening the way to Mt. Silver.
+  Below 16, beating Blue is no longer needed for it. The web tracker and
+  the PopTracker pack follow it.
+- **New option `randomize_tm_compatibility`** (`vanilla`, `half`, `full`;
+  default `vanilla`): which species can learn which TMs. Every species
+  always keeps all HMs and the Flash TM.
+- **New option `randomize_wild_held_items`** (off by default): every species
+  gets random wild held items, from ordinary items only.
+- **New option `randomize_static_pokemon`** (off by default): gifts and fixed
+  encounters are replaced by random species (Kanto and Hoenn starters,
+  fossils, Tyrogue, Dratini, Eevee, Tentacool, Mewtwo, the three birds,
+  Suicune, Lugia, Rayquaza, Latios, Latias, Snorlax, Lapras, Sudowoodo, the
+  Red Gyarados, the Rocket Headquarters Electrodes). The Togepi egg, Ho-Oh,
+  Kyogre, Groudon, the loaned Shuckle and Spearow and the distribution
+  gifts never change, as the game checks for them; Lugia stays when
+  `legendarysanity` is on.
+- **New option `game_corner_prizes`** (off by default): the 10 item prizes
+  of the Goldenrod Game Corner and the 10 of the Celadon Prize Corner
+  become 20 checks. Each prize is taken once and costs 50 Coins (win them
+  at Voltorb Flip); the
+  counter shows the item and who it is for. The Coin Case is needed in
+  logic, and Celadon is left out with `johto_only`.
+- **New option `apricorn_trees`** (off by default): the first Apricorn
+  picked from each of the 31 Apricorn trees of Johto and Kanto is a check.
+  Trees keep giving their Apricorn every day. Logic needs the Apricorn
+  Box, plus Cut or Surf for the few trees behind a cuttable tree or across
+  water. Kanto trees are left out with `johto_only`. Universal Tracker
+  regenerates these checks.
+- **New option `bug_contest`** (off by default): taking part in the
+  National Park Bug-Catching Contest becomes one check, sent when the
+  contest is judged whatever your rank. With this option on, the contest
+  takes place every day instead of only on Tuesday, Thursday and Saturday
+  (still once per day), and the usual contest prize is still given.
+- **New experimental option `foreign_item_names`** (off by default): an item
+  that belongs to another player, or one of your own badges placed at an
+  item spot, shows its real name and owner when picked up instead of the
+  generic text.
+- **Trackers**: the web tracker and the PopTracker pack show the Game Corner
+  prize, Apricorn tree and Bug-Catching Contest checks when their option is
+  on, with the same logic as the world, and display the Pokedex and
+  Legendary hunt goals.
+- **New option `hms_without_teaching`** (off by default): Cut, Rock Smash,
+  Strength, Rock Climb, Surf, Waterfall and Whirlpool work on their obstacle
+  as soon as the HM is in the Bag (with the usual badge), even if no Pokemon
+  knows the move. Fly and Flash still need a Pokemon that knows them. With
+  this option, going down a waterfall is always allowed.
+
+### Changed
+- Cianwood City is no longer a `starting_town` choice (an isolated start).
+- Trainersanity never includes the Team Rocket trainers the client already
+  sends automatically.
+- Dexsanity ignores the 1% encounter slots.
+- Strong held items (Exp. Share, Lucky Egg, Leftovers, Amulet Coin, Choice
+  items, Life Orb, the type-boosting items...) and PP Up, PP Max and Max
+  Elixir are now "useful" items instead of filler.
+- `exclude_legendaries` now also keeps legendary and mythical Pokemon out of
+  randomized trainer parties.
+- A randomized trade never asks for the species it gives.
+- Patching a seed is several times faster (about 8 s instead of a minute):
+  the game code is recompressed once and the data archives are written
+  once. The patched ROM is the same, byte for byte.
+- `randomize_learnsets` never hands out Struggle.
+
+### Fixed
+- Randomized trades: the trading NPCs now name the species they actually ask for
+  and offer, instead of the original species.
+- Softlock at the Olivine port when arriving by boat before the Elite Four:
+  the sailor now checks which way you face first.
+- Prof. Elm's Everstone check follows the randomized Togepi line.
+- Ecruteak start: Bill's PC scene can no longer push a whited-out player
+  behind the counter.
+- The Kanto Fly map unlocks after arriving by Magnet Train.
+- Shopsanity: a filler key item matching a shop slot no longer loops on
+  "Gave back ...".
+- Blue on Cinnabar Island counts every Kanto Leader whose check is done,
+  even a win lost from the save (a reset or an older save after the
+  battle). He used to stay stuck one Leader short.
+- S.S. Aqua: after a first trip from Vermilion, or a white out (battle,
+  Death Link, Unlock button) between the Metal Coat and leaving the ship,
+  the ship never arrived on the next trips. The client now closes the
+  first voyage as soon as you are off the ship.
+- Universal Tracker showed other checks than the seed's when
+  `trainersanity_count` or `dexsanity_count` kept only a part of the
+  checks, or when Dexsanity ran with randomized wild Pokemon. The seed now
+  sends its own list to the tracker.
+
 ## [v0.2.6] - 2026-10-26
 
 **Logic overhaul.** Every map was walked on the ROM's own collision data

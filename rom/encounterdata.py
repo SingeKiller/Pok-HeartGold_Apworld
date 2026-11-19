@@ -148,6 +148,32 @@ def write_zone_encounters(rom: HeartGoldRom, zone_key: str, zone: dict) -> None:
     write_entry(rom, raw_index, bytes(entry))
 
 
+SPECIAL_SPECIES_OFFSETS = (0x5C, 0x5E, 0x60, 0x62, 0xBC, 0xBE, 0xC0, 0xC2)
+
+
+def special_species_sites(entries: Sequence[bytes]) -> list[tuple[int, int, int]]:
+    sites = []
+    for index, entry in enumerate(entries):
+        for offset in SPECIAL_SPECIES_OFFSETS:
+            (species,) = struct.unpack_from("<H", entry, offset)
+            if species:
+                sites.append((index, offset, species))
+    return sites
+
+
+def randomize_special_species(entries: Sequence[bytes], rng, shuffle: bool, pool: Sequence[int]) -> list[bytes]:
+    sites = special_species_sites(entries)
+    if shuffle:
+        values = [species for _index, _offset, species in sites]
+        rng.shuffle(values)
+    else:
+        values = [rng.choice(pool) for _site in sites]
+    out = [bytearray(entry) for entry in entries]
+    for (index, offset, _species), value in zip(sites, values):
+        struct.pack_into("<H", out[index], offset, value)
+    return [bytes(entry) for entry in out]
+
+
 HEADBUTT_NITROFS_PATH = "a/2/5/2"
 HEADBUTT_SLOTS_PER_TABLE = 6
 _HEADBUTT_HEADER_SIZE = 4

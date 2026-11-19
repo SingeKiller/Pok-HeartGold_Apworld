@@ -12,15 +12,27 @@ function createLogic(DATA, has, options) {
   function rulePasses(rule, events) {
     for (const code of rule.items) if (!has(code)) return false;
     for (const badge of rule.badges) if (!has("badge_" + badge)) return false;
+    const wanted = rule.count ? (options.counts || {})[rule.count.option] : undefined;
+    const waived = rule.count && rule.count.waived_events || [];
+    const lowered = waived.length > 0 && typeof wanted === "number" && wanted < rule.count.default;
     for (const event of rule.events) {
       const skip = options.magnet_train && event === "power_plant_restored";
+      if (lowered && waived.includes(event)) continue;
       if (!skip && !events[event]) return false;
+    }
+    if (rule.count && (waived.length === 0 || lowered)) {
+      const list = rule.count.badges.length + rule.count.events.length;
+      const needed = Math.min(typeof wanted === "number" ? wanted : rule.count.default, list);
+      const owned = rule.count.badges.filter((badge) => has("badge_" + badge)).length
+        + rule.count.events.filter((event) => events[event]).length;
+      if (owned < needed) return false;
     }
     return true;
   }
 
   function gatesPass(entry, reachable, events) {
-    if (entry.items && !entry.items.every((code) => has(code))) return false;
+    const free = entry.johto_free && options.johto_only;
+    if (entry.items && !free && !entry.items.every((code) => has(code))) return false;
     if (entry.regions) {
       const dropped = options.magnet_train ? DATA.magnet_train_dropped_regions || {} : {};
       if (!entry.regions.every((region) => dropped[region] || reachable[region])) return false;

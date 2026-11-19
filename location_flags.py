@@ -52,12 +52,35 @@ _SYNTHETIC_ID_FLAG_OVERRIDES: dict[str, int] = {
     "saffron_gym_badge": 0x529,
 }
 
+from rom.apricorntreedata import APRICORN_TREE_FLAGS
+from rom.bugcontestdata import BUG_CONTEST_FLAG
 from rom.giftflagdata import GIFT_FLAGS
 from rom.npcgiftgatedata import GATE_FLAGS
+from rom.prizedata import PRIZE_FLAGS
 
 _SYNTHETIC_ID_FLAG_OVERRIDES.update(GIFT_FLAGS)
 _SYNTHETIC_ID_FLAG_OVERRIDES.update(
     {key: flag for key, flag in GATE_FLAGS.items() if key != "goldenrod_tunnel_warehouse_card_key"}
+)
+
+_SYNTHETIC_ID_FLAG_OVERRIDES.update(
+    {
+        key: PRIZE_FLAGS[data["id"]]
+        for key, data in LOCATIONS.items()
+        if data["type"] == "game_corner_prize"
+    }
+)
+
+_SYNTHETIC_ID_FLAG_OVERRIDES.update(
+    {
+        key: APRICORN_TREE_FLAGS[data["id"]]
+        for key, data in LOCATIONS.items()
+        if data["type"] == "apricorn_tree"
+    }
+)
+
+_SYNTHETIC_ID_FLAG_OVERRIDES.update(
+    {key: BUG_CONTEST_FLAG for key, data in LOCATIONS.items() if data["type"] == "bug_contest"}
 )
 
 
@@ -159,7 +182,7 @@ def unsupported_location_keys() -> list[str]:
     return sorted(
         key
         for key in LOCATIONS
-        if LOCATIONS[key]["type"] not in ("event", "dexsanity")
+        if LOCATIONS[key]["type"] not in ("event", "dexsanity", "shop_item")
         and LOCATIONS[key]["type"] not in SHELVED_LOCATION_TYPES
         and flag_id_for_location(key) is None
         and key not in VAR_CHECKED_LOCATIONS

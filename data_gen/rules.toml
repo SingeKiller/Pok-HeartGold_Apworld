@@ -245,6 +245,12 @@ to = "ruins_of_alph_southwest_entrance_second_room"
 items = ["water_stone"]
 
 [[exit_rule]]
+from = "ruins_of_alph_northeast_entrance_first_room"
+to = "ruins_of_alph_northeast_entrance_second_room"
+bidirectional = false
+items = ["escape_rope"]
+
+[[exit_rule]]
 from = "ruins_of_alph_northwest_entrance_first_room"
 to = "ruins_of_alph_northwest_entrance_second_room"
 events = ["ho_oh_met"]

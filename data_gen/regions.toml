@@ -284,7 +284,7 @@ exits = [
 [ruins_of_alph_northeast_hidden_room]
 map_code = 'D24R0203'
 exits = [
-    'ruins_of_alph_northeast_entrance_second_room',
+    'ruins_of_alph_underground_hall',
 ]
 
 [ruins_of_alph_southeast_entrance_first_room]
@@ -310,7 +310,7 @@ exits = [
 [ruins_of_alph_southwest_hidden_room]
 map_code = 'D24R0207'
 exits = [
-    'ruins_of_alph_southwest_entrance_second_room',
+    'ruins_of_alph_underground_hall',
 ]
 
 [ruins_of_alph_northwest_entrance_first_room]
@@ -323,13 +323,13 @@ exits = [
 [ruins_of_alph_northwest_hidden_room]
 map_code = 'D24R0209'
 exits = [
-    'ruins_of_alph_northwest_entrance_second_room',
+    'ruins_of_alph_underground_hall',
 ]
 
 [ruins_of_alph_southeast_hidden_room]
 map_code = 'D24R0210'
 exits = [
-    'ruins_of_alph_southeast_entrance_second_room',
+    'ruins_of_alph_underground_hall',
 ]
 
 [ruins_of_alph_hall_entrance]

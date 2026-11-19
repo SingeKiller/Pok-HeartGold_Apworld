@@ -17,6 +17,9 @@ BLOCK_SIZE = 20
 ITEM_ID_OPERAND_OFFSET = 4
 QUANTITY_OPERAND_OFFSET = 10
 
+_SET_VAR_X8008 = struct.pack("<HH", 41, 0x8008)
+_SET_VAR_X8009 = struct.pack("<HH", 41, 0x8009)
+
 BLOCK_INDEX_BY_ITEMBALL_FLAG_ID: dict[int, int] = {
     1081: 0,
     1056: 1,
@@ -312,6 +315,8 @@ def write_itemball_item_id(rom: HeartGoldRom, block_index: int, item_id: int) ->
         )
     blob = bytearray(read_itemball_script_blob(rom))
     offset = _block_offset(block_index) + ITEM_ID_OPERAND_OFFSET
+    if bytes(blob[offset - 4 : offset]) != _SET_VAR_X8008:
+        raise ScriptDataError(f"itemball block {block_index} does not start with `SetVar VAR_SPECIAL_x8008`")
     struct.pack_into("<H", blob, offset, item_id)
     write_itemball_script_blob(rom, bytes(blob))
 
@@ -324,6 +329,8 @@ def write_itemball_item_quantity(rom: HeartGoldRom, block_index: int, quantity: 
         )
     blob = bytearray(read_itemball_script_blob(rom))
     offset = _block_offset(block_index) + QUANTITY_OPERAND_OFFSET
+    if bytes(blob[offset - 4 : offset]) != _SET_VAR_X8009:
+        raise ScriptDataError(f"itemball block {block_index} has no `SetVar VAR_SPECIAL_x8009` for its quantity")
     struct.pack_into("<H", blob, offset, quantity)
     write_itemball_script_blob(rom, bytes(blob))
 

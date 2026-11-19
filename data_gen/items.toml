@@ -283,7 +283,7 @@ id = 41
 label = "MAX_ELIXIR"
 price = 4500
 pocket = "medicine"
-classification = "filler"
+classification = "useful"
 
 [lava_cookie]
 id = 42
@@ -353,7 +353,7 @@ id = 51
 label = "PP_UP"
 price = 9800
 pocket = "medicine"
-classification = "filler"
+classification = "useful"
 
 [zinc]
 id = 52
@@ -367,7 +367,7 @@ id = 53
 label = "PP_MAX"
 price = 9800
 pocket = "medicine"
-classification = "filler"
+classification = "useful"
 
 [old_gateau]
 id = 54
@@ -542,7 +542,7 @@ id = 78
 label = "ESCAPE_ROPE"
 price = 550
 pocket = "items"
-classification = "filler"
+classification = "progression"
 
 [repel]
 id = 79
@@ -1354,21 +1354,21 @@ id = 216
 label = "EXP__SHARE"
 price = 3000
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [quick_claw]
 id = 217
 label = "QUICK_CLAW"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [soothe_bell]
 id = 218
 label = "SOOTHE_BELL"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [mental_herb]
 id = 219
@@ -1382,28 +1382,28 @@ id = 220
 label = "CHOICE_BAND"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [kings_rock]
 id = 221
 label = "KINGS_ROCK"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [silverpowder]
 id = 222
 label = "SILVERPOWDER"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [amulet_coin]
 id = 223
 label = "AMULET_COIN"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [cleanse_tag]
 id = 224
@@ -1452,35 +1452,35 @@ id = 230
 label = "FOCUS_BAND"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [lucky_egg]
 id = 231
 label = "LUCKY_EGG"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [scope_lens]
 id = 232
 label = "SCOPE_LENS"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [metal_coat]
 id = 233
 label = "METAL_COAT"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [leftovers]
 id = 234
 label = "LEFTOVERS"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [dragon_scale]
 id = 235
@@ -1501,105 +1501,105 @@ id = 237
 label = "SOFT_SAND"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [hard_stone]
 id = 238
 label = "HARD_STONE"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [miracle_seed]
 id = 239
 label = "MIRACLE_SEED"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [blackglasses]
 id = 240
 label = "BLACKGLASSES"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [black_belt]
 id = 241
 label = "BLACK_BELT"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [magnet]
 id = 242
 label = "MAGNET"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [mystic_water]
 id = 243
 label = "MYSTIC_WATER"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [sharp_beak]
 id = 244
 label = "SHARP_BEAK"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [poison_barb]
 id = 245
 label = "POISON_BARB"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [nevermeltice]
 id = 246
 label = "NEVERMELTICE"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [spell_tag]
 id = 247
 label = "SPELL_TAG"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [twistedspoon]
 id = 248
 label = "TWISTEDSPOON"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [charcoal]
 id = 249
 label = "CHARCOAL"
 price = 9800
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [dragon_fang]
 id = 250
 label = "DRAGON_FANG"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [silk_scarf]
 id = 251
 label = "SILK_SCARF"
 price = 100
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [upgrade]
 id = 252
@@ -1613,7 +1613,7 @@ id = 253
 label = "SHELL_BELL"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [sea_incense]
 id = 254
@@ -1704,21 +1704,21 @@ id = 266
 label = "MUSCLE_BAND"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [wise_glasses]
 id = 267
 label = "WISE_GLASSES"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [expert_belt]
 id = 268
 label = "EXPERT_BELT"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [light_clay]
 id = 269
@@ -1732,7 +1732,7 @@ id = 270
 label = "LIFE_ORB"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [power_herb]
 id = 271
@@ -1767,7 +1767,7 @@ id = 275
 label = "FOCUS_SASH"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [zoom_lens]
 id = 276
@@ -1851,7 +1851,7 @@ id = 287
 label = "CHOICE_SCARF"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [sticky_barb]
 id = 288
@@ -1921,7 +1921,7 @@ id = 297
 label = "CHOICE_SPECS"
 price = 200
 pocket = "items"
-classification = "filler"
+classification = "useful"
 
 [flame_plate]
 id = 298

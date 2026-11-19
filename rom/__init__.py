@@ -84,6 +84,10 @@ class HeartGoldRom:
     def __init__(self, data: bytes, *, expect_vanilla: bool = True) -> None:
         self.version: str | None
         self.version, data = self._validate_size_and_hash(data, expect_vanilla=expect_vanilla)
+        self._main_code: bytearray | None = None
+        self._main_code_dirty = False
+        self._narcs: dict[str, apnds.narc.Narc] = {}
+        self._dirty_narcs: set[str] = set()
         try:
             self._rom = apnds.rom.Rom.from_bytes(data)
         except Exception as exc:
@@ -95,6 +99,10 @@ class HeartGoldRom:
         self._validate_game_code()
 
     def _split_arm9_footer(self) -> tuple[bytes, bytes]:
+        self._flush_main_code()
+        return self._split_packed_arm9()
+
+    def _split_packed_arm9(self) -> tuple[bytes, bytes]:
         raw = bytes(self._rom.arm9)
         footer_start = len(raw) - self._NITROCODE_FOOTER_SIZE
         if len(raw) > self._NITROCODE_FOOTER_SIZE and raw[footer_start : footer_start + 4] == self._NITROCODE_FOOTER_SIGNATURE:
@@ -149,9 +157,16 @@ class HeartGoldRom:
     def _normalize_nitrofs_path(nitrofs_path: str) -> str:
         return "/" + nitrofs_path.lstrip("/")
 
+    def _flush_narc(self, key: str) -> None:
+        if key in self._dirty_narcs:
+            self._rom.files[key] = self._narcs[key].to_bytes()
+            self._dirty_narcs.discard(key)
+
     def read_file(self, nitrofs_path: str) -> bytes:
+        key = self._normalize_nitrofs_path(nitrofs_path)
+        self._flush_narc(key)
         try:
-            return bytes(self._rom.files[self._normalize_nitrofs_path(nitrofs_path)])
+            return bytes(self._rom.files[key])
         except KeyError as exc:
             raise NitroFsFileNotFoundError(
                 f"NitroFS file not found: {nitrofs_path!r}. This path "
@@ -165,13 +180,27 @@ class HeartGoldRom:
                 f"NitroFS file not found: {nitrofs_path!r}. This path "
                 "either does not exist in this ROM or is misspelled."
             )
+        self._narcs.pop(key, None)
+        self._dirty_narcs.discard(key)
         self._rom.files[key] = bytes(data)
 
     def read_narc(self, nitrofs_path: str) -> apnds.narc.Narc:
-        return apnds.narc.Narc.from_bytes(self.read_file(nitrofs_path))
+        key = self._normalize_nitrofs_path(nitrofs_path)
+        cached = self._narcs.get(key)
+        if cached is None:
+            cached = self._narcs[key] = apnds.narc.Narc.from_bytes(self.read_file(nitrofs_path))
+        return apnds.narc.Narc(list(cached.files), dict(cached.filename_id_map))
 
     def write_narc(self, nitrofs_path: str, narc: apnds.narc.Narc) -> None:
-        self.write_file(nitrofs_path, narc.to_bytes())
+        key = self._normalize_nitrofs_path(nitrofs_path)
+        if key not in self._rom.files:
+            raise NitroFsFileNotFoundError(
+                f"NitroFS file not found: {nitrofs_path!r}. This path "
+                "either does not exist in this ROM or is misspelled."
+            )
+        files = [file if type(file) is bytes else bytes(file) for file in narc.files]
+        self._narcs[key] = apnds.narc.Narc(files, dict(narc.filename_id_map))
+        self._dirty_narcs.add(key)
 
     @staticmethod
     def nitrofs_file_span(packed: bytes, nitrofs_path: str) -> tuple[int, int]:
@@ -231,6 +260,7 @@ class HeartGoldRom:
         body, footer = self._split_arm9_footer()
         target_address = self.arm9_ram_address + len(body)
         self._rom.arm9 = body + bytes(data) + footer
+        self._main_code = None
         return target_address
 
     def _find_overlay(self, overlay_id: int) -> apnds.rom.Overlay:
@@ -238,6 +268,9 @@ class HeartGoldRom:
             if overlay.id == overlay_id:
                 return overlay
         raise ValueError(f"overlay {overlay_id} not found in the ARM9 overlay table")
+
+    def overlay_ram_address(self, overlay_id: int) -> int:
+        return self._find_overlay(overlay_id).ram_address
 
     def read_overlay(self, overlay_id: int) -> bytes:
         overlay = self._find_overlay(overlay_id)
@@ -282,9 +315,11 @@ class HeartGoldRom:
     _ARM9_HEADER_LEN = 0x4000
 
     def read_main_code_decompressed(self) -> bytes:
-        body = self.arm9
-        decompressed, _rem = decompress_code(body, len(body))
-        return decompressed
+        if self._main_code is None:
+            body, _footer = self._split_packed_arm9()
+            decompressed, _rem = decompress_code(body, len(body))
+            self._main_code = bytearray(decompressed)
+        return bytes(self._main_code)
 
     def _compressed_static_end_file_offset(self) -> int:
         field_ram_address = self._MODULE_PARAMS_ARM9_RAM_ADDRESS + self._COMPRESSED_STATIC_END_FIELD_OFFSET
@@ -326,23 +361,33 @@ class HeartGoldRom:
                     f"ARM9 image's own size ({len(decompressed):#x})."
                 )
             decompressed[offset : offset + len(data)] = data
+        self._main_code = decompressed
+        self._main_code_dirty = True
 
-        provisional, was_compressed = self._compress_main_code(bytes(decompressed))
-        new_compressed_static_end = self.arm9_ram_address + len(provisional) if was_compressed else 0
-
+    def _flush_main_code(self) -> None:
+        if not self._main_code_dirty or self._main_code is None:
+            return
+        decompressed = self._main_code
         field_offset = self._compressed_static_end_file_offset()
-        struct.pack_into("<I", decompressed, field_offset, new_compressed_static_end)
+        packed, was_compressed = self._compress_main_code(bytes(decompressed))
+        struct.pack_into("<I", decompressed, field_offset, self.arm9_ram_address + len(packed) if was_compressed else 0)
+        if field_offset + 4 <= self._ARM9_HEADER_LEN:
+            packed = bytes(decompressed[: self._ARM9_HEADER_LEN]) + packed[self._ARM9_HEADER_LEN :]
+        else:
+            packed, _was_compressed = self._compress_main_code(bytes(decompressed))
 
-        recompressed, _was_compressed = self._compress_main_code(bytes(decompressed))
-
-        _old_body, old_footer = self._split_arm9_footer()
+        _old_body, old_footer = self._split_packed_arm9()
         if old_footer:
             new_footer = self._regenerate_arm9_footer(bytes(decompressed), old_footer)
         else:
             new_footer = b""
-        self._rom.arm9 = recompressed + new_footer
+        self._rom.arm9 = packed + new_footer
+        self._main_code_dirty = False
 
     def save_bytes(self) -> bytes:
+        self._flush_main_code()
+        for key in sorted(self._dirty_narcs):
+            self._flush_narc(key)
         return self._rom.to_bytes(fill_tail=False)
 
     def save(self, path: str | Path) -> None:

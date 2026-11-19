@@ -9,6 +9,9 @@ ITEM_ID_OPERAND_OFFSET = 4
 
 QUANTITY_OPERAND_OFFSET_FROM_ITEM_ID = 6
 
+_SET_VAR_X8004 = struct.pack("<HH", 41, 0x8004)
+_SET_VAR_X8005 = struct.pack("<HH", 41, 0x8005)
+
 TABLE: dict[str, list[tuple[int, int]]] = {
     'azalea_charcoal_kiln_charcoal': [(873, 127)],
     'azalea_gym_tm89': [(869, 314)],
@@ -174,6 +177,15 @@ def write_npc_gift_substitution(rom: HeartGoldRom, location_key: str, item_key: 
 
 def write_npc_gift_empty(rom: HeartGoldRom, location_key: str, name_id: int = 0) -> None:
     sites = _resolve_npc_gift_sites(location_key)
+    narc = rom.read_narc(NITROFS_PATH)
+    for narc_index, offset in sites:
+        blob = narc.files[narc_index]
+        quantity_offset = offset + QUANTITY_OPERAND_OFFSET_FROM_ITEM_ID
+        if bytes(blob[offset - 4 : offset]) != _SET_VAR_X8004 or bytes(blob[quantity_offset - 4 : quantity_offset]) != _SET_VAR_X8005:
+            raise NpcGiftDataError(
+                f"location {location_key!r}: script file {narc_index} offset {offset:#x} is not "
+                "`SetVar VAR_SPECIAL_x8004` followed by `SetVar VAR_SPECIAL_x8005`"
+            )
     for narc_index, offset in sites:
         write_npc_gift_item_id(rom, narc_index, offset, name_id)
         write_npc_gift_item_quantity(rom, narc_index, offset, 0)

@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 TRACKED_OPTION_NAMES = (
     "goal",
     "goal_badge_count",
+    "goal_pokedex_count",
+    "goal_legendary_count",
     "johto_only",
     "game_version",
     "randomize_wild_pokemon",
@@ -29,16 +31,28 @@ TRACKED_OPTION_NAMES = (
     "starting_town",
     "randomize_bicycle",
     "legendarysanity",
+    "shopsanity",
+    "game_corner_prizes",
+    "apricorn_trees",
+    "bug_contest",
     "magnet_train",
     "require_flash",
     "hidden_items_require_dowsing_machine",
+    "elite_four_badges",
+    "blue_kanto_leaders",
+    "red_badges",
 )
 
 SLOT_DATA_OPTIONS_KEY = "options"
+SLOT_DATA_TRAINERS_KEY = "trainersanity_locations"
+SLOT_DATA_DEXSANITY_KEY = "dexsanity_logic"
 
 
 def build_ut_slot_data(world: "HeartGoldWorld") -> dict[str, Any]:
-    return {name: getattr(world.options, name).value for name in TRACKED_OPTION_NAMES}
+    data = {name: getattr(world.options, name).value for name in TRACKED_OPTION_NAMES}
+    data["goal_pokedex_count"] = getattr(world, "pokedex_goal_count", data["goal_pokedex_count"])
+    data["goal_legendary_count"] = getattr(world, "legendary_goal_count", data["goal_legendary_count"])
+    return data
 
 
 def load_ut_slot_data(world: "HeartGoldWorld") -> None:
@@ -54,3 +68,21 @@ def load_ut_slot_data(world: "HeartGoldWorld") -> None:
         option = getattr(world.options, name, None)
         if option is not None:
             option.value = value
+
+
+def ut_seed_locations(world: "HeartGoldWorld") -> tuple[frozenset[str] | None, dict[str, list] | None]:
+    from locations import create_location_label_to_code_map
+
+    key_by_id = {code: key for key, code in create_location_label_to_code_map().items()}
+    slot_data = world.ut_slot_data
+    trainers = slot_data.get(SLOT_DATA_TRAINERS_KEY)
+    dexsanity = slot_data.get(SLOT_DATA_DEXSANITY_KEY)
+    trainer_keys = None
+    if trainers is not None:
+        trainer_keys = frozenset(key_by_id[int(code)] for code in trainers if int(code) in key_by_id)
+    requirements = None
+    if dexsanity is not None:
+        requirements = {
+            key_by_id[int(code)]: branches for code, branches in dexsanity.items() if int(code) in key_by_id
+        }
+    return trainer_keys, requirements

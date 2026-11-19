@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 from BaseClasses import MultiWorld, Region
 from data.regions import REGIONS
 
@@ -61,6 +63,7 @@ KANTO_REGION_KEYS: frozenset[str] = frozenset(
     }
 )
 
+@lru_cache(maxsize=None)
 def johto_only_excluded_region_keys(soulsilver: bool) -> frozenset[str]:
     from data.items import ITEMS
     from data.locations import LOCATIONS

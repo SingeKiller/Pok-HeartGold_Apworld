@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -19,15 +20,29 @@ from rom import foreignnamedata as rom_foreignnamedata
 from rom import giftflagdata as rom_giftflagdata
 from rom import eventscriptdata as rom_eventscriptdata
 from rom import msgdata as rom_msgdata
+from rom import apricorntreedata as rom_apricorntreedata
+from rom import bugcontestdata as rom_bugcontestdata
+from rom import prizedata as rom_prizedata
 from rom import newbarkexitdata as rom_newbarkexitdata
 from rom import evodata as rom_evodata
 from rom import hiddenitemdata as rom_hiddenitemdata
 from rom import learnsetdata as rom_learnsetdata
 from rom import lighthousedata as rom_lighthousedata
+from rom import hiddenmarkerdata as rom_hiddenmarkerdata
+from rom import olivineportdata as rom_olivineportdata
+from rom import unlockdata as rom_unlockdata
+from rom import hmforgetdata as rom_hmforgetdata
+from rom import hmbagdata as rom_hmbagdata
+from rom import kantoleaderdata as rom_kantoleaderdata
+from rom import redbadgesdata as rom_redbadgesdata
+from rom import tradedata as rom_tradedata
+from rom import pokedexareadata as rom_pokedexareadata
+from rom import wildmoneydata as rom_wildmoneydata
 from rom import movedata as rom_movedata
 from rom import npcgiftdata as rom_npcgiftdata
 from rom import npcgiftgatedata as rom_npcgiftgatedata
 from rom import speciesdata as rom_speciesdata
+from rom import staticpokemondata as rom_staticpokemondata
 from rom import startlocation as rom_startlocation
 from rom import starterdata as rom_starterdata
 from rom import timedeventdata as rom_timedeventdata
@@ -171,8 +186,26 @@ def apply_local_item_substitutions(
         rom_hiddenitemdata.write_hidden_item_substitutions(rom, hidden_item_substitutions, name_ids)
 
 
+def foreign_name_keys(names: dict[str, list]) -> dict[str, list]:
+    from data.locations import LOCATIONS
+
+    kept = {}
+    for key, value in names.items():
+        location = LOCATIONS.get(key)
+        if location is None:
+            raise KeyError(f"unknown location key: {key!r}")
+        if location["type"] in ("ground_item", "hidden_item", "npc_gift", "hm_tm"):
+            kept[key] = value
+    return kept
+
+
 def apply_foreign_item_names(rom: HeartGoldRom, names: dict[str, list]) -> dict[str, int]:
-    return rom_foreignnamedata.write_foreign_names(rom, {key: tuple(value) for key, value in names.items()})
+    kept = foreign_name_keys(names)
+    return rom_foreignnamedata.write_foreign_names(rom, {key: tuple(value) for key, value in kept.items()})
+
+
+def apply_foreign_item_routines(rom: HeartGoldRom) -> None:
+    rom_foreignnamedata.patch_item_routines(rom)
 
 
 def apply_badge_neutralization(rom: HeartGoldRom) -> None:
@@ -193,6 +226,18 @@ def apply_wing_monk_regate(rom: HeartGoldRom) -> None:
     rom_wingmonkdata.write_wing_monk_regate(rom)
 
 
+def apply_game_corner_prizes(rom: HeartGoldRom, slots: list[dict]) -> None:
+    rom_prizedata.apply_prizes(rom, slots)
+
+
+def apply_apricorn_trees(rom: HeartGoldRom, trees: list[int]) -> None:
+    rom_apricorntreedata.apply_apricorn_trees(rom, trees)
+
+
+def apply_bug_contest(rom: HeartGoldRom) -> None:
+    rom_bugcontestdata.apply_bug_contest(rom)
+
+
 def apply_gift_flags(rom: HeartGoldRom) -> None:
     rom_giftflagdata.write_gift_flags(rom)
 
@@ -207,6 +252,46 @@ def apply_timed_events(rom: HeartGoldRom) -> None:
 
 def apply_lighthouse_fix(rom: HeartGoldRom) -> None:
     rom_lighthousedata.write_lighthouse_fix(rom)
+
+
+def apply_olivine_port_fix(rom: HeartGoldRom) -> None:
+    rom_olivineportdata.write_olivine_port_fix(rom)
+
+
+def apply_hidden_item_markers(rom: HeartGoldRom) -> None:
+    rom_hiddenmarkerdata.write_hidden_item_markers(rom)
+
+
+def apply_unlock_button(rom: HeartGoldRom) -> None:
+    rom_unlockdata.write_unlock_button(rom)
+
+
+def apply_hm_forget(rom: HeartGoldRom) -> None:
+    rom_hmforgetdata.write_hm_forget(rom)
+
+
+def apply_hms_without_teaching(rom: HeartGoldRom) -> None:
+    rom_hmbagdata.write_hms_without_teaching(rom)
+
+
+def apply_blue_kanto_leaders(rom: HeartGoldRom, count: int) -> None:
+    rom_kantoleaderdata.write_blue_kanto_leaders(rom, count)
+
+
+def apply_red_badges(rom: HeartGoldRom, count: int) -> None:
+    rom_redbadgesdata.write_red_badges(rom, count)
+
+
+def apply_trade_randomization(rom: HeartGoldRom, trades: dict[str, list[int]]) -> None:
+    rom_tradedata.write_trades(rom, {int(index): (give, ask) for index, (give, ask) in trades.items()})
+
+
+def apply_static_pokemon(rom: HeartGoldRom, assignments: dict[str, str]) -> None:
+    rom_staticpokemondata.write_static_pokemon(rom, assignments)
+
+
+def apply_wild_battle_money(rom: HeartGoldRom) -> None:
+    rom_wildmoneydata.write_wild_battle_money(rom)
 
 
 def apply_new_bark_east_exit_fix(rom: HeartGoldRom) -> None:
@@ -400,6 +485,75 @@ def apply_encounter_randomization(rom: HeartGoldRom, encounters: dict) -> None:
     rom_encounterdata.write_headbutt_tables(rom, encounters)
 
 
+def apply_pokedex_areas(rom: HeartGoldRom, encounters: dict) -> None:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    rom_pokedexareadata.write_area_lists(
+        rom, rom_pokedexareadata.build_area_lists(encounters, SPECIES_KEY_TO_RAW_INDEX)
+    )
+
+
+def apply_special_encounter_randomization(rom: HeartGoldRom, settings: dict) -> None:
+    import random
+
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+    from species import WILD_SHUFFLE, real_species_pool
+
+    pool = sorted(
+        SPECIES_KEY_TO_RAW_INDEX[key]
+        for key in real_species_pool(exclude_legendaries=bool(settings["exclude_legendaries"]))
+    )
+    entries = rom_encounterdata.read_all(rom)
+    rng = random.Random(settings["seed"])
+    rom_encounterdata.write_all(
+        rom, rom_encounterdata.randomize_special_species(entries, rng, settings["mode"] == WILD_SHUFFLE, pool)
+    )
+
+
+ELMS_LAB_SCRIPT_INDEX = 843
+TOGEPI_LINE = ("togepi", "togetic", "togekiss")
+
+
+def togepi_line(species: dict) -> list[str]:
+    chain = ["togepi"]
+    while len(chain) < len(TOGEPI_LINE):
+        evolutions = species.get(chain[-1], {}).get("evolutions") or ()
+        if not evolutions or evolutions[0]["target"] in chain:
+            break
+        chain.append(evolutions[0]["target"])
+    return chain + [chain[-1]] * (len(TOGEPI_LINE) - len(chain))
+
+
+OAKS_LAB_SCRIPT_INDEX = 740
+_KYOGRE_GROUDON_PARTY_CHECK = struct.pack("<HHHHHHB", 836, 0x8005, 17, 0x8005, 1, 28, 1)
+
+
+def apply_jade_orb_single_legend(rom: HeartGoldRom) -> None:
+    narc = rom.read_narc(rom_eventscriptdata.NITROFS_PATH)
+    blob = bytearray(narc.files[OAKS_LAB_SCRIPT_INDEX])
+    at = bytes(blob).find(_KYOGRE_GROUDON_PARTY_CHECK)
+    if at < 0 or bytes(blob).find(_KYOGRE_GROUDON_PARTY_CHECK, at + 1) >= 0:
+        raise ValueError("Oak's Lab script: the Kyogre and Groudon party check is not where it should be")
+    struct.pack_into("<HHB", blob, at + 8, 2, 28, 5)
+    narc.files[OAKS_LAB_SCRIPT_INDEX] = bytes(blob)
+    rom.write_narc(rom_eventscriptdata.NITROFS_PATH, narc)
+
+
+def apply_togepi_line_everstone_check(rom: HeartGoldRom, species: dict) -> None:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    narc = rom.read_narc(rom_eventscriptdata.NITROFS_PATH)
+    blob = bytearray(narc.files[ELMS_LAB_SCRIPT_INDEX])
+    for vanilla, target in zip(TOGEPI_LINE, togepi_line(species)):
+        old = struct.pack("<HHH", 17, 0x4001, SPECIES_KEY_TO_RAW_INDEX[vanilla])
+        at = bytes(blob).find(old)
+        if at < 0 or bytes(blob).find(old, at + 1) >= 0:
+            raise ValueError(f"Elm's Lab script: the {vanilla} check is not where it should be")
+        struct.pack_into("<H", blob, at + 4, SPECIES_KEY_TO_RAW_INDEX[target])
+    narc.files[ELMS_LAB_SCRIPT_INDEX] = bytes(blob)
+    rom.write_narc(rom_eventscriptdata.NITROFS_PATH, narc)
+
+
 def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> None:
     from data.moves import MOVES
     from data.species_index import SPECIES_KEY_TO_RAW_INDEX
@@ -428,6 +582,11 @@ def apply_evolution_and_stat_randomization(rom: HeartGoldRom, species: dict) -> 
 
         ability1, ability2 = data["abilities"]
         rom_speciesdata.write_abilities(rom, species_key, ability1, ability2)
+
+        if "held_items" in data:
+            rom_speciesdata.write_held_items(rom, species_key, *data["held_items"])
+        if "tm_compat" in data:
+            rom_speciesdata.write_tm_compatibility(rom, species_key, data["tm_compat"])
 
         raw_learnset = [(level, MOVES[move_key]["id"]) for level, move_key in data["level_learnset"]]
         if raw_learnset != rom_learnsetdata.read_species_learnset(rom, raw_index):

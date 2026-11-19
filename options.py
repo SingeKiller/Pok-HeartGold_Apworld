@@ -37,6 +37,12 @@ class RandomizeWildPokemon(Choice):
     """Randomize wild Pokémon encounters (grass / surf / fishing / rock
     smash / headbutt, across HGSS's morning/day/night tables).
 
+    Any mode other than vanilla also randomizes the species that only show
+    up in special cases: swarms (land, surf and fishing), the night fishing
+    species and the species heard through the radio sounds. Those are never
+    expected by the logic. The AREA page of the Pokedex then shows where each
+    species lives in this seed (swarms and radio species excluded).
+
     - vanilla: no randomization, wild encounters stay as in the base game.
     - shuffle: shuffles which species appear across every wild encounter
       slot in the game (a permutation -- the same set of species still
@@ -60,11 +66,38 @@ class RandomizeWildPokemon(Choice):
     default = 0
 
 
+class RandomizeTrades(Toggle):
+    """Randomize the 9 in-game trades: each one offers a random Pokemon, named
+    after its species, and asks for a random species that this seed places in
+    the wild. Kirk's Shuckle, the Spearow carrying Kenya's mail and the other
+    gifts or loans are not changed. Trades are never expected by the logic.
+    Off by default."""
+
+    display_name = "Randomize Trades"
+
+
+class RandomizeStaticPokemon(Toggle):
+    """Replace the Pokemon the game hands out or fixes in place with random
+    species, one per spot and never the same species twice: the Kanto and
+    Hoenn starters, the fossil revivals, Tyrogue, Dratini, Eevee, Tentacool,
+    the legendary and static encounters (Mewtwo, the three birds, Suicune,
+    Lugia, Rayquaza, Latios and Latias, Snorlax, Lapras, Sudowoodo, Red
+    Gyarados, the Rocket Headquarters Electrodes). Levels stay the same.
+    Ho-Oh, Kyogre, Groudon, the Togepi egg, the loaned Shuckle and Spearow and
+    distribution gifts are never changed because the game checks for them,
+    and Lugia stays as is when `legendarysanity` is on.
+    `exclude_legendaries` removes legendaries from the draw. These Pokemon are
+    never expected by the logic. Off by default."""
+
+    display_name = "Randomize Static Pokémon"
+
+
 class ExcludeLegendaries(Toggle):
     """Never place a legendary or mythical Pokémon (Articuno through
     Arceus) in the wild encounter pool when `randomize_wild_pokemon` is
-    set to `full_random` or `zone_method_mapping`, or as a starter when
-    `randomize_starters` is on. Has no effect on `vanilla`/`shuffle` --
+    set to `full_random` or `zone_method_mapping`, as a starter when
+    `randomize_starters` is on, or in a trainer's party when
+    `randomize_trainers` is on. Has no effect on `vanilla`/`shuffle` --
     vanilla wild tables don't place legendaries in grass/surf/fishing/
     rock-smash slots to begin with, so there's nothing to exclude from a
     shuffle of the existing multiset.
@@ -116,7 +149,6 @@ class StartingTown(Choice):
     option_cherrygrove = 1
     option_violet = 2
     option_azalea = 3
-    option_cianwood = 4
     option_goldenrod = 5
     option_olivine = 6
     option_ecruteak = 7
@@ -136,6 +168,16 @@ class RandomizeTrainers(Toggle):
     """Randomize trainer Pokémon parties (Gym Leaders, Rivals, Elite Four, Red, and regular trainers)."""
 
     display_name = "Randomize Trainers"
+
+
+class SimilarStrengthTrainers(Toggle):
+    """With `randomize_trainers`, each trainer Pokémon is replaced by a
+    species of similar strength: its base stat total stays within 15% of
+    the original species' total (the window widens step by step only if no
+    species fits). Also follows `exclude_legendaries`. No effect when
+    `randomize_trainers` is off. Off by default."""
+
+    display_name = "Similar Strength Trainers"
 
 
 class RandomizeEvolutions(Choice):
@@ -291,6 +333,44 @@ class RandomizeLearnsets(Toggle):
     display_name = "Randomize Learnsets"
 
 
+class RandomizeAbilities(Toggle):
+    """Give every Pokémon species random abilities. A species with one
+    ability still has one, a species with two different ones gets two
+    different ones.
+    Wonder Guard, Forecast and Multitype are never given. Applied before
+    `disable_trapping_abilities`, so that option still removes any
+    trapping ability drawn here. Off by default."""
+
+    display_name = "Randomize Abilities"
+
+
+class RandomizeTmCompatibility(Choice):
+    """Randomize which Pokémon species can learn which TMs.
+    Vanilla: nothing changes. Half: every species can learn each of the 92
+    TMs with a one in two chance. Full: every species can learn every TM.
+    In both randomized modes every species can learn all 8 HMs and the Flash
+    TM, so the logic that assumes you can use your HMs never breaks. Off by
+    default."""
+
+    display_name = "Randomize TM Compatibility"
+    option_vanilla = 0
+    option_half = 1
+    option_full = 2
+    default = 0
+
+
+class RandomizeWildHeldItems(Toggle):
+    """Give every Pokémon species a random common and a random rare held item
+    for wild Pokémon, drawn from ordinary items only (medicine, balls,
+    berries, battle items and regular held items). About half of the species
+    keep no common item and about three in four keep no rare item, so wild
+    Pokémon do not flood you with items. Key items, TMs, HMs and mail are
+    never given, and these items are never part of the logic. Off by
+    default."""
+
+    display_name = "Randomize Wild Held Items"
+
+
 class TrainerLevelScaling(Range):
     """Scale every trainer Pokémon's level by this percentage (100 = vanilla
     levels, unchanged). A difficulty knob, not a randomizer -- the same
@@ -350,12 +430,20 @@ class Goal(Choice):
     - champion_red: also defeat Red at the top of Mt. Silver.
     - n_badges: obtain a configurable number of badges (see the
       `goal_badge_count` option) -- no specific boss fight is required.
+    - pokedex: catch a configurable number of species (see the
+      `goal_pokedex_count` option). Only species that can be caught in the
+      wild in your seed count.
+    - legendary_hunt: catch a configurable number of the fixed legendary
+      Pokemon (see the `goal_legendary_count` option). Works with or without
+      `legendarysanity`.
     """
 
     display_name = "Goal"
     option_elite_four = 0
     option_champion_red = 1
     option_n_badges = 2
+    option_pokedex = 4
+    option_legendary_hunt = 5
     default = 0
 
 
@@ -368,6 +456,76 @@ class GoalBadgeCount(Range):
 
     display_name = "Goal Badge Count"
     range_start = 1
+    range_end = 16
+    default = 16
+
+
+class GoalPokedexCount(Range):
+    """Number of species you must have caught in your Pokedex to win when the
+    `goal` option is set to `pokedex`. Ignored for any other `goal` value.
+
+    Only species that can be caught in the wild in your seed count, so the value
+    is lowered to that number if it is higher (for example with `johto_only`).
+    """
+
+    display_name = "Goal Pokedex Count"
+    range_start = 1
+    range_end = 493
+    default = 150
+
+
+class GoalLegendaryCount(Range):
+    """Number of fixed legendary Pokemon you must catch to win when the `goal`
+    option is set to `legendary_hunt`. Ignored for any other `goal` value.
+
+    Your world holds 6 of them (Ho-Oh, Lugia, Zapdos, Mewtwo, Articuno,
+    Moltres). A higher value than your world holds is lowered to what it holds
+    (for example with `johto_only`). Only a catch counts, defeating the
+    legendary does not. The count follows the legendary encounter itself, so it
+    still works when `randomize_static_pokemon` replaces the Pokemon found
+    there. Roaming legendaries, Suicune, and the Hoenn legendaries do not
+    count.
+    """
+
+    display_name = "Goal Legendary Count"
+    range_start = 1
+    range_end = 6
+    default = 3
+
+
+class EliteFourBadges(Range):
+    """How many badges, from Johto or Kanto, the logic expects you to own before
+    it sends you into the Pokemon League. As in the original game, the League door
+    itself checks nothing, so you may go earlier at your own risk. With
+    `johto_only` on, values above 8 count as 8. Default 8."""
+
+    display_name = "Elite Four Badges"
+    range_start = 0
+    range_end = 16
+    default = 8
+
+
+class BlueKantoLeaders(Range):
+    """How many of the 7 other Kanto Gym Leaders you must beat before Blue, on
+    Cinnabar Island, agrees to wait for you in the Viridian Gym. Badges received
+    from other players do not count, only Leaders beaten. Default 7, as in the
+    original game."""
+
+    display_name = "Kanto Leaders for Blue"
+    range_start = 0
+    range_end = 7
+    default = 7
+
+
+class RedBadges(Range):
+    """How many of the 16 badges you must own before Prof. Oak, in Pallet Town,
+    gives you Rock Climb and opens the way to Route 28 and Mt. Silver. Badges
+    received from other players count. Below 16, beating Blue is no longer
+    required for this. Default 16, as in the original game, where Blue is the
+    last gym."""
+
+    display_name = "Badges for Red"
+    range_start = 0
     range_end = 16
     default = 16
 
@@ -388,10 +546,10 @@ class HiddenItemsRequireDowsingMachine(Toggle):
     """Require owning the Dowsing Machine in logic before any hidden item
     location is considered reachable.
 
-    Off by default: vanilla never actually requires it to pick up an
-    already-known hidden item (it's purely a detection aid, not a real
-    gate), matching this world's own accessibility assumptions everywhere
-    else.
+    Hidden items are always part of the pool; this option does not remove
+    them. Off by default: in game you can pick up a hidden item by pressing
+    A on its tile without the Dowsing Machine, so the logic does not wait
+    for it.
     """
 
     display_name = "Hidden Items Require Dowsing Machine"
@@ -458,6 +616,9 @@ class Dexsanity(Toggle):
     some occurrence of that species, not the exact region it spawns in, so
     it is deliberately looser than the game's real logic and unsafe to gate
     anything mandatory behind.
+
+    The two 1% grass slots and the 1% Surf slot are ignored: a species
+    only found there gets no check.
 
     Off by default.
     """
@@ -542,6 +703,69 @@ class Legendarysanity(Toggle):
     display_name = "Legendarysanity"
 
 
+class RandomizeShopItems(Toggle):
+    """Changes what the specialty counter of the 13 town Poke Marts sells: any
+    item can appear, HMs and TMs included. HMs and TMs are sold one at a time and
+    leave the list once you own them; each counter also keeps a consumable (ball,
+    medicine or battle item). The other shops and the regular counter do not
+    change, so Poke Balls and Potions can always be bought. Key items stay out of
+    these lists unless Shop Key Items is on. While this is on, each wild Pokemon
+    you defeat also gives 20 money. Off by default."""
+
+    display_name = "Randomize Shop Items"
+
+
+class ShopKeyItems(Toggle):
+    """Lets Randomize Shop Items also sell key items, such as the Bicycle or the
+    S.S. Ticket, one at a time for 500 or 1000. WARNING: buying a story item can
+    reach places early and may disturb that story's scripts. The logic does not
+    count on these purchases. Does nothing without Randomize Shop Items. Off by
+    default."""
+
+    display_name = "Shop Key Items"
+
+
+class Shopsanity(Toggle):
+    """The specialty counter of every town Poke Mart (13 in Johto and Kanto)
+    also sells two items from the multiworld, 26 checks in all. Each one can
+    be bought once; the shop shows its name, and the price depends on how
+    useful the item is. While this is on, each wild Pokemon you defeat also gives
+    20 money, so you can always earn enough to buy them. Off by default."""
+
+    display_name = "Shopsanity"
+
+
+class GameCornerPrizes(Toggle):
+    """The ten item prizes of the Goldenrod Game Corner and the ten of the Celadon
+    Game Corner prize counter become checks, 20 in all. Each one can be taken once
+    and costs only 50 Coins (win them at Voltorb Flip) instead of 1000 to 15000.
+    The counter menu shows the item you will get and who it is for. The Pokemon
+    prizes do not change. The logic needs the Coin Case. Celadon is left out with
+    Johto Only. Off by default."""
+
+    display_name = "Game Corner Prizes"
+
+
+class ApricornTrees(Toggle):
+    """The first time you pick the Apricorn from each of the 31 Apricorn trees of
+    Johto and Kanto is a check. The trees still give their Apricorn every day as
+    usual. The logic needs the Apricorn Box, and some trees also need Cut or Surf
+    (with their badges). Kanto is left out with Johto Only. Off by default."""
+
+    display_name = "Apricorn Trees"
+
+
+class BugContest(Toggle):
+    """Taking part in the Bug-Catching Contest of the National Park becomes a
+    check. It is sent when the contest ends and is judged, whatever your rank and
+    even if you caught nothing, so you can enter and finish at once. The check is
+    given once. The contest also takes place every day instead of only on
+    Tuesday, Thursday and Saturday, still once per day, and the usual contest
+    prize is still given. Off by default."""
+
+    display_name = "Bug-Catching Contest"
+
+
 class DisableOhkoMoves(Toggle):
     """Neutralize the four One-Hit KO moves (Guillotine, Horn Drill,
     Fissure, Sheer Cold): each becomes an ordinary 60 power / 100 accuracy
@@ -609,10 +833,66 @@ class FlyPointsAtStart(Toggle):
     display_name = "Fly Points at Start"
 
 
+class UnlockButton(DefaultOnToggle):
+    """A way out if you ever get stuck, in the in-game Options screen. WARNING:
+    this removes the SOUND setting, the UNLOCK row takes its place, so Stereo
+    and Mono can no longer be changed and the game stays in Stereo. Set UNLOCK
+    to ON and choose CONFIRM: on your next step you return to the last Pokemon
+    Center you visited, with your party healed. No DeathLink is sent. The
+    client must be connected, and it does not work in the Safari Zone. On by
+    default; turn it off to keep the SOUND setting."""
+
+    display_name = "Unlock Button"
+
+
+class ForgetHmMoves(DefaultOnToggle):
+    """HM moves can be replaced like any other move: when a Pokemon learns a
+    new move, by level up or with a TM or HM, you may choose to forget Surf,
+    Cut or any other HM move. HMs are never used up, so you can teach them
+    again at any time. On by default; turn it off for the vanilla rule (HM
+    moves can only be removed by the Move Deleter)."""
+
+    display_name = "Forget HM Moves"
+
+
+class HmsWithoutTeaching(Toggle):
+    """Cut, Rock Smash, Strength, Rock Climb, Surf, Waterfall and Whirlpool can be
+    used on their obstacle as soon as the matching HM is in your Bag (with the
+    usual badge), even if no Pokemon of your team knows the move. If a Pokemon
+    knows the move it is used as usual; otherwise the first healthy Pokemon of
+    your team does it. Going down a waterfall while surfing is always allowed so
+    that you can never be stuck at the top of one. Fly and Flash are not covered:
+    they still need a Pokemon that knows the move. Off by default."""
+
+    display_name = "HMs Without Teaching"
+
+
+class HiddenItemMarkers(Toggle):
+    """Shows a gold Poke Ball on every hidden item you have not taken yet, at its
+    exact place. On a rock, a tree or a wall it floats above with an arrow pointing
+    down at the spot. Face it and press A to take the item; the marker then
+    disappears. A marker blocks its tile until then. The logic does not change. Off
+    by default."""
+
+    display_name = "Hidden Item Markers"
+
+
+class ForeignItemNames(Toggle):
+    """EXPERIMENTAL. When you pick up an item that belongs to another player (or one
+    of your own badges placed at an item location), the game shows its real name and
+    its owner instead of the generic "Item sent to another player!" text. This
+    rewrites the item scripts and adds text to the game, and it has not been fully
+    tested in game. Leave it off unless you want to try it. The logic does not
+    change. Off by default."""
+
+    display_name = "Foreign Item Names"
+
+
 class ItemReceivedMessages(Toggle):
     """Show a message on the BizHawk screen for each item received, with
-    the name of the player who found it. A batch of many items at once
-    (after a reload or on a new save) shows a single count instead. Off
+    the name of the player who found it, and for each item you send to
+    another player, with the name of that player. A batch of many items at
+    once (after a reload or on a new save) shows a single count instead. Off
     by default."""
 
     display_name = "Item Received Messages"
@@ -697,6 +977,8 @@ class HeartGoldOptions(PerGameCommonOptions):
 
     goal: Goal
     goal_badge_count: GoalBadgeCount
+    goal_pokedex_count: GoalPokedexCount
+    goal_legendary_count: GoalLegendaryCount
     johto_only: JohtoOnly
 
     randomize_wild_pokemon: RandomizeWildPokemon
@@ -705,7 +987,10 @@ class HeartGoldOptions(PerGameCommonOptions):
     starting_town: StartingTown
     randomize_bicycle: RandomizeBicycle
     randomize_trainers: RandomizeTrainers
+    similar_strength_trainers: SimilarStrengthTrainers
     exclude_legendaries: ExcludeLegendaries
+    randomize_trades: RandomizeTrades
+    randomize_static_pokemon: RandomizeStaticPokemon
     randomize_evolutions: RandomizeEvolutions
     randomize_base_stats: RandomizeBaseStats
     randomize_moves: RandomizeMoves
@@ -716,12 +1001,18 @@ class HeartGoldOptions(PerGameCommonOptions):
     starting_money: StartingMoney
     randomize_species_types: RandomizeSpeciesTypes
     randomize_learnsets: RandomizeLearnsets
+    randomize_abilities: RandomizeAbilities
+    randomize_tm_compatibility: RandomizeTmCompatibility
+    randomize_wild_held_items: RandomizeWildHeldItems
     trainer_level_scaling: TrainerLevelScaling
     sphere_based_trainer_leveling: SphereBasedTrainerLeveling
     sphere_based_trainer_leveling_bonus: SphereBasedTrainerLevelingBonus
 
     hidden_items_require_dowsing_machine: HiddenItemsRequireDowsingMachine
     require_flash: RequireFlash
+    elite_four_badges: EliteFourBadges
+    blue_kanto_leaders: BlueKantoLeaders
+    red_badges: RedBadges
     magnet_train: MagnetTrain
     remote_items: RemoteItems
 
@@ -733,6 +1024,11 @@ class HeartGoldOptions(PerGameCommonOptions):
     map_card_at_start: MapCardAtStart
     fly_points_at_start: FlyPointsAtStart
     item_received_messages: ItemReceivedMessages
+    unlock_button: UnlockButton
+    forget_hm_moves: ForgetHmMoves
+    hms_without_teaching: HmsWithoutTeaching
+    hidden_item_markers: HiddenItemMarkers
+    foreign_item_names: ForeignItemNames
     global_exp_share: GlobalExpShare
     exp_multiplier: ExpMultiplier
     skip_battle_animations: SkipBattleAnimations
@@ -747,6 +1043,12 @@ class HeartGoldOptions(PerGameCommonOptions):
     dexsanity_trigger: DexsanityTrigger
     dexsanity_encounter_types: DexsanityEncounterTypes
     legendarysanity: Legendarysanity
+    shopsanity: Shopsanity
+    game_corner_prizes: GameCornerPrizes
+    apricorn_trees: ApricornTrees
+    bug_contest: BugContest
+    randomize_shop_items: RandomizeShopItems
+    shop_key_items: ShopKeyItems
     trainersanity_count: TrainersanityCount
     dexsanity_count: DexsanityCount
 
@@ -760,18 +1062,20 @@ OPTION_GROUPS = [
     ),
     OptionGroup(
         "Goal",
-        [Goal, GoalBadgeCount, JohtoOnly],
+        [Goal, GoalBadgeCount, GoalPokedexCount, GoalLegendaryCount, JohtoOnly],
     ),
     OptionGroup(
         "Randomizers",
         [
             RandomizeWildPokemon,
             RandomizeStarters,
+            RandomizeStaticPokemon,
             RandomizeStartLocation,
             StartingTown,
             RandomizeBicycle,
             ExcludeLegendaries,
             RandomizeTrainers,
+            SimilarStrengthTrainers,
             RandomizeEvolutions,
             RandomizeBaseStats,
             RandomizeMoves,
@@ -782,6 +1086,9 @@ OPTION_GROUPS = [
             StartingMoney,
             RandomizeSpeciesTypes,
             RandomizeLearnsets,
+            RandomizeAbilities,
+            RandomizeTmCompatibility,
+            RandomizeWildHeldItems,
             TrainerLevelScaling,
             SphereBasedTrainerLeveling,
             SphereBasedTrainerLevelingBonus,
@@ -802,7 +1109,7 @@ OPTION_GROUPS = [
             RunningShoesAtStart,
             MapCardAtStart,
             FlyPointsAtStart,
-            ItemReceivedMessages,
+            ItemReceivedMessages, UnlockButton, HmsWithoutTeaching, HiddenItemMarkers, ForeignItemNames,
             GlobalExpShare,
             ExpMultiplier,
             SkipBattleAnimations,
@@ -818,7 +1125,7 @@ OPTION_GROUPS = [
     OptionGroup(
         "Stretch Goals",
         [Trainersanity, TrainersanityCount, Dexsanity, DexsanityCount, DexsanityTrigger, DexsanityEncounterTypes,
-         Legendarysanity],
+         Legendarysanity, Shopsanity, GameCornerPrizes, ApricornTrees, BugContest, RandomizeShopItems, ShopKeyItems],
         start_collapsed=True,
     ),
 ]

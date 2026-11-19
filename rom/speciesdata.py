@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import struct
 from collections.abc import Sequence
 
 from rom import HeartGoldRom
@@ -21,6 +22,13 @@ _TYPE2_OFFSET = 7
 
 _ABILITY1_OFFSET = 22
 _ABILITY2_OFFSET = 23
+
+_HELD_ITEM1_OFFSET = 12
+_HELD_ITEM2_OFFSET = 14
+
+_TM_COMPAT_OFFSET = 28
+_TM_COMPAT_SIZE = 16
+MACHINE_COUNT = 100
 
 
 def read_all(rom: HeartGoldRom) -> list[bytes]:
@@ -101,3 +109,39 @@ def read_abilities(rom: HeartGoldRom, species_key: str) -> tuple[int, int]:
     raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
     entry = read_entry(rom, raw_index)
     return entry[_ABILITY1_OFFSET], entry[_ABILITY2_OFFSET]
+
+
+def write_held_items(rom: HeartGoldRom, species_key: str, common: int, rare: int) -> None:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = bytearray(read_entry(rom, raw_index))
+    struct.pack_into("<HH", entry, _HELD_ITEM1_OFFSET, common, rare)
+    write_entry(rom, raw_index, bytes(entry))
+
+
+def read_held_items(rom: HeartGoldRom, species_key: str) -> tuple[int, int]:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = read_entry(rom, raw_index)
+    return struct.unpack_from("<HH", entry, _HELD_ITEM1_OFFSET)
+
+
+def write_tm_compatibility(rom: HeartGoldRom, species_key: str, mask: int) -> None:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    if not 0 <= mask < (1 << MACHINE_COUNT):
+        raise ValueError(f"TM compatibility mask out of range: {mask:#x}")
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = bytearray(read_entry(rom, raw_index))
+    entry[_TM_COMPAT_OFFSET : _TM_COMPAT_OFFSET + _TM_COMPAT_SIZE] = mask.to_bytes(_TM_COMPAT_SIZE, "little")
+    write_entry(rom, raw_index, bytes(entry))
+
+
+def read_tm_compatibility(rom: HeartGoldRom, species_key: str) -> int:
+    from data.species_index import SPECIES_KEY_TO_RAW_INDEX
+
+    raw_index = SPECIES_KEY_TO_RAW_INDEX[species_key]
+    entry = read_entry(rom, raw_index)
+    return int.from_bytes(entry[_TM_COMPAT_OFFSET : _TM_COMPAT_OFFSET + _TM_COMPAT_SIZE], "little")

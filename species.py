@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from bisect import bisect_left, bisect_right
+from collections.abc import Callable, Sequence
 from random import Random
 
 from data.encounters import ENCOUNTERS
@@ -92,6 +93,20 @@ def randomize_starters(
         key for key in real_species_pool(species, exclude_legendaries=exclude_legendaries) if species[key]["evolutions"]
     )
     return tuple(rng.sample(pool, k=3))
+
+
+def randomize_static_pokemon(
+    rng: Random,
+    enabled: bool,
+    site_keys: Sequence[str],
+    species: dict = SPECIES,
+    *,
+    exclude_legendaries: bool = False,
+) -> dict[str, str]:
+    if not enabled:
+        return {}
+    pool = real_species_pool(species, exclude_legendaries=exclude_legendaries)
+    return dict(zip(site_keys, rng.sample(pool, k=len(site_keys))))
 
 
 def _zone_species_refs(zone: dict) -> tuple[dict, list[tuple[dict, str, str]]]:
@@ -202,8 +217,15 @@ def randomize_wild_encounters(
     return {key: _finalize_zone(zone) for key, zone in new_zones.items()}
 
 
+RARE_LAND_SLOTS = frozenset({10, 11})
+RARE_SURF_SLOTS = frozenset({4})
+
+
 def species_encounter_sources(
-    encounters: dict, *, source_filter: Callable[[str, str], bool] | None = None
+    encounters: dict,
+    *,
+    source_filter: Callable[[str, str], bool] | None = None,
+    skip_rare_slots: bool = False,
 ) -> dict[str, frozenset[tuple[str, str]]]:
     result: dict[str, set[tuple[str, str]]] = {}
 
@@ -213,10 +235,14 @@ def species_encounter_sources(
         result.setdefault(species, set()).add((zone_key, method))
 
     for zone_key, zone in encounters.items():
-        for slot in zone["land"]["slots"]:
+        for index, slot in enumerate(zone["land"]["slots"]):
+            if skip_rare_slots and index in RARE_LAND_SLOTS:
+                continue
             for time_of_day in ("morn", "day", "nite"):
                 add(slot[time_of_day], zone_key, "land")
-        for slot in zone["surf"]["slots"]:
+        for index, slot in enumerate(zone["surf"]["slots"]):
+            if skip_rare_slots and index in RARE_SURF_SLOTS:
+                continue
             add(slot["species"], zone_key, "surf")
         for slot in zone["rock_smash"]["slots"]:
             add(slot["species"], zone_key, "rock_smash")
@@ -242,14 +268,62 @@ def species_encounter_methods(
     }
 
 
-def randomize_trainer_parties(rng: Random, enabled: bool, trainers: dict = TRAINERS, species: dict = SPECIES) -> dict:
+SIMILAR_STRENGTH_WINDOW = 0.15
+SIMILAR_STRENGTH_STEP = 0.05
+
+
+def base_stat_total(data: dict) -> int:
+    return sum(data["base_stats"][field] for field in _BASE_STAT_FIELDS)
+
+
+def _similar_strength_picker(rng: Random, pool: tuple[str, ...], species: dict) -> Callable[[str], str]:
+    ranked = sorted(pool, key=lambda key: (base_stat_total(species[key]), key))
+    totals = [base_stat_total(species[key]) for key in ranked]
+    candidates_by_total: dict[int, tuple[str, ...]] = {}
+
+    def candidates(total: int) -> tuple[str, ...]:
+        cached = candidates_by_total.get(total)
+        if cached is not None:
+            return cached
+        window = SIMILAR_STRENGTH_WINDOW
+        while True:
+            start = bisect_left(totals, total * (1 - window))
+            end = bisect_right(totals, total * (1 + window))
+            if start < end:
+                break
+            window += SIMILAR_STRENGTH_STEP
+        candidates_by_total[total] = tuple(ranked[start:end])
+        return candidates_by_total[total]
+
+    def pick(original: str) -> str:
+        if original not in species:
+            return rng.choice(pool)
+        return rng.choice(candidates(base_stat_total(species[original])))
+
+    return pick
+
+
+def randomize_trainer_parties(
+    rng: Random,
+    enabled: bool,
+    trainers: dict = TRAINERS,
+    species: dict = SPECIES,
+    *,
+    exclude_legendaries: bool = False,
+    similar_strength: bool = False,
+) -> dict:
     if not enabled:
         return trainers
 
-    pool = real_species_pool(species)
+    pool = real_species_pool(species, exclude_legendaries=exclude_legendaries)
+    if similar_strength:
+        pick = _similar_strength_picker(rng, pool, species)
+    else:
+        def pick(_original: str) -> str:
+            return rng.choice(pool)
     new_trainers: dict[str, dict] = {}
     for key, trainer in trainers.items():
-        new_party = tuple({**mon, "species": rng.choice(pool)} for mon in trainer["party"])
+        new_party = tuple({**mon, "species": pick(mon["species"])} for mon in trainer["party"])
         new_trainers[key] = {**trainer, "party": new_party}
     return new_trainers
 
@@ -706,6 +780,105 @@ def disable_ohko_moves(enabled: bool, moves: dict = MOVES) -> dict:
     }
 
 
+FIRST_ABILITY = 1
+LAST_ABILITY = 123
+EXCLUDED_RANDOM_ABILITIES = frozenset({25, 59, 121})
+RANDOM_ABILITY_POOL = tuple(
+    ability for ability in range(FIRST_ABILITY, LAST_ABILITY + 1) if ability not in EXCLUDED_RANDOM_ABILITIES
+)
+
+
+def randomize_abilities(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
+    if not enabled:
+        return species
+
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        ability1, ability2 = data["abilities"]
+        if ability1 == 0:
+            new_species[key] = data
+            continue
+        if ability2 == 0:
+            new_abilities = (rng.choice(RANDOM_ABILITY_POOL), 0)
+        elif ability2 == ability1:
+            ability = rng.choice(RANDOM_ABILITY_POOL)
+            new_abilities = (ability, ability)
+        else:
+            new_abilities = tuple(rng.sample(RANDOM_ABILITY_POOL, k=2))
+        new_species[key] = {**data, "abilities": new_abilities}
+    return new_species
+
+
+TM_COMPAT_VANILLA = 0
+TM_COMPAT_RANDOM = 1
+TM_COMPAT_FULL = 2
+
+TM_COUNT = 92
+HM_COUNT = 8
+MACHINE_COUNT = TM_COUNT + HM_COUNT
+FLASH_MACHINE_BIT = 69
+_ALL_MACHINES_MASK = (1 << MACHINE_COUNT) - 1
+ALWAYS_COMPATIBLE_MASK = (((1 << HM_COUNT) - 1) << TM_COUNT) | (1 << FLASH_MACHINE_BIT)
+
+HELD_ITEM_COMMON_CHANCE = 0.5
+HELD_ITEM_RARE_CHANCE = 0.25
+_HELD_ITEM_POCKETS = frozenset({"items", "berries", "medicine", "balls", "battle_items"})
+_HELD_ITEM_EXCLUDED_KEYS = frozenset(
+    {"griseous_orb", "adamant_orb", "lustrous_orb", "root_fossil", "claw_fossil", "helix_fossil", "dome_fossil"}
+    | {"old_amber", "armor_fossil", "skull_fossil", "rare_bone"}
+)
+
+
+def held_item_pool() -> tuple[int, ...]:
+    from data.items import ITEMS
+    from rom.shopdata import APRICORN_IDS, CARRIERS
+
+    carriers = set(CARRIERS) | set(APRICORN_IDS)
+    return tuple(
+        sorted(
+            data["id"]
+            for key, data in ITEMS.items()
+            if data["pocket"] in _HELD_ITEM_POCKETS
+            and data["price"] > 0
+            and data["id"] not in carriers
+            and key not in _HELD_ITEM_EXCLUDED_KEYS
+        )
+    )
+
+
+def randomize_tm_compatibility(rng: Random, mode: int, species: dict = SPECIES) -> dict:
+    if mode == TM_COMPAT_VANILLA:
+        return species
+    if mode not in (TM_COMPAT_RANDOM, TM_COMPAT_FULL):
+        raise ValueError(f"unknown TM compatibility mode: {mode!r}")
+
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        if mode == TM_COMPAT_FULL:
+            mask = _ALL_MACHINES_MASK
+        else:
+            mask = rng.getrandbits(MACHINE_COUNT) | ALWAYS_COMPATIBLE_MASK
+        new_species[key] = {**data, "tm_compat": mask}
+    return new_species
+
+
+def randomize_wild_held_items(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
+    if not enabled:
+        return species
+
+    pool = held_item_pool()
+    new_species: dict[str, dict] = {}
+    for key, data in species.items():
+        common_roll, common_pick = rng.random(), rng.choice(pool)
+        rare_roll, rare_pick = rng.random(), rng.choice(pool)
+        common = common_pick if common_roll < HELD_ITEM_COMMON_CHANCE else 0
+        rare = rare_pick if rare_roll < HELD_ITEM_RARE_CHANCE else 0
+        if rare == common:
+            rare = 0
+        new_species[key] = {**data, "held_items": (common, rare)}
+    return new_species
+
+
 TRAPPING_ABILITIES = frozenset({23, 42, 71})
 _RUN_AWAY_ABILITY = 50
 
@@ -737,11 +910,14 @@ def neutralize_trapping_abilities(enabled: bool, species: dict = SPECIES) -> dic
     return new_species
 
 
+_UNLEARNABLE_MOVES = frozenset({"struggle"})
+
+
 def randomize_learnsets(rng: Random, enabled: bool, species: dict = SPECIES) -> dict:
     if not enabled:
         return species
 
-    move_keys = tuple(MOVES.keys())
+    move_keys = tuple(key for key in MOVES if key not in _UNLEARNABLE_MOVES)
     new_species: dict[str, dict] = {}
     for key, data in species.items():
         new_learnset = tuple((level, rng.choice(move_keys)) for level, _move_key in data["level_learnset"])

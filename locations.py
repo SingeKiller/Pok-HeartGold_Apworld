@@ -16,18 +16,67 @@ SCENARIO_EVENT_ITEM_PREFIX = "Event - "
 
 _LOCKED_EVENT_LOCATION_TYPES = {"event"}
 
+SHOP_LOCATION_TYPE = "shop_item"
+SHOP_LOCATION_ID_OFFSET = 50_000
+PRIZE_LOCATION_TYPE = "game_corner_prize"
+PRIZE_LOCATION_ID_OFFSET = 60_000
+APRICORN_TREE_LOCATION_TYPE = "apricorn_tree"
+APRICORN_TREE_LOCATION_ID_OFFSET = 70_000
+BUG_CONTEST_LOCATION_TYPE = "bug_contest"
+BUG_CONTEST_LOCATION_ID_OFFSET = 80_000
+
 SHELVED_LOCATION_TYPES: set[str] = set()
 
 _ID_ASSIGNABLE_KEYS = sorted(
     key
     for key, data in LOCATIONS.items()
-    if data["type"] not in _LOCKED_EVENT_LOCATION_TYPES and data["type"] not in SHELVED_LOCATION_TYPES
+    if data["type"] not in _LOCKED_EVENT_LOCATION_TYPES
+    and data["type"] not in SHELVED_LOCATION_TYPES
+    and data["type"] != SHOP_LOCATION_TYPE
+    and data["type"] != PRIZE_LOCATION_TYPE
+    and data["type"] != APRICORN_TREE_LOCATION_TYPE
+    and data["type"] != BUG_CONTEST_LOCATION_TYPE
 )
 _LOCATION_INDEX: dict[str, int] = {key: index for index, key in enumerate(_ID_ASSIGNABLE_KEYS)}
 
 
 def badge_item_label(badge_name: str) -> str:
     return ITEMS[f"badge_{badge_name}"]["label"]
+
+
+POKEDEX_ENTRY_ITEM = "Pokedex Entry"
+LEGENDARY_CAUGHT_ITEM = "Legendary Caught"
+LEGENDARY_GOAL_JOHTO_KEYS = ("catch_ho_oh", "catch_lugia")
+LEGENDARY_GOAL_EXTRA_SITES: dict[str, dict[str, Any]] = {
+    "goal_zapdos": {
+        "label": "Zapdos (Route 10)",
+        "flag": 0x14A,
+        "region": "route_10_surf",
+        "events": ("blue_defeated",),
+        "moves": (),
+    },
+    "goal_mewtwo": {
+        "label": "Mewtwo (Cerulean Cave)",
+        "flag": 0x16B,
+        "region": "cerulean_cave_b1f",
+        "events": ("elite_four_defeated", "blue_defeated"),
+        "moves": ("surf",),
+    },
+    "goal_articuno": {
+        "label": "Articuno (Seafoam Islands)",
+        "flag": 0x16C,
+        "region": "seafoam_islands_b4f",
+        "events": ("elite_four_defeated", "blue_defeated"),
+        "moves": (),
+    },
+    "goal_moltres": {
+        "label": "Moltres (Mt. Silver)",
+        "flag": 0x16D,
+        "region": "mount_silver_cave_moltres_chamber",
+        "events": ("elite_four_defeated", "blue_defeated"),
+        "moves": (),
+    },
+}
 
 
 def scenario_event_item_name(event_name: str) -> str:
@@ -252,12 +301,42 @@ def _dexsanity_access_rule(
     return rule
 
 
+def _dexsanity_requirements_rule(
+    player: int, requirements: list, regions: dict[str, Region]
+) -> Callable[[CollectionState], bool]:
+    branches: list[tuple[tuple[Region, ...], tuple[str, ...]]] = []
+    for region_key, item_keys, region_keys in requirements:
+        names = (region_key, *region_keys)
+        if any(name not in regions for name in names):
+            continue
+        needed = tuple(regions[name] for name in dict.fromkeys(names))
+        branches.append((needed, tuple(ITEMS[key]["label"] for key in item_keys)))
+
+    def rule(state: CollectionState) -> bool:
+        return any(
+            all(state.has(label, player) for label in labels) and all(region.can_reach(state) for region in needed)
+            for needed, labels in branches
+        )
+
+    return rule
+
+
 class HeartGoldLocation(Location):
     game: str = "Pokemon HGSS Singe"
 
 
 def create_location_label_to_code_map() -> dict[str, int]:
-    return {key: HEARTGOLD_LOCATION_ID_BASE + index for key, index in _LOCATION_INDEX.items()}
+    codes = {key: HEARTGOLD_LOCATION_ID_BASE + index for key, index in _LOCATION_INDEX.items()}
+    for key, data in LOCATIONS.items():
+        if data["type"] == SHOP_LOCATION_TYPE:
+            codes[key] = HEARTGOLD_LOCATION_ID_BASE + SHOP_LOCATION_ID_OFFSET + data["id"]
+        elif data["type"] == PRIZE_LOCATION_TYPE:
+            codes[key] = HEARTGOLD_LOCATION_ID_BASE + PRIZE_LOCATION_ID_OFFSET + data["id"]
+        elif data["type"] == APRICORN_TREE_LOCATION_TYPE:
+            codes[key] = HEARTGOLD_LOCATION_ID_BASE + APRICORN_TREE_LOCATION_ID_OFFSET + data["id"]
+        elif data["type"] == BUG_CONTEST_LOCATION_TYPE:
+            codes[key] = HEARTGOLD_LOCATION_ID_BASE + BUG_CONTEST_LOCATION_ID_OFFSET + data["id"]
+    return codes
 
 
 def location_region_key(data: Mapping[str, Any], soulsilver: bool) -> str:
@@ -297,6 +376,27 @@ _ITEM_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
     "victory_road_3f_zinc": ("hm06", "badge_zephyr"),
     "route_5_underground_path_tm64": ("ragecandybar",),
     "route_29_twistedspoon": ("badge_zephyr",),
+    **{
+        f"{region}_prize_{number}": ("coin_case",)
+        for region in ("goldenrod_game_corner", "celadon_prize_corner")
+        for number in range(1, 11)
+    },
+}
+
+APRICORN_BOX_ITEM_KEY = "apricorn_box"
+
+APRICORN_TREE_FIELD_MOVES: dict[str, tuple[str, ...]] = {
+    "route_30_apricorn_tree_2": ("cut",),
+    "route_31_apricorn_tree": ("cut",),
+    "route_42_apricorn_tree_1": ("cut",),
+    "route_42_apricorn_tree_2": ("cut",),
+    "route_42_apricorn_tree_3": ("cut",),
+    "route_43_apricorn_tree": ("cut", "surf"),
+    "fuchsia_apricorn_tree": ("cut",),
+}
+
+APRICORN_TREE_EXTRA_REGIONS: dict[str, tuple[str, ...]] = {
+    "route_36_apricorn_tree": ("route_36_north",),
 }
 
 _CERULEAN_GYM_GATE = ("route_25", "route_10_power_plant_broken")
@@ -337,6 +437,7 @@ TAKEOVER_TRAINER_KEYS = (
 )
 
 REGION_GATED_LOCATIONS: dict[str, tuple[str, ...]] = {
+    "pallet_town_oaks_lab_jade_orb": ("mount_silver_cave_summit", "route_30_mr_pokemon_house", "route_47"),
     "cianwood_pharmacy_secretpotion": ("olivine_lighthouse_light_room",),
     "route_30_mr_pokemon_house_exp_share": ("lake_of_rage_north",),
     "blackthorn_gym_tm59": ("dragons_den_shrine",),
@@ -364,11 +465,16 @@ EXCLUDED_LOCATIONS = frozenset({
     "lake_of_rage_black_belt",
     "route_14_lucky_punch",
     "new_bark_elms_lab_1f_everstone",
-    "pallet_town_oaks_lab_jade_orb",
     "ss_aqua_captain_room_flame_plate",
     "route_39_moomoo_farm_house_tm83",
     "route_39_moomoo_farm_stable_seal_case",
 })
+
+ROCKET_TRAINER_KEYS = frozenset(
+    key
+    for key in (*TAKEOVER_TRAINER_KEYS, *HIDEOUT_TRAINER_KEYS, *SLOWPOKE_WELL_TRAINER_KEYS)
+    if "burglar" not in key
+)
 
 
 def _region_gated_access_rule(regions: tuple[Region, ...]) -> Callable[[CollectionState], bool]:
@@ -418,8 +524,16 @@ def create_locations(
     excluded_region_keys: frozenset[str] = frozenset(),
     bicycle_enabled: bool = False,
     power_plant_prerestored: bool = False,
+    coin_case_free: bool = False,
     soulsilver: bool = False,
     trainer_keys: frozenset[str] | None = None,
+    shopsanity: bool = False,
+    game_corner_prizes: bool = False,
+    apricorn_trees: bool = False,
+    bug_contest: bool = False,
+    dexsanity_requirements: dict[str, list] | None = None,
+    pokedex_goal_sources: dict[str, frozenset[tuple[str, str]]] | None = None,
+    pokedex_goal_region: str | None = None,
 ) -> None:
     id_map = create_location_label_to_code_map()
     reachable_sources = dexsanity_sources_within_regions(dexsanity_species_sources or {}, regions)
@@ -429,21 +543,37 @@ def create_locations(
         region_key = location_region_key(data, soulsilver)
         if region_key in excluded_region_keys:
             continue
-        if data["type"] == "trainer" and (not trainersanity or (trainer_keys is not None and key not in trainer_keys)):
+        if data["type"] == "trainer" and (
+            not trainersanity or key in ROCKET_TRAINER_KEYS or (trainer_keys is not None and key not in trainer_keys)
+        ):
             continue
         if data["type"] == "static_pokemon" and not legendarysanity:
+            continue
+        if data["type"] == SHOP_LOCATION_TYPE and not shopsanity:
+            continue
+        if data["type"] == PRIZE_LOCATION_TYPE and not game_corner_prizes:
+            continue
+        if data["type"] == APRICORN_TREE_LOCATION_TYPE and not apricorn_trees:
+            continue
+        if data["type"] == BUG_CONTEST_LOCATION_TYPE and not bug_contest:
             continue
         if key == "goldenrod_bike_shop_bicycle" and not bicycle_enabled:
             continue
         if power_plant_prerestored and key in POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS:
             continue
         sources: frozenset[tuple[str, str]] | None = None
+        requirements: list | None = None
         if data["type"] == "dexsanity":
             if not dexsanity:
                 continue
-            sources = reachable_sources.get(data["species"])
-            if sources is None:
-                continue
+            if dexsanity_requirements is not None:
+                requirements = dexsanity_requirements.get(key)
+                if requirements is None:
+                    continue
+            else:
+                sources = reachable_sources.get(data["species"])
+                if sources is None:
+                    continue
         region = regions[region_key]
         rules: list[Callable[[CollectionState], bool]] = []
         if data["type"] == "event":
@@ -453,26 +583,92 @@ def create_locations(
             )
         else:
             location = HeartGoldLocation(player, key, id_map[key], region)
-            if data["type"] == "dexsanity":
+            if data["type"] == "dexsanity" and requirements is not None:
+                rules.append(_dexsanity_requirements_rule(player, requirements, regions))
+            elif data["type"] == "dexsanity":
                 assert sources is not None
                 rules.append(_dexsanity_access_rule(player, sources, regions, data["species"]))
             elif data["type"] == "hidden_item" and hidden_items_require_dowsing_machine:
                 rules.append(_hidden_item_access_rule(player))
             if key in EXCLUDED_LOCATIONS:
                 location.progress_type = LocationProgressType.EXCLUDED
-        rules += _story_gate_rules(player, key, regions, power_plant_prerestored)
+        rules += _story_gate_rules(player, key, regions, power_plant_prerestored, coin_case_free)
         if len(rules) == 1:
             location.access_rule = rules[0]
         elif rules:
             location.access_rule = lambda state, rules=tuple(rules): all(rule(state) for rule in rules)
         region.locations.append(location)
+    if pokedex_goal_sources and pokedex_goal_region is not None:
+        goal_region = regions[pokedex_goal_region]
+        for species in sorted(pokedex_goal_sources):
+            location = HeartGoldLocation(player, f"{POKEDEX_ENTRY_ITEM} - {species}", None, goal_region)
+            location.place_locked_item(
+                HeartGoldItem(POKEDEX_ENTRY_ITEM, ItemClassification.progression, None, player)
+            )
+            location.access_rule = _dexsanity_access_rule(player, pokedex_goal_sources[species], regions, species)
+            goal_region.locations.append(location)
+
+
+def legendary_goal_sites(
+    regions: Mapping[str, Region],
+    *,
+    soulsilver: bool,
+    excluded_region_keys: Container[str] = frozenset(),
+) -> list[tuple[str, str, str]]:
+    sites: list[tuple[str, str, str]] = []
+    for key in LEGENDARY_GOAL_JOHTO_KEYS:
+        data = LOCATIONS[key]
+        sites.append((key, data["label"], location_region_key(data, soulsilver)))
+    for key, extra in LEGENDARY_GOAL_EXTRA_SITES.items():
+        sites.append((key, extra["label"], extra["region"]))
+    return [site for site in sites if site[2] in regions and site[2] not in excluded_region_keys]
+
+
+def create_legendary_goal_events(
+    player: int,
+    regions: dict[str, Region],
+    sites: list[tuple[str, str, str]],
+    *,
+    power_plant_prerestored: bool = False,
+    coin_case_free: bool = False,
+) -> None:
+    for key, label, region_key in sites:
+        region = regions[region_key]
+        event = HeartGoldLocation(player, f"{LEGENDARY_CAUGHT_ITEM} - {label}", None, region)
+        event.place_locked_item(HeartGoldItem(LEGENDARY_CAUGHT_ITEM, ItemClassification.progression, None, player))
+        rules: list[Callable[[CollectionState], bool]] = []
+        extra = LEGENDARY_GOAL_EXTRA_SITES.get(key)
+        if extra is None:
+            rules = _story_gate_rules(player, key, regions, power_plant_prerestored, coin_case_free)
+        else:
+            event_items = tuple(scenario_event_item_name(name) for name in extra["events"])
+            rules.append(lambda state, event_items=event_items: state.has_all(event_items, player))
+            field_moves = _field_move_requirement(player, extra["moves"])
+            if field_moves is not None:
+                rules.append(field_moves)
+        if len(rules) == 1:
+            event.access_rule = rules[0]
+        elif rules:
+            event.access_rule = lambda state, rules=tuple(rules): all(rule(state) for rule in rules)
+        region.locations.append(event)
+
+
+_COIN_CASE_FREE_PRIZES = frozenset(f"goldenrod_game_corner_prize_{number}" for number in range(1, 11))
 
 
 def _story_gate_rules(
-    player: int, key: str, regions: dict[str, Region], power_plant_prerestored: bool
+    player: int, key: str, regions: dict[str, Region], power_plant_prerestored: bool, coin_case_free: bool = False
 ) -> list[Callable[[CollectionState], bool]]:
     rules: list[Callable[[CollectionState], bool]] = []
-    if key in _ITEM_GATED_LOCATIONS:
+    if LOCATIONS[key]["type"] == APRICORN_TREE_LOCATION_TYPE:
+        item_keys = [APRICORN_BOX_ITEM_KEY]
+        for move in APRICORN_TREE_FIELD_MOVES.get(key, ()):
+            item_keys += [HM_ITEMS[move], f"badge_{HM_BADGES[move]}"]
+        rules.append(_item_gated_access_rule(player, tuple(item_keys)))
+        extra = tuple(regions[name] for name in APRICORN_TREE_EXTRA_REGIONS.get(key, ()) if name in regions)
+        if extra:
+            rules.append(_region_gated_access_rule(extra))
+    if key in _ITEM_GATED_LOCATIONS and not (key in _COIN_CASE_FREE_PRIZES and coin_case_free):
         rules.append(_item_gated_access_rule(player, _ITEM_GATED_LOCATIONS[key]))
     if key in REGION_GATED_LOCATIONS:
         names = REGION_GATED_LOCATIONS[key]

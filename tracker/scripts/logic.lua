@@ -8,9 +8,11 @@ OPTIONS = {
 }
 
 local cache = nil
+local relaxed_cache = nil
 
 function invalidate_logic()
     cache = nil
+    relaxed_cache = nil
 end
 
 local function has(code)
@@ -52,9 +54,44 @@ local function rule_passes(rule, events)
             return false
         end
     end
+    local waived = rule.count and rule.count.waived_events or {}
+    local lowered = false
+    if #waived > 0 then
+        local wanted = (OPTIONS.counts or {})[rule.count.option]
+        lowered = wanted ~= nil and wanted < rule.count.default
+    end
     for _, event in ipairs(rule.events) do
         local skip = OPTIONS.magnet_train and event == "power_plant_restored"
-        if not skip and not events[event] then
+        local waive = false
+        if lowered then
+            for _, name in ipairs(waived) do
+                if name == event then
+                    waive = true
+                end
+            end
+        end
+        if not waive and not skip and not events[event] then
+            return false
+        end
+    end
+    if rule.count and (#waived == 0 or lowered) then
+        local needed = (OPTIONS.counts or {})[rule.count.option] or rule.count.default
+        local total = #rule.count.badges + #rule.count.events
+        if needed > total then
+            needed = total
+        end
+        local owned = 0
+        for _, badge in ipairs(rule.count.badges) do
+            if has("badge_" .. badge) then
+                owned = owned + 1
+            end
+        end
+        for _, event in ipairs(rule.count.events) do
+            if events[event] then
+                owned = owned + 1
+            end
+        end
+        if owned < needed then
             return false
         end
     end
@@ -62,8 +99,9 @@ local function rule_passes(rule, events)
 end
 
 local function gates_pass(entry, reachable, events)
+    local free = entry.johto_free and OPTIONS.johto_only
     for _, code in ipairs(entry.items or {}) do
-        if not has(code) then
+        if not free and not has(code) then
             return false
         end
     end
@@ -132,6 +170,28 @@ local function state()
     return cache
 end
 
+local function relaxed_state()
+    if relaxed_cache == nil then
+        local strict = OPTIONS
+        local copy = {}
+        for name, value in pairs(strict) do
+            copy[name] = value
+        end
+        local counts = {}
+        for name, value in pairs(strict.counts or {}) do
+            counts[name] = value
+        end
+        counts.elite_four_badges = 0
+        copy.counts = counts
+        copy.require_flash = false
+        copy.hidden_items_require_dowsing_machine = false
+        OPTIONS = copy
+        relaxed_cache = solve()
+        OPTIONS = strict
+    end
+    return relaxed_cache
+end
+
 function can_reach(region)
     return state().reachable[region] == true
 end
@@ -140,19 +200,25 @@ function has_event(name)
     return state().events[name] == true
 end
 
+local function loc_reachable(entry, s, dowsing)
+    if not s.reachable[region_of(entry)] then
+        return false
+    end
+    if entry.type == "hidden_item" and dowsing and not has("dowsing_mchn") then
+        return false
+    end
+    return gates_pass(entry, s.reachable, s.events)
+end
+
 function loc(key)
     local entry = DATA.locations[key]
     if entry == nil then
         return false
     end
-    local s = state()
-    if not s.reachable[region_of(entry)] then
-        return false
-    end
-    if entry.type == "hidden_item" and OPTIONS.hidden_items_require_dowsing_machine and not has("dowsing_mchn") then
-        return false
-    end
-    if not gates_pass(entry, s.reachable, s.events) then
+    if not loc_reachable(entry, state(), OPTIONS.hidden_items_require_dowsing_machine) then
+        if AccessibilityLevel and loc_reachable(entry, relaxed_state(), false) then
+            return AccessibilityLevel.SequenceBreak
+        end
         return false
     end
     if DATA.conditional and DATA.conditional[key] then

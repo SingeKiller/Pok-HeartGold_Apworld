@@ -9,6 +9,7 @@ ENTRY_SIZE = 8
 _ITEM_ID_OFFSET = 0
 _QUANTITY_OFFSET = 2
 _INDEX_OFFSET = 6
+_FIRST_FOREIGN_NAME_ID = 537
 
 
 class HiddenItemDataError(Exception):
@@ -88,6 +89,7 @@ def write_hidden_item_substitutions(
     edits: list[tuple[int, bytes]] = []
     table_base = ARM9_TABLE_RAM_ADDRESS - rom.arm9_ram_address
     positions = _positions_by_index(rom)
+    vanilla = rom.read_main_code_decompressed()
     for location_key, item_key in substitutions.items():
         location = LOCATIONS.get(location_key)
         if location is None:
@@ -112,6 +114,9 @@ def write_hidden_item_substitutions(
         if position is None:
             raise HiddenItemDataError(f"no hidden-item table entry has index {location['id']}")
         offset = table_base + position * ENTRY_SIZE + _ITEM_ID_OFFSET
+        original = int.from_bytes(vanilla[offset : offset + 2], "little")
+        if not 0 < original < _FIRST_FOREIGN_NAME_ID:
+            raise HiddenItemDataError(f"hidden-item table entry {location['id']} holds item {original}, not a vanilla item")
         if item_key is None:
             name_id = (name_ids or {}).get(location_key, 0)
             edits.append((offset, name_id.to_bytes(2, "little") + bytes(1)))

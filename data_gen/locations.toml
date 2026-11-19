@@ -3269,7 +3269,7 @@ x = 10
 z = 58
 
 [diglett_cave_rock_incense]
-region = 'diglett_cave'
+region = 'diglett_cave_rock_climb'
 type = 'ground_item'
 original_item = 'rock_incense'
 id = 1298
@@ -11020,3 +11020,471 @@ region = 'whirl_islands_b3f_lugia_cave'
 type = 'static_pokemon'
 id = 1
 label = 'Whirl Islands - Lugia'
+
+[cherrygrove_pokemart_shop_item_1]
+region = 'cherrygrove_pokemart'
+type = 'shop_item'
+id = 0
+label = 'Cherrygrove City Poke Mart - Shop item 1'
+
+[cherrygrove_pokemart_shop_item_2]
+region = 'cherrygrove_pokemart'
+type = 'shop_item'
+id = 1
+label = 'Cherrygrove City Poke Mart - Shop item 2'
+
+[violet_pokemart_shop_item_1]
+region = 'violet_pokemart'
+type = 'shop_item'
+id = 10
+label = 'Violet City Poke Mart - Shop item 1'
+
+[violet_pokemart_shop_item_2]
+region = 'violet_pokemart'
+type = 'shop_item'
+id = 11
+label = 'Violet City Poke Mart - Shop item 2'
+
+[azalea_pokemart_shop_item_1]
+region = 'azalea_pokemart'
+type = 'shop_item'
+id = 20
+label = 'Azalea Town Poke Mart - Shop item 1'
+
+[azalea_pokemart_shop_item_2]
+region = 'azalea_pokemart'
+type = 'shop_item'
+id = 21
+label = 'Azalea Town Poke Mart - Shop item 2'
+
+[ecruteak_pokemart_shop_item_1]
+region = 'ecruteak_pokemart'
+type = 'shop_item'
+id = 90
+label = 'Ecruteak City Poke Mart - Shop item 1'
+
+[ecruteak_pokemart_shop_item_2]
+region = 'ecruteak_pokemart'
+type = 'shop_item'
+id = 91
+label = 'Ecruteak City Poke Mart - Shop item 2'
+
+[olivine_pokemart_shop_item_1]
+region = 'olivine_pokemart'
+type = 'shop_item'
+id = 100
+label = 'Olivine City Poke Mart - Shop item 1'
+
+[olivine_pokemart_shop_item_2]
+region = 'olivine_pokemart'
+type = 'shop_item'
+id = 101
+label = 'Olivine City Poke Mart - Shop item 2'
+
+[blackthorn_pokemart_shop_item_1]
+region = 'blackthorn_pokemart'
+type = 'shop_item'
+id = 120
+label = 'Blackthorn City Poke Mart - Shop item 1'
+
+[blackthorn_pokemart_shop_item_2]
+region = 'blackthorn_pokemart'
+type = 'shop_item'
+id = 121
+label = 'Blackthorn City Poke Mart - Shop item 2'
+
+[vermilion_pokemart_shop_item_1]
+region = 'vermilion_pokemart'
+type = 'shop_item'
+id = 140
+label = 'Vermilion City Poke Mart - Shop item 1'
+
+[vermilion_pokemart_shop_item_2]
+region = 'vermilion_pokemart'
+type = 'shop_item'
+id = 141
+label = 'Vermilion City Poke Mart - Shop item 2'
+
+[saffron_pokemart_shop_item_1]
+region = 'saffron_pokemart'
+type = 'shop_item'
+id = 150
+label = 'Saffron City Poke Mart - Shop item 1'
+
+[saffron_pokemart_shop_item_2]
+region = 'saffron_pokemart'
+type = 'shop_item'
+id = 151
+label = 'Saffron City Poke Mart - Shop item 2'
+
+[lavender_pokemart_shop_item_1]
+region = 'lavender_pokemart'
+type = 'shop_item'
+id = 160
+label = 'Lavender Town Poke Mart - Shop item 1'
+
+[lavender_pokemart_shop_item_2]
+region = 'lavender_pokemart'
+type = 'shop_item'
+id = 161
+label = 'Lavender Town Poke Mart - Shop item 2'
+
+[cerulean_pokemart_shop_item_1]
+region = 'cerulean_pokemart'
+type = 'shop_item'
+id = 170
+label = 'Cerulean City Poke Mart - Shop item 1'
+
+[cerulean_pokemart_shop_item_2]
+region = 'cerulean_pokemart'
+type = 'shop_item'
+id = 171
+label = 'Cerulean City Poke Mart - Shop item 2'
+
+[fuchsia_pokemart_shop_item_1]
+region = 'fuchsia_pokemart'
+type = 'shop_item'
+id = 240
+label = 'Fuchsia City Poke Mart - Shop item 1'
+
+[fuchsia_pokemart_shop_item_2]
+region = 'fuchsia_pokemart'
+type = 'shop_item'
+id = 241
+label = 'Fuchsia City Poke Mart - Shop item 2'
+
+[pewter_pokemart_shop_item_1]
+region = 'pewter_pokemart'
+type = 'shop_item'
+id = 250
+label = 'Pewter City Poke Mart - Shop item 1'
+
+[pewter_pokemart_shop_item_2]
+region = 'pewter_pokemart'
+type = 'shop_item'
+id = 251
+label = 'Pewter City Poke Mart - Shop item 2'
+
+[viridian_pokemart_shop_item_1]
+region = 'viridian_pokemart'
+type = 'shop_item'
+id = 260
+label = 'Viridian City Poke Mart - Shop item 1'
+
+[viridian_pokemart_shop_item_2]
+region = 'viridian_pokemart'
+type = 'shop_item'
+id = 261
+label = 'Viridian City Poke Mart - Shop item 2'
+
+[goldenrod_game_corner_prize_1]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 0
+label = 'Goldenrod Game Corner - Prize 1 (TM90 Substitute)'
+
+[goldenrod_game_corner_prize_2]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 1
+label = 'Goldenrod Game Corner - Prize 2 (TM75 Swords Dance)'
+
+[goldenrod_game_corner_prize_3]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 2
+label = 'Goldenrod Game Corner - Prize 3 (TM44 Rest)'
+
+[goldenrod_game_corner_prize_4]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 3
+label = 'Goldenrod Game Corner - Prize 4 (TM35 Flamethrower)'
+
+[goldenrod_game_corner_prize_5]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 4
+label = 'Goldenrod Game Corner - Prize 5 (TM13 Ice Beam)'
+
+[goldenrod_game_corner_prize_6]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 5
+label = 'Goldenrod Game Corner - Prize 6 (TM24 Thunderbolt)'
+
+[goldenrod_game_corner_prize_7]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 6
+label = 'Goldenrod Game Corner - Prize 7 (Silk Scarf)'
+
+[goldenrod_game_corner_prize_8]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 7
+label = 'Goldenrod Game Corner - Prize 8 (Wide Lens)'
+
+[goldenrod_game_corner_prize_9]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 8
+label = 'Goldenrod Game Corner - Prize 9 (Zoom Lens)'
+
+[goldenrod_game_corner_prize_10]
+region = 'goldenrod_game_corner'
+type = 'game_corner_prize'
+id = 9
+label = 'Goldenrod Game Corner - Prize 10 (Metronome)'
+
+[celadon_prize_corner_prize_1]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 10
+label = 'Celadon Prize Corner - Prize 1 (TM58 Endure)'
+
+[celadon_prize_corner_prize_2]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 11
+label = 'Celadon Prize Corner - Prize 2 (TM32 Double Team)'
+
+[celadon_prize_corner_prize_3]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 12
+label = 'Celadon Prize Corner - Prize 3 (TM10 Hidden Power)'
+
+[celadon_prize_corner_prize_4]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 13
+label = 'Celadon Prize Corner - Prize 4 (TM29 Psychic)'
+
+[celadon_prize_corner_prize_5]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 14
+label = 'Celadon Prize Corner - Prize 5 (TM74 Gyro Ball)'
+
+[celadon_prize_corner_prize_6]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 15
+label = 'Celadon Prize Corner - Prize 6 (TM68 Giga Impact)'
+
+[celadon_prize_corner_prize_7]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 16
+label = 'Celadon Prize Corner - Prize 7 (Silk Scarf)'
+
+[celadon_prize_corner_prize_8]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 17
+label = 'Celadon Prize Corner - Prize 8 (Wide Lens)'
+
+[celadon_prize_corner_prize_9]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 18
+label = 'Celadon Prize Corner - Prize 9 (Zoom Lens)'
+
+[celadon_prize_corner_prize_10]
+region = 'celadon_prize_corner'
+type = 'game_corner_prize'
+id = 19
+label = 'Celadon Prize Corner - Prize 10 (Metronome)'
+
+[route_1_apricorn_tree]
+region = 'route_1'
+type = 'apricorn_tree'
+id = 0
+label = 'Route 1 - Black Apricorn Tree'
+
+[route_2_apricorn_tree]
+region = 'route_2_east'
+type = 'apricorn_tree'
+id = 1
+label = 'Route 2 - Pink Apricorn Tree'
+
+[route_8_apricorn_tree]
+region = 'route_8'
+type = 'apricorn_tree'
+id = 2
+label = 'Route 8 - Yellow Apricorn Tree'
+
+[route_11_apricorn_tree]
+region = 'route_11'
+type = 'apricorn_tree'
+id = 3
+label = 'Route 11 - Green Apricorn Tree'
+
+[route_26_apricorn_tree]
+region = 'route_26'
+type = 'apricorn_tree'
+id = 4
+label = 'Route 26 - Blue Apricorn Tree'
+
+[route_29_apricorn_tree]
+region = 'route_29_surf'
+type = 'apricorn_tree'
+id = 5
+label = 'Route 29 - Green Apricorn Tree'
+
+[route_30_apricorn_tree_1]
+region = 'route_30'
+type = 'apricorn_tree'
+id = 6
+label = 'Route 30 - Green Apricorn Tree'
+
+[route_30_apricorn_tree_2]
+region = 'route_30'
+type = 'apricorn_tree'
+id = 7
+label = 'Route 30 - Pink Apricorn Tree'
+
+[route_31_apricorn_tree]
+region = 'route_31'
+type = 'apricorn_tree'
+id = 8
+label = 'Route 31 - Black Apricorn Tree'
+
+[route_33_apricorn_tree_1]
+region = 'route_33'
+type = 'apricorn_tree'
+id = 9
+label = 'Route 33 - Pink Apricorn Tree'
+
+[route_33_apricorn_tree_2]
+region = 'route_33'
+type = 'apricorn_tree'
+id = 10
+label = 'Route 33 - Black Apricorn Tree'
+
+[route_35_apricorn_tree]
+region = 'route_35_surf'
+type = 'apricorn_tree'
+id = 11
+label = 'Route 35 - Green Apricorn Tree'
+
+[route_36_apricorn_tree]
+region = 'route_36_west'
+type = 'apricorn_tree'
+id = 12
+label = 'Route 36 - Blue Apricorn Tree'
+
+[route_37_apricorn_tree_1]
+region = 'route_37'
+type = 'apricorn_tree'
+id = 13
+label = 'Route 37 - Red Apricorn Tree'
+
+[route_37_apricorn_tree_2]
+region = 'route_37'
+type = 'apricorn_tree'
+id = 14
+label = 'Route 37 - Blue Apricorn Tree'
+
+[route_37_apricorn_tree_3]
+region = 'route_37'
+type = 'apricorn_tree'
+id = 15
+label = 'Route 37 - Black Apricorn Tree'
+
+[route_38_apricorn_tree]
+region = 'route_38'
+type = 'apricorn_tree'
+id = 16
+label = 'Route 38 - White Apricorn Tree'
+
+[route_39_apricorn_tree]
+region = 'route_39'
+type = 'apricorn_tree'
+id = 17
+label = 'Route 39 - Green Apricorn Tree'
+
+[route_42_apricorn_tree_1]
+region = 'route_42_pond'
+type = 'apricorn_tree'
+id = 18
+label = 'Route 42 - Pink Apricorn Tree'
+
+[route_42_apricorn_tree_2]
+region = 'route_42_pond'
+type = 'apricorn_tree'
+id = 19
+label = 'Route 42 - Green Apricorn Tree'
+
+[route_42_apricorn_tree_3]
+region = 'route_42_pond'
+type = 'apricorn_tree'
+id = 20
+label = 'Route 42 - Yellow Apricorn Tree'
+
+[route_43_apricorn_tree]
+region = 'route_43'
+type = 'apricorn_tree'
+id = 21
+label = 'Route 43 - Black Apricorn Tree'
+
+[route_44_apricorn_tree]
+region = 'route_44'
+type = 'apricorn_tree'
+id = 22
+label = 'Route 44 - Red Apricorn Tree'
+
+[route_45_apricorn_tree]
+region = 'route_45_rock_climb'
+type = 'apricorn_tree'
+id = 23
+label = 'Route 45 - Green Apricorn Tree'
+
+[route_46_apricorn_tree_1]
+region = 'route_46_north'
+type = 'apricorn_tree'
+id = 24
+label = 'Route 46 - Green Apricorn Tree'
+
+[route_46_apricorn_tree_2]
+region = 'route_46_north'
+type = 'apricorn_tree'
+id = 25
+label = 'Route 46 - Yellow Apricorn Tree'
+
+[pewter_apricorn_tree_1]
+region = 'pewter'
+type = 'apricorn_tree'
+id = 26
+label = 'Pewter City - Blue Apricorn Tree'
+
+[pewter_apricorn_tree_2]
+region = 'pewter'
+type = 'apricorn_tree'
+id = 27
+label = 'Pewter City - White Apricorn Tree'
+
+[fuchsia_apricorn_tree]
+region = 'fuchsia'
+type = 'apricorn_tree'
+id = 28
+label = 'Fuchsia City - Red Apricorn Tree'
+
+[violet_apricorn_tree]
+region = 'violet'
+type = 'apricorn_tree'
+id = 29
+label = 'Violet City - Yellow Apricorn Tree'
+
+[azalea_apricorn_tree]
+region = 'azalea'
+type = 'apricorn_tree'
+id = 30
+label = 'Azalea Town - White Apricorn Tree'
+
+[national_park_bug_contest_participation]
+region = 'national_park_bug_catching_contest'
+type = 'bug_contest'
+id = 0
+label = 'National Park - Bug-Catching Contest (Participation)'

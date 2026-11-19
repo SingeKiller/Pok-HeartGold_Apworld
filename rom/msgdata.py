@@ -111,6 +111,55 @@ def _encode_text(text: str) -> bytes:
     return struct.pack(f"<{len(codes)}H", *codes)
 
 
+def read_message_codes(rom: HeartGoldRom, subfile_index: int, msg_no: int) -> list[int]:
+    narc = rom.read_narc(NITROFS_PATH)
+    blob = narc.files[subfile_index]
+    count, key = struct.unpack_from("<HH", blob, 0)
+    if msg_no >= count:
+        raise MsgDataError(f"message {msg_no} out of range (bank has {count} messages)")
+    offset, length = _xor_entry_header(*struct.unpack_from("<II", blob, _entry_header_offset(msg_no)), msg_no, key)
+    text_bytes = _xor_text(blob[offset : offset + length * 2], msg_no)
+    codes = []
+    for i in range(0, len(text_bytes), 2):
+        code = struct.unpack_from("<H", text_bytes, i)[0]
+        if code == _ENTRY_TERMINATOR:
+            break
+        codes.append(code)
+    return codes
+
+
+def replace_message_codes(rom: HeartGoldRom, subfile_index: int, codes: dict[int, list[int]]) -> None:
+    plains = {n: struct.pack(f"<{len(c) + 1}H", *c, _ENTRY_TERMINATOR) for n, c in codes.items()}
+    _replace_plains(rom, subfile_index, plains)
+
+
+def replace_messages(rom: HeartGoldRom, subfile_index: int, texts: dict[int, str]) -> None:
+    _replace_plains(rom, subfile_index, {n: _encode_text(text) for n, text in texts.items()})
+
+
+def _replace_plains(rom: HeartGoldRom, subfile_index: int, plains: dict[int, bytes]) -> None:
+    narc = rom.read_narc(NITROFS_PATH)
+    blob = bytes(narc.files[subfile_index])
+    count, key = struct.unpack_from("<HH", blob, 0)
+    for n in plains:
+        if not 0 <= n < count:
+            raise MsgDataError(f"message {n} out of range (bank has {count} messages)")
+    out = bytearray(blob[: _entry_header_offset(count)])
+    for n in range(count):
+        offset, length = _xor_entry_header(*struct.unpack_from("<II", blob, _entry_header_offset(n)), n, key)
+        if n in plains:
+            plain = plains[n]
+            payload = _xor_text(plain, n)
+            length = len(plain) // 2
+        else:
+            payload = blob[offset : offset + length * 2]
+        new_offset = len(out)
+        out += payload
+        struct.pack_into("<II", out, _entry_header_offset(n), *_xor_entry_header(new_offset, length, n, key))
+    narc.files[subfile_index] = bytes(out)
+    rom.write_narc(NITROFS_PATH, narc)
+
+
 def append_messages(rom: HeartGoldRom, subfile_index: int, texts: list[str]) -> int:
     narc = rom.read_narc(NITROFS_PATH)
     blob = bytes(narc.files[subfile_index])

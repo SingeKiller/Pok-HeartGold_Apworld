@@ -16,6 +16,10 @@ _VALID_TYPES = {
     "trainer",
     "dexsanity",
     "static_pokemon",
+    "shop_item",
+    "game_corner_prize",
+    "apricorn_tree",
+    "bug_contest",
 }
 
 

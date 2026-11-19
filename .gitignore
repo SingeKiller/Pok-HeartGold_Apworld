@@ -46,3 +46,26 @@ dist/
 /docs/status.md
 /docs/optimizer_report.md
 /patches/diag_*.lua
+
+# Local Claude Code settings, agents and worktrees, not part of the public repo.
+.claude/
+
+# Release notes drafted locally, published on the GitHub release page.
+/RELEASE_*.md
+
+# Patch files, saves and emulator files produced while testing.
+*.appokehgss
+*.appokehgsn
+*.apheartgold
+*.sav
+*.SaveRAM
+*.dsv
+
+# Editor, system and log files.
+.vscode/
+.idea/
+*.log
+*.bak
+Thumbs.db
+desktop.ini
+.DS_Store

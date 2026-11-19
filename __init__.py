@@ -31,6 +31,7 @@ from data.rules import BADGES
 from items import create_item, create_item_label_to_code_map, create_item_name_groups
 from locations import (
     DOWSING_MACHINE_ITEM_LABEL,
+    ROCKET_TRAINER_KEYS,
     POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS,
     SHELVED_LOCATION_TYPES,
     badge_item_label,
@@ -40,6 +41,10 @@ from locations import (
     dexsanity_source_requirements,
     dexsanity_sources_within_regions,
     location_region_key,
+    LEGENDARY_CAUGHT_ITEM,
+    create_legendary_goal_events,
+    legendary_goal_sites,
+    POKEDEX_ENTRY_ITEM,
 )
 from options import OPTION_GROUPS, GameVersion, Goal, HeartGoldOptions
 
@@ -47,7 +52,7 @@ from output_patch import HeartGoldProcedurePatch
 from output_patch import generate_output as write_output_patch
 from regions import create_regions as build_region_graph
 from regions import johto_only_excluded_region_keys
-from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5
+from rom import HEARTGOLD_US_MD5, SOULSILVER_US_MD5, shopdata, staticpokemondata
 from rules import MAGNET_TRAIN_PASS_ITEM_LABEL
 from rules import set_rules as apply_exit_rules
 from species import (
@@ -55,6 +60,7 @@ from species import (
     ensure_evolution_moves_learnable,
     disable_ohko_moves,
     neutralize_trapping_abilities,
+    randomize_abilities,
     randomize_base_stats,
     randomize_evolutions,
     randomize_learnsets,
@@ -63,9 +69,12 @@ from species import (
     randomize_move_types,
     randomize_species_types,
     randomize_starters,
+    randomize_static_pokemon,
+    randomize_tm_compatibility,
     randomize_tm_hm_moves,
     randomize_trainer_parties,
     randomize_type_chart,
+    randomize_wild_held_items,
     randomize_wild_encounters,
     scale_trainer_levels,
     scale_trainer_levels_by_sphere,
@@ -73,9 +82,12 @@ from species import (
 )
 from rom.encounterdata import zone_method_is_written
 from universal_tracker import (
+    SLOT_DATA_DEXSANITY_KEY,
     SLOT_DATA_OPTIONS_KEY,
+    SLOT_DATA_TRAINERS_KEY,
     build_ut_slot_data,
     load_ut_slot_data,
+    ut_seed_locations,
 )
 
 ORIGIN_REGION_NAME = "new_bark"
@@ -88,9 +100,20 @@ _ID_ASSIGNABLE_LOCATION_KEYS = tuple(
     )
 )
 
-_FILLER_ITEM_LABELS = tuple(sorted(data["label"] for data in ITEMS.values() if data["classification"] == "filler"))
+_FILLER_ITEM_LABELS = tuple(
+    sorted(
+        data["label"]
+        for data in ITEMS.values()
+        if data["classification"] == "filler"
+        and data["pocket"] != "key_items"
+        and data["id"] not in shopdata.CARRIERS
+    )
+)
 
 _LABEL_TO_ITEM_KEY = {data["label"]: key for key, data in ITEMS.items()}
+ESCAPE_ROPE_ITEM_LABEL = ITEMS["escape_rope"]["label"]
+COIN_CASE_ITEM_LABEL = ITEMS["coin_case"]["label"]
+APRICORN_BOX_ITEM_LABEL = ITEMS["apricorn_box"]["label"]
 
 _ELITE_FOUR_GOAL_REGION = "pokemon_league_hall_of_fame"
 _CHAMPION_RED_GOAL_REGION = "mount_silver_cave_summit"
@@ -165,7 +188,13 @@ def _constrain_undetectable_locations(player: int, multiworld, excluded_region_k
         multiworld.get_location(location_key, player).item_rule = rule
 
 
-def _goal_rule(player: int, goal: int, badge_count: int):
+def _goal_rule(player: int, goal: int, badge_count: int, pokedex_count: int = 0, legendary_count: int = 0):
+    if goal == Goal.option_pokedex:
+        return lambda state: state.has(POKEDEX_ENTRY_ITEM, player, pokedex_count)
+
+    if goal == Goal.option_legendary_hunt:
+        return lambda state: state.has(LEGENDARY_CAUGHT_ITEM, player, legendary_count)
+
     if goal == Goal.option_n_badges:
         badge_labels = tuple(badge_item_label(name) for name in BADGES)
 
@@ -215,21 +244,8 @@ def _validate_rom_setting(path: str, version: str, setting: str) -> None:
 
 
 class HeartGoldSettings(settings.Group):
-    """Per-machine settings -- distinct from HeartGoldOptions (per-player,
-    YAML-configured). Two separate rom_file settings, not one shared
-    between both versions (real player report, 2026-08-17): a single
-    shared `rom_file` made it impossible to configure a HeartGold ROM and
-    a SoulSilver ROM at the same time -- switching which version you were
-    testing/generating for meant deleting/re-pointing the setting (and
-    the copied ROM file, since both versions defaulted to the same
-    "HeartGold" filename) every time. Same two-setting pattern other
-    multi-version worlds already use (e.g. pokemon_bw's black_rom/
-    white_rom, pokemon_frlg's firered_rom_file/leafgreen_rom_file).
-    output_patch.py's own .patch() picks whichever of these two matches
-    this patch's own declared game_version, instead of always reading one
-    shared field. Breaking host.yaml change: an old `rom_file:` entry is
-    simply ignored now: reconfigure with `heartgold_rom_file`/
-    `soulsilver_rom_file` instead."""
+    """ROM files used to patch your seeds. One setting per version, so
+    HeartGold and SoulSilver can both be set up at the same time."""
 
     class HeartGoldRomFile(settings.UserFilePath):
         description = "Pokemon HeartGold (USA) ROM file"
@@ -341,6 +357,7 @@ class HeartGoldWorld(World):
                 and zone_method_is_written(zone_key, method)
                 and (zone_key, method) not in DEXSANITY_UNUSABLE_ZONE_METHODS
             ),
+            skip_rare_slots=True,
         )
 
         self.generated_start_location_town: str | None = None
@@ -373,12 +390,36 @@ class HeartGoldWorld(World):
         trainer_pool = sorted(
             key for key, data in LOCATIONS.items()
             if data["type"] == "trainer"
+            and key not in ROCKET_TRAINER_KEYS
             and location_region_key(data, self._soulsilver) not in self._excluded_region_keys
         )
-        if self.options.trainersanity_count.value < len(trainer_pool):
+        self._dexsanity_requirements = None
+        if self.is_universal_tracker:
+            self._trainer_keys, self._dexsanity_requirements = ut_seed_locations(self)
+        elif self.options.trainersanity_count.value < len(trainer_pool):
             self._trainer_keys = frozenset(self.random.sample(trainer_pool, self.options.trainersanity_count.value))
+        self.pokedex_goal_sources = None
+        self.pokedex_goal_count = self.options.goal_pokedex_count.value
+        if self.options.goal.value == Goal.option_pokedex:
+            self.pokedex_goal_sources = dict(self.dexsanity_species_sources)
+            self.pokedex_goal_count = max(1, min(self.pokedex_goal_count, len(self.pokedex_goal_sources)))
+        self.legendary_goal_sites = []
+        self.legendary_goal_count = self.options.goal_legendary_count.value
+        if self.options.goal.value == Goal.option_legendary_hunt:
+            self.legendary_goal_sites = legendary_goal_sites(
+                self.regions,
+                soulsilver=self._soulsilver,
+                excluded_region_keys=self._excluded_region_keys,
+            )
+            if not self.legendary_goal_sites:
+                raise OptionError(f"{self.player_name}: goal legendary_hunt has no legendary Pokemon to reach.")
+            self.legendary_goal_count = max(1, min(self.legendary_goal_count, len(self.legendary_goal_sites)))
         species = sorted(self.dexsanity_species_sources)
-        if self.options.dexsanity_count.value < len(species):
+        if self._dexsanity_requirements is not None:
+            self.dexsanity_species_sources = {
+                LOCATIONS[key]["species"]: frozenset() for key in self._dexsanity_requirements
+            }
+        elif self.options.dexsanity_count.value < len(species):
             keep = set(self.random.sample(species, self.options.dexsanity_count.value))
             self.dexsanity_species_sources = {s: v for s, v in self.dexsanity_species_sources.items() if s in keep}
         create_locations(
@@ -394,12 +435,31 @@ class HeartGoldWorld(World):
             power_plant_prerestored=bool(self.options.magnet_train.value),
             soulsilver=self._soulsilver,
             trainer_keys=self._trainer_keys,
+            shopsanity=bool(self.options.shopsanity.value),
+            game_corner_prizes=bool(self.options.game_corner_prizes.value),
+            apricorn_trees=bool(self.options.apricorn_trees.value),
+            bug_contest=bool(self.options.bug_contest.value),
+            coin_case_free=bool(self._excluded_region_keys),
+            dexsanity_requirements=self._dexsanity_requirements,
+            pokedex_goal_sources=self.pokedex_goal_sources,
+            pokedex_goal_region=self.origin_region_name,
+        )
+        create_legendary_goal_events(
+            self.player,
+            self.regions,
+            self.legendary_goal_sites,
+            power_plant_prerestored=bool(self.options.magnet_train.value),
+            coin_case_free=bool(self._excluded_region_keys),
         )
 
     def create_items(self) -> None:
         trainersanity = bool(self.options.trainersanity.value)
         dexsanity = bool(self.options.dexsanity.value)
         legendarysanity = bool(self.options.legendarysanity.value)
+        shopsanity = bool(self.options.shopsanity.value)
+        game_corner_prizes = bool(self.options.game_corner_prizes.value)
+        apricorn_trees = bool(self.options.apricorn_trees.value)
+        bug_contest = bool(self.options.bug_contest.value)
         bicycle_enabled = bool(self.options.randomize_bicycle.value)
         power_plant_prerestored = bool(self.options.magnet_train.value)
         pool = []
@@ -412,7 +472,11 @@ class HeartGoldWorld(World):
             if power_plant_prerestored and key in POWER_PLANT_PRERESTORED_SKIPPED_LOCATION_KEYS:
                 continue
             if data["type"] == "trainer":
-                if not trainersanity or (self._trainer_keys is not None and key not in self._trainer_keys):
+                if (
+                    not trainersanity
+                    or key in ROCKET_TRAINER_KEYS
+                    or (self._trainer_keys is not None and key not in self._trainer_keys)
+                ):
                     continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
@@ -426,6 +490,26 @@ class HeartGoldWorld(World):
                     continue
                 item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
                 pool.append(create_item(item_key, self.player))
+            elif data["type"] == "game_corner_prize":
+                if not game_corner_prizes:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            elif data["type"] == "apricorn_tree":
+                if not apricorn_trees:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            elif data["type"] == "bug_contest":
+                if not bug_contest:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
+            elif data["type"] == "shop_item":
+                if not shopsanity:
+                    continue
+                item_key = _LABEL_TO_ITEM_KEY[self.get_filler_item_name()]
+                pool.append(create_item(item_key, self.player))
             else:
                 pool.append(create_item(data["original_item"], self.player))
 
@@ -436,6 +520,28 @@ class HeartGoldWorld(World):
                 if item.name == DOWSING_MACHINE_ITEM_LABEL:
                     item.classification |= ItemClassification.progression
                     break
+
+        if game_corner_prizes and not self._excluded_region_keys:
+            from BaseClasses import ItemClassification
+
+            for item in pool:
+                if item.name == COIN_CASE_ITEM_LABEL:
+                    item.classification |= ItemClassification.progression
+                    break
+
+        if apricorn_trees:
+            from BaseClasses import ItemClassification
+
+            for item in pool:
+                if item.name == APRICORN_BOX_ITEM_LABEL:
+                    item.classification |= ItemClassification.progression
+                    break
+
+        if not any(item.name == ESCAPE_ROPE_ITEM_LABEL for item in pool):
+            from BaseClasses import ItemClassification
+
+            index = next(i for i, item in enumerate(pool) if item.classification == ItemClassification.filler)
+            pool[index] = create_item("escape_rope", self.player)
 
         if not bool(self.options.magnet_train.value):
             from BaseClasses import ItemClassification
@@ -451,7 +557,12 @@ class HeartGoldWorld(World):
         self.multiworld.itempool += pool
 
     def create_item(self, name: str) -> Item:
-        return create_item(_LABEL_TO_ITEM_KEY[name], self.player)
+        item = create_item(_LABEL_TO_ITEM_KEY[name], self.player)
+        if name == APRICORN_BOX_ITEM_LABEL and bool(self.options.apricorn_trees.value):
+            from BaseClasses import ItemClassification
+
+            item.classification |= ItemClassification.progression
+        return item
 
     def set_rules(self) -> None:
         apply_exit_rules(
@@ -460,6 +571,11 @@ class HeartGoldWorld(World):
             self.regions,
             magnet_train=bool(self.options.magnet_train.value),
             require_flash=bool(self.options.require_flash.value),
+            counts={
+                "elite_four_badges": self._elite_four_badges(),
+                "blue_kanto_leaders": self.options.blue_kanto_leaders.value,
+                "red_badges": self.options.red_badges.value,
+            },
         )
         _constrain_undetectable_locations(self.player, self.multiworld, self._excluded_region_keys)
 
@@ -467,7 +583,7 @@ class HeartGoldWorld(World):
         if self._excluded_region_keys and goal_badge_count > _JOHTO_BADGE_COUNT:
             goal_badge_count = _JOHTO_BADGE_COUNT
         self.multiworld.completion_condition[self.player] = _goal_rule(
-            self.player, self.options.goal.value, goal_badge_count
+            self.player, self.options.goal.value, goal_badge_count, self.pokedex_goal_count, self.legendary_goal_count
         )
 
         if self.is_universal_tracker:
@@ -478,8 +594,23 @@ class HeartGoldWorld(World):
             bool(self.options.randomize_starters.value),
             exclude_legendaries=bool(self.options.exclude_legendaries.value),
         )
+        self.generated_static_pokemon = {}
+        if self.options.randomize_static_pokemon.value:
+            self.generated_static_pokemon = randomize_static_pokemon(
+                self.random,
+                True,
+                tuple(
+                    key
+                    for key in staticpokemondata.SITE_KEYS
+                    if not (self.options.legendarysanity.value and key == "lugia")
+                ),
+                exclude_legendaries=bool(self.options.exclude_legendaries.value),
+            )
         self.generated_trainer_parties = randomize_trainer_parties(
-            self.random, bool(self.options.randomize_trainers.value)
+            self.random,
+            bool(self.options.randomize_trainers.value),
+            exclude_legendaries=bool(self.options.exclude_legendaries.value),
+            similar_strength=bool(self.options.similar_strength_trainers.value),
         )
         if not bool(self.options.sphere_based_trainer_leveling.value):
             self.generated_trainer_parties = scale_trainer_levels(
@@ -497,6 +628,9 @@ class HeartGoldWorld(World):
         self.generated_species = randomize_species_types(
             self.random, bool(self.options.randomize_species_types.value), species=self.generated_species
         )
+        self.generated_species = randomize_abilities(
+            self.random, bool(self.options.randomize_abilities.value), species=self.generated_species
+        )
         self.generated_species = neutralize_trapping_abilities(
             bool(self.options.disable_trapping_abilities.value), species=self.generated_species
         )
@@ -504,6 +638,12 @@ class HeartGoldWorld(World):
             self.random, bool(self.options.randomize_learnsets.value), species=self.generated_species
         )
         self.generated_species = ensure_evolution_moves_learnable(self.generated_species)
+        self.generated_species = randomize_tm_compatibility(
+            self.random, self.options.randomize_tm_compatibility.value, species=self.generated_species
+        )
+        self.generated_species = randomize_wild_held_items(
+            self.random, bool(self.options.randomize_wild_held_items.value), species=self.generated_species
+        )
         self.generated_moves = randomize_move_stats(self.random, self.options.randomize_moves.value)
         self.generated_moves = randomize_move_types(
             self.random, bool(self.options.randomize_move_types.value), moves=self.generated_moves
@@ -521,6 +661,12 @@ class HeartGoldWorld(World):
             self.random, bool(self.options.randomize_type_chart.value)
         )
 
+    def _elite_four_badges(self) -> int:
+        value = self.options.elite_four_badges.value
+        if self._excluded_region_keys and value > _JOHTO_BADGE_COUNT:
+            return _JOHTO_BADGE_COUNT
+        return value
+
     def get_filler_item_name(self) -> str:
         return self.random.choice(_FILLER_ITEM_LABELS)
 
@@ -529,12 +675,18 @@ class HeartGoldWorld(World):
             "game_version": GAME_VERSION["name"],
             "goal": self.options.goal.value,
             "goal_badge_count": self.options.goal_badge_count.value,
+            "goal_pokedex_count": self.pokedex_goal_count,
+            "goal_legendary_count": self.legendary_goal_count,
+            "elite_four_badges": self._elite_four_badges(),
+            "blue_kanto_leaders": self.options.blue_kanto_leaders.value,
+            "red_badges": self.options.red_badges.value,
             "fast_text_speed": bool(self.options.fast_text_speed.value),
             "skip_battle_animations": bool(self.options.skip_battle_animations.value),
             "running_shoes_at_start": bool(self.options.running_shoes_at_start.value),
             "map_card_at_start": bool(self.options.map_card_at_start.value),
             "fly_points_at_start": bool(self.options.fly_points_at_start.value),
             "item_received_messages": bool(self.options.item_received_messages.value),
+            "unlock_button": bool(self.options.unlock_button.value),
             "reusable_tms": bool(self.options.reusable_tms.value),
             "death_link": bool(self.options.death_link.value),
             "dexsanity_trigger": self.options.dexsanity_trigger.current_key,
@@ -543,10 +695,26 @@ class HeartGoldWorld(World):
             "starting_town": self.generated_start_location_town,
             "magnet_train": bool(self.options.magnet_train.value),
             "remote_items": bool(self.options.remote_items.value),
+            "shopsanity": bool(self.options.shopsanity.value),
+            "game_corner_prizes": bool(self.options.game_corner_prizes.value),
+            "apricorn_trees": bool(self.options.apricorn_trees.value),
+            "bug_contest": bool(self.options.bug_contest.value),
+            "randomize_shop_items": bool(self.options.randomize_shop_items.value),
+            "shop_key_items": bool(self.options.shop_key_items.value),
             "world_version": _generating_world_version(),
-            "dexsanity_logic": self._dexsanity_logic_for_trackers(),
+            SLOT_DATA_DEXSANITY_KEY: self._dexsanity_logic_for_trackers(),
+            SLOT_DATA_TRAINERS_KEY: self._trainersanity_locations_for_trackers(),
             SLOT_DATA_OPTIONS_KEY: build_ut_slot_data(self),
         }
+
+    def _trainersanity_locations_for_trackers(self) -> list[int] | None:
+        if self._trainer_keys is None or not bool(self.options.trainersanity.value):
+            return None
+        return sorted(
+            location.address
+            for location in self.multiworld.get_locations(self.player)
+            if location.address is not None and location.name in self._trainer_keys
+        )
 
     def _dexsanity_logic_for_trackers(self) -> dict[str, list[list]]:
         result: dict[str, list[list]] = {}
